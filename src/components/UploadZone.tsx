@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { isValidFile } from "@/lib/parser";
+import ThemeToggle from "./ThemeToggle";
 
 interface UploadZoneProps {
   onUpload: (files: File[]) => void;
@@ -12,10 +14,17 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
+  const addFiles = useCallback((incoming: File[]) => {
+    const valid = incoming.filter(isValidFile);
+    if (valid.length > 0) {
+      setFiles((prev) => [...prev, ...valid]);
+    }
+  }, []);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
-  }, []);
+    if (!isDragging) setIsDragging(true);
+  }, [isDragging]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -25,32 +34,23 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    const validFiles = droppedFiles.filter(file => 
-      file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')
-    );
-    if (validFiles.length > 0) {
-      setFiles(prev => [...prev, ...validFiles]);
-    }
-  }, []);
+    addFiles(Array.from(e.dataTransfer.files));
+  }, [addFiles]);
 
   const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const processFiles = () => {
-    if (files.length > 0) {
-      onUpload(files);
-    }
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
     <div className="flex flex-col items-center gap-12 py-12">
-      <div className="text-center space-y-4">
-        <h1 className="text-5xl font-display font-bold text-accent tracking-tight">RAIS</h1>
-        <p className="text-text-secondary font-condensed text-xl uppercase tracking-[0.2em]">
-          Rejection Analysis & Intelligence System
-        </p>
+      <div className="w-full flex justify-between items-start">
+        <div className="text-center space-y-4 flex-1">
+          <h1 className="text-5xl font-display font-bold text-accent tracking-tight">RAIS</h1>
+          <p className="text-text-secondary font-condensed text-xl uppercase tracking-[0.2em]">
+            Rejection Analysis & Intelligence System
+          </p>
+        </div>
+        <ThemeToggle />
       </div>
 
       <div
@@ -58,19 +58,23 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`w-full relative group transition-all duration-500 rounded-3xl p-1 bg-gradient-to-br ${
-          isDragging ? 'from-accent via-accent/50 to-transparent' : 'from-accent/20 to-transparent'
+          isDragging ? "from-accent via-accent/50 to-transparent" : "from-accent/20 to-transparent"
         }`}
       >
-        <div className="bg-surface/90 backdrop-blur-2xl rounded-[22px] p-12 flex flex-col items-center justify-center border border-white/5 min-h-[400px]">
-          {/* Pulse Effect */}
+        <div className="bg-surface/90 backdrop-blur-2xl rounded-[22px] p-12 flex flex-col items-center justify-center min-h-[400px]"
+          style={{ border: "1px solid var(--color-border)" }}>
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center pointer-events-none">
-            <div className={`w-64 h-64 rounded-full bg-accent/5 blur-3xl transition-transform duration-1000 ${isDragging ? 'scale-150 opacity-100' : 'scale-100 opacity-0'}`} />
+            <div
+              className={`w-64 h-64 rounded-full bg-accent/5 blur-3xl transition-transform duration-1000 ${
+                isDragging ? "scale-150 opacity-100" : "scale-100 opacity-0"
+              }`}
+            />
           </div>
 
           <motion.div
             animate={isDragging ? { scale: 1.1 } : { scale: 1 }}
             className={`w-24 h-24 rounded-full flex items-center justify-center mb-8 transition-colors duration-300 ${
-              isDragging ? 'bg-accent text-background' : 'bg-accent/10 text-accent'
+              isDragging ? "bg-accent text-background" : "bg-accent/10 text-accent"
             }`}
           >
             <Upload size={40} />
@@ -92,8 +96,8 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
               accept=".xlsx,.xls,.csv"
               onChange={(e) => {
                 if (e.target.files) {
-                  const selectedFiles = Array.from(e.target.files);
-                  setFiles(prev => [...prev, ...selectedFiles]);
+                  addFiles(Array.from(e.target.files));
+                  e.target.value = "";
                 }
               }}
             />
@@ -101,7 +105,6 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         </div>
       </div>
 
-      {/* File List */}
       <AnimatePresence>
         {files.length > 0 && (
           <motion.div
@@ -111,9 +114,14 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
             className="w-full max-w-2xl space-y-4"
           >
             <div className="flex items-center justify-between px-4 mb-2">
-              <h3 className="font-condensed uppercase text-sm font-bold text-text-secondary">Ready for Analysis</h3>
-              <span className="text-xs bg-accent/10 text-accent px-2 py-1 rounded-full">{files.length} Files</span>
+              <h3 className="font-condensed uppercase text-sm font-bold text-text-secondary">
+                Ready for Analysis
+              </h3>
+              <span className="text-xs bg-accent/10 text-accent px-2 py-1 rounded-full">
+                {files.length} {files.length === 1 ? "File" : "Files"}
+              </span>
             </div>
+
             {files.map((file, i) => (
               <motion.div
                 key={`${file.name}-${i}`}
@@ -134,17 +142,18 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 <button
                   onClick={() => removeFile(i)}
                   className="p-2 text-text-muted hover:text-danger transition-colors"
+                  aria-label={`Remove ${file.name}`}
                 >
                   <X size={18} />
                 </button>
               </motion.div>
             ))}
-            
+
             <motion.button
               layout
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              onClick={processFiles}
+              onClick={() => onUpload(files)}
               className="w-full btn-primary mt-8 py-4 text-lg"
             >
               Initialize Intelligence Scan
@@ -154,15 +163,15 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
       </AnimatePresence>
 
       <div className="flex gap-4 items-center text-text-muted mt-8">
-        <div className="flex items-center gap-2 text-xs border border-white/5 py-1 px-3 rounded-full uppercase tracking-tighter">
-          <AlertCircle size={14} /> XLSX
-        </div>
-        <div className="flex items-center gap-2 text-xs border border-white/5 py-1 px-3 rounded-full uppercase tracking-tighter">
-          <AlertCircle size={14} /> XLS
-        </div>
-        <div className="flex items-center gap-2 text-xs border border-white/5 py-1 px-3 rounded-full uppercase tracking-tighter">
-          <AlertCircle size={14} /> CSV
-        </div>
+        {["XLSX", "XLS", "CSV"].map((fmt) => (
+          <div
+            key={fmt}
+            className="flex items-center gap-2 text-xs py-1 px-3 rounded-full uppercase tracking-tighter"
+            style={{ border: "1px solid var(--color-border)" }}
+          >
+            <AlertCircle size={14} /> {fmt}
+          </div>
+        ))}
       </div>
     </div>
   );
