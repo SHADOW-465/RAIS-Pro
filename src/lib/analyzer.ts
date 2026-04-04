@@ -1,15 +1,17 @@
-import { supabase } from './supabase'
-import { SheetSummary } from './parser'
+import { SheetSummary } from './parser';
 
 export async function runAnalysis(summaries: SheetSummary[]): Promise<any> {
-    const { data, error } = await supabase.functions.invoke('analyze', {
-        body: { summaries }
-    })
+  const res = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ summaries }),
+  });
 
-    if (error) {
-        console.error('Analysis failed:', error)
-        throw new Error('Analysis engine failure')
-    }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    console.error('Analysis failed:', body);
+    throw new Error(body.error || 'Analysis engine failure');
+  }
 
-    return data
+  return res.json();
 }
