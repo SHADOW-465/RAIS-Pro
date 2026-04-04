@@ -76,11 +76,17 @@ export async function parseExcelFiles(files: File[]): Promise<SheetSummary[]> {
         return summary;
       });
 
+      // Prefer yearly/summary sheets; skip month sheets when a yearly sheet exists in this file
+      const isYearly = /yearly|annual|cumul|summary|total/i.test(sheetName);
+      const isMonthly = /jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(sheetName);
+
       summaries.push({
         name: `${file.name} - ${sheetName}`,
         rowCount: json.length,
-        columns: columnSummaries
-      });
+        columns: columnSummaries,
+        isYearly,
+        isMonthly,
+      } as any);
     }
   }
 

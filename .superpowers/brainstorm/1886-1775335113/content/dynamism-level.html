@@ -1,0 +1,107 @@
+<style>
+  .mockup-wrap { display: flex; gap: 16px; margin-top: 16px; }
+  .mock-dash { background: #10131E; border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 16px; flex: 1; font-family: 'Barlow Semi Condensed', sans-serif; }
+  .mock-dash-title { color: #00E5CC; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
+  .mock-section-label { color: #4A5468; font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; margin-top: 12px; }
+  .mock-kpi-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .mock-kpi { background: #161A28; border-radius: 4px; padding: 8px; flex: 1; }
+  .mock-kpi-label { color: #4A5468; font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .mock-kpi-value { color: #EEF1F8; font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .mock-kpi.locked .mock-kpi-label { color: #EF4444; }
+  .mock-kpi.locked { border: 1px solid rgba(239,68,68,0.2); }
+  .mock-kpi.dynamic { border: 1px solid rgba(0,229,204,0.2); }
+  .mock-kpi.dynamic .mock-kpi-label { color: #00E5CC; }
+  .mock-bar { height: 40px; background: #161A28; border-radius: 4px; margin-bottom: 6px; display: flex; align-items: center; padding: 0 8px; gap: 8px; }
+  .mock-bar-label { color: #8892A4; font-size: 9px; flex: 1; }
+  .mock-bar-fill { height: 6px; border-radius: 3px; background: #00E5CC; }
+  .mock-chart-row { display: flex; gap: 6px; }
+  .mock-chart { background: #161A28; border-radius: 4px; padding: 8px; flex: 1; height: 50px; display: flex; align-items: center; justify-content: center; }
+  .mock-chart-label { color: #4A5468; font-size: 8px; }
+  .mock-insight { background: #161A28; border-radius: 4px; padding: 6px 8px; margin-bottom: 4px; font-size: 9px; color: #8892A4; }
+  .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 8px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+  .badge-locked { background: rgba(239,68,68,0.1); color: #EF4444; border: 1px solid rgba(239,68,68,0.2); }
+  .badge-ai { background: rgba(0,229,204,0.1); color: #00E5CC; border: 1px solid rgba(0,229,204,0.2); }
+  .option-note { font-size: 11px; color: #8892A4; margin-top: 8px; line-height: 1.5; }
+  .option-note strong { color: #EEF1F8; }
+</style>
+
+<h2>How dynamic should the dashboard be?</h2>
+<p class="subtitle">The current code locks 4 KPI slots. We can fix this two ways — pick which direction feels right.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Fixed Sections, Dynamic Content <span class="badge badge-ai" style="margin-left:6px">Recommended</span></h3>
+      <p>Same structure every time (KPI grid → Charts → Insights → Recommendations) but <strong>AI freely picks</strong> what metrics, how many KPIs, and what charts — based entirely on the data.</p>
+      <div class="mockup-wrap">
+        <div class="mock-dash" style="flex:2">
+          <div class="mock-dash-title">Manufacturing data <span class="badge badge-ai">AI-picked KPIs</span></div>
+          <div class="mock-kpi-row">
+            <div class="mock-kpi dynamic"><div class="mock-kpi-label">Rejection Rate</div><div class="mock-kpi-value">4.2%</div></div>
+            <div class="mock-kpi dynamic"><div class="mock-kpi-label">Units Produced</div><div class="mock-kpi-value">14.8k</div></div>
+            <div class="mock-kpi dynamic"><div class="mock-kpi-label">Top Defect</div><div class="mock-kpi-value">Dent</div></div>
+          </div>
+          <div class="mock-section-label">Charts</div>
+          <div class="mock-chart-row">
+            <div class="mock-chart"><div class="mock-chart-label">Monthly Rejections (line)</div></div>
+            <div class="mock-chart"><div class="mock-chart-label">Defect Types (bar)</div></div>
+          </div>
+        </div>
+        <div class="mock-dash" style="flex:2">
+          <div class="mock-dash-title">Sales data <span class="badge badge-ai">different KPIs</span></div>
+          <div class="mock-kpi-row">
+            <div class="mock-kpi dynamic"><div class="mock-kpi-label">Total Revenue</div><div class="mock-kpi-value">$2.4M</div></div>
+            <div class="mock-kpi dynamic"><div class="mock-kpi-label">Top Product</div><div class="mock-kpi-value">SKU-07</div></div>
+            <div class="mock-kpi dynamic"><div class="mock-kpi-label">Avg Order</div><div class="mock-kpi-value">$1,240</div></div>
+          </div>
+          <div class="mock-section-label">Charts</div>
+          <div class="mock-chart-row">
+            <div class="mock-chart"><div class="mock-chart-label">Revenue by Region (bar)</div></div>
+            <div class="mock-chart"><div class="mock-chart-label">Sales Trend (line)</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="option-note"><strong>Safest and fastest to build.</strong> Predictable layout the GM can learn once. Only the data changes — never the structure.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>AI-Driven Adaptive Layout</h3>
+      <p>The AI also decides <strong>which sections exist</strong>. A quality dataset might get a Defects deep-dive panel. A financial dataset might get a P&amp;L section. Each upload produces a structurally different page.</p>
+      <div class="mockup-wrap">
+        <div class="mock-dash" style="flex:2">
+          <div class="mock-dash-title">Manufacturing <span class="badge badge-ai">extra section</span></div>
+          <div class="mock-kpi-row">
+            <div class="mock-kpi dynamic"><div class="mock-kpi-label">Rejection Rate</div><div class="mock-kpi-value">4.2%</div></div>
+            <div class="mock-kpi dynamic"><div class="mock-kpi-label">Units</div><div class="mock-kpi-value">14.8k</div></div>
+          </div>
+          <div class="mock-section-label" style="color:#00E5CC">▶ Defect Breakdown <span class="badge badge-ai">AI added this</span></div>
+          <div class="mock-bar"><div class="mock-bar-label">Visual Defect</div><div class="mock-bar-fill" style="width:60%"></div></div>
+          <div class="mock-bar"><div class="mock-bar-label">Dimensional</div><div class="mock-bar-fill" style="width:30%"></div></div>
+          <div class="mock-section-label">Charts</div>
+          <div class="mock-chart-row">
+            <div class="mock-chart"><div class="mock-chart-label">Trend (line)</div></div>
+          </div>
+        </div>
+        <div class="mock-dash" style="flex:2">
+          <div class="mock-dash-title">Finance <span class="badge badge-ai">different sections</span></div>
+          <div class="mock-kpi-row">
+            <div class="mock-kpi dynamic"><div class="mock-kpi-label">Revenue</div><div class="mock-kpi-value">$2.4M</div></div>
+            <div class="mock-kpi dynamic"><div class="mock-kpi-label">Margin</div><div class="mock-kpi-value">18%</div></div>
+          </div>
+          <div class="mock-section-label" style="color:#00E5CC">▶ P&amp;L Summary <span class="badge badge-ai">AI added this</span></div>
+          <div class="mock-insight">Revenue up 12% YoY vs cost up 18%</div>
+          <div class="mock-insight">Q3 margin compression flagged</div>
+          <div class="mock-section-label">Charts</div>
+          <div class="mock-chart-row">
+            <div class="mock-chart"><div class="mock-chart-label">Revenue vs Cost</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="option-note"><strong>More ambitious.</strong> Higher AI output quality required, more complex rendering logic. Risk: layout surprises confuse the user or sections render broken.</p>
+    </div>
+  </div>
+</div>
