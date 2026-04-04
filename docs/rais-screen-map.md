@@ -56,7 +56,7 @@ Empty state:
 N/A — this screen is only shown after a successful analysis. There is no empty dashboard state.
 
 Loading state:
-N/A — the dashboard is fully constructed before the screen is shown. Chart animations play on initial render (600ms ease-out) but the screen is not blocked by loading.
+N/A — however, as the dashboard elements mount, they will execute a staggered fade-in animation, sequentially revealing the content elegantly.
 
 Error state:
 Full-body error card in the main content area (see Processing screen error state above). Sticky header is still visible so user can click "New Analysis" to reset.
@@ -119,4 +119,4 @@ Cut because it directly contradicts the zero-friction value proposition. If the 
 Cut from MVP. The single AI pass should produce a comprehensive dashboard. Lens-based re-analysis (e.g., "cost view vs. quality view") is a compelling v2 feature but would double AI API costs and require a more complex UI.
 
 **SCOPE CREEP: Authentication / user accounts**
-Cut entirely. Single HTML file, no accounts. If this becomes a multi-user product, the architecture changes fundamentally — that is a v3 product, not a feature.
+Cut entirely. No accounts needed for MVP, although the React architecture supports adding this later far more easily.

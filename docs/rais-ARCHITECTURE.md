@@ -7,13 +7,14 @@
 
 | Layer | Technology | Version | Why this choice |
 |---|---|---|---|
-| Runtime | Browser (Chrome/Arc/Edge) | Modern evergreen | No install required — GM opens one file. Safari excluded for now (Fetch API streaming inconsistencies). |
-| Structure | Vanilla HTML/CSS/JS | ES2020 | No build step, no npm, no bundler. Single file that opens anywhere. A framework would require a dev environment to edit — wrong for this use case. |
-| Excel parsing | SheetJS (xlsx) | 0.18.5 | The only mature client-side Excel parser. Handles .xlsx, .xls, and .csv. Loaded from jsdelivr CDN. Alternative (exceljs) is Node-only. |
-| Charts | Chart.js | 4.4.0 | Best balance of chart variety, bundle size, and customisability for client-side use. D3 is overkill. Recharts is React-only. Echarts is 1MB+. |
-| AI analysis | Anthropic claude-sonnet-4 API | claude-sonnet-4-20250514 | Best-in-class instruction following for structured JSON output. The prompt demands precise chart data format compliance — smaller models hallucinate chart data. GPT-4o is comparable but more expensive for this use case. |
-| Fonts | Google Fonts (Barlow Semi Condensed + JetBrains Mono) | Latest | Loaded via preconnect link tag. Subset to required weights only. |
-| Deployment | Static file hosting / email attachment | — | No server needed. Can be hosted on any CDN (Vercel, S3, Netlify) or sent as a file attachment. |
+| Runtime | Browser (Chrome/Arc/Edge/Safari) | Modern evergreen | Accessible via URL on any modern browser. |
+| Structure | Next.js (App Router) | Latest | Industry standard for full-stack React applications. Provides robust routing, SSR, and optimized image/font handling. |
+| Excel parsing | SheetJS (xlsx) | Latest | Client-side Excel parsing to avoid sending raw data to servers. |
+| Charts | Chart.js + react-chartjs-2 | Latest | Best balance of chart variety, bundle size, and customisability. |
+| Animations | Framer Motion | Latest | Enables premium staggered fade-ins and dynamic micro-interactions. |
+| AI analysis | Anthropic Claude API | claude-3-5-sonnet | Best-in-class instruction following for structured JSON output. |
+| Database/Auth | Supabase | Latest | Backend-as-a-Service for data persistence and secure Edge Functions. |
+| Deployment | Vercel | — | Primary host for Next.js applications with native Edge Function support. |
 
 ---
 
@@ -21,19 +22,21 @@
 
 ```
 rais/
-├── RAIS-dashboard.html        # The entire application. One file.
-│
-├── docs/                      # Builder OS documents (this folder)
-│   ├── rais-living-brief.md
-│   ├── rais-screen-map.md
-│   ├── rais-design-language.md
-│   ├── rais-ARCHITECTURE.md
-│   └── rais-PRD.md
-│
-└── README.md                  # How to use, how to embed API key, known limits
+├── package.json
+├── next.config.js
+├── public/
+├── src/
+│   ├── app/                   # Next.js App Router (Layouts, Pages)
+│   ├── components/            # React components (Dashboard, ChartCard, etc.)
+│   ├── library/               # Shared logic, Supabase client
+│   ├── styles/                # Global CSS and Tailwind/Modules
+│   └── types/                 # TypeScript definitions (optional for robustness)
+├── supabase/                  # Migrations and Edge Functions
+├── docs/                      # PRD, Architecture, etc.
+└── README.md
 ```
 
-The application itself is intentionally a single file. There is no src/ directory, no components/, no styles/. If the project grows to require a build step, that is the signal to reconsider the architecture — not to add complexity to the current one.
+The application is built using Next.js to provide a robust, production-ready framework for the "full on" web dashboard experience.
 
 ---
 
@@ -138,75 +141,53 @@ renderChart(canvas, chartConfig, index)
 
 ## Environment Variables
 
-This is a client-side application. There are no server-side environment variables. The Anthropic API key is the only secret.
+This is a modern web application designed for premium UI delivery.
 
-**For personal use (MVP):**
-The API key is passed directly in the fetch request header. The file is used by one person on their own machine. Acceptable risk.
-
-**For team/shared deployment:**
-Do not embed the API key in a file that will be shared. Instead:
-
-Option A — Lightweight proxy (recommended):
+**For local development:**
+Store the API key in a `.env` file:
 ```
-Deploy a Cloudflare Worker or Vercel Edge Function that:
-  - Receives POST /proxy/messages from the frontend
-  - Adds the Authorization header server-side
-  - Forwards to api.anthropic.com
-  - Returns the response
+VITE_ANTHROPIC_API_KEY=sk-ant-api03-...
+```
 
-The HTML file then calls /proxy/messages instead of api.anthropic.com directly.
+**For production deployment:**
+Option A — Vercel Edge Function / Proxy (recommended):
+```
+Instead of exposing the key on the frontend, deploy an edge function with Vercel or Cloudflare that holds the Anthropic API key and proxies requests from the React app.
 ```
 
 Option B — User-provided key:
 ```
 Add an API key input field to the upload screen.
 Store in sessionStorage (cleared on tab close).
-Use it in the Authorization header.
-Display a clear notice that the key is not stored.
-```
-
-```
-ANTHROPIC_API_KEY     Your Anthropic API key — get from console.anthropic.com
-                      Format: sk-ant-api03-...
-                      Used in: Authorization: x-api-key header
-                      Never commit to git. Never embed in a shared file.
 ```
 
 ---
 
 ## Dev Setup
 
-This application requires no build step, no package manager, and no local server for basic use.
+This application is built with Next.js.
 
 ```bash
-# Open directly in browser
-open RAIS-dashboard.html
+# Install dependencies
+npm install
 
-# Or serve locally if you need to test CORS behaviour
-npx serve . --port 3000
-# then open http://localhost:3000/RAIS-dashboard.html
+# Run local dev server
+npm run dev
 
-# To edit: open in any text editor
-code RAIS-dashboard.html
+# Build for production
+npm run build
 
-# To deploy (static hosting):
-# Vercel
-vercel --prod
-
-# Netlify drag-and-drop
-# Drag the file to netlify.com/drop
-
-# AWS S3 static site
-aws s3 cp RAIS-dashboard.html s3://your-bucket/ --acl public-read
+# To deploy:
+# Push to GitHub and connect to Vercel.
 ```
 
 ---
 
 ## Architectural Decisions
 
-**Decision:** We chose a single-file no-build architecture over a React/Vite SPA.
-**Why:** The primary user (GM) does not have a developer available to run `npm install`. The single file opens in any browser with a double-click or email attachment. Zero deployment friction is itself a product feature.
-**Trade-off:** We give up hot module reload, component isolation, TypeScript, and easy extensibility. If the product grows to require user accounts, saved dashboards, or team collaboration, this architecture will need to be rebuilt — not extended.
+**Decision:** We chose Next.js over Vite.
+**Why:** Next.js is better suited for a "full on web dashboard" as it provides built-in routing, better performance optimizations (SSR/ISR), and seamless integration with Vercel and Supabase. It allows for a more robust full-stack foundation compared to a pure Vite SPA.
+**Trade-off:** Slightly higher complexity and larger initial bundle size compared to Vite, but worth it for a premium full-stack product.
 
 **Decision:** We chose non-streaming API calls over streaming.
 **Why:** The dashboard config is a single JSON object that must be complete before rendering can begin. Streaming partial JSON has no UX benefit here — we cannot render half a dashboard. The processing screen animation covers the wait time.

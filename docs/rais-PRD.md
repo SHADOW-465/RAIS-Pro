@@ -9,7 +9,7 @@
 |---|---|
 | Product name | RAIS — Rejection Analysis & Intelligence System |
 | Version | 1.0 MVP |
-| Product type | AI-powered data analytics dashboard (client-side web app) |
+| Product type | AI-powered data analytics dashboard (Next.js web app) |
 | Primary user | General Manager / Operations Director |
 | Problem statement | GMs spend 60–180 minutes per reporting cycle reading multiple Excel files to understand operational data before they can make decisions. The data is correct but the format is wrong for decision-making. |
 | Solution | A drag-and-drop interface that ingests multiple Excel/CSV files and uses AI to generate a fully contextualised, dynamic analytics dashboard in under 30 seconds. |
@@ -119,7 +119,7 @@ Existing BI tools (Power BI, Tableau, Looker) solve this problem but require: de
 ### Privacy & Security
 - No Excel data is stored on any server — processing is entirely client-side
 - Only statistical summaries (not raw data) are sent to the Anthropic API
-- Anthropic API key is not stored in browser storage — lives in the HTML file for MVP
+- Anthropic API key is managed securely via environment variables or a proxy.
 - No user accounts, no cookies, no tracking
 
 ### Compatibility
@@ -169,7 +169,7 @@ The MVP is complete when:
 
 5. An API failure (wrong key, timeout, malformed response) shows a readable error message with a retry option — never a blank screen or unhandled console error.
 
-6. The application file can be emailed as an attachment, opened by a recipient on a different machine with no install, and used immediately.
+6. The application can be accessed via a fast, permanently hosted URL with premium animations throughout the UX.
 
 ---
 

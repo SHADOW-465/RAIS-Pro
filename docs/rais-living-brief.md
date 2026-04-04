@@ -41,9 +41,9 @@ Time from opening RAIS to making a data-informed decision: target under 5 minute
 
 ## Tech Direction
 
-Pure client-side single HTML file — no backend, no account, no server, no npm install. Everything runs in the browser using SheetJS (Excel parsing) and the Anthropic API (AI analysis). The entire app is one file the GM can email to themselves, open on any machine, and use immediately. This is the right choice because the GM's primary friction is tooling overhead, and a zero-install single file eliminates it entirely.
+A modern, premium Next.js web dashboard. Everything runs fluidly via a hosted web app using SheetJS (Excel parsing), Framer Motion (for staggered fade-ins), Supabase (for database and secure edge functions), and the Anthropic API. Next.js provides the robust framework necessary for a "full on" premium experience.
 
-[ASSUMPTION: The Anthropic API key is either embedded or the user provides it. For a real deployment, this needs a lightweight proxy to avoid exposing the key in the frontend.]
+[ASSUMPTION: The app will be hosted on Vercel with a Supabase backend.]
 
 ---
 
@@ -51,6 +51,6 @@ Pure client-side single HTML file — no backend, no account, no server, no npm 
 
 1. **Token limits on large files.** How do we handle Excel files with 50,000+ rows without degrading AI analysis quality? The current summarization approach (stats + sample rows) works for medium datasets, but very large files may require smarter sampling or chunked analysis.
 
-2. **Session persistence vs. disposability.** Does the GM need to save a dashboard and share it with the team, or is each session a one-time read? If sharing is important, the single-file model needs to evolve — dashboards could be exported to a standalone HTML snapshot.
+2. **Session persistence vs. disposability.** Does the GM need to save a dashboard and share it with the team, or is each session a one-time read? The React SPA architecture allows for saving URLs with encoded data to share states in the future.
 
 3. **Multiple analytical lenses.** Should the user be able to re-analyze the same files with a different focus — e.g., "show me only the cost view" or "focus on the quality metrics"? This could be a high-value feature that keeps the zero-setup promise intact.

@@ -77,15 +77,13 @@ Rationale: Space-efficient and authoritative. The semi-condensed width means mor
 
 ## Motion Budget
 
-1. **Screen transitions: instant (0ms)** — switching between Upload, Processing, and Dashboard is a context change, not a storytelling moment. Slides and fades add latency to a productivity tool. Do not animate screen changes.
+1. **Premium Elements Staggering:** Elements on the dashboard should load with a staggered fade-in effect to feel premium. Utilize Framer Motion or similar libraries to cascade the visibility of KPIs, charts, and text content sequentially (e.g. 100ms interval between items).
 
-2. **Processing step indicators: pulse animation, 1s ease-in-out infinite** — the active step pulses its ring indicator to communicate live AI work. This is the only looping animation in the product. It communicates "still working" without a percentage bar that would need to be accurate.
+2. **Processing step indicators: pulse animation, 1s ease-in-out infinite** — the active step pulses its ring indicator to communicate live AI work. 
 
-3. **Chart initial render: 600ms ease-out** — charts animate in on their first draw only. This gives the GM's eye time to follow what the bars or lines are showing as they appear. It also makes the dashboard feel alive when it first loads. No subsequent re-animations when panning or resizing.
+3. **Chart & Component initial render: Smooth scaling & fade-in** — charts and cards animate in smoothly. This makes the dashboard feel dynamic, alive, and modern. 
 
-4. **Drag hover: border-color + scale(1.01), 200ms ease** — confirms the drop zone is receptive to the file being dragged. No bounce, no glow effect. Just enough visual confirmation that the file is in the right place.
-
-No other animations. Hover states on buttons are instant color/background transitions at 150ms maximum.
+4. **Micro-interactions:** Hover effects and transitions on interactive elements should be fluid (e.g. 200ms-300ms) ensuring the UI feels responsive and high-end but never slow.
 
 ---
 
