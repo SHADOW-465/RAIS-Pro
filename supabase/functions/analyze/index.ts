@@ -61,7 +61,17 @@ Deno.serve(async (req) => {
       }),
     });
 
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new Error(`Anthropic API error ${response.status}: ${errBody}`);
+    }
+
     const aiResult = await response.json();
+
+    if (!aiResult.content?.[0]?.text) {
+      throw new Error(`Unexpected Anthropic response: ${JSON.stringify(aiResult)}`);
+    }
+
     const resultJson = JSON.parse(aiResult.content[0].text);
 
     return new Response(JSON.stringify(resultJson), {
