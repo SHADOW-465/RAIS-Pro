@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, Barlow_Semi_Condensed, Space_Grotesk } from "next/font/google";
+import { Inter, Barlow_Semi_Condensed, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { ThemeProvider } from "@/context/ThemeContext";
 import "./globals.css";
 
 const inter = Inter({
@@ -18,6 +19,11 @@ const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
 });
 
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
+});
+
 export const metadata: Metadata = {
   title: "RAIS | Rejection Analysis & Intelligence System",
   description: "Premium Manufacturing Intelligence Dashboard",
@@ -29,11 +35,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
-        className={`${inter.variable} ${barlowSemiCondensed.variable} ${spaceGrotesk.variable} antialiased`}
+        className={`${inter.variable} ${barlowSemiCondensed.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`}
       >
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

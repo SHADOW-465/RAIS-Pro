@@ -2,29 +2,31 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, CircleDashed, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 
-const steps = [
+const STEPS = [
   "Reading Excel files",
   "Extracting data structures",
   "Building analysis context",
   "Running AI analysis",
-  "Rendering dashboard"
+  "Rendering dashboard",
 ];
 
 export default function ProcessingLoader() {
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentStep(prev => (prev < steps.length - 1 ? prev + 1 : prev));
-    }, 1200);
-    return () => clearInterval(interval);
-  }, []);
+    if (currentStep >= STEPS.length - 1) return;
+    const timer = setTimeout(
+      () => setCurrentStep((prev) => prev + 1),
+      1200
+    );
+    return () => clearTimeout(timer);
+  }, [currentStep]);
 
   return (
     <div className="flex flex-col items-center justify-center p-8 space-y-12">
-      {/* Animated Spinner Core */}
+      {/* Spinner */}
       <div className="relative w-32 h-32">
         <motion.div
           animate={{ rotate: 360 }}
@@ -49,21 +51,23 @@ export default function ProcessingLoader() {
         <h2 className="text-4xl font-display font-medium text-text-primary tracking-tight">
           Analyzing your data
         </h2>
-        
+
         <div className="space-y-4">
-          {steps.map((step, idx) => (
+          {STEPS.map((step, idx) => (
             <motion.div
               key={step}
-              initial={{ opacity: 0.3, x: -10 }}
-              animate={{ 
+              animate={{
                 opacity: idx <= currentStep ? 1 : 0.3,
-                x: idx === currentStep ? 0 : -10,
-                color: idx === currentStep ? "var(--color-accent)" : "var(--color-text-secondary)"
+                color:
+                  idx === currentStep
+                    ? "var(--color-accent)"
+                    : "var(--color-text-secondary)",
               }}
-              className="group flex items-center justify-between p-4 glass-card border-none bg-surface/20"
+              className="flex items-center justify-between p-4 glass-card"
+              style={{ border: "none", background: "color-mix(in srgb, var(--color-surface) 20%, transparent)" }}
             >
               <div className="flex items-center gap-4">
-                <div className="relative">
+                <div className="relative shrink-0">
                   {idx < currentStep ? (
                     <CheckCircle2 className="text-accent" size={20} />
                   ) : idx === currentStep ? (
@@ -73,7 +77,6 @@ export default function ProcessingLoader() {
                   )}
                   {idx === currentStep && (
                     <motion.div
-                      layoutId="pulsing-ring"
                       className="absolute -inset-1 rounded-full border border-accent/30"
                       animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
                       transition={{ duration: 1.5, repeat: Infinity }}
@@ -84,7 +87,7 @@ export default function ProcessingLoader() {
                   {step}
                 </span>
               </div>
-              
+
               <AnimatePresence>
                 {idx < currentStep && (
                   <motion.span

@@ -5,29 +5,42 @@ import { AnimatePresence, motion } from "framer-motion";
 import UploadZone from "@/components/UploadZone";
 import ProcessingLoader from "@/components/ProcessingLoader";
 import Dashboard from "@/components/Dashboard";
+import StatusAlert from "@/components/StatusAlert";
+import type { AnalysisResult } from "@/lib/types";
+import { parseExcelFiles } from "@/lib/parser";
+import { runAnalysis, AnalysisError } from "@/lib/analyzer";
 
 export type AppState = "upload" | "processing" | "dashboard";
 
 export default function Home() {
   const [appState, setAppState] = useState<AppState>("upload");
-  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [analysisData, setAnalysisData] = useState<AnalysisResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleUploadComplete = async (files: File[]) => {
     setAppState("processing");
+    setErrorMessage(null);
     try {
-      const { parseExcelFiles } = await import("@/lib/parser");
-      const { runAnalysis } = await import("@/lib/analyzer");
-      
       const summaries = await parseExcelFiles(files);
-      const data = await runAnalysis(summaries);
-      
+      const sourceFiles = files.map((f) => f.name);
+      const data = await runAnalysis(summaries, sourceFiles);
       setAnalysisData(data);
       setAppState("dashboard");
-    } catch (error) {
-      console.error("Analysis failed:", error);
+    } catch (err) {
+      const message =
+        err instanceof AnalysisError
+          ? err.message
+          : "An unexpected error occurred. Please try again.";
+      console.error("Analysis failed:", err);
+      setErrorMessage(message);
       setAppState("upload");
-      alert("Intelligence Scan Failed. Ensure Supabase credentials and Edge Functions are active.");
     }
+  };
+
+  const handleReset = () => {
+    setAppState("upload");
+    setAnalysisData(null);
+    setErrorMessage(null);
   };
 
   return (
@@ -42,6 +55,15 @@ export default function Home() {
             transition={{ duration: 0.5 }}
             className="w-full max-w-4xl"
           >
+            {errorMessage && (
+              <div className="mb-6">
+                <StatusAlert
+                  message={errorMessage}
+                  type="danger"
+                  onClose={() => setErrorMessage(null)}
+                />
+              </div>
+            )}
             <UploadZone onUpload={handleUploadComplete} />
           </motion.div>
         )}
@@ -58,7 +80,7 @@ export default function Home() {
           </motion.div>
         )}
 
-        {appState === "dashboard" && (
+        {appState === "dashboard" && analysisData && (
           <motion.div
             key="dashboard"
             initial={{ opacity: 0 }}
@@ -66,7 +88,7 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="w-full"
           >
-            <Dashboard data={analysisData} onReset={() => setAppState("upload")} />
+            <Dashboard data={analysisData} onReset={handleReset} />
           </motion.div>
         )}
       </AnimatePresence>

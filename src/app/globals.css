@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  /* Dark theme defaults */
   --color-background: #07090D;
   --color-surface: #10131E;
   --color-surface-raised: #161A28;
@@ -8,7 +9,14 @@
   --color-text-primary: #EEF1F8;
   --color-text-secondary: #8892A4;
   --color-text-muted: #4A5468;
-  
+  --color-border: rgba(255, 255, 255, 0.05);
+
+  /* Semantic colors */
+  --color-success: #10B981;
+  --color-danger: #EF4444;
+  --color-warning: #F59E0B;
+
+  /* Typography */
   --font-sans: var(--font-inter);
   --font-condensed: var(--font-barlow-semi-condensed);
   --font-display: var(--font-space-grotesk);
@@ -16,17 +24,43 @@
 
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
-  
+
   --shadow-atmospheric: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Light theme overrides */
+html.light {
+  --color-background: #F1F5F9;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #F8FAFC;
+  --color-accent: #00A896;
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-success: #059669;
+  --color-danger: #DC2626;
+  --color-warning: #D97706;
+  --shadow-atmospheric: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
 
 @layer base {
   body {
     @apply bg-background text-text-primary font-sans antialiased;
-    background-image: 
+    min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  html:not(.light) body {
+    background-image:
       radial-gradient(at 0% 0%, rgba(0, 229, 204, 0.05) 0px, transparent 50%),
       radial-gradient(at 100% 100%, rgba(0, 229, 204, 0.03) 0px, transparent 50%);
-    min-height: 100vh;
+  }
+
+  html.light body {
+    background-image:
+      radial-gradient(at 0% 0%, rgba(0, 168, 150, 0.04) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(0, 168, 150, 0.02) 0px, transparent 50%);
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -36,34 +70,51 @@
 
 @layer components {
   .glass {
-    @apply bg-surface/80 backdrop-blur-xl border border-white/5;
+    @apply bg-surface/80 backdrop-blur-xl;
+    border: 1px solid var(--color-border);
   }
 
   .glass-card {
-    @apply bg-surface/80 backdrop-blur-xl border border-white/5 rounded-2xl shadow-atmospheric overflow-hidden transition-all duration-300;
+    @apply bg-surface/80 backdrop-blur-xl rounded-2xl shadow-atmospheric overflow-hidden transition-all duration-300;
+    border: 1px solid var(--color-border);
   }
 
   .glass-card:hover {
-    @apply border-accent/20 bg-surface/90;
+    @apply bg-surface/90;
+    border-color: color-mix(in srgb, var(--color-accent) 20%, transparent);
   }
 
   .accent-gradient {
-    background: linear-gradient(135deg, #71ffe8 0%, #00E5CC 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 60%, white) 0%, var(--color-accent) 100%);
   }
 
   .btn-primary {
-    background: linear-gradient(135deg, #71ffe8 0%, #00E5CC 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 60%, white) 0%, var(--color-accent) 100%);
     @apply text-background font-condensed font-bold py-2 px-6 rounded-xl
-           transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,229,204,0.4)] hover:scale-[1.02] active:scale-95;
+           transition-all duration-300 hover:scale-[1.02] active:scale-95;
+  }
+
+  html:not(.light) .btn-primary:hover {
+    box-shadow: 0 0 20px rgba(0, 229, 204, 0.4);
+  }
+
+  html.light .btn-primary:hover {
+    box-shadow: 0 0 20px rgba(0, 168, 150, 0.3);
   }
 
   .btn-secondary {
-    @apply bg-surface/40 hover:bg-surface/60 border border-text-muted/20 text-text-primary 
+    @apply bg-surface/40 hover:bg-surface/60 text-text-primary
            font-condensed font-bold py-2 px-6 rounded-xl transition-all duration-300;
+    border: 1px solid var(--color-border);
+  }
+
+  html.light .btn-secondary {
+    @apply bg-surface hover:bg-surface-raised text-text-primary;
+    border: 1px solid var(--color-border);
   }
 }
 
-/* Custom Utilities for Animations */
+/* Animations */
 .stagger-fade-in > * {
   opacity: 0;
   transform: translateY(10px);

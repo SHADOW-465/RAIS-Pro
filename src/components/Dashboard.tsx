@@ -5,84 +5,44 @@ import { Download, RefreshCw, Layers, Zap, Info } from "lucide-react";
 import KPICard from "./KPICard";
 import ChartContainer from "./ChartContainer";
 import StatusAlert from "./StatusAlert";
+import ThemeToggle from "./ThemeToggle";
+import type { AnalysisResult } from "@/lib/types";
 
 interface DashboardProps {
-  data: any;
+  data: AnalysisResult;
   onReset: () => void;
 }
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1, delayChildren: 0.3 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+};
+
+function handleExport(data: AnalysisResult) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "rais-analysis.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Dashboard({ data, onReset }: DashboardProps) {
-  // Use real data from analysis, fallback to mocks for demonstration if needed
-  const displayData = data || {
-    executiveSummary: "Production efficiency remains within target thresholds despite a localized rejection spike in Line 4. Overall quality score is up 4% MoM following the intelligence implementation.",
-    kpis: {
-      rejectionRate: { value: "2.4", trend: -12, context: "MoM Improvement" },
-      totalOutput: { value: "14.2k", trend: 8.5, context: "Target Tracking" },
-      downtime: { value: "18", trend: -4, context: "Last 24h" },
-      qualityScore: { value: "98.2", trend: 0.5, context: "Stable" }
-    },
-    insights: [
-      "Line 4 variability correlates with shift change latency at 14:00.",
-      "Pressure sensor drift detected in pneumatic assembly unit B.",
-      "Cooling cycle efficiency dropped by 3% in high-humidity periods.",
-      "Raw material batch #A82 shows higher than average density variance.",
-      "Operator efficiency peaks during the first 4 hours of the morning shift."
-    ],
-    recommendations: [
-      "Initiate Line 4 Calibration scan",
-      "Review pressure sensor logs (Q3)",
-      "Optimize cooling cycle intervals",
-      "Update morning QA checklist"
-    ],
-    alerts: [{ message: "Critical Rejection Spike detected in Line 4", type: "danger" }],
-    charts: [
-      { 
-        title: "Efficiency Trend", 
-        type: "line", 
-        data: {
-          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-          datasets: [{
-            label: 'Performance',
-            data: [65, 59, 80, 81, 56, 95],
-            borderColor: '#00E5CC',
-            backgroundColor: 'rgba(0, 229, 204, 0.1)',
-            fill: true,
-            tension: 0.4,
-          }]
-        }
-      },
-      {
-        title: "Resource Utilization",
-        type: "bar",
-        data: {
-          labels: ['Line 1', 'Line 2', 'Line 3', 'Line 4', 'Line 5'],
-          datasets: [{
-            label: 'Utilization %',
-            data: [88, 92, 85, 76, 90],
-            backgroundColor: '#00E5CC',
-          }]
-        }
-      }
-    ]
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.3
-      }
-    }
-  };
-
   return (
-    <div className="w-full space-y-8 animate-in fade-in duration-1000">
+    <div className="w-full space-y-8">
       {/* Sticky Header */}
-      <header className="sticky top-0 z-50 glass backdrop-blur-3xl px-8 py-4 -mx-8 flex items-center justify-between border-b border-white/5">
+      <header className="sticky top-0 z-50 glass backdrop-blur-3xl px-8 py-4 -mx-8 flex items-center justify-between border-b border-[var(--color-border)]">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-accent-gradient rounded-lg flex items-center justify-center text-background">
+          <div className="w-10 h-10 accent-gradient rounded-lg flex items-center justify-center text-background">
             <Zap size={24} />
           </div>
           <div>
@@ -90,16 +50,17 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
               Manufacturing Performance Insight
             </h1>
             <p className="text-[10px] text-text-muted font-mono uppercase tracking-[0.2em]">
-              Intelligence Status: OPTIMAL | Session ID: {data?.id?.substring(0,8) || 'LOCAL'}
+              Intelligence Status: OPTIMAL | Session ID: {data.id?.substring(0, 8) ?? "LOCAL"}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
           <button onClick={onReset} className="btn-secondary flex items-center gap-2 group">
             <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
             New Analysis
           </button>
-          <button className="btn-primary flex items-center gap-2">
+          <button onClick={() => handleExport(data)} className="btn-primary flex items-center gap-2">
             <Download size={16} />
             Export
           </button>
@@ -114,19 +75,19 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
         className="space-y-8"
       >
         {/* Alerts Section */}
-        {displayData.alerts?.map((alert: any, i: number) => (
+        {data.alerts?.map((alert, i) => (
           <StatusAlert key={i} message={alert.message} type={alert.type} />
         ))}
 
-        {/* Executive Summary Section */}
-        <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}>
-          <div className="glass-card p-1 pb-0 bg-accent/20">
-            <div className="bg-surface p-8 space-y-4">
+        {/* Executive Summary */}
+        <motion.div variants={itemVariants}>
+          <div className="glass-card p-1 pb-0" style={{ background: "color-mix(in srgb, var(--color-accent) 10%, transparent)" }}>
+            <div className="bg-surface p-8 space-y-4 rounded-[calc(1rem-1px)]">
               <div className="flex items-center gap-2 text-accent font-bold uppercase tracking-widest text-xs">
                 <Layers size={14} /> Executive Summary
               </div>
               <p className="text-2xl font-display font-light text-text-primary leading-snug">
-                {displayData.executiveSummary}
+                {data.executiveSummary}
               </p>
             </div>
           </div>
@@ -134,32 +95,36 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
 
         {/* KPI Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <KPICard title="Rejection Rate" value={displayData.kpis.rejectionRate.value} unit="%" trend={displayData.kpis.rejectionRate.trend} context={displayData.kpis.rejectionRate.context} />
-          <KPICard title="Total Output" value={displayData.kpis.totalOutput.value} unit="units" trend={displayData.kpis.totalOutput.trend} context={displayData.kpis.totalOutput.context} />
-          <KPICard title="Downtime" value={displayData.kpis.downtime.value} unit={displayData.kpis.downtime.unit || 'm'} trend={displayData.kpis.downtime.trend} context={displayData.kpis.downtime.context} />
-          <KPICard title="Quality Score" value={displayData.kpis.qualityScore.value} unit="%" trend={displayData.kpis.qualityScore.trend} context={displayData.kpis.qualityScore.context} />
+          <KPICard title="Rejection Rate" value={data.kpis.rejectionRate.value} unit={data.kpis.rejectionRate.unit ?? "%"} trend={data.kpis.rejectionRate.trend} context={data.kpis.rejectionRate.context} />
+          <KPICard title="Total Output" value={data.kpis.totalOutput.value} unit={data.kpis.totalOutput.unit ?? "units"} trend={data.kpis.totalOutput.trend} context={data.kpis.totalOutput.context} />
+          <KPICard title="Downtime" value={data.kpis.downtime.value} unit={data.kpis.downtime.unit ?? "m"} trend={data.kpis.downtime.trend} context={data.kpis.downtime.context} />
+          <KPICard title="Quality Score" value={data.kpis.qualityScore.value} unit={data.kpis.qualityScore.unit ?? "%"} trend={data.kpis.qualityScore.trend} context={data.kpis.qualityScore.context} />
         </div>
 
         {/* Chart Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {displayData.charts?.map((chart: any, i: number) => (
-            <ChartContainer key={i} title={chart.title} type={chart.type} data={chart.data} />
-          ))}
-        </div>
+        {data.charts?.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {data.charts.map((chart, i) => (
+              <ChartContainer key={i} title={chart.title} type={chart.type} data={chart.data} />
+            ))}
+          </div>
+        )}
 
-        {/* Intelligence Insights & Actions */}
+        {/* Intelligence Insights & Recommendations */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <motion.div 
-            variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+          <motion.div
+            variants={itemVariants}
             className="lg:col-span-2 glass-card p-8 space-y-6"
           >
-            <h3 className="text-lg font-display flex items-center gap-3">
+            <h3 className="text-lg font-display flex items-center gap-3 text-text-primary">
               <Info className="text-accent" /> Key Intelligence Insights
             </h3>
             <div className="space-y-6">
-              {displayData.insights.map((insight: string, idx: number) => (
+              {data.insights?.map((insight, idx) => (
                 <div key={idx} className="flex gap-6 items-start group">
-                  <span className="font-mono text-accent/40 text-xl font-bold">0{idx + 1}</span>
+                  <span className="font-mono text-accent/40 text-xl font-bold shrink-0">
+                    {String(idx + 1).padStart(2, "0")}
+                  </span>
                   <p className="text-text-secondary leading-relaxed group-hover:text-text-primary transition-colors">
                     {insight}
                   </p>
@@ -168,13 +133,14 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
             </div>
           </motion.div>
 
-          <motion.div 
-            variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-            className="glass-card p-8 bg-accent/5 border-accent/20 space-y-6"
+          <motion.div
+            variants={itemVariants}
+            className="glass-card p-8 space-y-6"
+            style={{ background: "color-mix(in srgb, var(--color-accent) 5%, var(--color-surface))", borderColor: "color-mix(in srgb, var(--color-accent) 20%, transparent)" }}
           >
             <h3 className="text-lg font-display text-accent font-bold">Recommendations</h3>
             <ul className="space-y-4">
-              {displayData.recommendations.map((rec: string, i: number) => (
+              {data.recommendations?.map((rec, i) => (
                 <li key={i} className="flex gap-3 text-sm text-text-primary">
                   <div className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
                   {rec}
@@ -184,14 +150,16 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
           </motion.div>
         </div>
 
-        {/* Footer Data Tags */}
-        <div className="flex flex-wrap gap-3 pt-12 border-t border-white/5 opacity-40">
-          {['Line4_Report.xlsx', 'Q1_Summary.csv', 'Daily_Ops_V2.xls'].map(tag => (
-            <span key={tag} className="text-[10px] font-mono border border-white/20 px-2 py-1 rounded">
-              {tag}
-            </span>
-          ))}
-        </div>
+        {/* Source Files Footer */}
+        {data.sourceFiles && data.sourceFiles.length > 0 && (
+          <div className="flex flex-wrap gap-3 pt-12 border-t border-[var(--color-border)] opacity-50">
+            {data.sourceFiles.map((tag) => (
+              <span key={tag} className="text-[10px] font-mono border border-[var(--color-border)] px-2 py-1 rounded text-text-muted">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </motion.div>
     </div>
   );
