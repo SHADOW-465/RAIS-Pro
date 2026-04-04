@@ -61,7 +61,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
           isDragging ? 'from-accent via-accent/50 to-transparent' : 'from-accent/20 to-transparent'
         }`}
       >
-        <div className="bg-surface/90 backdrop-blur-2xl rounded-[22px] p-12 flex flex-col items-center justify-center border border-white/5 min-h-[400px]">
+        <div className="bg-surface/90 backdrop-blur-2xl rounded-[22px] p-12 flex flex-col items-center justify-center border border-border min-h-[400px]">
           {/* Pulse Effect */}
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center pointer-events-none">
             <div className={`w-64 h-64 rounded-full bg-accent/5 blur-3xl transition-transform duration-1000 ${isDragging ? 'scale-150 opacity-100' : 'scale-100 opacity-0'}`} />
@@ -154,13 +154,13 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
       </AnimatePresence>
 
       <div className="flex gap-4 items-center text-text-muted mt-8">
-        <div className="flex items-center gap-2 text-xs border border-white/5 py-1 px-3 rounded-full uppercase tracking-tighter">
+        <div className="flex items-center gap-2 text-xs border border-border py-1 px-3 rounded-full uppercase tracking-tighter">
           <AlertCircle size={14} /> XLSX
         </div>
-        <div className="flex items-center gap-2 text-xs border border-white/5 py-1 px-3 rounded-full uppercase tracking-tighter">
+        <div className="flex items-center gap-2 text-xs border border-border py-1 px-3 rounded-full uppercase tracking-tighter">
           <AlertCircle size={14} /> XLS
         </div>
-        <div className="flex items-center gap-2 text-xs border border-white/5 py-1 px-3 rounded-full uppercase tracking-tighter">
+        <div className="flex items-center gap-2 text-xs border border-border py-1 px-3 rounded-full uppercase tracking-tighter">
           <AlertCircle size={14} /> CSV
         </div>
       </div>

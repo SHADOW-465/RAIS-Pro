@@ -80,7 +80,7 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
   return (
     <div className="w-full space-y-8 animate-in fade-in duration-1000">
       {/* Sticky Header */}
-      <header className="sticky top-0 z-50 glass backdrop-blur-3xl px-8 py-4 -mx-8 flex items-center justify-between border-b border-white/5">
+      <header className="sticky top-0 z-50 glass backdrop-blur-3xl px-8 py-4 -mx-8 flex items-center justify-between border-b border-border">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-accent-gradient rounded-lg flex items-center justify-center text-background">
             <Zap size={24} />
@@ -134,10 +134,10 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
 
         {/* KPI Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <KPICard title="Rejection Rate" value={displayData.kpis.rejectionRate.value} unit="%" trend={displayData.kpis.rejectionRate.trend} context={displayData.kpis.rejectionRate.context} />
-          <KPICard title="Total Output" value={displayData.kpis.totalOutput.value} unit="units" trend={displayData.kpis.totalOutput.trend} context={displayData.kpis.totalOutput.context} />
-          <KPICard title="Downtime" value={displayData.kpis.downtime.value} unit={displayData.kpis.downtime.unit || 'm'} trend={displayData.kpis.downtime.trend} context={displayData.kpis.downtime.context} />
-          <KPICard title="Quality Score" value={displayData.kpis.qualityScore.value} unit="%" trend={displayData.kpis.qualityScore.trend} context={displayData.kpis.qualityScore.context} />
+          <KPICard title="Rejection Rate" value={displayData.kpis?.rejectionRate?.value ?? 'N/A'} unit="%" trend={displayData.kpis?.rejectionRate?.trend} context={displayData.kpis?.rejectionRate?.context} />
+          <KPICard title="Total Output" value={displayData.kpis?.totalOutput?.value ?? 'N/A'} unit="units" trend={displayData.kpis?.totalOutput?.trend} context={displayData.kpis?.totalOutput?.context} />
+          <KPICard title="Downtime" value={displayData.kpis?.downtime?.value ?? 'N/A'} unit={displayData.kpis?.downtime?.unit || 'm'} trend={displayData.kpis?.downtime?.trend} context={displayData.kpis?.downtime?.context} />
+          <KPICard title="Quality Score" value={displayData.kpis?.qualityScore?.value ?? 'N/A'} unit="%" trend={displayData.kpis?.qualityScore?.trend} context={displayData.kpis?.qualityScore?.context} />
         </div>
 
         {/* Chart Grid */}
@@ -157,7 +157,7 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
               <Info className="text-accent" /> Key Intelligence Insights
             </h3>
             <div className="space-y-6">
-              {displayData.insights.map((insight: string, idx: number) => (
+              {(displayData.insights ?? []).map((insight: string, idx: number) => (
                 <div key={idx} className="flex gap-6 items-start group">
                   <span className="font-mono text-accent/40 text-xl font-bold">0{idx + 1}</span>
                   <p className="text-text-secondary leading-relaxed group-hover:text-text-primary transition-colors">
@@ -174,7 +174,7 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
           >
             <h3 className="text-lg font-display text-accent font-bold">Recommendations</h3>
             <ul className="space-y-4">
-              {displayData.recommendations.map((rec: string, i: number) => (
+              {(displayData.recommendations ?? []).map((rec: string, i: number) => (
                 <li key={i} className="flex gap-3 text-sm text-text-primary">
                   <div className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
                   {rec}
@@ -185,7 +185,7 @@ export default function Dashboard({ data, onReset }: DashboardProps) {
         </div>
 
         {/* Footer Data Tags */}
-        <div className="flex flex-wrap gap-3 pt-12 border-t border-white/5 opacity-40">
+        <div className="flex flex-wrap gap-3 pt-12 border-t border-border opacity-40">
           {['Line4_Report.xlsx', 'Q1_Summary.csv', 'Daily_Ops_V2.xls'].map(tag => (
             <span key={tag} className="text-[10px] font-mono border border-white/20 px-2 py-1 rounded">
               {tag}

@@ -35,7 +35,7 @@ export default function KPICard({ title, value, trend, unit, context }: KPICardP
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-4">
+      <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
         {trend !== undefined && (
           <div className={`flex items-center gap-1 text-sm font-bold font-condensed ${
             isPositive ? 'text-success' : isNegative ? 'text-danger' : 'text-text-muted'

@@ -26,7 +26,7 @@ export default function Home() {
     } catch (error) {
       console.error("Analysis failed:", error);
       setAppState("upload");
-      alert("Intelligence Scan Failed. Ensure Supabase credentials and Edge Functions are active.");
+      alert("Intelligence Scan Failed. Check your API configuration and try again.");
     }
   };
 

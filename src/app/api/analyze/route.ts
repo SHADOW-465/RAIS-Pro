@@ -176,6 +176,49 @@ DATA:
 ${data}`;
 }
 
+// ── Response normalizer ──────────────────────────────────────────────────────
+// Ensures the AI response matches the exact shape Dashboard.tsx expects,
+// regardless of which provider or model produced it.
+
+function normalizeResult(raw: any): any {
+  const kpiDefault = { value: 'N/A', trend: 0, context: '—' };
+  const rawKpis = (!raw.kpis || Array.isArray(raw.kpis)) ? {} : raw.kpis;
+
+  // Tolerate snake_case aliases some models return
+  const kpi = (key: string, snake: string) => ({
+    ...kpiDefault,
+    ...(rawKpis[key] ?? rawKpis[snake] ?? {}),
+  });
+
+  return {
+    executiveSummary:
+      raw.executiveSummary ?? raw.executive_summary ?? raw.summary ?? 'Analysis complete.',
+
+    kpis: {
+      rejectionRate: kpi('rejectionRate', 'rejection_rate'),
+      totalOutput:   kpi('totalOutput',   'total_output'),
+      downtime:      { unit: 'm', ...kpi('downtime', 'downtime') },
+      qualityScore:  kpi('qualityScore',  'quality_score'),
+    },
+
+    insights: Array.isArray(raw.insights)
+      ? raw.insights.filter((s: unknown) => typeof s === 'string' && s.trim())
+      : [],
+
+    recommendations: Array.isArray(raw.recommendations)
+      ? raw.recommendations.filter((s: unknown) => typeof s === 'string' && s.trim())
+      : [],
+
+    charts: Array.isArray(raw.charts)
+      ? raw.charts.filter(
+          (c: any) => c?.title && c?.type && c?.data?.labels && c?.data?.datasets
+        )
+      : [],
+
+    alerts: Array.isArray(raw.alerts) ? raw.alerts.filter(Boolean) : [],
+  };
+}
+
 // ── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -195,7 +238,7 @@ export async function POST(req: NextRequest) {
       try {
         console.log(`[analyze] trying ${name}…`);
         const text   = await fn(prompt);
-        const result = extractJson(text);
+        const result = normalizeResult(extractJson(text));
         console.log(`[analyze] success via ${name}`);
         return NextResponse.json(result);
       } catch (err) {

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Barlow_Semi_Condensed, Space_Grotesk } from "next/font/google";
+import ThemeToggle from "@/components/ThemeToggle";
 import "./globals.css";
 
 const inter = Inter({
@@ -29,10 +30,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Flash-free theme init: runs before paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('rais-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${inter.variable} ${barlowSemiCondensed.variable} ${spaceGrotesk.variable} antialiased`}
       >
+        <ThemeToggle />
         {children}
       </body>
     </html>
