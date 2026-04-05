@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { buildPrompt, normalizeResult, extractJson } from '@/lib/analysis-utils';
 
 const SYSTEM_PROMPT =
-  'You are a senior manufacturing data analyst. Your only job is to return a single valid JSON object — ' +
+  'You are a senior data analyst. Your only job is to return a single valid JSON object — ' +
   'no markdown fences, no explanation, no preamble. Just raw JSON.';
 
 // ── Provider callers ─────────────────────────────────────────────────────────
@@ -82,141 +83,6 @@ async function callGroq(prompt: string): Promise<string> {
   if (!res.ok) throw new Error(`Groq ${res.status}: ${await res.text()}`);
   const d = await res.json();
   return d.choices[0].message.content;
-}
-
-// ── JSON extraction ──────────────────────────────────────────────────────────
-
-function extractJson(text: string): unknown {
-  const t = text.trim();
-  try { return JSON.parse(t); } catch { /* fall through */ }
-
-  const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenced) {
-    try { return JSON.parse(fenced[1].trim()); } catch { /* fall through */ }
-  }
-
-  const start = t.indexOf('{');
-  const end = t.lastIndexOf('}');
-  if (start !== -1 && end > start) {
-    try { return JSON.parse(t.slice(start, end + 1)); } catch { /* fall through */ }
-  }
-
-  throw new Error('Could not extract valid JSON from AI response');
-}
-
-// ── Prompt builder ───────────────────────────────────────────────────────────
-
-function buildPrompt(summaries: unknown): string {
-  const data = JSON.stringify(summaries, null, 2).slice(0, 12000);
-
-  return `Analyze this operational Excel data and return a JSON object matching EXACTLY this schema.
-
-SCHEMA:
-{
-  "executiveSummary": "2–3 sentence plain-language brief for a General Manager. Reference specific numbers.",
-
-  "kpis": {
-    "rejectionRate": { "value": "number or 'N/A'", "trend": 0, "context": "short label" },
-    "totalOutput":   { "value": "number or formatted string like '14.2k'", "trend": 0, "context": "short label" },
-    "downtime":      { "value": 0, "trend": 0, "context": "short label", "unit": "m or h or %" },
-    "qualityScore":  { "value": 0.0, "trend": 0, "context": "short label" }
-  },
-
-  "insights": [
-    "Specific insight referencing actual data values",
-    "...", "...", "...", "..."
-  ],
-
-  "recommendations": [
-    "Short actionable recommendation",
-    "...", "...", "..."
-  ],
-
-  "charts": [
-    {
-      "title": "Chart title from data",
-      "type": "line",
-      "data": {
-        "labels": ["label1", "label2", "label3"],
-        "datasets": [{
-          "label": "Series name",
-          "data": [10, 20, 30],
-          "borderColor": "#00E5CC",
-          "backgroundColor": "rgba(0, 229, 204, 0.1)",
-          "fill": true,
-          "tension": 0.4
-        }]
-      }
-    },
-    {
-      "title": "Second chart title",
-      "type": "bar",
-      "data": {
-        "labels": ["label1", "label2", "label3"],
-        "datasets": [{
-          "label": "Series name",
-          "data": [40, 60, 80],
-          "backgroundColor": "#00E5CC"
-        }]
-      }
-    }
-  ],
-
-  "alerts": []
-}
-
-RULES:
-- All KPI values must come from the actual data. Use "N/A" and trend 0 if a KPI cannot be determined.
-- Chart labels and data arrays must be derived from the uploaded data — no made-up numbers.
-- alerts is an empty array [] unless there is a genuine critical anomaly.
-- Exactly 5 insights, exactly 4 recommendations.
-- Return ONLY the JSON object. Nothing before or after it.
-
-DATA:
-${data}`;
-}
-
-// ── Response normalizer ──────────────────────────────────────────────────────
-// Ensures the AI response matches the exact shape Dashboard.tsx expects,
-// regardless of which provider or model produced it.
-
-function normalizeResult(raw: any): any {
-  const kpiDefault = { value: 'N/A', trend: 0, context: '—' };
-  const rawKpis = (!raw.kpis || Array.isArray(raw.kpis)) ? {} : raw.kpis;
-
-  // Tolerate snake_case aliases some models return
-  const kpi = (key: string, snake: string) => ({
-    ...kpiDefault,
-    ...(rawKpis[key] ?? rawKpis[snake] ?? {}),
-  });
-
-  return {
-    executiveSummary:
-      raw.executiveSummary ?? raw.executive_summary ?? raw.summary ?? 'Analysis complete.',
-
-    kpis: {
-      rejectionRate: kpi('rejectionRate', 'rejection_rate'),
-      totalOutput:   kpi('totalOutput',   'total_output'),
-      downtime:      { unit: 'm', ...kpi('downtime', 'downtime') },
-      qualityScore:  kpi('qualityScore',  'quality_score'),
-    },
-
-    insights: Array.isArray(raw.insights)
-      ? raw.insights.filter((s: unknown) => typeof s === 'string' && s.trim())
-      : [],
-
-    recommendations: Array.isArray(raw.recommendations)
-      ? raw.recommendations.filter((s: unknown) => typeof s === 'string' && s.trim())
-      : [],
-
-    charts: Array.isArray(raw.charts)
-      ? raw.charts.filter(
-          (c: any) => c?.title && c?.type && c?.data?.labels && c?.data?.datasets
-        )
-      : [],
-
-    alerts: Array.isArray(raw.alerts) ? raw.alerts.filter(Boolean) : [],
-  };
 }
 
 // ── Route handler ────────────────────────────────────────────────────────────
