@@ -1,3 +1,4 @@
+// src/app/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -5,29 +6,38 @@ import { AnimatePresence, motion } from "framer-motion";
 import UploadZone from "@/components/UploadZone";
 import ProcessingLoader from "@/components/ProcessingLoader";
 import Dashboard from "@/components/Dashboard";
+import type { DashboardConfig } from "@/types/dashboard";
 
 export type AppState = "upload" | "processing" | "dashboard";
 
 export default function Home() {
   const [appState, setAppState] = useState<AppState>("upload");
-  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [analysisData, setAnalysisData] = useState<DashboardConfig | null>(null);
+  const [dataSummary, setDataSummary] = useState<string>("");
 
   const handleUploadComplete = async (files: File[]) => {
     setAppState("processing");
     try {
       const { parseExcelFiles } = await import("@/lib/parser");
       const { runAnalysis } = await import("@/lib/analyzer");
-      
+
       const summaries = await parseExcelFiles(files);
-      const data = await runAnalysis(summaries);
-      
-      setAnalysisData(data);
+      const { config, dataSummary: summary } = await runAnalysis(summaries);
+
+      setAnalysisData(config);
+      setDataSummary(summary);
       setAppState("dashboard");
     } catch (error) {
       console.error("Analysis failed:", error);
       setAppState("upload");
       alert("Intelligence Scan Failed. Check your API configuration and try again.");
     }
+  };
+
+  const handleReset = () => {
+    setAppState("upload");
+    setAnalysisData(null);
+    setDataSummary("");
   };
 
   return (
@@ -58,7 +68,7 @@ export default function Home() {
           </motion.div>
         )}
 
-        {appState === "dashboard" && (
+        {appState === "dashboard" && analysisData && (
           <motion.div
             key="dashboard"
             initial={{ opacity: 0 }}
@@ -66,7 +76,11 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="w-full"
           >
-            <Dashboard data={analysisData} onReset={() => setAppState("upload")} />
+            <Dashboard
+              data={analysisData}
+              dataSummary={dataSummary}
+              onReset={handleReset}
+            />
           </motion.div>
         )}
       </AnimatePresence>
