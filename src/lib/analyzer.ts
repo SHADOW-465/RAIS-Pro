@@ -1,10 +1,7 @@
+// src/lib/analyzer.ts
 import { SheetSummary } from './parser';
 
-// Prioritize yearly/summary sheets so the AI prompt stays within the 12k char budget
-// while containing the most informative data. Falls back to monthly sheets when no
-// yearly sheet exists for a given file.
 function selectSheetsForPrompt(summaries: any[]): SheetSummary[] {
-  // Group by file name (the part before " - ")
   const byFile = new Map<string, any[]>();
   for (const s of summaries) {
     const file = s.name.split(' - ')[0];
@@ -18,15 +15,17 @@ function selectSheetsForPrompt(summaries: any[]): SheetSummary[] {
     if (yearly.length > 0) {
       selected.push(...yearly);
     } else {
-      // No yearly sheet — include all monthly sheets for this file
       selected.push(...sheets);
     }
   }
   return selected;
 }
 
-export async function runAnalysis(summaries: any[]): Promise<any> {
+export async function runAnalysis(
+  summaries: any[]
+): Promise<{ config: any; dataSummary: string }> {
   const filtered = selectSheetsForPrompt(summaries);
+  const dataSummary = JSON.stringify(filtered).slice(0, 12000);
 
   const res = await fetch('/api/analyze', {
     method: 'POST',
@@ -40,5 +39,6 @@ export async function runAnalysis(summaries: any[]): Promise<any> {
     throw new Error(body.error || 'Analysis engine failure');
   }
 
-  return res.json();
+  const config = await res.json();
+  return { config, dataSummary };
 }
