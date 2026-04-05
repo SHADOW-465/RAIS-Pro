@@ -30,9 +30,11 @@ ChartJS.register(
   ArcElement
 );
 
+type ChartType = 'line' | 'bar' | 'horizontalBar' | 'area' | 'pie' | 'doughnut' | 'radar';
+
 interface ChartContainerProps {
   title: string;
-  type: "line" | "bar" | "doughnut";
+  type: ChartType;
   data: any;
   options?: any;
 }
@@ -57,6 +59,13 @@ function useIsDark() {
 
 export default function ChartContainer({ title, type, data, options }: ChartContainerProps) {
   const isDark = useIsDark();
+  // Normalise extended types to what chart.js supports
+  const resolvedType: "line" | "bar" | "doughnut" =
+    type === 'area' ? 'line' :
+    type === 'horizontalBar' ? 'bar' :
+    type === 'pie' ? 'doughnut' :
+    type === 'radar' ? 'bar' :
+    type;
 
   const textSecondary = isDark ? "#8892A4" : "#4A5568";
   const textMuted     = isDark ? "#4A5468" : "#8B95A7";
@@ -91,7 +100,7 @@ export default function ChartContainer({ title, type, data, options }: ChartCont
       },
     },
     scales:
-      type !== "doughnut"
+      resolvedType !== "doughnut"
         ? {
             x: {
               grid: { display: false },
@@ -118,9 +127,9 @@ export default function ChartContainer({ title, type, data, options }: ChartCont
         {title}
       </h3>
       <div className="flex-1 w-full relative">
-        {type === "line"     && <Line     data={data} options={chartOptions} />}
-        {type === "bar"      && <Bar      data={data} options={chartOptions} />}
-        {type === "doughnut" && <Doughnut data={data} options={chartOptions} />}
+        {resolvedType === "line"     && <Line     data={data} options={chartOptions} />}
+        {resolvedType === "bar"      && <Bar      data={data} options={chartOptions} />}
+        {resolvedType === "doughnut" && <Doughnut data={data} options={chartOptions} />}
       </div>
     </motion.div>
   );
