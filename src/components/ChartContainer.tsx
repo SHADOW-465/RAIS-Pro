@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Chart as ChartJS,
@@ -34,31 +33,13 @@ type ChartType = 'line' | 'bar' | 'horizontalBar' | 'area' | 'pie' | 'doughnut' 
 
 interface ChartContainerProps {
   title: string;
+  description?: string;
   type: ChartType;
   data: any;
   options?: any;
 }
 
-function useIsDark() {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.classList.contains("dark"));
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  return isDark;
-}
-
-export default function ChartContainer({ title, type, data, options }: ChartContainerProps) {
-  const isDark = useIsDark();
+export default function ChartContainer({ title, description, type, data, options }: ChartContainerProps) {
   // Normalise extended types to what chart.js supports
   const resolvedType: "line" | "bar" | "doughnut" =
     type === 'area' ? 'line' :
@@ -67,11 +48,11 @@ export default function ChartContainer({ title, type, data, options }: ChartCont
     type === 'radar' ? 'bar' :
     type;
 
-  const textSecondary = isDark ? "#8892A4" : "#4A5568";
-  const textMuted     = isDark ? "#4A5468" : "#8B95A7";
-  const tooltipBg     = isDark ? "#161A28" : "#FFFFFF";
-  const tooltipBorder = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
-  const gridColor     = isDark ? "rgba(74,84,104,0.1)" : "rgba(0,0,0,0.06)";
+  const textSecondary = "#475569";
+  const textMuted     = "#94a3b8";
+  const tooltipBg     = "#ffffff";
+  const tooltipBorder = "rgba(0,0,0,0.08)";
+  const gridColor     = "rgba(0,0,0,0.05)";
 
   const defaultOptions = {
     responsive: true,
@@ -90,7 +71,7 @@ export default function ChartContainer({ title, type, data, options }: ChartCont
         backgroundColor: tooltipBg,
         borderColor: tooltipBorder,
         borderWidth: 1,
-        titleColor: isDark ? "#EEF1F8" : "#0D1117",
+        titleColor: "#0D1117",
         bodyColor: textSecondary,
         titleFont: { family: "Barlow Semi Condensed", size: 14 },
         bodyFont: { family: "Inter", size: 12 },
@@ -121,11 +102,14 @@ export default function ChartContainer({ title, type, data, options }: ChartCont
   return (
     <motion.div
       variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }}
-      className="glass-card p-6 h-[350px] flex flex-col"
+      className="glass-card p-5 h-[300px] flex flex-col"
     >
-      <h3 className="text-text-secondary font-condensed font-bold uppercase tracking-widest text-xs mb-6 px-1 border-l-2 border-accent/40 pl-3">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted mb-4 pl-3 border-l-2 border-accent/30">
         {title}
-      </h3>
+      </p>
+      {description && (
+        <p className="text-[11px] text-text-muted mb-3 -mt-2">{description}</p>
+      )}
       <div className="flex-1 w-full relative">
         {resolvedType === "line"     && <Line     data={data} options={chartOptions} />}
         {resolvedType === "bar"      && <Bar      data={data} options={chartOptions} />}
