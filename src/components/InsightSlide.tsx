@@ -1,21 +1,45 @@
 // src/components/InsightSlide.tsx
 "use client";
 
+import { useRef } from "react";
 import { motion } from "framer-motion";
 import { Bar, Line, Doughnut } from "react-chartjs-2";
+import html2canvas from "html2canvas";
 import type { InsightSlide as InsightSlideType } from "@/types/dashboard";
 
 interface InsightSlideProps {
   slide: InsightSlideType;
-  /** Called when user clicks the download button (Phase 4 wires html2canvas) */
-  onDownload?: () => void;
 }
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function InsightSlide({ slide, onDownload }: InsightSlideProps) {
+export default function InsightSlide({ slide }: InsightSlideProps) {
+  const slideRef = useRef<HTMLDivElement>(null);
+
+  const handleDownload = async () => {
+    if (!slideRef.current) return;
+    try {
+      const canvas = await html2canvas(slideRef.current, {
+        backgroundColor: "#f0f4ff",
+        scale: 2,
+        useCORS: true,
+      });
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      const slug = slide.question
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .slice(0, 40);
+      const date = new Date().toISOString().slice(0, 10);
+      a.download = `rais-insight-${slug}-${date}.png`;
+      a.click();
+    } catch (err) {
+      console.error("Export failed:", err);
+    }
+  };
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -65,6 +89,7 @@ export default function InsightSlide({ slide, onDownload }: InsightSlideProps) {
 
   return (
     <motion.div
+      ref={slideRef}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
@@ -80,15 +105,13 @@ export default function InsightSlide({ slide, onDownload }: InsightSlideProps) {
             {formatTime(slide.createdAt)}
           </span>
         </div>
-        {onDownload && (
-          <button
-            onClick={onDownload}
-            className="text-[10px] text-text-muted hover:text-accent transition-colors"
-            title="Download as PNG"
-          >
-            ⬇ Save
-          </button>
-        )}
+        <button
+          onClick={handleDownload}
+          className="text-[10px] text-text-muted hover:text-accent transition-colors"
+          title="Download as PNG"
+        >
+          ⬇ Save
+        </button>
       </div>
 
       {/* Question pill */}

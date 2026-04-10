@@ -167,13 +167,15 @@ export default function Dashboard({ data, dataSummary, onReset, sessionId, sessi
           )}
 
           {/* Chat Panel */}
-          <ChatPanel
-            dataSummary={dataSummary}
-            currentConfig={currentConfig}
-            onRefresh={setCurrentConfig}
-            sessionId={sessionId}
-            onSlideAdded={(slide) => setSlides(prev => [...prev, slide])}
-          />
+          <div data-no-print>
+            <ChatPanel
+              dataSummary={dataSummary}
+              currentConfig={currentConfig}
+              onRefresh={setCurrentConfig}
+              sessionId={sessionId}
+              onSlideAdded={(slide) => setSlides(prev => [...prev, slide])}
+            />
+          </div>
 
           {/* Data sources footer */}
           <div className="flex flex-wrap gap-2 pt-8 border-t border-white/40">
