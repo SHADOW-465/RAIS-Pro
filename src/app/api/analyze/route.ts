@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from "@/lib/supabase";
 import { buildPrompt, normalizeResult, extractJson } from '@/lib/analysis-utils';
 
 const SYSTEM_PROMPT =
@@ -89,7 +90,7 @@ async function callGroq(prompt: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { summaries } = await req.json();
+    const { summaries, deviceId, fileNames } = await req.json();
     const prompt = buildPrompt(summaries);
 
     const providers: Array<{ name: string; fn: (p: string) => Promise<string> }> = [
@@ -105,8 +106,31 @@ export async function POST(req: NextRequest) {
         console.log(`[analyze] trying ${name}…`);
         const text   = await fn(prompt);
         const result = normalizeResult(extractJson(text));
+        // Save session to Supabase (best-effort — don't fail analysis if save fails)
+        let sessionId: string | null = null;
+        try {
+          if (deviceId && typeof deviceId === "string") {
+            const db = createServerClient();
+            const { data: session } = await db
+              .from("sessions")
+              .insert({
+                device_id: deviceId,
+                title: result.dashboardTitle ?? "Analysis",
+                files: Array.isArray(fileNames)
+                  ? fileNames.map((name: string) => ({ name }))
+                  : [],
+                dashboard: result,
+              })
+              .select("id")
+              .single();
+            sessionId = session?.id ?? null;
+          }
+        } catch (saveErr) {
+          console.warn("[analyze] session save failed (non-fatal):", saveErr);
+        }
+
         console.log(`[analyze] success via ${name}`);
-        return NextResponse.json(result);
+        return NextResponse.json({ ...result, sessionId });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[analyze] ${name} failed:`, msg);
