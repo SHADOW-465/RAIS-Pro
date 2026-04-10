@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import UploadZone from "@/components/UploadZone";
 import ProcessingLoader from "@/components/ProcessingLoader";
 import SessionCard, { type SessionSummary } from "@/components/SessionCard";
