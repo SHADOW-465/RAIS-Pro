@@ -75,19 +75,20 @@ export default function ChatPanel({ dataSummary, currentConfig, onRefresh }: Cha
   };
 
   return (
-    <div className="glass-card p-8 space-y-6">
-      <div className="flex items-center gap-2 text-accent font-bold uppercase tracking-widest text-xs">
-        <MessageCircle size={14} /> Ask a Follow-Up
-      </div>
+    <div className="space-y-4">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted flex items-center gap-2">
+        <MessageCircle size={12} className="text-accent" /> Ask a Follow-Up
+      </p>
 
+      {/* Empty state */}
       {messages.length === 0 && (
-        <p className="text-text-muted text-sm">
-          Ask anything about your data — factual questions get a direct answer. Ask to
-          &quot;refocus on cost&quot; or &quot;show me Q1 only&quot; to refresh the dashboard.
+        <p className="text-sm text-text-muted">
+          Ask anything about your data — get a focused insight slide back.
         </p>
       )}
 
-      <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+      {/* Message list */}
+      <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
         <AnimatePresence initial={false}>
           {messages.map((msg, i) => (
             <motion.div
@@ -96,16 +97,14 @@ export default function ChatPanel({ dataSummary, currentConfig, onRefresh }: Cha
               animate={{ opacity: 1, y: 0 }}
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
-              <div className={`max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed ${
+              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                 msg.role === "user"
                   ? "bg-accent/10 border border-accent/20 text-text-primary"
                   : msg.error
                   ? "bg-danger/10 border border-danger/20 text-danger"
-                  : "bg-surface-raised text-text-secondary"
+                  : "bg-white/60 border border-white/80 text-text-secondary"
               }`}>
-                {msg.isRefresh && (
-                  <RefreshCw size={12} className="inline mr-1 text-accent" />
-                )}
+                {msg.isRefresh && <RefreshCw size={11} className="inline mr-1 text-accent" />}
                 {msg.content}
               </div>
             </motion.div>
@@ -114,31 +113,32 @@ export default function ChatPanel({ dataSummary, currentConfig, onRefresh }: Cha
 
         {loading && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-            <div className="bg-surface-raised rounded-lg px-4 py-2 text-sm text-text-muted">
-              Analyzing…
+            <div className="bg-white/60 border border-white/80 rounded-2xl px-4 py-2.5 text-sm text-text-muted">
+              Generating insight slide…
             </div>
           </motion.div>
         )}
-
         <div ref={bottomRef} />
       </div>
 
-      <div className="flex gap-3">
+      {/* Frosted pill input */}
+      <div className="flex items-center gap-2 bg-white/55 backdrop-blur-md border border-white/80 rounded-full px-4 py-2">
         <input
           type="text"
           value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") sendMessage(); }}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
           placeholder="Ask anything about your data…"
           disabled={loading}
-          className="flex-1 bg-background border border-border rounded-lg px-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent disabled:opacity-50 transition-colors"
+          className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none disabled:opacity-50"
         />
         <button
           onClick={sendMessage}
           disabled={loading || !input.trim()}
-          className="btn-primary px-4 py-2 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 disabled:opacity-40 transition-opacity"
+          style={{ background: "linear-gradient(135deg,#6366f1,#0ea5e9)" }}
         >
-          <Send size={14} />
+          <Send size={13} className="text-white" />
         </button>
       </div>
     </div>
