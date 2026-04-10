@@ -1,56 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  /* Light mode defaults — overridden by .dark below */
-  --color-background: #F0F4F8;
-  --color-surface: #FFFFFF;
-  --color-surface-raised: #F8FAFD;
-  --color-accent: #00E5CC;
-  --color-border: rgba(0, 0, 0, 0.08);
-  --color-text-primary: #0D1117;
-  --color-text-secondary: #4A5568;
-  --color-text-muted: #8B95A7;
+  /* Glassmorphism light theme */
+  --color-background: #f8faff;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-accent: #6366f1;
+  --color-accent-secondary: #0ea5e9;
+  --color-border: rgba(255, 255, 255, 0.80);
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
   --color-success: #10b981;
   --color-danger: #ef4444;
   --color-warning: #f59e0b;
 
   --font-sans: var(--font-inter);
   --font-condensed: var(--font-barlow-semi-condensed);
-  --font-display: var(--font-space-grotesk);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-display: var(--font-inter);
 
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
-
-  --shadow-atmospheric: 0 4px 24px rgba(0, 0, 0, 0.08);
-}
-
-/* ── Dark mode overrides ───────────────────────────────────────────────────── */
-.dark {
-  --color-background: #07090D;
-  --color-surface: #10131E;
-  --color-surface-raised: #161A28;
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-text-primary: #EEF1F8;
-  --color-text-secondary: #8892A4;
-  --color-text-muted: #4A5468;
-  --shadow-atmospheric: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
 
 @layer base {
-  body {
-    @apply bg-background text-text-primary font-sans antialiased;
+  html {
     min-height: 100vh;
-    transition: background-color 0.3s ease, color 0.3s ease;
-    background-image:
-      radial-gradient(at 0% 0%, rgba(0, 229, 204, 0.07) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(0, 229, 204, 0.04) 0px, transparent 50%);
+    background: linear-gradient(145deg, #dbeafe 0%, #ede9fe 50%, #fce7f3 100%);
+    background-attachment: fixed;
   }
 
-  .dark body {
-    background-image:
-      radial-gradient(at 0% 0%, rgba(0, 229, 204, 0.05) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(0, 229, 204, 0.03) 0px, transparent 50%);
+  body {
+    background: transparent;
+    @apply text-text-primary font-sans antialiased;
+    min-height: 100vh;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -59,34 +42,88 @@
 }
 
 @layer components {
+  /* Standard frosted glass surface */
   .glass {
-    @apply bg-surface/80 backdrop-blur-xl border border-border;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.80);
   }
 
+  /* Card variant — rounded with hover lift */
   .glass-card {
-    @apply bg-surface/80 backdrop-blur-xl border border-border rounded-2xl shadow-atmospheric overflow-hidden transition-all duration-300;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.80);
+    border-radius: 14px;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
   }
 
   .glass-card:hover {
-    @apply border-accent/20 bg-surface/90;
+    background: rgba(255, 255, 255, 0.70);
+    border-color: rgba(255, 255, 255, 0.92);
+    transform: translateY(-1px);
   }
 
-  .accent-gradient {
-    background: linear-gradient(135deg, #71ffe8 0%, #00E5CC 100%);
+  /* Tinted card — for active/highlighted states */
+  .glass-tinted {
+    background: rgba(99, 102, 241, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(99, 102, 241, 0.20);
+    border-radius: 14px;
   }
 
+  /* Insight slide accent — sky blue left border */
+  .glass-slide {
+    background: rgba(14, 165, 233, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.80);
+    border-left: 3px solid #0ea5e9;
+    border-radius: 14px;
+  }
+
+  /* Executive summary — indigo left border */
+  .glass-summary {
+    background: rgba(99, 102, 241, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.80);
+    border-left: 3px solid #6366f1;
+    border-radius: 14px;
+  }
+
+  /* Primary CTA — indigo→sky gradient pill */
   .btn-primary {
-    background: linear-gradient(135deg, #71ffe8 0%, #00E5CC 100%);
-    @apply text-background font-condensed font-bold py-2 px-6 rounded-xl
-           transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,229,204,0.4)] hover:scale-[1.02] active:scale-95;
+    background: linear-gradient(135deg, #6366f1 0%, #0ea5e9 100%);
+    @apply text-white font-semibold py-2 px-5 rounded-full text-sm
+           transition-all duration-200
+           hover:shadow-[0_4px_14px_rgba(99,102,241,0.40)]
+           hover:scale-[1.02] active:scale-95;
   }
 
-  .btn-secondary {
-    @apply bg-surface/40 hover:bg-surface/60 border border-border text-text-primary
-           font-condensed font-bold py-2 px-6 rounded-xl transition-all duration-300;
+  /* Ghost button — frosted pill */
+  .btn-ghost {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    @apply border border-white/80 text-slate-500 font-medium py-2 px-4
+           rounded-full text-sm transition-all duration-200
+           hover:bg-white/70;
+  }
+
+  /* Topbar — slightly more opaque glass */
+  .topbar {
+    background: rgba(255, 255, 255, 0.50);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.65);
   }
 }
 
+/* Slow pulse for processing steps */
 .animate-pulse-slow {
   animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -94,4 +131,43 @@
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* ── Print styles ─────────────────────────────────────────────────────── */
+@media print {
+  html {
+    background: #ffffff !important;
+    background-attachment: initial !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #1e293b !important;
+  }
+
+  /* Reset all glass effects for print */
+  .glass,
+  .glass-card,
+  .glass-tinted,
+  .glass-slide,
+  .glass-summary,
+  .topbar {
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Hide interactive elements */
+  .topbar button,
+  form,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Keep insight slides together on the same page */
+  .glass-slide {
+    break-inside: avoid;
+  }
 }

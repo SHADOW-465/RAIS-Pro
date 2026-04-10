@@ -45,3 +45,9 @@ supabase/.temp/
 
 # assistant
 .claude/
+
+# git worktrees
+.worktrees/
+
+# brainstorm visuals
+.superpowers/

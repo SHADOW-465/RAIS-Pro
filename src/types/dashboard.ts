@@ -44,3 +44,27 @@ export interface ChatMessage {
   isRefresh?: boolean;
   error?: boolean;
 }
+
+export interface InsightChart {
+  title: string;
+  type: 'bar' | 'line' | 'doughnut';
+  data: {
+    labels: string[];
+    datasets: Array<{
+      label: string;
+      data: number[];
+      backgroundColor?: string | string[];
+      borderColor?: string;
+    }>;
+  };
+}
+
+export interface InsightSlide {
+  id?: string;              // set after DB save
+  sessionId: string;
+  question: string;
+  headline: string;
+  charts: InsightChart[];   // 1-2 charts
+  bullets: string[];        // 3-4 bullets
+  createdAt: string;        // ISO timestamp
+}
