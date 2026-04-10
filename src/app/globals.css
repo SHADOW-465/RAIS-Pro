@@ -17,7 +17,7 @@
 
   --font-sans: var(--font-inter);
   --font-condensed: var(--font-barlow-semi-condensed);
-  --font-display: var(--font-space-grotesk);
+  --font-display: var(--font-inter);
 
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
