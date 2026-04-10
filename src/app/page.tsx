@@ -29,7 +29,7 @@ export default function Home() {
           title: s.title,
           createdAt: s.created_at,
           fileNames: (s.files ?? []).map((f: any) => f.name ?? "file"),
-          slideCount: 0, // Phase 3: loaded from insight_slides count
+          slideCount: (s.insight_slides?.[0]?.count as number) ?? 0,
           kpiPreview: (s.dashboard?.kpis ?? []).slice(0, 2).map((k: any) => ({
             label: k.label,
             value: k.value,

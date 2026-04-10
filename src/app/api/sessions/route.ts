@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const db = createServerClient();
     const { data, error } = await db
       .from("sessions")
-      .select("id, title, files, dashboard, created_at")
+      .select("id, title, files, dashboard, created_at, insight_slides(count)")
       .eq("device_id", deviceId)
       .order("created_at", { ascending: false })
       .limit(20);
