@@ -30,7 +30,10 @@ export default function SessionCard({ session, isActive, onClick }: SessionCardP
   return (
     <motion.div
       variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }}
       className={`cursor-pointer p-4 ${isActive ? "glass-tinted" : "glass-card"}`}
     >
       {/* Date */}
@@ -44,7 +47,7 @@ export default function SessionCard({ session, isActive, onClick }: SessionCardP
       </h3>
 
       {/* File names */}
-      <p className="text-[11px] text-text-muted mb-3 truncate">
+      <p className="text-[11px] text-text-muted mb-3 truncate" title={session.fileNames.join(", ")}>
         {session.fileNames.join(" · ")}
       </p>
 
@@ -52,7 +55,7 @@ export default function SessionCard({ session, isActive, onClick }: SessionCardP
       <div className="flex gap-2 mb-3">
         {session.kpiPreview.slice(0, 2).map((kpi, i) => (
           <div
-            key={i}
+            key={kpi.label}
             className="flex-1 bg-white/60 rounded-lg px-2.5 py-2"
           >
             <p className="text-[8px] uppercase tracking-wider text-text-muted">{kpi.label}</p>
