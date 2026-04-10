@@ -10,21 +10,23 @@ interface StatusAlertProps {
 }
 
 export default function StatusAlert({ message, type = "danger", onClose }: StatusAlertProps) {
-  const styles = {
-    danger: "bg-danger/10 border-danger/20 text-danger",
-    warning: "bg-warning/10 border-warning/20 text-warning",
-    info: "bg-accent/10 border-accent/20 text-accent",
+  const alertStyles = {
+    danger: { bg: "bg-danger/8", border: "border-danger/25", icon: "text-danger" },
+    warning: { bg: "bg-warning/8", border: "border-warning/25", icon: "text-warning" },
+    info: { bg: "bg-accent/8", border: "border-accent/25", icon: "text-accent" },
   };
+
+  const style = alertStyles[type] ?? alertStyles.danger;
 
   return (
     <motion.div
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
       exit={{ opacity: 0, height: 0 }}
-      className="w-full rounded-xl px-5 py-4 flex items-start gap-3 border backdrop-blur-md bg-danger/8 border-danger/25 mb-8 overflow-hidden"
+      className={`w-full rounded-xl px-5 py-4 flex items-start gap-3 border backdrop-blur-md ${style.bg} ${style.border} mb-8 overflow-hidden`}
     >
       <div className="flex items-center gap-3">
-        <AlertTriangle size={20} className="shrink-0 text-danger" />
+        <AlertTriangle size={20} className={`shrink-0 ${style.icon}`} />
         <span className="font-condensed font-bold uppercase tracking-wider text-sm">
           {message}
         </span>
