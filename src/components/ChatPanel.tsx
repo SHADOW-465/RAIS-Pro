@@ -5,14 +5,25 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, MessageCircle, RefreshCw } from "lucide-react";
 import type { DashboardConfig, ChatMessage } from "@/types/dashboard";
+import InsightSlide from "./InsightSlide";
+import type { InsightSlide as InsightSlideType } from "@/types/dashboard";
+import { getDeviceId } from "@/lib/device-id";
 
 interface ChatPanelProps {
   dataSummary: string;
   currentConfig: DashboardConfig;
   onRefresh: (config: DashboardConfig) => void;
+  sessionId?: string;
+  onSlideAdded?: (slide: InsightSlideType) => void;
 }
 
-export default function ChatPanel({ dataSummary, currentConfig, onRefresh }: ChatPanelProps) {
+export default function ChatPanel({
+  dataSummary,
+  currentConfig,
+  onRefresh,
+  sessionId,
+  onSlideAdded,
+}: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,10 +37,6 @@ export default function ChatPanel({ dataSummary, currentConfig, onRefresh }: Cha
     const question = input.trim();
     if (!question || loading) return;
 
-    const history = messages
-      .slice(-10)
-      .map(m => ({ role: m.role, content: m.content }));
-
     setMessages(prev => [...prev, { role: "user", content: question }]);
     setInput("");
     setLoading(true);
@@ -38,7 +45,7 @@ export default function ChatPanel({ dataSummary, currentConfig, onRefresh }: Cha
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, history, dataSummary, currentConfig }),
+        body: JSON.stringify({ question, dataSummary, currentConfig, sessionId }),
       });
 
       if (!res.ok) {
@@ -48,11 +55,32 @@ export default function ChatPanel({ dataSummary, currentConfig, onRefresh }: Cha
 
       const result = await res.json();
 
-      if (result.type === "refresh" && result.config) {
+      if (result.type === "slide" && result.slide) {
+        const slide: InsightSlideType = {
+          ...result.slide,
+          sessionId: sessionId ?? "",
+        };
+
+        // Save to DB (best-effort)
+        if (sessionId) {
+          const deviceId = getDeviceId();
+          fetch(`/api/sessions/${sessionId}/slides`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ deviceId, slide }),
+          }).catch(console.warn);
+        }
+
+        onSlideAdded?.(slide);
+        setMessages(prev => [
+          ...prev,
+          { role: "assistant", content: "↑ Insight slide generated above.", isRefresh: false },
+        ]);
+      } else if (result.type === "refresh" && result.config) {
         onRefresh(result.config);
         setMessages(prev => [
           ...prev,
-          { role: "assistant", content: "Dashboard updated based on your request.", isRefresh: true },
+          { role: "assistant", content: "Dashboard updated.", isRefresh: true },
         ]);
       } else {
         setMessages(prev => [
