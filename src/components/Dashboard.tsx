@@ -8,17 +8,22 @@ import KPICard from "./KPICard";
 import ChartContainer from "./ChartContainer";
 import StatusAlert from "./StatusAlert";
 import ChatPanel from "./ChatPanel";
+import InsightSlide from "./InsightSlide";
 import type { DashboardConfig } from "@/types/dashboard";
+import type { InsightSlide as InsightSlideType } from "@/types/dashboard";
 
 interface DashboardProps {
   data: DashboardConfig;
   dataSummary: string;
   onReset: () => void;
-  sessionTitle?: string;   // Phase 2: shown in breadcrumb
+  sessionId?: string;
+  sessionTitle?: string;
+  initialSlides?: InsightSlideType[];
 }
 
-export default function Dashboard({ data, dataSummary, onReset, sessionTitle }: DashboardProps) {
+export default function Dashboard({ data, dataSummary, onReset, sessionId, sessionTitle, initialSlides }: DashboardProps) {
   const [currentConfig, setCurrentConfig] = useState<DashboardConfig>(data);
+  const [slides, setSlides] = useState<InsightSlideType[]>(initialSlides ?? []);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -149,11 +154,25 @@ export default function Dashboard({ data, dataSummary, onReset, sessionTitle }: 
             </motion.div>
           </div>
 
+          {/* Insight Slides */}
+          {slides.length > 0 && (
+            <div className="space-y-4">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+                Insight Slides — from your questions
+              </p>
+              {slides.map((slide, i) => (
+                <InsightSlide key={slide.id ?? i} slide={slide} />
+              ))}
+            </div>
+          )}
+
           {/* Chat Panel */}
           <ChatPanel
             dataSummary={dataSummary}
             currentConfig={currentConfig}
             onRefresh={setCurrentConfig}
+            sessionId={sessionId}
+            onSlideAdded={(slide) => setSlides(prev => [...prev, slide])}
           />
 
           {/* Data sources footer */}

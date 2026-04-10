@@ -7,6 +7,7 @@ import Dashboard from "@/components/Dashboard";
 import ProcessingLoader from "@/components/ProcessingLoader";
 import { getDeviceId } from "@/lib/device-id";
 import type { DashboardConfig } from "@/types/dashboard";
+import type { InsightSlide as InsightSlideType } from "@/types/dashboard";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -17,6 +18,7 @@ export default function SessionPage({ params }: Props) {
   const [sessionId, setSessionId] = useState<string>("");
   const [config, setConfig] = useState<DashboardConfig | null>(null);
   const [dataSummary] = useState<string>(""); // Phase 3: loaded from session
+  const [slides, setSlides] = useState<InsightSlideType[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,6 +34,14 @@ export default function SessionPage({ params }: Props) {
       .then((body) => {
         if (body.error) throw new Error(body.error);
         setConfig(body.session.dashboard as DashboardConfig);
+        // Map stored slides from DB row shape to InsightSlide shape
+        const stored = (body.slides ?? []).map((row: any) => ({
+          id: row.id,
+          sessionId: row.session_id,
+          question: row.question,
+          ...row.slide,
+        } as InsightSlideType));
+        setSlides(stored);
       })
       .catch((err) => setError(err.message));
   }, [sessionId]);
@@ -63,6 +73,8 @@ export default function SessionPage({ params }: Props) {
       data={config}
       dataSummary={dataSummary}
       onReset={() => router.push("/")}
+      sessionId={sessionId}
+      initialSlides={slides}
     />
   );
 }
