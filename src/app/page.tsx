@@ -7,13 +7,17 @@ import { motion } from "framer-motion";
 import UploadZone from "@/components/UploadZone";
 import ProcessingLoader from "@/components/ProcessingLoader";
 import SessionCard, { type SessionSummary } from "@/components/SessionCard";
+import Dashboard from "@/components/Dashboard";
 import { getDeviceId } from "@/lib/device-id";
+import type { DashboardConfig } from "@/types/dashboard";
 
 export default function Home() {
   const router = useRouter();
   const [processing, setProcessing] = useState(false);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
+  const [analysisData, setAnalysisData] = useState<DashboardConfig | null>(null);
+  const [dataSummary, setDataSummary] = useState<string>("");
 
   // Load sessions on mount
   useEffect(() => {
@@ -47,6 +51,7 @@ export default function Home() {
       // 1. Parse Excel files client-side (no raw data leaves the browser)
       const { parseExcelFiles } = await import("@/lib/parser");
       const summaries = await parseExcelFiles(files);
+      const summary = JSON.stringify(summaries);
 
       // 2. Send summaries to /api/analyze — AI runs server-side, session saved to Supabase
       const deviceId = getDeviceId();
@@ -69,9 +74,13 @@ export default function Home() {
 
       if (body.sessionId) {
         router.push(`/session/${body.sessionId}`);
+      } else if (body.dashboardTitle) {
+        // Supabase not configured — render dashboard locally from the analysis result
+        setDataSummary(summary);
+        setAnalysisData(body as DashboardConfig);
+        setProcessing(false);
       } else {
-        console.warn("Session not saved; redirecting home");
-        router.push("/");
+        throw new Error(body.error ?? "Analysis returned no usable data");
       }
     } catch (error) {
       console.error("Analysis failed:", error);
@@ -90,6 +99,16 @@ export default function Home() {
       <div className="min-h-screen flex items-center justify-center">
         <ProcessingLoader />
       </div>
+    );
+  }
+
+  if (analysisData) {
+    return (
+      <Dashboard
+        data={analysisData}
+        dataSummary={dataSummary}
+        onReset={() => setAnalysisData(null)}
+      />
     );
   }
 
