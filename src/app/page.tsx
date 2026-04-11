@@ -9,7 +9,7 @@ import ProcessingLoader from "@/components/ProcessingLoader";
 import SessionCard, { type SessionSummary } from "@/components/SessionCard";
 import Dashboard from "@/components/Dashboard";
 import { getDeviceId } from "@/lib/device-id";
-import type { DashboardConfig } from "@/types/dashboard";
+import type { DashboardConfig, RawSheet } from "@/types/dashboard";
 
 export default function Home() {
   const router = useRouter();
@@ -18,6 +18,7 @@ export default function Home() {
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [analysisData, setAnalysisData] = useState<DashboardConfig | null>(null);
   const [dataSummary, setDataSummary] = useState<string>("");
+  const [rawSheets, setRawSheets] = useState<RawSheet[]>([]);
 
   // Load sessions on mount
   useEffect(() => {
@@ -48,10 +49,9 @@ export default function Home() {
   const handleUploadComplete = async (files: File[]) => {
     setProcessing(true);
     try {
-      // 1. Parse Excel files client-side (no raw data leaves the browser)
-      const { parseExcelFiles } = await import("@/lib/parser");
-      const summaries = await parseExcelFiles(files);
-      const summary = JSON.stringify(summaries);
+      // 1. Parse Excel files client-side — keeps raw rows for verification
+      const { parseExcelFilesWithRaw } = await import("@/lib/parser");
+      const { summaries, rawSheets: sheets } = await parseExcelFilesWithRaw(files);
 
       // 2. Send summaries to /api/analyze — AI runs server-side, session saved to Supabase
       const deviceId = getDeviceId();
@@ -73,10 +73,16 @@ export default function Home() {
       const body = await res.json();
 
       if (body.sessionId) {
+        // Supabase saved — navigate to persistent session page
+        // Store raw sheets in sessionStorage so /session/[id] can access them
+        try {
+          sessionStorage.setItem(`rais_raw_${body.sessionId}`, JSON.stringify(sheets));
+        } catch { /* quota exceeded — silently skip */ }
         router.push(`/session/${body.sessionId}`);
       } else if (body.dashboardTitle) {
-        // Supabase not configured — render dashboard locally from the analysis result
-        setDataSummary(summary);
+        // Supabase not configured — render dashboard locally
+        setRawSheets(sheets);
+        setDataSummary(JSON.stringify(summaries));
         setAnalysisData(body as DashboardConfig);
         setProcessing(false);
       } else {
@@ -107,7 +113,8 @@ export default function Home() {
       <Dashboard
         data={analysisData}
         dataSummary={dataSummary}
-        onReset={() => setAnalysisData(null)}
+        rawSheets={rawSheets}
+        onReset={() => { setAnalysisData(null); setRawSheets([]); }}
       />
     );
   }

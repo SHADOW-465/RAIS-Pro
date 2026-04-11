@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Dashboard from "@/components/Dashboard";
 import ProcessingLoader from "@/components/ProcessingLoader";
 import { getDeviceId } from "@/lib/device-id";
-import type { DashboardConfig } from "@/types/dashboard";
+import type { DashboardConfig, RawSheet } from "@/types/dashboard";
 import type { InsightSlide as InsightSlideType } from "@/types/dashboard";
 
 interface Props {
@@ -17,12 +17,20 @@ export default function SessionPage({ params }: Props) {
   const router = useRouter();
   const [sessionId, setSessionId] = useState<string>("");
   const [config, setConfig] = useState<DashboardConfig | null>(null);
-  const [dataSummary] = useState<string>(""); // Phase 3: loaded from session
+  const [dataSummary] = useState<string>("");
   const [slides, setSlides] = useState<InsightSlideType[]>([]);
+  const [rawSheets, setRawSheets] = useState<RawSheet[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    params.then(({ id }) => setSessionId(id));
+    params.then(({ id }) => {
+      setSessionId(id);
+      // Restore raw sheets stashed in sessionStorage right after upload
+      try {
+        const stored = sessionStorage.getItem(`rais_raw_${id}`);
+        if (stored) setRawSheets(JSON.parse(stored));
+      } catch { /* ignore */ }
+    });
   }, [params]);
 
   useEffect(() => {
@@ -75,6 +83,7 @@ export default function SessionPage({ params }: Props) {
       onReset={() => router.push("/")}
       sessionId={sessionId}
       initialSlides={slides}
+      rawSheets={rawSheets.length > 0 ? rawSheets : undefined}
     />
   );
 }

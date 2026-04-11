@@ -7,6 +7,16 @@ export interface KPI {
   /** -1 = declining/bad, 0 = stable/neutral, 1 = improving/good */
   trend: -1 | 0 | 1;
   context: string;
+  /** Column name in source data this KPI was derived from */
+  sourceColumn?: string;
+}
+
+/** Raw spreadsheet data kept client-side for data verification */
+export interface RawSheet {
+  name: string;
+  fileName: string;
+  columns: string[];
+  rows: Record<string, unknown>[];
 }
 
 export interface ChartDataset {

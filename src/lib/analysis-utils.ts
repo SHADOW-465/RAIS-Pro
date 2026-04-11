@@ -33,11 +33,12 @@ export function normalizeResult(raw: any): DashboardConfig {
 
     kpis: Array.isArray(raw.kpis)
       ? raw.kpis.slice(0, 8).map((k: any) => ({
-          label:   String(k.label   ?? 'Metric'),
-          value:   k.value          ?? 'N/A',
-          unit:    k.unit,
-          trend:   ([-1, 0, 1].includes(Number(k.trend)) ? Number(k.trend) : 0) as -1 | 0 | 1,
-          context: String(k.context ?? ''),
+          label:        String(k.label        ?? 'Metric'),
+          value:        k.value               ?? 'N/A',
+          unit:         k.unit,
+          trend:        ([-1, 0, 1].includes(Number(k.trend)) ? Number(k.trend) : 0) as -1 | 0 | 1,
+          context:      String(k.context      ?? ''),
+          sourceColumn: k.sourceColumn ? String(k.sourceColumn) : undefined,
         }))
       : [],
 
@@ -80,7 +81,8 @@ SCHEMA:
       "value": "actual value from data (number or formatted string like '14.2k' or '4.2%')",
       "unit": "optional unit string — omit if value already contains it",
       "trend": 1,
-      "context": "short label e.g. 'vs last month', 'YTD', 'target'"
+      "context": "short label e.g. 'vs last month', 'YTD', 'target'",
+      "sourceColumn": "exact column name in the uploaded data this metric was derived from"
     }
   ],
 

@@ -1,4 +1,7 @@
 import * as XLSX from 'xlsx';
+import type { RawSheet } from '@/types/dashboard';
+
+const MAX_DISPLAY_ROWS = 500;
 
 export interface ColumnSummary {
   name: string;
@@ -15,8 +18,18 @@ export interface SheetSummary {
   columns: ColumnSummary[];
 }
 
+export interface ParseResult {
+  summaries: SheetSummary[];
+  rawSheets: RawSheet[];
+}
+
 export async function parseExcelFiles(files: File[]): Promise<SheetSummary[]> {
+  return (await parseExcelFilesWithRaw(files)).summaries;
+}
+
+export async function parseExcelFilesWithRaw(files: File[]): Promise<ParseResult> {
   const summaries: SheetSummary[] = [];
+  const rawSheets: RawSheet[] = [];
 
   for (const file of files) {
     const data = await file.arrayBuffer();
@@ -87,8 +100,19 @@ export async function parseExcelFiles(files: File[]): Promise<SheetSummary[]> {
         isYearly,
         isMonthly,
       } as any);
+
+      // Collect raw rows for client-side verification (capped to keep memory sane)
+      const rawRows2 = json.slice(0, MAX_DISPLAY_ROWS).map(row =>
+        Object.fromEntries(columns.map(c => [c, (row as any)[c] ?? '']))
+      );
+      rawSheets.push({
+        name: `${file.name} - ${sheetName}`,
+        fileName: file.name,
+        columns,
+        rows: rawRows2,
+      });
     }
   }
 
-  return summaries;
+  return { summaries, rawSheets };
 }
