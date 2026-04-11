@@ -1,5 +1,6 @@
 // src/lib/analysis-utils.ts
 import type { DashboardConfig } from '@/types/dashboard';
+import type { SheetSummary, GroupedSeries } from './parser';
 
 // ── JSON extraction ──────────────────────────────────────────────────────────
 
@@ -62,32 +63,102 @@ export function normalizeResult(raw: any): DashboardConfig {
   };
 }
 
+// ── Formatting helpers ───────────────────────────────────────────────────────
+
+function fmtNum(n: number): string {
+  if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+  if (Math.abs(n) >= 1_000) return (n / 1_000).toFixed(1) + 'k';
+  if (Math.abs(n) < 10) return n.toFixed(2);
+  return n.toFixed(1);
+}
+
+function seriesKey(s: GroupedSeries): string {
+  return `${s.metricColumn} by ${s.groupByColumn} [${s.aggregation}]`;
+}
+
 // ── Prompt builder ───────────────────────────────────────────────────────────
 
-export function buildPrompt(summaries: unknown): string {
-  const data = JSON.stringify(summaries, null, 2).slice(0, 12000);
+export function buildPrompt(rawSummaries: unknown): string {
+  const summaries = rawSummaries as SheetSummary[];
 
-  return `Analyze this dataset and return a JSON object matching EXACTLY this schema.
+  // ── Section 1: Pre-computed aggregates (ground truth) ─────────────────────
+  let aggregateSection = '## PRE-COMPUTED AGGREGATES\n';
+  aggregateSection += 'These are exact values computed from the raw data. KPI values MUST come from here verbatim.\n\n';
+
+  for (const sheet of summaries) {
+    aggregateSection += `### ${sheet.name} (${sheet.rowCount.toLocaleString()} rows)\n`;
+    const numericCols = sheet.columns.filter(c => c.type === 'number');
+    if (numericCols.length === 0) {
+      aggregateSection += '  (no numeric columns)\n';
+    } else {
+      for (const col of numericCols) {
+        aggregateSection += `  ${col.name}:\n`;
+        if (col.sum !== undefined) aggregateSection += `    total (SUM) = ${fmtNum(col.sum)} (exact: ${col.sum})\n`;
+        if (col.mean !== undefined) aggregateSection += `    average (MEAN) = ${fmtNum(col.mean)} (exact: ${col.mean})\n`;
+        if (col.min !== undefined) aggregateSection += `    min = ${col.min}, max = ${col.max}\n`;
+      }
+    }
+    aggregateSection += '\n';
+  }
+
+  // ── Section 2: Pre-computed chart series ──────────────────────────────────
+  let seriesSection = '';
+  const allSeries: GroupedSeries[] = summaries.flatMap(s => s.groupedSeries ?? []);
+
+  if (allSeries.length > 0) {
+    seriesSection = '## PRE-COMPUTED CHART SERIES\n';
+    seriesSection += 'Use these exact label/value arrays for chart datasets. Do not invent chart data.\n\n';
+    for (const s of allSeries) {
+      seriesSection += `  ${seriesKey(s)}:\n`;
+      seriesSection += `    labels: ${JSON.stringify(s.labels)}\n`;
+      seriesSection += `    values: ${JSON.stringify(s.values)}\n\n`;
+    }
+  }
+
+  // ── Section 3: Column metadata (for context only) ─────────────────────────
+  let metaSection = '## COLUMN METADATA (context only — do NOT use for KPI values)\n';
+  for (const sheet of summaries) {
+    metaSection += `### ${sheet.name}\n`;
+    for (const col of sheet.columns) {
+      const extra = col.type === 'string' || col.type === 'date'
+        ? `unique values: ${col.uniqueCount}, samples: ${JSON.stringify(col.sampleData)}`
+        : `type: number`;
+      metaSection += `  - ${col.name} (${col.type}): ${extra}\n`;
+    }
+    metaSection += '\n';
+  }
+
+  // ── Build series reference list for chart instructions ────────────────────
+  const seriesNames = allSeries.map(s => `"${seriesKey(s)}"`).join(', ');
+
+  return `You are a senior data analyst. Analyze the dataset below and return a single JSON object matching EXACTLY this schema.
+
+CRITICAL RULES:
+1. KPI values MUST be taken verbatim from the PRE-COMPUTED AGGREGATES section. Never estimate or recalculate.
+2. Chart data arrays (labels and datasets.data) MUST come from the PRE-COMPUTED CHART SERIES section. Never invent chart numbers.
+3. If a KPI represents a total, use the SUM value. If it's a rate or percentage, use the MEAN value.
+4. sourceColumn must be the exact column name as it appears in the data.
+5. Return ONLY the JSON object — no markdown, no explanation.
 
 SCHEMA:
 {
-  "dashboardTitle": "Short descriptive title based on the data (max 8 words)",
+  "dashboardTitle": "Short descriptive title (max 8 words)",
 
-  "executiveSummary": "2-3 sentence plain-language brief for a General Manager. Reference specific numbers.",
+  "executiveSummary": "2-3 sentences for a General Manager. Reference specific numbers from the aggregates.",
 
   "kpis": [
     {
-      "label": "AI-chosen metric name relevant to this dataset",
-      "value": "actual value from data (number or formatted string like '14.2k' or '4.2%')",
-      "unit": "optional unit string — omit if value already contains it",
-      "trend": 1,
-      "context": "short label e.g. 'vs last month', 'YTD', 'target'",
-      "sourceColumn": "exact column name in the uploaded data this metric was derived from"
+      "label": "Human-readable metric name",
+      "value": "EXACT value from PRE-COMPUTED AGGREGATES (formatted, e.g. '33.2k' or '0.82%')",
+      "unit": "unit string if not already in value, else omit",
+      "trend": -1,
+      "context": "e.g. 'total', 'YTD average', 'this quarter'",
+      "sourceColumn": "exact column name in source data"
     }
   ],
 
   "insights": [
-    "Specific insight referencing actual data values",
+    "Specific insight referencing exact numbers from the aggregates",
     "...", "...", "...", "..."
   ],
 
@@ -98,15 +169,16 @@ SCHEMA:
 
   "charts": [
     {
-      "title": "Chart title from data",
+      "title": "Chart title",
       "type": "line",
+      "description": "Optional one-liner",
       "data": {
-        "labels": ["label1", "label2", "label3"],
+        "labels": ["EXACT labels from a PRE-COMPUTED CHART SERIES"],
         "datasets": [{
           "label": "Series name",
-          "data": [10, 20, 30],
-          "borderColor": "#00E5CC",
-          "backgroundColor": "rgba(0, 229, 204, 0.1)",
+          "data": [EXACT values from the matching PRE-COMPUTED CHART SERIES],
+          "borderColor": "#6366f1",
+          "backgroundColor": "rgba(99,102,241,0.1)",
           "fill": true,
           "tension": 0.4
         }]
@@ -117,15 +189,15 @@ SCHEMA:
   "alerts": []
 }
 
-RULES:
-- kpis: 3-6 items. Choose the metrics that matter most for THIS specific dataset. Do not use hardcoded or domain-specific field names.
-- trend must be exactly -1 (declining/bad), 0 (stable/neutral), or 1 (improving/good).
-- All KPI values and chart data must come from the actual uploaded data — no invented numbers.
-- Chart type must be one of: line, bar, horizontalBar, area, pie, doughnut, radar.
-- alerts: empty array [] unless there is a genuine critical anomaly.
-- Exactly 5 insights, exactly 4 recommendations.
-- Return ONLY the JSON object. Nothing before or after it.
+INSTRUCTIONS:
+- kpis: 3–6 items. Pick the metrics that matter most. trend: 1=improving, 0=stable, -1=declining.
+- charts: 2–4 charts. Available pre-computed series: ${seriesNames || '(none — omit charts if no series available)'}.
+  Chart type must be one of: line, bar, horizontalBar, area, pie, doughnut, radar.
+- insights: exactly 5. Reference real numbers.
+- recommendations: exactly 4. Short and actionable.
+- alerts: empty [] unless there is a genuine critical anomaly in the data.
 
-DATA:
-${data}`;
+${aggregateSection}
+${seriesSection}
+${metaSection}`;
 }
