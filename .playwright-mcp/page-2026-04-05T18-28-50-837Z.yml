@@ -1,0 +1,39 @@
+- generic [active] [ref=e1]:
+  - button "Toggle light/dark mode" [ref=e2]:
+    - img [ref=e3]
+  - main [ref=e5]:
+    - generic [ref=e185]:
+      - generic [ref=e186]:
+        - heading "RAIS" [level=1] [ref=e187]
+        - paragraph [ref=e188]: Rejection Analysis & Intelligence System
+      - generic [ref=e190]:
+        - img [ref=e192]
+        - heading "Drop your Excel files here" [level=2] [ref=e195]
+        - paragraph [ref=e196]: Support for multi-file XLSX, XLS, and CSV analysis
+        - generic [ref=e197] [cursor=pointer]: Browse Files
+      - generic [ref=e208]:
+        - generic [ref=e209]:
+          - heading "Ready for Analysis" [level=3] [ref=e210]
+          - generic [ref=e211]: 1 Files
+        - generic [ref=e212]:
+          - generic [ref=e213]:
+            - img [ref=e215]
+            - generic [ref=e218]:
+              - paragraph [ref=e219]: ASSEMBLY REJECTION REPORT.xlsx
+              - paragraph [ref=e220]: 190.1 KB
+          - button [ref=e221]:
+            - img [ref=e222]
+        - button "Initialize Intelligence Scan" [ref=e225]
+      - generic [ref=e198]:
+        - generic [ref=e199]:
+          - img [ref=e200]
+          - text: XLSX
+        - generic [ref=e202]:
+          - img [ref=e203]
+          - text: XLS
+        - generic [ref=e205]:
+          - img [ref=e206]
+          - text: CSV
+  - button "Open Next.js Dev Tools" [ref=e35] [cursor=pointer]:
+    - img [ref=e36]
+  - alert [ref=e39]

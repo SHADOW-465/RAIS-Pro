@@ -8,6 +8,7 @@ import ProcessingLoader from "@/components/ProcessingLoader";
 import { getDeviceId } from "@/lib/device-id";
 import type { DashboardConfig, RawSheet } from "@/types/dashboard";
 import type { InsightSlide as InsightSlideType } from "@/types/dashboard";
+import type { MergePlan } from "@/types/analysis";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -20,6 +21,7 @@ export default function SessionPage({ params }: Props) {
   const [dataSummary] = useState<string>("");
   const [slides, setSlides] = useState<InsightSlideType[]>([]);
   const [rawSheets, setRawSheets] = useState<RawSheet[]>([]);
+  const [mergePlan, setMergePlan] = useState<MergePlan | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export default function SessionPage({ params }: Props) {
       .then((body) => {
         if (body.error) throw new Error(body.error);
         setConfig(body.session.dashboard as DashboardConfig);
+        if (body.session.merge_plan) setMergePlan(body.session.merge_plan as MergePlan);
         // Map stored slides from DB row shape to InsightSlide shape
         const stored = (body.slides ?? []).map((row: any) => ({
           id: row.id,
@@ -84,6 +87,7 @@ export default function SessionPage({ params }: Props) {
       sessionId={sessionId}
       initialSlides={slides}
       rawSheets={rawSheets.length > 0 ? rawSheets : undefined}
+      mergePlan={mergePlan}
     />
   );
 }

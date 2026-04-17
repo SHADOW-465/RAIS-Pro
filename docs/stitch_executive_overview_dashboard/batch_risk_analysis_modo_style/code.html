@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Batch Risk Analysis - Modo Style</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#D97706", // Amber-600 for high risk focus
+                        secondary: "#4B5563",
+                        "background-light": "#F3F4F6", // Cool gray 100
+                        "background-dark": "#1F2937", // Gray 800
+                        "card-light": "#FFFFFF",
+                        "card-dark": "#374151",
+                        "text-main-light": "#111827",
+                        "text-main-dark": "#F9FAFB",
+                        "text-muted-light": "#6B7280",
+                        "text-muted-dark": "#9CA3AF",
+                    },
+                    fontFamily: {
+                        display: ["Outfit", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "1rem", // 16px as requested
+                        "xl": "1rem",
+                        "2xl": "1.5rem",
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 0 3px rgba(0,0,0,0.02)',
+                        'soft-hover': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
+                        'inner-light': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)',
+                    }
+                },
+            },
+        };
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #4b5563; 
+        }.glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .dark .glass {
+            background: rgba(31, 41, 55, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-main-light dark:text-text-main-dark transition-colors duration-300 min-h-screen p-4 md:p-8 flex justify-center items-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
+<div class="w-full max-w-[1400px] h-[90vh] bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl border border-white/50 dark:border-gray-700 rounded-3xl shadow-2xl overflow-hidden flex relative">
+<aside class="w-64 flex-shrink-0 flex flex-col py-8 pl-8 pr-4 border-r border-gray-200/50 dark:border-gray-700/50">
+<div class="flex items-center gap-3 mb-10 px-2">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-orange-400 flex items-center justify-center shadow-lg text-white">
+<span class="material-icons-round text-2xl">analytics</span>
+</div>
+<h1 class="text-2xl font-bold tracking-tight text-gray-800 dark:text-white">Modo<span class="font-light">AI</span></h1>
+</div>
+<nav class="flex-1 space-y-2 overflow-y-auto pr-2">
+<div class="text-xs font-semibold text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider mb-4 px-2">Main Menu</div>
+<a class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-700 rounded-xl shadow-soft text-primary font-semibold transition-all group" href="#">
+<span class="material-icons-round">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted-light dark:text-text-muted-dark hover:bg-white/50 dark:hover:bg-gray-700/50 hover:text-text-main-light dark:hover:text-text-main-dark rounded-xl transition-all group" href="#">
+<span class="material-icons-round group-hover:scale-110 transition-transform">inventory_2</span>
+<span>Batches</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted-light dark:text-text-muted-dark hover:bg-white/50 dark:hover:bg-gray-700/50 hover:text-text-main-light dark:hover:text-text-main-dark rounded-xl transition-all group" href="#">
+<span class="material-icons-round group-hover:scale-110 transition-transform">warning</span>
+<span>Risk Alerts</span>
+</a>
+<div class="pt-6 text-xs font-semibold text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider mb-2 px-2">Analytics</div>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted-light dark:text-text-muted-dark hover:bg-white/50 dark:hover:bg-gray-700/50 hover:text-text-main-light dark:hover:text-text-main-dark rounded-xl transition-all group" href="#">
+<span class="material-icons-round group-hover:scale-110 transition-transform">trending_up</span>
+<span>Performance</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted-light dark:text-text-muted-dark hover:bg-white/50 dark:hover:bg-gray-700/50 hover:text-text-main-light dark:hover:text-text-main-dark rounded-xl transition-all group" href="#">
+<span class="material-icons-round group-hover:scale-110 transition-transform">description</span>
+<span>Reports</span>
+</a>
+</nav>
+<div class="mt-auto px-2">
+<button class="flex items-center gap-3 w-full px-4 py-3 text-text-muted-light dark:text-text-muted-dark hover:text-primary transition-colors">
+<span class="material-icons-round">settings</span>
+<span>Settings</span>
+</button>
+<button class="flex items-center gap-3 w-full px-4 py-3 text-text-muted-light dark:text-text-muted-dark hover:text-red-500 transition-colors">
+<span class="material-icons-round">logout</span>
+<span>Log Out</span>
+</button>
+</div>
+</aside>
+<main class="flex-1 flex flex-col overflow-hidden bg-white/30 dark:bg-gray-900/30 backdrop-blur-sm p-8">
+<header class="flex justify-between items-center mb-8">
+<div>
+<h2 class="text-3xl font-bold text-gray-800 dark:text-white">Batch Risk Analysis</h2>
+<p class="text-text-muted-light dark:text-text-muted-dark mt-1">Real-time monitoring for production line GM-04</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="bg-white dark:bg-gray-700 rounded-xl p-2 shadow-sm border border-gray-100 dark:border-gray-600 flex items-center gap-2 px-4 cursor-pointer hover:shadow-md transition-shadow">
+<img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_WsWrPiS2iZeyQxEzfe-GD_W4JxZJFsO3XIMg-8qoQ22fkapU1kaPl-53IKagcWrEPY-IMDPZg4JrLe7g48bGX5pG5CauqN-Uzd1kAk-5CBZpFJWrZJu8vOBcyTyPdLRVqGY081GYp1Sm6huYXq9m9641UsC5n_eecLEgsWchnxvYg3mDGwE7NHGX_wziPtHP017nqy9mxKmjzfKJqevxVQg3r7PYoyNfidnmGrKiw7DTfD36dV7in5wm32RaHhhmaSJA-e22GQ0"/>
+<span class="font-medium text-sm text-gray-700 dark:text-gray-200">Dr. Alex Sterling</span>
+<span class="material-icons-round text-gray-400">expand_more</span>
+</div>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto pr-2 pb-6 space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-soft hover:shadow-soft-hover transition-all duration-300 border border-white/60 dark:border-gray-700 group">
+<div class="flex items-center justify-between mb-4">
+<div class="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300">
+<span class="material-icons-round text-2xl">precision_manufacturing</span>
+</div>
+<span class="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold px-2 py-1 rounded-lg flex items-center">
+<span class="material-icons-round text-[14px] mr-1">arrow_upward</span> +2.4%
+                            </span>
+</div>
+<div class="text-text-muted-light dark:text-text-muted-dark font-medium mb-1">Total Batches Monitored</div>
+<div class="text-4xl font-bold text-gray-800 dark:text-white">1,284</div>
+</div>
+<div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-soft hover:shadow-soft-hover transition-all duration-300 border border-primary/20 relative overflow-hidden group">
+<div class="absolute -right-6 -top-6 w-24 h-24 bg-primary/10 rounded-full blur-2xl"></div>
+<div class="flex items-center justify-between mb-4 relative z-10">
+<div class="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-xl text-primary group-hover:scale-110 transition-transform duration-300">
+<span class="material-icons-round text-2xl">warning_amber</span>
+</div>
+<span class="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-bold px-2 py-1 rounded-lg flex items-center animate-pulse">
+                                Action Required
+                            </span>
+</div>
+<div class="text-text-muted-light dark:text-text-muted-dark font-medium mb-1 relative z-10">High Risk Batches</div>
+<div class="text-4xl font-bold text-primary relative z-10">12</div>
+</div>
+<div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-soft hover:shadow-soft-hover transition-all duration-300 border border-white/60 dark:border-gray-700 group">
+<div class="flex items-center justify-between mb-4">
+<div class="bg-purple-50 dark:bg-purple-900/30 p-3 rounded-xl text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-300">
+<span class="material-icons-round text-2xl">visibility</span>
+</div>
+<span class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-bold px-2 py-1 rounded-lg">
+                                Pending Review
+                            </span>
+</div>
+<div class="text-text-muted-light dark:text-text-muted-dark font-medium mb-1">Under Observation</div>
+<div class="text-4xl font-bold text-gray-800 dark:text-white">45</div>
+</div>
+</div>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+<div class="xl:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-soft border border-white/60 dark:border-gray-700 flex flex-col h-full">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-xl font-bold text-gray-800 dark:text-white">Actionable Batches</h3>
+<button class="text-sm font-semibold text-primary bg-primary/10 px-4 py-2 rounded-lg hover:bg-primary/20 transition-colors">
+                                View Full Report
+                            </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="text-text-muted-light dark:text-text-muted-dark border-b border-gray-100 dark:border-gray-700 text-sm uppercase tracking-wider">
+<th class="py-4 px-2 font-semibold">Batch ID</th>
+<th class="py-4 px-2 font-semibold">Product Line</th>
+<th class="py-4 px-2 font-semibold">Anomaly Score</th>
+<th class="py-4 px-2 font-semibold">Status</th>
+<th class="py-4 px-2 font-semibold text-right">Action</th>
+</tr>
+</thead>
+<tbody class="text-gray-700 dark:text-gray-300">
+<tr class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-50 dark:border-gray-700/50">
+<td class="py-4 px-2 font-bold text-lg">#B-9024</td>
+<td class="py-4 px-2">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+<span class="material-icons-round text-sm">medication</span>
+</div>
+<span class="font-medium text-lg">Insulin V-Type</span>
+</div>
+</td>
+<td class="py-4 px-2">
+<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 w-24">
+<div class="bg-red-500 h-2.5 rounded-full" style="width: 92%"></div>
+</div>
+<span class="text-xs text-red-500 font-bold mt-1 block">92% Deviation</span>
+</td>
+<td class="py-4 px-2">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
+<span class="w-2 h-2 rounded-full bg-amber-500 mr-2"></span> High Risk
+                                            </span>
+</td>
+<td class="py-4 px-2 text-right">
+<button class="text-gray-400 hover:text-primary transition-colors">
+<span class="material-icons-round text-2xl">more_horiz</span>
+</button>
+</td>
+</tr>
+<tr class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-50 dark:border-gray-700/50">
+<td class="py-4 px-2 font-bold text-lg">#B-9029</td>
+<td class="py-4 px-2">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center text-teal-600 dark:text-teal-400">
+<span class="material-icons-round text-sm">vaccines</span>
+</div>
+<span class="font-medium text-lg">Cardio-Beta</span>
+</div>
+</td>
+<td class="py-4 px-2">
+<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 w-24">
+<div class="bg-amber-500 h-2.5 rounded-full" style="width: 78%"></div>
+</div>
+<span class="text-xs text-amber-600 dark:text-amber-400 font-bold mt-1 block">78% Deviation</span>
+</td>
+<td class="py-4 px-2">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
+<span class="w-2 h-2 rounded-full bg-amber-500 mr-2"></span> High Risk
+                                            </span>
+</td>
+<td class="py-4 px-2 text-right">
+<button class="text-gray-400 hover:text-primary transition-colors">
+<span class="material-icons-round text-2xl">more_horiz</span>
+</button>
+</td>
+</tr>
+<tr class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-50 dark:border-gray-700/50">
+<td class="py-4 px-2 font-bold text-lg">#B-9102</td>
+<td class="py-4 px-2">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+<span class="material-icons-round text-sm">science</span>
+</div>
+<span class="font-medium text-lg">Neuro-X Sol.</span>
+</div>
+</td>
+<td class="py-4 px-2">
+<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 w-24">
+<div class="bg-orange-400 h-2.5 rounded-full" style="width: 65%"></div>
+</div>
+<span class="text-xs text-orange-500 font-bold mt-1 block">65% Deviation</span>
+</td>
+<td class="py-4 px-2">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+<span class="w-2 h-2 rounded-full bg-gray-500 mr-2"></span> Investigating
+                                            </span>
+</td>
+<td class="py-4 px-2 text-right">
+<button class="text-gray-400 hover:text-primary transition-colors">
+<span class="material-icons-round text-2xl">more_horiz</span>
+</button>
+</td>
+</tr>
+<tr class="group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+<td class="py-4 px-2 font-bold text-lg">#B-9115</td>
+<td class="py-4 px-2">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-pink-100 dark:bg-pink-900/50 flex items-center justify-center text-pink-600 dark:text-pink-400">
+<span class="material-icons-round text-sm">healing</span>
+</div>
+<span class="font-medium text-lg">Dermasilk 4</span>
+</div>
+</td>
+<td class="py-4 px-2">
+<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 w-24">
+<div class="bg-orange-400 h-2.5 rounded-full" style="width: 71%"></div>
+</div>
+<span class="text-xs text-orange-500 font-bold mt-1 block">71% Deviation</span>
+</td>
+<td class="py-4 px-2">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
+<span class="w-2 h-2 rounded-full bg-amber-500 mr-2"></span> High Risk
+                                            </span>
+</td>
+<td class="py-4 px-2 text-right">
+<button class="text-gray-400 hover:text-primary transition-colors">
+<span class="material-icons-round text-2xl">more_horiz</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="xl:col-span-1 space-y-6">
+<div class="bg-gray-900 rounded-xl p-6 shadow-xl text-white relative overflow-hidden">
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+<h3 class="text-lg font-bold mb-4">Production Status</h3>
+<div class="space-y-6 relative z-10">
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<div class="w-3 h-3 bg-green-500 rounded-full mb-1 shadow-[0_0_10px_rgba(34,197,94,0.6)]"></div>
+<div class="w-0.5 h-full bg-gray-700"></div>
+</div>
+<div class="pb-6">
+<h4 class="font-bold text-lg">Line A (Solids)</h4>
+<p class="text-gray-400 text-sm">Operating at 98% efficiency. No anomalies detected.</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<div class="w-3 h-3 bg-primary rounded-full mb-1 shadow-[0_0_10px_rgba(217,119,6,0.6)]"></div>
+<div class="w-0.5 h-full bg-gray-700"></div>
+</div>
+<div class="pb-6">
+<h4 class="font-bold text-lg text-primary">Line B (Liquids)</h4>
+<p class="text-gray-300 text-sm">Caution: Temperature fluctuation in sector 4. Maintenance alerted.</p>
+<div class="flex -space-x-2 mt-3">
+<img alt="Avatar" class="w-8 h-8 rounded-full border-2 border-gray-900" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbu9OeiAINnqpd_CoY4W3U3BNoL-dk7uXV8zClLpW1auy6X3aaQlRbFsB84WCNNsJ6nMyv94CkBpNWTkk1S6dRnVcVyU4ap4Cib9mQFEcy_9dlMsE2DLPwoYBeg4uGHUMs5cxuOMycSOBFDjsa6UxuWk1EM9EAN6OIy4zqBkOITKFiQ8YM5gRj_TLBKYa0NYZD0Fne0xhQ2xFyRTgywYPTegISUovii9Oqiru8qhvaQ94WgMJmDKIj5ObZgt9q2n3e6iR7xFZQbEI"/>
+<img alt="Avatar" class="w-8 h-8 rounded-full border-2 border-gray-900" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3BnbIq3mAZfP1eQqnywVbYgnjC_PiXfd2Qc-Dzvd6Ub9Wa8n-z28TYJ4jec9uiQtDjG7SDqGkiwlvR4cKP58d3FC4WVhBP3RAq4wbBX9giiVjEqeLSrrRYgNHdcOrG-TcWblQkaBP3L8cNlWcdoY8zg22TCQzQ5b8xGeLrdet46__gBR4h9CfHwFguO0qsxUCDbu677Pu08gbGigelOjjuWzBJzdKR0JoVSxaVyx2lZKwoK-AbcX5JOeKHV8-T_XfsNsxhuHA-ME"/>
+</div>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-center">
+<div class="w-3 h-3 bg-gray-500 rounded-full mb-1"></div>
+</div>
+<div>
+<h4 class="font-bold text-lg text-gray-400">Line C (Pack)</h4>
+<p class="text-gray-500 text-sm">Scheduled Maintenance</p>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 shadow-soft border border-white/60 dark:border-gray-600">
+<h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4">Risk Distribution</h3>
+<div class="flex justify-between items-end h-32 px-2 gap-4">
+<div class="w-full bg-gray-200 dark:bg-gray-600 rounded-t-lg relative group h-[30%]">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Low</div>
+</div>
+<div class="w-full bg-gray-200 dark:bg-gray-600 rounded-t-lg relative group h-[45%]">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Med</div>
+</div>
+<div class="w-full bg-primary rounded-t-lg relative group shadow-[0_0_15px_rgba(217,119,6,0.3)] h-[85%]">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-primary opacity-100">High</div>
+</div>
+<div class="w-full bg-gray-200 dark:bg-gray-600 rounded-t-lg relative group h-[20%]">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Crit</div>
+</div>
+</div>
+<div class="flex justify-between text-xs text-text-muted-light dark:text-text-muted-dark mt-2 font-medium">
+<span>Q1</span>
+<span>Q2</span>
+<span>Q3</span>
+<span>Q4</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+</body></html>

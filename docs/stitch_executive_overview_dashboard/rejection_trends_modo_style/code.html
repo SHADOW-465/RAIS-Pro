@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rejection Trends Dashboard - Modo Style</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#D97706", // Amber-600 used as the primary brand color
+                        secondary: "#1E293B", // Slate-800 for high contrast text
+                        "background-light": "#F8F9FA", // Very light grey/warm white background
+                        "background-dark": "#0F172A", // Deep blue-black for dark mode
+                        "card-light": "#FFFFFF", // Pure white for cards
+                        "card-dark": "#1E293B", // Slate-800 for cards in dark mode
+                        "surface-light": "#F1F5F9", // Slate-100 for secondary surfaces
+                        "surface-dark": "#334155", // Slate-700 for secondary surfaces in dark mode
+                    },
+                    fontFamily: {
+                        display: ["'Plus Jakarta Sans'", "sans-serif"],
+                        body: ["'Plus Jakarta Sans'", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem",
+                        'xl': "1rem",
+                        '2xl': "1.5rem",
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'glow': '0 0 15px rgba(217, 119, 6, 0.3)',
+                    }
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .glass-effect {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200 transition-colors duration-300 min-h-screen p-4 md:p-8 font-body selection:bg-primary selection:text-white">
+<header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+<span class="material-icons-outlined">analytics</span>
+</div>
+<h1 class="text-2xl font-bold tracking-tight text-secondary dark:text-white">Modo Manufacturing Analytics</h1>
+</div>
+<p class="text-slate-500 dark:text-slate-400 text-sm ml-1">General Manager Overview • Medical Devices Division</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center bg-white dark:bg-card-dark rounded-full p-1 shadow-sm border border-slate-100 dark:border-slate-700">
+<button class="px-4 py-1.5 text-sm font-medium rounded-full bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white transition-all shadow-sm">Dashboard</button>
+<button class="px-4 py-1.5 text-sm font-medium rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Reports</button>
+<button class="px-4 py-1.5 text-sm font-medium rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Settings</button>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
+<button class="w-10 h-10 rounded-full bg-white dark:bg-card-dark border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-300 hover:text-primary transition-colors shadow-sm relative">
+<span class="material-icons-outlined text-xl">notifications</span>
+<span class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-card-dark"></span>
+</button>
+<div class="flex items-center gap-2 cursor-pointer group">
+<img alt="User Avatar" class="w-10 h-10 rounded-full border-2 border-white dark:border-slate-600 shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDT8mSecwdFGPir4dHCTzo61VVcbUKg9MDPnwaREOBS2sw-Y4PlDhoaikcAajcvkSQqqggxoo6lp2c-8u6Q0ITugfTijLJGIunwG2qqDdQleEEmcEaBFHSifw3EKUHgUevb7opqZfBmetSl7s5Fl-ezr-mCUnLG4622gEaSnGSE7GKdKL7RmIvtwV8Af8N84xRh58iuz6HRpfEUDtIaQKhbUjiVHxWoR0A_NDd8wFBDFL3-Eg7UYfY7DZezNQZvRg_QGkV53pgneo"/>
+<div class="hidden md:block">
+<p class="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-primary transition-colors">Dr. Sarah Chen</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">General Manager</p>
+</div>
+<span class="material-icons-outlined text-slate-400">expand_more</span>
+</div>
+</div>
+</div>
+</header>
+<main class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<aside class="hidden lg:flex lg:col-span-2 flex-col gap-2">
+<nav class="bg-card-light dark:bg-card-dark rounded-2xl p-4 shadow-soft border border-slate-100 dark:border-slate-800 h-full">
+<div class="space-y-1">
+<p class="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Main Menu</p>
+<a class="flex items-center gap-3 px-4 py-3 bg-primary/10 text-primary rounded-xl font-medium transition-all group" href="#">
+<span class="material-icons-outlined group-hover:scale-110 transition-transform">trending_up</span>
+                        Rejection Trends
+                    </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white rounded-xl font-medium transition-all group" href="#">
+<span class="material-icons-outlined group-hover:scale-110 transition-transform">precision_manufacturing</span>
+                        Production Line
+                    </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white rounded-xl font-medium transition-all group" href="#">
+<span class="material-icons-outlined group-hover:scale-110 transition-transform">inventory_2</span>
+                        Inventory
+                    </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white rounded-xl font-medium transition-all group" href="#">
+<span class="material-icons-outlined group-hover:scale-110 transition-transform">groups</span>
+                        Workforce
+                    </a>
+</div>
+<div class="space-y-1 mt-8">
+<p class="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Quality Control</p>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white rounded-xl font-medium transition-all group" href="#">
+<span class="material-icons-outlined group-hover:scale-110 transition-transform">rule</span>
+                        Audit Logs
+                    </a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white rounded-xl font-medium transition-all group" href="#">
+<span class="material-icons-outlined group-hover:scale-110 transition-transform">verified</span>
+                        Compliance
+                    </a>
+</div>
+</nav>
+</aside>
+<div class="col-span-1 lg:col-span-10 space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-card-light dark:bg-card-dark p-5 rounded-2xl shadow-soft border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-primary/30 transition-colors cursor-pointer">
+<div>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Current Period Rejections</p>
+<h3 class="text-3xl font-bold text-slate-900 dark:text-white">1.24%</h3>
+<p class="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+<span class="bg-green-100 dark:bg-green-900/30 rounded px-1 py-0.5 font-semibold">-0.12%</span> vs last week
+                        </p>
+</div>
+<div class="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-primary group-hover:bg-primary/10 transition-all">
+<span class="material-icons-outlined text-2xl">trending_down</span>
+</div>
+</div>
+<div class="bg-card-light dark:bg-card-dark p-5 rounded-2xl shadow-soft border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-primary/30 transition-colors cursor-pointer">
+<div>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Total Units Inspected</p>
+<h3 class="text-3xl font-bold text-slate-900 dark:text-white">48,290</h3>
+<p class="text-xs text-slate-500 dark:text-slate-500 mt-1 flex items-center gap-1">
+<span class="bg-slate-100 dark:bg-slate-700 rounded px-1 py-0.5 font-semibold">+5.4%</span> volume increase
+                        </p>
+</div>
+<div class="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-blue-500 group-hover:bg-blue-500/10 transition-all">
+<span class="material-icons-outlined text-2xl">fact_check</span>
+</div>
+</div>
+<div class="bg-card-light dark:bg-card-dark p-5 rounded-2xl shadow-soft border border-slate-100 dark:border-slate-800 flex items-center justify-between group hover:border-primary/30 transition-colors cursor-pointer">
+<div>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Critical Defect Rate</p>
+<h3 class="text-3xl font-bold text-slate-900 dark:text-white">0.02%</h3>
+<p class="text-xs text-amber-600 dark:text-amber-500 mt-1 flex items-center gap-1">
+<span class="bg-amber-100 dark:bg-amber-900/30 rounded px-1 py-0.5 font-semibold">Alert</span> Check Line 4
+                        </p>
+</div>
+<div class="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-red-500 group-hover:bg-red-500/10 transition-all">
+<span class="material-icons-outlined text-2xl">warning_amber</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="col-span-1 lg:col-span-2 bg-card-light dark:bg-card-dark p-6 md:p-8 rounded-2xl shadow-soft border border-slate-100 dark:border-slate-800 relative overflow-hidden">
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 relative z-10">
+<div>
+<h2 class="text-xl font-bold text-slate-900 dark:text-white">Rejection Trends</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Aggregate defect rate across all active lines</p>
+</div>
+<div class="mt-4 sm:mt-0 bg-surface-light dark:bg-surface-dark p-1 rounded-lg inline-flex">
+<button class="px-4 py-1.5 text-xs font-semibold rounded-md bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm transition-all">Weekly</button>
+<button class="px-4 py-1.5 text-xs font-medium rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">Monthly</button>
+<button class="px-4 py-1.5 text-xs font-medium rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">Quarterly</button>
+</div>
+</div>
+<div class="relative h-80 w-full z-10">
+<canvas id="rejectionChart"></canvas>
+</div>
+<div class="grid grid-cols-3 gap-4 mt-6 border-t border-slate-100 dark:border-slate-700 pt-6">
+<div class="text-center">
+<p class="text-xs text-slate-400 dark:text-slate-500 uppercase font-bold tracking-wider mb-1">Current Period</p>
+<p class="text-lg font-bold text-slate-800 dark:text-slate-200">1.24%</p>
+</div>
+<div class="text-center border-l border-slate-100 dark:border-slate-700">
+<p class="text-xs text-slate-400 dark:text-slate-500 uppercase font-bold tracking-wider mb-1">Previous Period</p>
+<p class="text-lg font-bold text-slate-800 dark:text-slate-200">1.36%</p>
+</div>
+<div class="text-center border-l border-slate-100 dark:border-slate-700">
+<p class="text-xs text-slate-400 dark:text-slate-500 uppercase font-bold tracking-wider mb-1">Delta</p>
+<p class="text-lg font-bold text-green-600 dark:text-green-400">-8.82%</p>
+</div>
+</div>
+</div>
+<div class="col-span-1 lg:col-span-1 flex flex-col gap-6">
+<div class="bg-secondary dark:bg-slate-900 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-2xl -mr-10 -mt-10"></div>
+<div class="absolute bottom-0 left-0 w-24 h-24 bg-blue-500/20 rounded-full blur-2xl -ml-10 -mb-10"></div>
+<h3 class="text-lg font-bold mb-1 relative z-10">Top Defect Categories</h3>
+<p class="text-xs text-slate-400 mb-6 relative z-10">Last 7 days analysis</p>
+<div class="space-y-5 relative z-10">
+<div>
+<div class="flex justify-between items-center mb-1">
+<span class="text-sm font-medium text-slate-200">Surface Scratches</span>
+<span class="text-sm font-bold text-white">42%</span>
+</div>
+<div class="w-full bg-slate-700 rounded-full h-1.5">
+<div class="bg-gradient-to-r from-primary to-orange-400 h-1.5 rounded-full" style="width: 42%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-1">
+<span class="text-sm font-medium text-slate-200">Dimensional Error</span>
+<span class="text-sm font-bold text-white">28%</span>
+</div>
+<div class="w-full bg-slate-700 rounded-full h-1.5">
+<div class="bg-gradient-to-r from-blue-400 to-cyan-300 h-1.5 rounded-full" style="width: 28%"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-1">
+<span class="text-sm font-medium text-slate-200">Material Density</span>
+<span class="text-sm font-bold text-white">15%</span>
+</div>
+<div class="w-full bg-slate-700 rounded-full h-1.5">
+<div class="bg-gradient-to-r from-purple-400 to-pink-300 h-1.5 rounded-full" style="width: 15%"></div>
+</div>
+</div>
+</div>
+<div class="mt-6 pt-4 border-t border-slate-700 flex items-center justify-between">
+<div class="flex -space-x-2">
+<img alt="QC Lead" class="w-8 h-8 rounded-full border-2 border-secondary" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3CjKm3vdxik6xpRlFfKI27FeYzVT5-ofaxNAJBL9nuyMSHhpyOtjUiAxDWTivFzLfxBzYBiWAbFEHPQwC2-yhytwGdBhAgvbd-isDkf9GmBbNfbCO6JQMBJfviQX-H4OfuaH8g4amwMcqkmdMOtE0u577t2eZgfNB6uUToHpsK7gLA2kNc-NnwsEwqbi0fPMdCIDO_mhPpYOIoOOAfkRIlY2VRMVL07gz4xxtGoxIt1wsiAvNADSHbB2CfLDNjWNaDD-xkTd7D8s"/>
+<img alt="QC Lead" class="w-8 h-8 rounded-full border-2 border-secondary" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA50uN6x4x3MfvEuiOWM7FK6NDk3ym4Wm9l4gu4QWXOqhdtFPhfz7GSuHcHDDHuXH80T6ffK43-IrHTt_puwHlp8OA_FhVALGj_UVALt2isnpk04qVokcqbi1VpCAeRXYMypqnD1U6qGen2CSjEFTwA0KpClYECcGW5hgf21CfvRLruIy1wEO7BSq30dyMrUK79VNC4jOJL2KOJJikqcWEnTzVvCH2L4lWn9nLcSMdMCSNC9vSZ5AzlcCiq7yuG3_y-lv8NvTJRqk4"/>
+<div class="w-8 h-8 rounded-full border-2 border-secondary bg-slate-700 flex items-center justify-center text-xs font-bold">+2</div>
+</div>
+<button class="text-xs font-semibold text-primary hover:text-white transition-colors">View Report</button>
+</div>
+</div>
+<div class="bg-card-light dark:bg-card-dark p-6 rounded-2xl shadow-soft border border-slate-100 dark:border-slate-800 flex-grow">
+<div class="flex justify-between items-center mb-4">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">Line Performance</h3>
+<button class="text-primary hover:text-amber-700 dark:hover:text-amber-400 transition-colors">
+<span class="material-icons-outlined text-xl">more_horiz</span>
+</button>
+</div>
+<div class="space-y-4">
+<div class="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center font-bold text-sm">L1</div>
+<div class="flex-grow">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Assembly Line A</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">98.5% Efficiency</p>
+</div>
+<span class="text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10 px-2 py-1 rounded">Optimal</span>
+</div>
+<div class="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center font-bold text-sm">L2</div>
+<div class="flex-grow">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Assembly Line B</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">97.2% Efficiency</p>
+</div>
+<span class="text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10 px-2 py-1 rounded">Optimal</span>
+</div>
+<div class="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg transition-colors cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-500 flex items-center justify-center font-bold text-sm">L4</div>
+<div class="flex-grow">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Packaging Unit</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">89.4% Efficiency</p>
+</div>
+<span class="text-xs font-semibold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/10 px-2 py-1 rounded">Attention</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-card-light dark:bg-card-dark p-6 rounded-2xl shadow-soft border border-slate-100 dark:border-slate-800">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">Recent Inspection Batches</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400">Real-time feed from QC stations</p>
+</div>
+<div class="flex gap-2">
+<button class="flex items-center gap-2 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+<span class="material-icons-outlined text-sm">filter_list</span> Filter
+                        </button>
+<button class="flex items-center gap-2 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+<span class="material-icons-outlined text-sm">download</span> Export
+                        </button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm">
+<thead>
+<tr class="border-b border-slate-100 dark:border-slate-700">
+<th class="pb-3 font-semibold text-slate-400 dark:text-slate-500 uppercase text-xs tracking-wider pl-2">Batch ID</th>
+<th class="pb-3 font-semibold text-slate-400 dark:text-slate-500 uppercase text-xs tracking-wider">Product Line</th>
+<th class="pb-3 font-semibold text-slate-400 dark:text-slate-500 uppercase text-xs tracking-wider">Inspector</th>
+<th class="pb-3 font-semibold text-slate-400 dark:text-slate-500 uppercase text-xs tracking-wider">Status</th>
+<th class="pb-3 font-semibold text-slate-400 dark:text-slate-500 uppercase text-xs tracking-wider">Date/Time</th>
+<th class="pb-3 font-semibold text-slate-400 dark:text-slate-500 uppercase text-xs tracking-wider text-right pr-2">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+<tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="py-4 pl-2 font-mono text-slate-600 dark:text-slate-300">#BTC-9024</td>
+<td class="py-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-blue-500"></div>
+<span class="font-medium text-slate-900 dark:text-white">Surgical Drill V2</span>
+</div>
+</td>
+<td class="py-4">
+<div class="flex items-center gap-2">
+<img alt="Inspector" class="w-6 h-6 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-f8s_oWHArrDBMSicMNQQy6XoHooDG94sqPwt00KQBXpOAuDMunHcaS-6ZtV6TZlupV8hYYEXKf0yN7gM__wNzMEtZwqoIa_IhmO-qUf-ym1njRnjE6_T8VCYfIGEqpkdxt3IfjPhweFnMFXeAuT4jtR_9A8XC7C9givh8TIocxXQw-Bvxr_UwRKKt8CNLpj06ofA5Wg8JT78oUDthME5C24FX6VGJ06Cn75jYwtvlCVCtZKHqtuNy8Q3q1YQ07E_rrIuZz_qd84"/>
+<span class="text-slate-600 dark:text-slate-300">Judy Abbott</span>
+</div>
+</td>
+<td class="py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                        Approved
+                                    </span>
+</td>
+<td class="py-4 text-slate-500 dark:text-slate-400">Oct 24, 09:42 AM</td>
+<td class="py-4 text-right pr-2">
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-icons-outlined">more_horiz</span></button>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="py-4 pl-2 font-mono text-slate-600 dark:text-slate-300">#BTC-9023</td>
+<td class="py-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-purple-500"></div>
+<span class="font-medium text-slate-900 dark:text-white">Cardiac Stent</span>
+</div>
+</td>
+<td class="py-4">
+<div class="flex items-center gap-2">
+<img alt="Inspector" class="w-6 h-6 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAimIjyo8-UgSSgRisVX71_WICXe-kF6rdb9N0QKG7nMfRbS4XQY9YBofOtoyoxjJOYFlN36VWzOpwMB0BG_exp7oAFtOAMOhZbDlpUQU45A8A0nX-W7xUNQ-eYHP2pswC45TOsnwC0X5bCVBq3ltgvjQOe7Qnhhm-Tt7FLOBtPUWPEDcBg91DOybhJQALkMOFzmtJDfx5gSo-KjC6Ews1kdynScjwGh-5e1Sfxqe5lbNOkXieRHM_qqbOvSRMJR2EEIn1xSbGgH64"/>
+<span class="text-slate-600 dark:text-slate-300">Martin Feeney</span>
+</div>
+</td>
+<td class="py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                        Review Required
+                                    </span>
+</td>
+<td class="py-4 text-slate-500 dark:text-slate-400">Oct 24, 08:15 AM</td>
+<td class="py-4 text-right pr-2">
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-icons-outlined">more_horiz</span></button>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="py-4 pl-2 font-mono text-slate-600 dark:text-slate-300">#BTC-9022</td>
+<td class="py-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-blue-500"></div>
+<span class="font-medium text-slate-900 dark:text-white">Surgical Drill V2</span>
+</div>
+</td>
+<td class="py-4">
+<div class="flex items-center gap-2">
+<img alt="Inspector" class="w-6 h-6 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBg1bs75DWm6TJt5qA6fhrUsOT-dNsz0rxrvO3isRUVrtsdz6ghq5NcRZgIX9DzS7luFgyjKtt7cp81Ax8KHKlyEo4wV4V-opx2t4PLKNGmWVn0Rxn0mVbv_qUT409Sc2F8ijO1YQIEIZUZeT1gxh3D1ISND-BwoFZ-HVIf5udhq8T6WfMFcibfrD9SMHTNm1jvyw1tDgBsm_qwKTVSx9VUSr63aV5lurr2Qn_kCp5BUYw5MSJ7ZkbMV-3ynS2EhP3h82G8U2t4Sno"/>
+<span class="text-slate-600 dark:text-slate-300">Ellen Streich</span>
+</div>
+</td>
+<td class="py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                        Approved
+                                    </span>
+</td>
+<td class="py-4 text-slate-500 dark:text-slate-400">Oct 23, 04:30 PM</td>
+<td class="py-4 text-right pr-2">
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-icons-outlined">more_horiz</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Chart Configuration
+        const ctx = document.getElementById('rejectionChart').getContext('2d');
+        // Gradient Fill
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(217, 119, 6, 0.2)'); // Amber-600 with opacity
+        gradient.addColorStop(1, 'rgba(217, 119, 6, 0)');
+        const rejectionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Rejection Rate %',
+                    data: [1.8, 1.6, 1.4, 1.2, 1.3, 0.9, 1.1],
+                    borderColor: '#D97706', // Primary Amber color
+                    backgroundColor: gradient,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#FFFFFF',
+                    pointBorderColor: '#D97706',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0.4, // Smooth curve
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: '#1E293B',
+                        titleColor: '#F8F9FA',
+                        bodyColor: '#F8F9FA',
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.y + '% Rejection Rate';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.1)', // Light grid lines
+                            borderDash: [5, 5]
+                        },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: {
+                                family: "'Plus Jakarta Sans', sans-serif"
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: {
+                                family: "'Plus Jakarta Sans', sans-serif"
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+
+</body></html>

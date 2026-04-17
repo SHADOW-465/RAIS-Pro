@@ -48,24 +48,41 @@ describe('normalizeResult', () => {
 });
 
 describe('buildPrompt', () => {
+  const minimalMergedResult = {
+    groups: [{
+      label: 'All Data',
+      rowCount: 5,
+      sourceSheets: ['test.xlsx - Sheet1'],
+      numericAggregates: { Rejections: { sum: 100, mean: 20, min: 5, max: 40 } },
+      groupedSeries: [],
+    }],
+    grandTotals: { Rejections: { sum: 100, mean: 20 } },
+    mergePlan: {
+      groups: [{ label: 'All Data', sheets: ['test.xlsx - Sheet1'], reason: 'single sheet' }],
+      excludedSheets: [],
+      crossFileStrategy: 'sum' as const,
+      warnings: [],
+    },
+  };
+
   it('contains the free-array kpis schema', () => {
-    const prompt = buildPrompt([{ sheetName: 'Sheet1', totalRows: 5, columns: [] }]);
+    const prompt = buildPrompt(minimalMergedResult, []);
     expect(prompt).toContain('"kpis": [');
     expect(prompt).toContain('"label"');
     expect(prompt).toContain('"trend"');
   });
 
   it('does not contain hardcoded manufacturing field names', () => {
-    const prompt = buildPrompt([]);
+    const prompt = buildPrompt(minimalMergedResult, []);
     expect(prompt).not.toContain('rejectionRate');
     expect(prompt).not.toContain('totalOutput');
     expect(prompt).not.toContain('qualityScore');
   });
 
-  it('truncates data at 12000 chars', () => {
-    const bigData = Array.from({ length: 1000 }, (_, i) => ({ col: `value_${i}` }));
-    const prompt = buildPrompt(bigData);
-    expect(prompt.length).toBeLessThan(15000);
+  it('includes grand totals in prompt', () => {
+    const prompt = buildPrompt(minimalMergedResult, []);
+    expect(prompt).toContain('GRAND TOTALS');
+    expect(prompt).toContain('Rejections');
   });
 });
 

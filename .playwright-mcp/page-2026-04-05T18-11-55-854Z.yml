@@ -1,0 +1,90 @@
+- generic [active] [ref=e1]:
+  - button "Toggle light/dark mode" [ref=e2]:
+    - img [ref=e3]
+  - main [ref=e5]:
+    - generic [ref=e59]:
+      - generic [ref=e60]:
+        - generic [ref=e61]:
+          - img [ref=e63]
+          - generic [ref=e65]:
+            - heading "Production Data Overview" [level=1] [ref=e66]
+            - paragraph [ref=e67]: "RAIS · Intelligence Status: OPTIMAL"
+        - generic [ref=e68]:
+          - button "New Analysis" [ref=e69]:
+            - img [ref=e70]
+            - text: New Analysis
+          - button "Export" [ref=e75]:
+            - img [ref=e76]
+            - text: Export
+      - generic [ref=e79]:
+        - generic [ref=e82]:
+          - generic [ref=e83]:
+            - img [ref=e84]
+            - text: Executive Summary
+          - paragraph [ref=e88]: The provided dataset contains 13 rows of production data. The data is not monthly or yearly, and there are 13 unique values in the production column. The total number of rows is relatively small, with only 13 entries.
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - generic [ref=e91]:
+              - heading "Row Count" [level=3] [ref=e92]
+              - generic [ref=e94]: "13"
+            - generic [ref=e95]:
+              - img [ref=e97]
+              - generic [ref=e98]: total rows
+          - generic [ref=e99]:
+            - generic [ref=e100]:
+              - heading "Unique Values" [level=3] [ref=e101]
+              - generic [ref=e103]: "13"
+            - generic [ref=e104]:
+              - img [ref=e106]
+              - generic [ref=e107]: unique production values
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - heading "Data Period" [level=3] [ref=e110]
+              - generic [ref=e112]: Not Applicable
+            - generic [ref=e113]:
+              - img [ref=e115]
+              - generic [ref=e116]: data is not monthly or yearly
+        - generic [ref=e118]:
+          - heading "Row Count" [level=3] [ref=e119]
+          - img [ref=e121]
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - heading "Key Intelligence Insights" [level=3] [ref=e124]:
+              - img [ref=e125]
+              - text: Key Intelligence Insights
+            - generic [ref=e127]:
+              - generic [ref=e128]:
+                - generic [ref=e129]: "01"
+                - paragraph [ref=e130]: The dataset contains a small number of rows, which may not be representative of the overall production trend.
+              - generic [ref=e131]:
+                - generic [ref=e132]: "02"
+                - paragraph [ref=e133]: The data is not organized by month or year, making it difficult to analyze seasonal trends.
+              - generic [ref=e134]:
+                - generic [ref=e135]: "03"
+                - paragraph [ref=e136]: There are 13 unique values in the production column, which could indicate a diverse range of production levels.
+              - generic [ref=e137]:
+                - generic [ref=e138]: "04"
+                - paragraph [ref=e139]: The lack of clear time-based organization makes it challenging to identify patterns or correlations in the data.
+              - generic [ref=e140]:
+                - generic [ref=e141]: "05"
+                - paragraph [ref=e142]: Further analysis is needed to determine the significance of the 13 unique production values.
+          - generic [ref=e143]:
+            - heading "Recommendations" [level=3] [ref=e144]
+            - list [ref=e145]:
+              - listitem [ref=e146]: Organize the data by a clear time-based structure to facilitate trend analysis.
+              - listitem [ref=e148]: Collect more data to increase the sample size and improve representativeness.
+              - listitem [ref=e150]: Investigate the causes of the 13 unique production values to determine their significance.
+              - listitem [ref=e152]: Consider adding additional columns or data points to provide more context and insights.
+        - generic [ref=e154]:
+          - generic [ref=e155]:
+            - img [ref=e156]
+            - text: Ask a Follow-Up
+          - paragraph [ref=e158]: Ask anything about your data — factual questions get a direct answer. Ask to "refocus on cost" or "show me Q1 only" to refresh the dashboard.
+          - generic [ref=e159]:
+            - textbox "Ask anything about your data…" [ref=e160]
+            - button [disabled] [ref=e161]:
+              - img [ref=e162]
+        - generic [ref=e166]: RAIS Analysis
+  - button "Open Next.js Dev Tools" [ref=e35] [cursor=pointer]:
+    - img [ref=e36]
+  - alert [ref=e39]

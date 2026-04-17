@@ -11,8 +11,10 @@ import ChatPanel from "./ChatPanel";
 import InsightSlide from "./InsightSlide";
 import DataTable, { findColumn } from "./DataTable";
 import BeamOverlay, { type BeamEndpoints } from "./BeamOverlay";
+import SourcesPanel from "./SourcesPanel";
 import type { DashboardConfig, RawSheet } from "@/types/dashboard";
 import type { InsightSlide as InsightSlideType } from "@/types/dashboard";
+import type { MergePlan } from "@/types/analysis";
 
 interface DashboardProps {
   data: DashboardConfig;
@@ -22,6 +24,7 @@ interface DashboardProps {
   sessionTitle?: string;
   initialSlides?: InsightSlideType[];
   rawSheets?: RawSheet[];
+  mergePlan?: MergePlan;
 }
 
 export default function Dashboard({
@@ -32,6 +35,7 @@ export default function Dashboard({
   sessionTitle,
   initialSlides,
   rawSheets,
+  mergePlan,
 }: DashboardProps) {
   const [currentConfig, setCurrentConfig] = useState<DashboardConfig>(data);
   const [slides, setSlides] = useState<InsightSlideType[]>(initialSlides ?? []);
@@ -316,6 +320,11 @@ export default function Dashboard({
                     <InsightSlide key={slide.id ?? i} slide={slide} />
                   ))}
                 </div>
+              )}
+
+              {/* Sources panel — only shown when we have a merge plan */}
+              {mergePlan && !verifyMode && (
+                <SourcesPanel mergePlan={mergePlan} />
               )}
 
               {/* Chat Panel */}

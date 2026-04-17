@@ -1,13 +1,13 @@
 import * as XLSX from 'xlsx';
 import type { RawSheet } from '@/types/dashboard';
+import type { SheetManifest } from '@/types/analysis';
 
 const MAX_DISPLAY_ROWS = 500;
-const MAX_GROUP_LABELS = 24;  // max bars/points in a chart series
+const MAX_GROUP_LABELS = 24;
 
 export interface ColumnSummary {
   name: string;
   type: 'number' | 'string' | 'date' | 'unknown';
-  /** Only for numeric columns */
   sum?: number;
   mean?: number;
   min?: number;
@@ -16,21 +16,24 @@ export interface ColumnSummary {
   sampleData: unknown[];
 }
 
-/** A pre-computed, chart-ready grouped series (e.g., "Rejection Qty by Month") */
 export interface GroupedSeries {
-  groupByColumn: string;   // the dimension (x-axis)
-  metricColumn: string;    // the aggregated metric (y-axis)
+  groupByColumn: string;
+  metricColumn: string;
   aggregation: 'sum' | 'mean';
-  labels: string[];        // ordered group labels
-  values: number[];        // corresponding aggregated values
+  labels: string[];
+  values: number[];
 }
 
 export interface SheetSummary {
   name: string;
   rowCount: number;
+  totalRowsStripped: number;
   columns: ColumnSummary[];
-  /** Pre-computed grouped series, ready to paste into chart datasets */
   groupedSeries: GroupedSeries[];
+  manifest: SheetManifest;
+  // legacy compat flags (still used for sheet preference logic)
+  isYearly?: boolean;
+  isMonthly?: boolean;
 }
 
 export interface ParseResult {
@@ -38,35 +41,90 @@ export interface ParseResult {
   rawSheets: RawSheet[];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Total-row detection ──────────────────────────────────────────────────────
 
-/** Detect whether a column looks like a date/period dimension */
-function isDateLike(name: string, values: unknown[]): boolean {
-  const n = name.toLowerCase();
-  if (/month|year|date|period|week|quarter|day/.test(n)) return true;
-  // Check if sample values look like month names or date strings
-  const sample = values.slice(0, 10).map(v => String(v).trim());
-  const monthRe = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
-  return sample.filter(v => monthRe.test(v) || /^\d{4}/.test(v)).length >= 3;
+const TOTAL_ROW_RE = /^(grand\s*)?total[s]?$|^subtotal[s]?$|^sum$|^gesamt$|^合計$|^총계$|^योग$/i;
+
+function isTotalRow(row: Record<string, unknown>, strCols: string[]): boolean {
+  for (const col of strCols) {
+    const v = String(row[col] ?? '').trim();
+    if (TOTAL_ROW_RE.test(v)) return true;
+  }
+  return false;
 }
 
-/** Preserve natural month order when labels look like month names/abbreviations */
-const MONTH_ORDER = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec',
-                     'january','february','march','april','june','july','august','september','october','november','december'];
-function monthIndex(s: string): number {
-  const idx = MONTH_ORDER.indexOf(s.toLowerCase().slice(0, 3));
-  return idx === -1 ? 999 : idx;
+// ─── Granularity detection ────────────────────────────────────────────────────
+
+const MONTH_ORDER = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+
+function detectGranularity(
+  colName: string,
+  values: unknown[]
+): SheetManifest['granularity'] {
+  const name = colName.toLowerCase();
+  const samples = values.slice(0, 30).map(v => String(v ?? '').trim().toLowerCase());
+  const nonEmpty = samples.filter(Boolean);
+
+  // Annual: 4-digit year values or column named year
+  if (/^year/.test(name) || nonEmpty.filter(v => /^20\d{2}$|^19\d{2}$/.test(v)).length > nonEmpty.length * 0.5)
+    return 'annual';
+
+  // Quarterly
+  if (nonEmpty.filter(v => /^q[1-4]\b|quarter/i.test(v)).length >= 2) return 'quarterly';
+
+  // Monthly: month names/abbreviations or column named month/period
+  if (/^month|^period/.test(name) || nonEmpty.filter(v => MONTH_ORDER.some(m => v.startsWith(m))).length >= 3)
+    return 'monthly';
+
+  // Weekly
+  if (nonEmpty.filter(v => /^week\s*\d+|wk\s*\d+/i.test(v)).length >= 3) return 'weekly';
+
+  // Daily: ISO dates or Excel serial numbers → many unique values
+  const uniqueCount = new Set(nonEmpty).size;
+  if (uniqueCount > 50 || /^date|^day/.test(name)) return 'daily';
+
+  return 'unknown';
 }
+
+function extractTimeRange(values: unknown[]): string | null {
+  const strs = values
+    .map(v => String(v ?? '').trim())
+    .filter(v => v.length > 0 && v.length < 20);
+  if (strs.length < 2) return null;
+  return `${strs[0]} – ${strs[strs.length - 1]}`;
+}
+
+function isSummaryCandidate(sheetName: string, rowCount: number): boolean {
+  const n = sheetName.toLowerCase();
+  if (/summary|annual|yearly|total|overview|consolidated|rollup|grand|cumul/.test(n)) return true;
+  if (rowCount <= 15) return true;   // very few rows → likely aggregated data
+  return false;
+}
+
+// ─── Numeric helpers ──────────────────────────────────────────────────────────
 
 function roundSig(n: number, sig = 4): number {
-  if (n === 0) return 0;
+  if (!isFinite(n) || n === 0) return 0;
   const d = Math.ceil(Math.log10(Math.abs(n)));
   const p = sig - d;
   const m = Math.pow(10, p);
   return Math.round(n * m) / m;
 }
 
-// ─── Main exports ──────────────────────────────────────────────────────────────
+function isDateLike(name: string, values: unknown[]): boolean {
+  const n = name.toLowerCase();
+  if (/month|year|date|period|week|quarter|day/.test(n)) return true;
+  const sample = values.slice(0, 10).map(v => String(v ?? '').trim());
+  const monthRe = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
+  return sample.filter(v => monthRe.test(v) || /^\d{4}/.test(v)).length >= 3;
+}
+
+function monthSortIndex(s: string): number {
+  const idx = MONTH_ORDER.indexOf(s.toLowerCase().slice(0, 3));
+  return idx === -1 ? 999 : idx;
+}
+
+// ─── Main exports ─────────────────────────────────────────────────────────────
 
 export async function parseExcelFiles(files: File[]): Promise<SheetSummary[]> {
   return (await parseExcelFilesWithRaw(files)).summaries;
@@ -83,7 +141,7 @@ export async function parseExcelFilesWithRaw(files: File[]): Promise<ParseResult
     for (const sheetName of workbook.SheetNames) {
       const sheet = workbook.Sheets[sheetName];
 
-      // Detect real header row (skip merged title rows at the top)
+      // ── Detect real header row ──────────────────────────────────────────────
       const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
       let headerRowIndex = 0;
       for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
@@ -99,7 +157,7 @@ export async function parseExcelFilesWithRaw(files: File[]): Promise<ParseResult
       json = json.filter(row => Object.values(row).some(v => v !== '' && v !== null && v !== undefined));
       if (json.length === 0) continue;
 
-      // Filter out empty / auto-named columns
+      // ── Strip auto-named / all-empty columns ────────────────────────────────
       const allColumns = Object.keys(json[0] as object);
       const columns = allColumns.filter(col => {
         if (col.startsWith('__EMPTY')) return false;
@@ -109,22 +167,26 @@ export async function parseExcelFilesWithRaw(files: File[]): Promise<ParseResult
         });
       });
 
-      // ── Per-column statistics ─────────────────────────────────────────────
+      // ── Strip total / grand-total rows ──────────────────────────────────────
+      const strCols = columns.filter(c => typeof (json[0] as any)[c] === 'string' || typeof (json[0] as any)[c] === 'undefined');
+      const cleanRows = json.filter(row => !isTotalRow(row as any, strCols));
+      const totalRowsStripped = json.length - cleanRows.length;
+
+      // ── Per-column statistics (on clean rows) ───────────────────────────────
       const numericCols: string[] = [];
       const dimensionCols: string[] = [];
+      let dateDimCol: string | null = null;
 
       const columnSummaries: ColumnSummary[] = columns.map(col => {
-        const rawVals = json.map((row: any) => row[col]).filter(v => v !== undefined && v !== null && v !== '');
+        const rawVals = cleanRows.map((row: any) => row[col]).filter(v => v !== undefined && v !== null && v !== '');
         const uniqueVals = new Set(rawVals);
-        const firstType = typeof rawVals[0];
 
-        if (firstType === 'number') {
+        if (typeof rawVals[0] === 'number') {
           const nums = rawVals as number[];
           const sum = nums.reduce((a, b) => a + b, 0);
           numericCols.push(col);
           return {
-            name: col,
-            type: 'number',
+            name: col, type: 'number',
             sum: roundSig(sum),
             mean: roundSig(sum / nums.length),
             min: Math.min(...nums),
@@ -133,96 +195,118 @@ export async function parseExcelFilesWithRaw(files: File[]): Promise<ParseResult
             sampleData: nums.slice(0, 5),
           } satisfies ColumnSummary;
         } else {
-          // String/date column — check if it's a useful dimension
-          if (uniqueVals.size <= 50 && uniqueVals.size >= 2) {
-            dimensionCols.push(col);
-          }
+          if (uniqueVals.size >= 2 && uniqueVals.size <= 50) dimensionCols.push(col);
           const strVals = rawVals.map(String);
+          const isDate = isDateLike(col, strVals);
+          if (isDate && !dateDimCol) dateDimCol = col;
           return {
             name: col,
-            type: isDateLike(col, strVals) ? 'date' : 'string',
+            type: isDate ? 'date' : 'string',
             uniqueCount: uniqueVals.size,
             sampleData: [...uniqueVals].slice(0, 5),
           } satisfies ColumnSummary;
         }
       });
 
-      // ── Pre-computed grouped series ───────────────────────────────────────
-      // For each dimension × numeric metric, compute sum-by-group and mean-by-group
-      // Prioritise date-like dimensions first; limit total series to keep prompt small
+      // ── Pre-computed grouped series ─────────────────────────────────────────
       const groupedSeries: GroupedSeries[] = [];
-
-      // Sort dimension columns: date-like first
       const sortedDims = [...dimensionCols].sort((a, b) => {
-        const aDate = isDateLike(a, json.map((r: any) => r[a]));
-        const bDate = isDateLike(b, json.map((r: any) => r[b]));
+        const aDate = isDateLike(a, cleanRows.map((r: any) => r[a]));
+        const bDate = isDateLike(b, cleanRows.map((r: any) => r[b]));
         return (bDate ? 1 : 0) - (aDate ? 1 : 0);
       });
 
       for (const dim of sortedDims.slice(0, 3)) {
         for (const metric of numericCols.slice(0, 4)) {
-          // Group rows by dimension value
           const grouped = new Map<string, number[]>();
-          for (const row of json) {
+          for (const row of cleanRows) {
             const key = String((row as any)[dim] ?? '').trim();
             const val = (row as any)[metric];
-            if (key === '' || typeof val !== 'number') continue;
+            if (!key || typeof val !== 'number') continue;
             if (!grouped.has(key)) grouped.set(key, []);
             grouped.get(key)!.push(val);
           }
           if (grouped.size < 2) continue;
 
-          // Determine natural order
           let entries = [...grouped.entries()];
           const dimIsDate = isDateLike(dim, entries.map(([k]) => k));
           if (dimIsDate) {
             entries.sort(([a], [b]) => {
-              const ai = monthIndex(a);
-              const bi = monthIndex(b);
-              if (ai !== 999 || bi !== 999) return ai - bi;
-              return a.localeCompare(b);
+              const ai = monthSortIndex(a);
+              const bi = monthSortIndex(b);
+              return ai !== 999 || bi !== 999 ? ai - bi : a.localeCompare(b);
             });
           } else {
-            // Sort by sum descending for categorical dims
-            entries.sort(([, av], [, bv]) => {
-              const as = av.reduce((x, y) => x + y, 0);
-              const bs = bv.reduce((x, y) => x + y, 0);
-              return bs - as;
-            });
+            entries.sort(([, av], [, bv]) =>
+              bv.reduce((x, y) => x + y, 0) - av.reduce((x, y) => x + y, 0)
+            );
           }
           entries = entries.slice(0, MAX_GROUP_LABELS);
 
           const labels = entries.map(([k]) => k);
-          const sums = entries.map(([, vs]) => roundSig(vs.reduce((a, b) => a + b, 0)));
+          const sums  = entries.map(([, vs]) => roundSig(vs.reduce((a, b) => a + b, 0)));
           const means = entries.map(([, vs]) => roundSig(vs.reduce((a, b) => a + b, 0) / vs.length));
 
           groupedSeries.push({ groupByColumn: dim, metricColumn: metric, aggregation: 'sum', labels, values: sums });
-          // Only add mean series for rate/percentage columns (small values)
           if (means[0] < 100) {
             groupedSeries.push({ groupByColumn: dim, metricColumn: metric, aggregation: 'mean', labels, values: means });
           }
         }
-        if (groupedSeries.length >= 10) break;  // cap total series
+        if (groupedSeries.length >= 10) break;
       }
+
+      // ── Build sheet manifest ────────────────────────────────────────────────
+      const granularity: SheetManifest['granularity'] = dateDimCol
+        ? detectGranularity(dateDimCol, cleanRows.map((r: any) => r[dateDimCol!]))
+        : 'unknown';
+
+      const timeRange = dateDimCol
+        ? extractTimeRange(cleanRows.map((r: any) => r[dateDimCol!]))
+        : null;
+
+      const numericTotals: Record<string, number> = {};
+      const numericMeans:  Record<string, number> = {};
+      for (const cs of columnSummaries) {
+        if (cs.type === 'number' && cs.sum !== undefined) {
+          numericTotals[cs.name] = cs.sum;
+          numericMeans[cs.name]  = cs.mean ?? 0;
+        }
+      }
+
+      const manifest: SheetManifest = {
+        sheetKey: `${file.name} - ${sheetName}`,
+        fileName: file.name,
+        sheetName,
+        rowCount: cleanRows.length,
+        totalRowsStripped,
+        granularity,
+        timeRange,
+        isSummaryCandidate: isSummaryCandidate(sheetName, cleanRows.length),
+        columns,
+        numericTotals,
+        numericMeans,
+      };
 
       const isYearly = /yearly|annual|cumul|summary|total/i.test(sheetName);
       const isMonthly = /jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(sheetName);
 
       summaries.push({
         name: `${file.name} - ${sheetName}`,
-        rowCount: json.length,
+        rowCount: cleanRows.length,
+        totalRowsStripped,
         columns: columnSummaries,
         groupedSeries,
+        manifest,
         isYearly,
         isMonthly,
-      } as any);
+      });
 
-      // Raw rows for client-side verification panel (capped)
+      // ── Raw rows for verification panel ────────────────────────────────────
       rawSheets.push({
         name: `${file.name} - ${sheetName}`,
         fileName: file.name,
         columns,
-        rows: json.slice(0, MAX_DISPLAY_ROWS).map(row =>
+        rows: cleanRows.slice(0, MAX_DISPLAY_ROWS).map(row =>
           Object.fromEntries(columns.map(c => [c, (row as any)[c] ?? '']))
         ),
       });

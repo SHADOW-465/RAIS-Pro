@@ -1,0 +1,104 @@
+- generic [active] [ref=e1]:
+  - button "Toggle light/dark mode" [ref=e2]:
+    - img [ref=e3]
+  - main [ref=e5]:
+    - generic [ref=e227]:
+      - generic [ref=e228]:
+        - generic [ref=e229]:
+          - img [ref=e231]
+          - generic [ref=e233]:
+            - heading "Assembly Rejection Report" [level=1] [ref=e234]
+            - paragraph [ref=e235]: "RAIS · Intelligence Status: OPTIMAL"
+        - generic [ref=e236]:
+          - button "New Analysis" [ref=e237]:
+            - img [ref=e238]
+            - text: New Analysis
+          - button "Export" [ref=e243]:
+            - img [ref=e244]
+            - text: Export
+      - generic [ref=e247]:
+        - generic [ref=e250]:
+          - generic [ref=e251]:
+            - img [ref=e252]
+            - text: Executive Summary
+          - paragraph [ref=e256]: The assembly rejection report for 2025-26 shows a total rejection quantity of 24513, with a rejection percentage of 6.31%. The visual acceptance quantity has increased by 291609, while the rejection quantity has decreased by 17562.
+        - generic [ref=e257]:
+          - generic [ref=e258]:
+            - generic [ref=e259]:
+              - heading "Total Rejection Quantity" [level=3] [ref=e260]
+              - generic [ref=e262]: 24.5k
+            - generic [ref=e263]:
+              - img [ref=e265]
+              - generic [ref=e268]: vs last month
+          - generic [ref=e269]:
+            - generic [ref=e270]:
+              - heading "Total Rejection Percentage" [level=3] [ref=e271]
+              - generic [ref=e273]: 6.31%
+            - generic [ref=e274]:
+              - img [ref=e276]
+              - generic [ref=e279]: YTD
+          - generic [ref=e280]:
+            - generic [ref=e281]:
+              - heading "Visual Acceptance Quantity" [level=3] [ref=e282]
+              - generic [ref=e284]: 291.6k
+            - generic [ref=e285]:
+              - img [ref=e287]
+              - generic [ref=e290]: vs last month
+          - generic [ref=e291]:
+            - generic [ref=e292]:
+              - heading "Visual Rejection Quantity" [level=3] [ref=e293]
+              - generic [ref=e295]: 17.6k
+            - generic [ref=e296]:
+              - img [ref=e298]
+              - generic [ref=e301]: vs last month
+          - generic [ref=e302]:
+            - generic [ref=e303]:
+              - heading "Visual Rejection Percentage" [level=3] [ref=e304]
+              - generic [ref=e306]: 5.51%
+            - generic [ref=e307]:
+              - img [ref=e309]
+              - generic [ref=e312]: vs last month
+        - generic [ref=e314]:
+          - heading "Total Rejection Quantity Over Time" [level=3] [ref=e315]
+          - img [ref=e317]
+        - generic [ref=e318]:
+          - generic [ref=e319]:
+            - heading "Key Intelligence Insights" [level=3] [ref=e320]:
+              - img [ref=e321]
+              - text: Key Intelligence Insights
+            - generic [ref=e323]:
+              - generic [ref=e324]:
+                - generic [ref=e325]: "01"
+                - paragraph [ref=e326]: The total rejection quantity has decreased by 17562 compared to the previous month.
+              - generic [ref=e327]:
+                - generic [ref=e328]: "02"
+                - paragraph [ref=e329]: The visual acceptance quantity has increased by 291609, indicating an improvement in the assembly process.
+              - generic [ref=e330]:
+                - generic [ref=e331]: "03"
+                - paragraph [ref=e332]: The rejection percentage has decreased by 0.88%, suggesting a reduction in defects.
+              - generic [ref=e333]:
+                - generic [ref=e334]: "04"
+                - paragraph [ref=e335]: The balloon checked quantity has increased by 313744, indicating a higher volume of products being inspected.
+              - generic [ref=e336]:
+                - generic [ref=e337]: "05"
+                - paragraph [ref=e338]: The valve inty rejection quantity has decreased by 1575, indicating a reduction in defects in this area.
+          - generic [ref=e339]:
+            - heading "Recommendations" [level=3] [ref=e340]
+            - list [ref=e341]:
+              - listitem [ref=e342]: Continue to monitor and improve the assembly process to reduce rejection quantities.
+              - listitem [ref=e344]: Increase the frequency of inspections to detect defects earlier.
+              - listitem [ref=e346]: Provide additional training to staff to improve their inspection skills.
+              - listitem [ref=e348]: Consider implementing new quality control measures to reduce defects.
+        - generic [ref=e350]:
+          - generic [ref=e351]:
+            - img [ref=e352]
+            - text: Ask a Follow-Up
+          - paragraph [ref=e354]: Ask anything about your data — factual questions get a direct answer. Ask to "refocus on cost" or "show me Q1 only" to refresh the dashboard.
+          - generic [ref=e355]:
+            - textbox "Ask anything about your data…" [ref=e356]
+            - button [disabled] [ref=e357]:
+              - img [ref=e358]
+        - generic [ref=e362]: RAIS Analysis
+  - button "Open Next.js Dev Tools" [ref=e35] [cursor=pointer]:
+    - img [ref=e36]
+  - alert [ref=e39]

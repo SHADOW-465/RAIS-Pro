@@ -10,6 +10,7 @@ import SessionCard, { type SessionSummary } from "@/components/SessionCard";
 import Dashboard from "@/components/Dashboard";
 import { getDeviceId } from "@/lib/device-id";
 import type { DashboardConfig, RawSheet } from "@/types/dashboard";
+import type { MergePlan } from "@/types/analysis";
 
 export default function Home() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function Home() {
   const [analysisData, setAnalysisData] = useState<DashboardConfig | null>(null);
   const [dataSummary, setDataSummary] = useState<string>("");
   const [rawSheets, setRawSheets] = useState<RawSheet[]>([]);
+  const [mergePlan, setMergePlan] = useState<MergePlan | undefined>(undefined);
 
   // Load sessions on mount
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function Home() {
         // Supabase not configured — render dashboard locally
         setRawSheets(sheets);
         setDataSummary(JSON.stringify(summaries));
+        setMergePlan(body.mergePlan);
         setAnalysisData(body as DashboardConfig);
         setProcessing(false);
       } else {
@@ -114,7 +117,8 @@ export default function Home() {
         data={analysisData}
         dataSummary={dataSummary}
         rawSheets={rawSheets}
-        onReset={() => { setAnalysisData(null); setRawSheets([]); }}
+        mergePlan={mergePlan}
+        onReset={() => { setAnalysisData(null); setRawSheets([]); setMergePlan(undefined); }}
       />
     );
   }

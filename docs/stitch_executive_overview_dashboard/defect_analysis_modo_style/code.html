@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Defect Analysis - Modo Style</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#D97706", // Warm Amber
+                        "primary-light": "#FCD34D",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#111827",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1F2937",
+                        "text-light": "#1F2937",
+                        "text-dark": "#F3F4F6",
+                        "subtext-light": "#6B7280",
+                        "subtext-dark": "#9CA3AF",
+                        "border-light": "#E5E7EB",
+                        "border-dark": "#374151",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "1rem",
+                        'xl': "1.5rem",
+                        '2xl': "2rem",
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'glow': '0 0 15px rgba(217, 119, 6, 0.3)',
+                    }
+                },
+            },
+        };
+    </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #4b5563; 
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }.glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .dark .glass-panel {
+            background: rgba(31, 41, 55, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body transition-colors duration-300 antialiased min-h-screen flex overflow-hidden">
+<aside class="w-72 hidden lg:flex flex-col border-r border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark h-screen sticky top-0 z-20">
+<div class="p-8 flex items-center gap-3">
+<div class="w-10 h-10 bg-gradient-to-br from-primary to-orange-400 rounded-xl flex items-center justify-center shadow-glow text-white font-bold text-xl">
+                M
+            </div>
+<span class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Modo<span class="text-primary">.ai</span></span>
+</div>
+<nav class="flex-1 px-4 space-y-2 overflow-y-auto">
+<div class="px-4 mb-2 text-xs font-semibold text-subtext-light dark:text-subtext-dark uppercase tracking-wider">Main Menu</div>
+<a class="flex items-center gap-4 px-4 py-3 text-subtext-light dark:text-subtext-dark hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all group" href="#">
+<span class="material-icons-round text-2xl group-hover:text-primary transition-colors">dashboard</span>
+<span class="font-medium">Overview</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 bg-primary/10 text-primary rounded-xl transition-all shadow-sm ring-1 ring-primary/20" href="#">
+<span class="material-icons-round text-2xl">analytics</span>
+<span class="font-medium">Defect Analysis</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-subtext-light dark:text-subtext-dark hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all group" href="#">
+<span class="material-icons-round text-2xl group-hover:text-primary transition-colors">precision_manufacturing</span>
+<span class="font-medium">Production Line</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-subtext-light dark:text-subtext-dark hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all group" href="#">
+<span class="material-icons-round text-2xl group-hover:text-primary transition-colors">inventory_2</span>
+<span class="font-medium">Inventory</span>
+</a>
+<div class="px-4 mt-8 mb-2 text-xs font-semibold text-subtext-light dark:text-subtext-dark uppercase tracking-wider">Management</div>
+<a class="flex items-center gap-4 px-4 py-3 text-subtext-light dark:text-subtext-dark hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all group" href="#">
+<span class="material-icons-round text-2xl group-hover:text-primary transition-colors">people</span>
+<span class="font-medium">Staffing</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-subtext-light dark:text-subtext-dark hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all group" href="#">
+<span class="material-icons-round text-2xl group-hover:text-primary transition-colors">settings</span>
+<span class="font-medium">Settings</span>
+</a>
+</nav>
+<div class="p-6 border-t border-border-light dark:border-border-dark">
+<div class="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-border-light dark:border-border-dark">
+<img alt="Profile" class="w-10 h-10 rounded-full border-2 border-white dark:border-gray-600" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvyeNIAogiEHYaK-6oEc-ybI8XGQ_GKX4-oQjOfidVFZEHGEd-0uSuj2pVmHv5WD-UHJjO6xkK3ui9WhVCi9dpdUgjSylVfFZtiMMkFi9VtSviKYvL5JuOjVTTNG1p77mL96HaUEGyiX_jIHLVqdanaiyNtcVypJR9MnpUaPjhFttHBLkco4S2UJ1q0yhpvb6E1e9hCkstIAhT_Sqw_p3al6Bid51ASdDwvb9hFWgh20tT_fhypmNSFJeYO66MfWAxj1RLFrn_RKM"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-semibold text-gray-900 dark:text-white truncate">Marcus Thorne</p>
+<p class="text-xs text-subtext-light dark:text-subtext-dark truncate">General Manager</p>
+</div>
+<button class="text-subtext-light dark:text-subtext-dark hover:text-primary">
+<span class="material-icons-round text-xl">logout</span>
+</button>
+</div>
+</div>
+</aside>
+<main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+<header class="h-20 flex items-center justify-between px-8 bg-surface-light/80 dark:bg-surface-dark/80 backdrop-blur-md z-10 sticky top-0 border-b border-border-light dark:border-border-dark">
+<div>
+<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Defect Analysis</h1>
+<p class="text-sm text-subtext-light dark:text-subtext-dark">Line A4 • Medical Device Assembly</p>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center bg-white dark:bg-gray-800 rounded-lg border border-border-light dark:border-border-dark p-1 shadow-sm">
+<button class="px-4 py-1.5 text-sm font-medium rounded-md bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm">Day</button>
+<button class="px-4 py-1.5 text-sm font-medium rounded-md text-subtext-light dark:text-subtext-dark hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Week</button>
+<button class="px-4 py-1.5 text-sm font-medium rounded-md text-subtext-light dark:text-subtext-dark hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Month</button>
+</div>
+<div class="h-8 w-[1px] bg-border-light dark:border-border-dark"></div>
+<button class="relative p-2 text-subtext-light dark:text-subtext-dark hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+<span class="material-icons-round">notifications</span>
+<span class="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+</button>
+<button class="p-2 text-subtext-light dark:text-subtext-dark hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-icons-round dark:hidden">dark_mode</span>
+<span class="material-icons-round hidden dark:inline">light_mode</span>
+</button>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-8 bg-gradient-to-br from-background-light to-white dark:from-background-dark dark:to-gray-900">
+<div class="grid grid-cols-12 gap-8 max-w-7xl mx-auto">
+<div class="col-span-12 lg:col-span-8 space-y-8">
+<div class="grid grid-cols-3 gap-6">
+<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-2xl shadow-soft border border-border-light dark:border-border-dark">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl text-red-600 dark:text-red-400">
+<span class="material-icons-round">error_outline</span>
+</div>
+<span class="text-xs font-semibold px-2 py-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md">+2.4%</span>
+</div>
+<h3 class="text-3xl font-bold text-gray-900 dark:text-white mb-1">1,248</h3>
+<p class="text-sm font-medium text-subtext-light dark:text-subtext-dark">Total Defects Detected</p>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-2xl shadow-soft border border-border-light dark:border-border-dark">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl text-primary dark:text-primary">
+<span class="material-icons-round">pie_chart</span>
+</div>
+<span class="text-xs font-semibold px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-md">-0.8%</span>
+</div>
+<h3 class="text-3xl font-bold text-gray-900 dark:text-white mb-1">3.2%</h3>
+<p class="text-sm font-medium text-subtext-light dark:text-subtext-dark">Overall Defect Rate</p>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-2xl shadow-soft border border-border-light dark:border-border-dark">
+<div class="flex justify-between items-start mb-4">
+<div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
+<span class="material-icons-round">monetization_on</span>
+</div>
+<span class="text-xs font-semibold px-2 py-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md">+$12k</span>
+</div>
+<h3 class="text-3xl font-bold text-gray-900 dark:text-white mb-1">$48.5k</h3>
+<p class="text-sm font-medium text-subtext-light dark:text-subtext-dark">Est. Material Loss</p>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark p-8 rounded-2xl shadow-soft border border-border-light dark:border-border-dark">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h2 class="text-xl font-bold text-gray-900 dark:text-white">Defect Frequency (Pareto)</h2>
+<p class="text-sm text-subtext-light dark:text-subtext-dark mt-1">Identify the "Vital Few" defects causing 80% of issues.</p>
+</div>
+<button class="p-2 text-subtext-light dark:text-subtext-dark hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+<span class="material-icons-round">more_horiz</span>
+</button>
+</div>
+<div class="relative h-80 w-full">
+<canvas id="paretoChart"></canvas>
+</div>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-soft border border-border-light dark:border-border-dark overflow-hidden">
+<div class="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center">
+<h2 class="text-lg font-bold text-gray-900 dark:text-white">Defect Breakdown</h2>
+<button class="text-sm font-medium text-primary hover:text-amber-700 transition-colors flex items-center gap-1">
+                                Export Report <span class="material-icons-round text-base">download</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-gray-50 dark:bg-gray-800/50">
+<tr>
+<th class="px-8 py-4 text-xs font-semibold text-subtext-light dark:text-subtext-dark uppercase tracking-wider">Defect Name</th>
+<th class="px-8 py-4 text-xs font-semibold text-subtext-light dark:text-subtext-dark uppercase tracking-wider text-right">Rejected Units</th>
+<th class="px-8 py-4 text-xs font-semibold text-subtext-light dark:text-subtext-dark uppercase tracking-wider text-right">Frequency %</th>
+<th class="px-8 py-4 text-xs font-semibold text-subtext-light dark:text-subtext-dark uppercase tracking-wider text-right">Cumulative %</th>
+<th class="px-8 py-4 text-xs font-semibold text-subtext-light dark:text-subtext-dark uppercase tracking-wider text-center">Trend</th>
+<th class="px-8 py-4 w-10"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-light dark:divide-border-dark">
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer group">
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<div class="w-2 h-8 bg-primary rounded-full"></div>
+<div>
+<p class="text-base font-semibold text-gray-900 dark:text-white">Micro-Cracks</p>
+<p class="text-xs text-subtext-light dark:text-subtext-dark">Stage 3 Coating</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5 text-right text-base font-medium text-gray-900 dark:text-white">482</td>
+<td class="px-8 py-5 text-right text-base text-subtext-light dark:text-subtext-dark">38.6%</td>
+<td class="px-8 py-5 text-right text-base font-medium text-primary">38.6%</td>
+<td class="px-8 py-5 text-center">
+<span class="material-icons-round text-red-500 text-lg">trending_up</span>
+</td>
+<td class="px-8 py-5 text-center">
+<span class="material-icons-round text-subtext-light dark:text-subtext-dark opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer group">
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<div class="w-2 h-8 bg-gray-400 rounded-full"></div>
+<div>
+<p class="text-base font-semibold text-gray-900 dark:text-white">Seal Misalignment</p>
+<p class="text-xs text-subtext-light dark:text-subtext-dark">Assembly Robot B</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5 text-right text-base font-medium text-gray-900 dark:text-white">315</td>
+<td class="px-8 py-5 text-right text-base text-subtext-light dark:text-subtext-dark">25.2%</td>
+<td class="px-8 py-5 text-right text-base font-medium text-primary">63.8%</td>
+<td class="px-8 py-5 text-center">
+<span class="material-icons-round text-green-500 text-lg">trending_down</span>
+</td>
+<td class="px-8 py-5 text-center">
+<span class="material-icons-round text-subtext-light dark:text-subtext-dark opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer group">
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<div class="w-2 h-8 bg-gray-300 rounded-full"></div>
+<div>
+<p class="text-base font-semibold text-gray-900 dark:text-white">Contamination</p>
+<p class="text-xs text-subtext-light dark:text-subtext-dark">Clean Room 2</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5 text-right text-base font-medium text-gray-900 dark:text-white">198</td>
+<td class="px-8 py-5 text-right text-base text-subtext-light dark:text-subtext-dark">15.8%</td>
+<td class="px-8 py-5 text-right text-base font-medium text-primary">79.6%</td>
+<td class="px-8 py-5 text-center">
+<span class="material-icons-round text-subtext-light dark:text-subtext-dark text-lg">trending_flat</span>
+</td>
+<td class="px-8 py-5 text-center">
+<span class="material-icons-round text-subtext-light dark:text-subtext-dark opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer group">
+<td class="px-8 py-5">
+<div class="flex items-center gap-3">
+<div class="w-2 h-8 bg-gray-200 rounded-full"></div>
+<div>
+<p class="text-base font-semibold text-gray-900 dark:text-white">Adhesive Failure</p>
+<p class="text-xs text-subtext-light dark:text-subtext-dark">Curing Oven</p>
+</div>
+</div>
+</td>
+<td class="px-8 py-5 text-right text-base font-medium text-gray-900 dark:text-white">102</td>
+<td class="px-8 py-5 text-right text-base text-subtext-light dark:text-subtext-dark">8.1%</td>
+<td class="px-8 py-5 text-right text-base font-medium text-primary">87.7%</td>
+<td class="px-8 py-5 text-center">
+<span class="material-icons-round text-green-500 text-lg">trending_down</span>
+</td>
+<td class="px-8 py-5 text-center">
+<span class="material-icons-round text-subtext-light dark:text-subtext-dark opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-2xl shadow-soft border border-border-light dark:border-border-dark flex-1 relative overflow-hidden">
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-primary opacity-10 blur-3xl rounded-full"></div>
+<div class="flex justify-between items-start mb-6 relative z-10">
+<div>
+<h3 class="text-sm font-bold text-primary uppercase tracking-wider mb-1">Deep Dive</h3>
+<h2 class="text-2xl font-bold text-gray-900 dark:text-white">Micro-Cracks</h2>
+</div>
+<div class="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+<span class="material-icons-round">close</span>
+</div>
+</div>
+<div class="relative w-full h-48 rounded-xl overflow-hidden mb-6 shadow-md border border-border-light dark:border-border-dark group">
+<img alt="Microscope view of crack defect on metal surface" class="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeCtL8zhsEL9olC3d1yxjRXtC2RwUu9y-YkgwwyeCEPUfajm2g8XmV2BDZXnl7kGafuEfDVvEVJbwbo_ry10SZWsoCXpqiKFKVkGW7LClTAyeyAwLN03akcDFR2ZsUxCHnW7vOubYU2wIXulmgRpQp4mIjQhoQ54tWbufRMLKkc2Gtl4TDEIfQDn68lr6U-877wFZdTV4d8DNRJqhcfeoAvj0bMjCZTMMRwhmSN_XBfrxwcUGuZQvQf5aryvWw1SBCR5XULvXN5zI"/>
+<div class="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-md text-xs text-white font-medium">
+                                Microscope View (x200)
+                            </div>
+</div>
+<div class="space-y-6">
+<div>
+<label class="text-xs font-semibold text-subtext-light dark:text-subtext-dark uppercase tracking-wider block mb-2">Root Cause Analysis</label>
+<p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                                    Thermal stress during the rapid cooling phase in Stage 3 is exceeding the tensile strength of the new alloy variant. The cooling gradient is too steep (-45°C/min).
+                                </p>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl">
+<p class="text-xs text-subtext-light dark:text-subtext-dark mb-1">First Detected</p>
+<p class="font-semibold text-gray-900 dark:text-white">08:42 AM</p>
+</div>
+<div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl">
+<p class="text-xs text-subtext-light dark:text-subtext-dark mb-1">Affected Batch</p>
+<p class="font-semibold text-gray-900 dark:text-white">#B-9291</p>
+</div>
+</div>
+<div>
+<label class="text-xs font-semibold text-subtext-light dark:text-subtext-dark uppercase tracking-wider block mb-3">Suggested Action</label>
+<div class="flex items-start gap-3 p-4 bg-primary/10 border border-primary/20 rounded-xl">
+<span class="material-icons-round text-primary mt-0.5">engineering</span>
+<div>
+<p class="text-sm font-semibold text-gray-900 dark:text-white mb-1">Adjust Cooling Profile</p>
+<p class="text-xs text-gray-600 dark:text-gray-400">Reduce cooling rate to -30°C/min and extend conveyor length by 2m.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-8 pt-6 border-t border-border-light dark:border-border-dark flex gap-3">
+<button class="flex-1 bg-primary hover:bg-amber-700 text-white py-3 px-4 rounded-xl font-medium transition-colors shadow-lg shadow-primary/30">
+                                Initiate Ticket
+                            </button>
+<button class="p-3 border border-border-light dark:border-border-dark rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-subtext-light dark:text-subtext-dark">
+<span class="material-icons-round">share</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<footer class="max-w-7xl mx-auto mt-12 py-6 border-t border-border-light dark:border-border-dark text-center">
+<p class="text-xs text-subtext-light dark:text-subtext-dark">Modo AI Analytics v2.4 • Confidential &amp; Proprietary</p>
+</footer>
+</div>
+</main>
+<script>
+        const ctx = document.getElementById('paretoChart').getContext('2d');
+        // Custom Gradient for Bars
+        const gradientBar = ctx.createLinearGradient(0, 0, 0, 400);
+        gradientBar.addColorStop(0, '#D97706'); // Primary Amber
+        gradientBar.addColorStop(1, '#92400E'); // Darker Amber
+        // Detect if dark mode for chart colors
+        const isDark = document.documentElement.classList.contains('dark');
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+        const textColor = isDark ? '#9CA3AF' : '#6B7280';
+        const paretoChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Micro-Cracks', 'Seal Misalign', 'Contamination', 'Adhesive Fail', 'Dimension Err', 'Other'],
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Cumulative %',
+                        data: [38, 63, 79, 87, 94, 100],
+                        borderColor: '#F59E0B', // Bright Amber for line
+                        backgroundColor: '#F59E0B',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#FFFFFF',
+                        pointBorderColor: '#F59E0B',
+                        pointBorderWidth: 2,
+                        yAxisID: 'y1',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Defect Count',
+                        data: [482, 315, 198, 102, 85, 66],
+                        backgroundColor: gradientBar,
+                        borderRadius: 6,
+                        barPercentage: 0.6,
+                        yAxisID: 'y',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            color: textColor,
+                            font: {
+                                family: 'Inter',
+                                size: 12
+                            },
+                            usePointStyle: true,
+                            boxWidth: 8
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                        titleColor: isDark ? '#FFFFFF' : '#111827',
+                        bodyColor: isDark ? '#D1D5DB' : '#4B5563',
+                        borderColor: isDark ? '#374151' : '#E5E7EB',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 8,
+                        titleFont: { family: 'Inter', weight: 'bold' },
+                        bodyFont: { family: 'Inter' }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: textColor,
+                            font: { family: 'Inter' }
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        grid: {
+                            color: gridColor,
+                            borderDash: [5, 5],
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: textColor,
+                            font: { family: 'Inter' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Frequency',
+                            color: textColor,
+                            font: { size: 10 }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: textColor,
+                            callback: function(value) { return value + '%' },
+                            font: { family: 'Inter' }
+                        },
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        });
+    </script>
+
+</body></html>
