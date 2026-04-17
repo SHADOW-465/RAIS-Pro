@@ -73,19 +73,12 @@ export function normalizeMergePlan(raw: any): MergePlan {
 export function buildManifestPrompt(manifests: SheetManifest[]): string {
   const sheetList = manifests.map(m => {
     const totals = Object.entries(m.numericTotals)
-      .slice(0, 5)
+      .slice(0, 4)
       .map(([col, val]) => `${col}=${val.toLocaleString()}`)
       .join(', ');
-    return [
-      `  sheetKey: "${m.sheetKey}"`,
-      `  file: "${m.fileName}"  sheet: "${m.sheetName}"`,
-      `  rows: ${m.rowCount}  totalRowsStripped: ${m.totalRowsStripped}`,
-      `  granularity: ${m.granularity}  timeRange: ${m.timeRange ?? 'unknown'}`,
-      `  isSummaryCandidate: ${m.isSummaryCandidate}`,
-      `  columns: ${m.columns.slice(0, 8).join(', ')}`,
-      `  numericTotals: { ${totals} }`,
-    ].join('\n');
-  }).join('\n\n');
+    // One compact line per sheet
+    return `"${m.sheetKey}": rows=${m.rowCount} stripped=${m.totalRowsStripped} granularity=${m.granularity} timeRange="${m.timeRange ?? 'unknown'}" summary=${m.isSummaryCandidate} cols=[${m.columns.slice(0, 6).join(',')}] totals={${totals}}`;
+  }).join('\n');
 
   const allKeys = manifests.map(m => `"${m.sheetKey}"`).join(', ');
 
@@ -125,79 +118,33 @@ RULES:
 
 // ── Phase 2: Dashboard prompt → AI → DashboardConfig ─────────────────────────
 
-export function buildPrompt(mergedResult: MergedResult, rawSummaries: SheetSummary[]): string {
-  const dataSection = mergedResultToPromptText(mergedResult);
+// Hard character budget for the data section (~7k tokens ≈ 28k chars)
+const DATA_CHAR_BUDGET = 20_000;
 
-  // Column metadata for context (not for calculating values)
-  let metaSection = '## COLUMN METADATA (context only — do NOT use for KPI values)\n';
-  const includedKeys = new Set(
-    mergedResult.mergePlan.groups.flatMap(g => g.sheets)
-  );
-  for (const s of rawSummaries) {
-    if (!includedKeys.has(s.name)) continue;
-    metaSection += `### ${s.name}\n`;
-    for (const col of s.columns) {
-      const extra = col.type === 'number'
-        ? `type: number`
-        : `type: ${col.type}, unique: ${col.uniqueCount}, samples: ${JSON.stringify(col.sampleData)}`;
-      metaSection += `  - ${col.name} (${extra})\n`;
-    }
-    metaSection += '\n';
-  }
-
+export function buildPrompt(mergedResult: MergedResult, _rawSummaries: SheetSummary[]): string {
   const hasMultipleGroups = mergedResult.groups.length > 1;
   const groupNames = mergedResult.groups.map(g => `"${g.label}"`).join(', ');
-  const allSeriesNames = mergedResult.groups
-    .flatMap(g => g.groupedSeries)
-    .map(s => `"${s.metricColumn} by ${s.groupByColumn} [${s.aggregation}]"`)
-    .join(', ');
 
-  return `You are a senior data analyst. Analyze the dataset below and return a single JSON object.
+  // Compact schema — reduces fixed overhead by ~40%
+  const schema = `{"dashboardTitle":"<8 words>","executiveSummary":"<2-3 sentences, use exact grand-total numbers${hasMultipleGroups ? `, mention sources: ${groupNames}` : ''}>","kpis":[{"label":"<name>","value":"<EXACT value from GRAND TOTALS>","unit":"<omit if in value>","trend":<-1|0|1>,"context":"<grand total|average|etc>","sourceColumn":"<exact col name>"}],"insights":["<5 items with real numbers>"],"recommendations":["<4 actionable items>"],"charts":[{"title":"<title>","type":"<line|bar|horizontalBar|area|pie|doughnut|radar>","data":{"labels":["<EXACT from PRE-COMPUTED>"],"datasets":[{"label":"<name>","data":[<EXACT values>],"borderColor":"#6366f1","backgroundColor":"rgba(99,102,241,0.1)","fill":true,"tension":0.4}]}}],"alerts":[]}`;
 
-CRITICAL RULES — READ CAREFULLY:
-1. KPI values MUST come verbatim from GRAND TOTALS or PER-SOURCE BREAKDOWN. Never estimate.
-2. Chart data arrays MUST use the exact labels/values from PRE-COMPUTED CHART SERIES. Never invent numbers.
-3. For totals (rejection count, checked count), use the SUM value. For rates/percentages, use the MEAN.
-4. sourceColumn must be the exact column name as it appears in the data.
-5. Return ONLY the JSON object — no markdown, no explanation.
+  // Data section — enforced character budget
+  let dataSection = mergedResultToPromptText(mergedResult);
+  if (dataSection.length > DATA_CHAR_BUDGET) {
+    dataSection = dataSection.slice(0, DATA_CHAR_BUDGET) + '\n... [truncated for length]\n';
+  }
 
-SCHEMA:
-{
-  "dashboardTitle": "Short descriptive title (max 8 words)",
-  "executiveSummary": "2-3 sentences for a General Manager. Use exact grand-total numbers.${hasMultipleGroups ? ` Mention the ${mergedResult.groups.length} sources: ${groupNames}.` : ''}",
-  "kpis": [
-    {
-      "label": "Human-readable metric name",
-      "value": "EXACT value from GRAND TOTALS (formatted, e.g. '33.2k' or '0.82%')",
-      "unit": "unit if not already in value, else omit",
-      "trend": -1,
-      "context": "e.g. 'grand total', 'overall average'",
-      "sourceColumn": "exact column name"
-    }
-  ],
-  "insights": ["5 specific insights with exact numbers from the aggregates", "...", "...", "...", "..."],
-  "recommendations": ["4 actionable recommendations", "...", "...", "..."],
-  "charts": [
-    {
-      "title": "Chart title",
-      "type": "line",
-      "description": "optional one-liner",
-      "data": {
-        "labels": ["EXACT labels from a PRE-COMPUTED CHART SERIES"],
-        "datasets": [{ "label": "Series", "data": [EXACT values from matching series], "borderColor": "#6366f1", "backgroundColor": "rgba(99,102,241,0.1)", "fill": true, "tension": 0.4 }]
-      }
-    }
-  ],
-  "alerts": []
-}
+  return `Senior data analyst. Return ONE valid JSON object matching the schema. No markdown, no preamble.
 
-INSTRUCTIONS:
-- kpis: 4–6 items. Include the grand total for the primary rejection metric as the first KPI.${hasMultipleGroups ? `\n- Consider adding a KPI for each source group to show the breakdown.` : ''}
-- charts: 2–4. Available pre-computed series: ${allSeriesNames || '(none)'}.${hasMultipleGroups ? `\n  Also add a bar chart comparing ${groupNames} for the primary metric.` : ''}
-- Chart type: line, bar, horizontalBar, area, pie, doughnut, or radar.
-- insights: exactly 5 with real numbers. alerts: [] unless there is a genuine anomaly.
-- trend: 1=improving, 0=stable, -1=declining.
+RULES:
+1. KPI values MUST come verbatim from GRAND TOTALS${hasMultipleGroups ? ' or PER-SOURCE BREAKDOWN' : ''}. Never estimate.
+2. Chart labels/data MUST come verbatim from PRE-COMPUTED CHART SERIES. Never invent numbers.
+3. Use SUM for counts/totals. Use MEAN for rates/percentages.
+4. kpis: 4-6 items. charts: 2-4 items. insights: exactly 5. recommendations: exactly 4.
+5. trend: 1=improving 0=stable -1=declining. alerts: [] unless genuine anomaly.
+${hasMultipleGroups ? `6. First KPI = grand total. Add per-source KPIs for ${groupNames}.` : ''}
 
-${dataSection}
-${metaSection}`;
+SCHEMA: ${schema}
+
+${dataSection}`;
 }

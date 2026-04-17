@@ -184,24 +184,32 @@ export function mergedResultToPromptText(result: MergedResult): string {
     out += '\n';
   }
 
-  // Pre-computed chart series
+  // Pre-computed chart series — cap to 5 sum-series (prefer sum over mean for brevity)
   const allSeries = groups.flatMap(g => g.groupedSeries);
-  if (allSeries.length > 0) {
+  const sumSeries  = allSeries.filter(s => s.aggregation === 'sum').slice(0, 4);
+  const meanSeries = allSeries.filter(s => s.aggregation === 'mean').slice(0, 1);
+  const topSeries  = [...sumSeries, ...meanSeries];
+
+  if (topSeries.length > 0) {
     out += '## PRE-COMPUTED CHART SERIES\n';
-    out += 'Use these exact arrays for chart labels/data. Do not invent chart data.\n\n';
-    for (const s of allSeries) {
-      out += `  ${s.metricColumn} by ${s.groupByColumn} [${s.aggregation}]:\n`;
-      out += `    labels: ${JSON.stringify(s.labels)}\n`;
-      out += `    values: ${JSON.stringify(s.values)}\n\n`;
+    out += 'Use these exact arrays. Do not invent chart data.\n\n';
+    for (const s of topSeries) {
+      // Cap at 15 labels to keep tokens bounded
+      const labels = s.labels.slice(0, 15);
+      const values = s.values.slice(0, 15);
+      out += `  ${s.metricColumn} by ${s.groupByColumn} [${s.aggregation}]: `;
+      out += `labels=${JSON.stringify(labels)} values=${JSON.stringify(values)}\n`;
     }
+    out += '\n';
 
     if (!isSingleGroup) {
-      out += '  Per-source comparison (for bar/grouped charts):\n';
+      out += 'Per-source totals:\n';
       for (const group of groups) {
-        for (const [col, agg] of Object.entries(group.numericAggregates)) {
-          if (agg.sum > 0) {
-            out += `    ${group.label} — ${col} total: ${fmtNum(agg.sum)}\n`;
-          }
+        const topCols = Object.entries(group.numericAggregates)
+          .filter(([, a]) => a.sum > 0)
+          .slice(0, 4);
+        for (const [col, agg] of topCols) {
+          out += `  ${group.label} ${col}: ${fmtNum(agg.sum)}\n`;
         }
       }
     }
