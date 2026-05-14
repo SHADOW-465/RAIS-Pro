@@ -51,3 +51,8 @@ supabase/.temp/
 
 # brainstorm visuals
 .superpowers/
+
+# graphify
+.graphify_python
+.graphify_uncached.txt
+graphify-out/

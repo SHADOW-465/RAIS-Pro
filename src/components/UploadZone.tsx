@@ -21,17 +21,23 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     setIsDragging(false);
   }, []);
 
+  const addFiles = useCallback((incoming: File[]) => {
+    const valid = incoming.filter(f =>
+      f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.csv')
+    );
+    if (valid.length === 0) return;
+    setFiles(prev => {
+      const existingNames = new Set(prev.map(f => f.name));
+      const deduped = valid.filter(f => !existingNames.has(f.name));
+      return [...prev, ...deduped];
+    });
+  }, []);
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    const validFiles = droppedFiles.filter(file => 
-      file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')
-    );
-    if (validFiles.length > 0) {
-      setFiles(prev => [...prev, ...validFiles]);
-    }
-  }, []);
+    addFiles(Array.from(e.dataTransfer.files));
+  }, [addFiles]);
 
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
@@ -85,10 +91,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
               accept=".xlsx,.xls,.csv"
               className="hidden"
               onChange={(e) => {
-                if (e.target.files) {
-                  const selectedFiles = Array.from(e.target.files);
-                  setFiles(prev => [...prev, ...selectedFiles]);
-                }
+                if (e.target.files) addFiles(Array.from(e.target.files));
               }}
             />
           </label>

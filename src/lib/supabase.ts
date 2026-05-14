@@ -22,9 +22,18 @@ export function getSupabaseClient() {
 export function createServerClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
   if (!url) throw new Error("NEXT_PUBLIC_SUPABASE_URL is not set");
-  if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY not set");
-  return createClient(url, serviceKey, {
+  
+  const keyToUse = serviceKey || anonKey;
+  if (!keyToUse) throw new Error("Neither SUPABASE_SERVICE_ROLE_KEY nor NEXT_PUBLIC_SUPABASE_ANON_KEY is set");
+
+  if (!serviceKey) {
+    console.warn("[supabase] SUPABASE_SERVICE_ROLE_KEY not set, falling back to anon key. RLS may block operations.");
+  }
+
+  return createClient(url, keyToUse, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
