@@ -1,105 +1,203 @@
-import { buildPrompt, normalizeResult, extractJson } from '../lib/analysis-utils';
+import { buildPrompt, buildManifestPrompt } from "../lib/analysis-utils";
+import {
+  DashboardConfigSchema,
+  MergePlanSchema,
+  InsightSlideAnswerSchema,
+} from "../lib/schemas";
 
-describe('normalizeResult', () => {
-  it('maps a valid kpis array', () => {
-    const raw = {
-      dashboardTitle: 'Sales Q1',
-      executiveSummary: 'Revenue up.',
-      kpis: [
-        { label: 'Revenue', value: '$2.4M', trend: 1, context: 'vs last Q' },
-        { label: 'Orders',  value: 340,     trend: 0, context: 'total' },
-      ],
-      charts: [],
-      insights: ['Insight one'],
-      recommendations: ['Do this'],
-      alerts: [],
-    };
-    const result = normalizeResult(raw);
-    expect(result.dashboardTitle).toBe('Sales Q1');
-    expect(result.kpis).toHaveLength(2);
-    expect(result.kpis[0].label).toBe('Revenue');
-    expect(result.kpis[0].trend).toBe(1);
-    expect(result.kpis[1].value).toBe(340);
-  });
-
-  it('returns empty kpis array when kpis is missing', () => {
-    const result = normalizeResult({ executiveSummary: 'ok' });
-    expect(result.kpis).toEqual([]);
-  });
-
-  it('caps kpis at 8', () => {
-    const raw = {
-      kpis: Array.from({ length: 12 }, (_, i) => ({
-        label: `KPI ${i}`, value: i, trend: 0, context: '',
-      })),
-    };
-    expect(normalizeResult(raw).kpis).toHaveLength(8);
-  });
-
-  it('defaults missing trend to 0', () => {
-    const raw = { kpis: [{ label: 'X', value: 1, context: '' }] };
-    expect(normalizeResult(raw).kpis[0].trend).toBe(0);
-  });
-
-  it('falls back gracefully when kpis is an object (old format)', () => {
-    const raw = { kpis: { rejectionRate: { value: 4 } } };
-    expect(normalizeResult(raw).kpis).toEqual([]);
-  });
-});
-
-describe('buildPrompt', () => {
+describe("buildPrompt", () => {
   const minimalMergedResult = {
-    groups: [{
-      label: 'All Data',
-      rowCount: 5,
-      sourceSheets: ['test.xlsx - Sheet1'],
-      numericAggregates: { Rejections: { sum: 100, mean: 20, min: 5, max: 40 } },
-      groupedSeries: [],
-    }],
+    groups: [
+      {
+        label: "All Data",
+        rowCount: 5,
+        sourceSheets: ["test.xlsx - Sheet1"],
+        numericAggregates: { Rejections: { sum: 100, mean: 20, min: 5, max: 40 } },
+        groupedSeries: [],
+      },
+    ],
     grandTotals: { Rejections: { sum: 100, mean: 20 } },
     mergePlan: {
-      groups: [{ label: 'All Data', sheets: ['test.xlsx - Sheet1'], reason: 'single sheet' }],
+      groups: [
+        { label: "All Data", sheets: ["test.xlsx - Sheet1"], reason: "single sheet" },
+      ],
       excludedSheets: [],
-      crossFileStrategy: 'sum' as const,
+      crossFileStrategy: "sum" as const,
       warnings: [],
     },
   };
 
-  it('contains the free-array kpis schema', () => {
+  it("includes the data section with grand totals", () => {
     const prompt = buildPrompt(minimalMergedResult, []);
-    expect(prompt).toContain('"kpis": [');
-    expect(prompt).toContain('"label"');
-    expect(prompt).toContain('"trend"');
+    expect(prompt).toContain("GRAND TOTALS");
+    expect(prompt).toContain("Rejections");
   });
 
-  it('does not contain hardcoded manufacturing field names', () => {
+  it("does not contain hardcoded manufacturing field names", () => {
     const prompt = buildPrompt(minimalMergedResult, []);
-    expect(prompt).not.toContain('rejectionRate');
-    expect(prompt).not.toContain('totalOutput');
-    expect(prompt).not.toContain('qualityScore');
+    expect(prompt).not.toContain("rejectionRate");
+    expect(prompt).not.toContain("totalOutput");
+    expect(prompt).not.toContain("qualityScore");
   });
 
-  it('includes grand totals in prompt', () => {
+  it("instructs the model to populate history when a time series exists", () => {
     const prompt = buildPrompt(minimalMergedResult, []);
-    expect(prompt).toContain('GRAND TOTALS');
-    expect(prompt).toContain('Rejections');
+    expect(prompt).toContain("history");
   });
 });
 
-describe('extractJson', () => {
-  it('parses raw JSON', () => {
-    expect(extractJson('{"a":1}')).toEqual({ a: 1 });
+describe("buildManifestPrompt", () => {
+  it("formats sheets and rules", () => {
+    const prompt = buildManifestPrompt([
+      {
+        sheetKey: "a.xlsx - S1",
+        fileName: "a.xlsx",
+        sheetName: "S1",
+        rowCount: 100,
+        totalRowsStripped: 0,
+        granularity: "monthly",
+        timeRange: "Jan-Mar 2024",
+        isSummaryCandidate: false,
+        columns: ["date", "rejections"],
+        numericTotals: { rejections: 50 },
+        numericMeans: { rejections: 0.5 },
+      },
+    ]);
+    expect(prompt).toContain("a.xlsx - S1");
+    expect(prompt).toContain("crossFileStrategy");
+  });
+});
+
+describe("DashboardConfigSchema", () => {
+  it("accepts a minimal valid dashboard", () => {
+    const parsed = DashboardConfigSchema.parse({
+      dashboardTitle: "Sales Q1",
+      executiveSummary: "Revenue up.",
+      kpis: [
+        { label: "Revenue", value: "$2.4M", trend: 1, context: "vs last Q" },
+      ],
+      charts: [],
+      insights: ["Insight one"],
+      recommendations: ["Do this"],
+      alerts: [],
+    });
+    expect(parsed.kpis).toHaveLength(1);
+    expect(parsed.kpis[0].trend).toBe(1);
   });
 
-  it('parses JSON inside markdown fences', () => {
-    expect(extractJson('```json\n{"a":2}\n```')).toEqual({ a: 2 });
+  it("accepts numeric KPI values", () => {
+    const parsed = DashboardConfigSchema.parse({
+      dashboardTitle: "Orders",
+      executiveSummary: "ok",
+      kpis: [{ label: "Orders", value: 340, trend: 0, context: "total" }],
+      charts: [],
+      insights: [],
+      recommendations: [],
+      alerts: [],
+    });
+    expect(parsed.kpis[0].value).toBe(340);
   });
 
-  it('extracts JSON from surrounding text', () => {
-    expect(extractJson('Here is the result: {"a":3} done')).toEqual({ a: 3 });
+  it("rejects an invalid trend value", () => {
+    expect(() =>
+      DashboardConfigSchema.parse({
+        dashboardTitle: "X",
+        executiveSummary: "ok",
+        kpis: [{ label: "X", value: 1, trend: 7, context: "" }],
+        charts: [],
+        insights: [],
+        recommendations: [],
+        alerts: [],
+      }),
+    ).toThrow();
   });
 
-  it('throws on invalid JSON', () => {
-    expect(() => extractJson('not json')).toThrow();
+  it("rejects empty kpis", () => {
+    expect(() =>
+      DashboardConfigSchema.parse({
+        dashboardTitle: "X",
+        executiveSummary: "ok",
+        kpis: [],
+        charts: [],
+        insights: [],
+        recommendations: [],
+        alerts: [],
+      }),
+    ).toThrow();
+  });
+
+  it("accepts an optional history array for sparklines", () => {
+    const parsed = DashboardConfigSchema.parse({
+      dashboardTitle: "X",
+      executiveSummary: "ok",
+      kpis: [
+        {
+          label: "Rate",
+          value: "2.71",
+          unit: "%",
+          trend: -1,
+          context: "monthly avg",
+          history: [2.1, 2.3, 2.05, 2.45, 2.71],
+        },
+      ],
+      charts: [],
+      insights: [],
+      recommendations: [],
+      alerts: [],
+    });
+    expect(parsed.kpis[0].history).toHaveLength(5);
+  });
+});
+
+describe("MergePlanSchema", () => {
+  it("accepts a minimal valid plan", () => {
+    const plan = MergePlanSchema.parse({
+      groups: [{ label: "All", sheets: ["a.xlsx - S1"], reason: "single" }],
+      excludedSheets: [],
+      crossFileStrategy: "sum",
+      warnings: [],
+    });
+    expect(plan.groups).toHaveLength(1);
+  });
+
+  it("rejects an invalid crossFileStrategy", () => {
+    expect(() =>
+      MergePlanSchema.parse({
+        groups: [{ label: "All", sheets: ["a"], reason: "x" }],
+        excludedSheets: [],
+        crossFileStrategy: "average",
+        warnings: [],
+      }),
+    ).toThrow();
+  });
+});
+
+describe("InsightSlideAnswerSchema", () => {
+  it("accepts a 1-chart slide with bullets", () => {
+    const slide = InsightSlideAnswerSchema.parse({
+      headline: "Cork Line-2 produced 12 of 35 rejections (34%).",
+      charts: [
+        {
+          title: "Top lots",
+          type: "bar",
+          data: {
+            labels: ["LOT-A", "LOT-B"],
+            datasets: [{ label: "rej", data: [10, 4] }],
+          },
+        },
+      ],
+      bullets: ["one", "two", "three"],
+    });
+    expect(slide.bullets).toHaveLength(3);
+  });
+
+  it("rejects fewer than 3 bullets", () => {
+    expect(() =>
+      InsightSlideAnswerSchema.parse({
+        headline: "X 1.",
+        charts: [],
+        bullets: ["only one"],
+      }),
+    ).toThrow();
   });
 });

@@ -9,6 +9,13 @@ export interface KPI {
   context: string;
   /** Column name in source data this KPI was derived from */
   sourceColumn?: string;
+  // ── Editorial fields (optional) ────────────────────────────────────────────
+  /** Pre-formatted delta string e.g. "+0.42 pt" or "-9 vs Aug" */
+  delta?: string;
+  /** History values for inline sparkline */
+  history?: number[];
+  /** Short source tag e.g. "rejection_log" — falls back to sourceColumn */
+  source?: string;
 }
 
 /** Raw spreadsheet data kept client-side for data verification */

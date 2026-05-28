@@ -18,7 +18,7 @@ export default function SessionPage({ params }: Props) {
   const router = useRouter();
   const [sessionId, setSessionId] = useState<string>("");
   const [config, setConfig] = useState<DashboardConfig | null>(null);
-  const [dataSummary] = useState<string>("");
+  const [dataSummary, setDataSummary] = useState<string>("");
   const [slides, setSlides] = useState<InsightSlideType[]>([]);
   const [rawSheets, setRawSheets] = useState<RawSheet[]>([]);
   const [mergePlan, setMergePlan] = useState<MergePlan | undefined>(undefined);
@@ -45,6 +45,7 @@ export default function SessionPage({ params }: Props) {
         if (body.error) throw new Error(body.error);
         setConfig(body.session.dashboard as DashboardConfig);
         if (body.session.merge_plan) setMergePlan(body.session.merge_plan as MergePlan);
+        if (body.session.data_summary) setDataSummary(body.session.data_summary);
         // Map stored slides from DB row shape to InsightSlide shape
         const stored = (body.slides ?? []).map((row: any) => ({
           id: row.id,
@@ -59,12 +60,18 @@ export default function SessionPage({ params }: Props) {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="glass-card p-8 max-w-md text-center space-y-4">
-          <p className="text-danger font-semibold">Could not load session</p>
-          <p className="text-sm text-text-muted">{error}</p>
-          <button onClick={() => router.push("/")} className="btn-primary">
-            ← Back to Home
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24 }}>
+        <div
+          className="card"
+          style={{ maxWidth: 480, textAlign: "center", padding: 36 }}
+        >
+          <div className="eyebrow accent" style={{ marginBottom: 8 }}>Error</div>
+          <h2 className="serif tracked-tight" style={{ fontSize: 26, fontWeight: 500, margin: "0 0 12px" }}>
+            Could not load session
+          </h2>
+          <p className="muted" style={{ fontSize: 13, marginBottom: 20 }}>{error}</p>
+          <button onClick={() => router.push("/")} className="btn primary">
+            ← Back to home
           </button>
         </div>
       </div>
@@ -72,11 +79,7 @@ export default function SessionPage({ params }: Props) {
   }
 
   if (!config) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <ProcessingLoader />
-      </div>
-    );
+    return <ProcessingLoader />;
   }
 
   return (

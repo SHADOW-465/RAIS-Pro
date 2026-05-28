@@ -1,9 +1,6 @@
 // src/components/BeamOverlay.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-
 export interface BeamEndpoints {
   from: DOMRect;
   to: DOMRect;
@@ -14,96 +11,89 @@ interface BeamOverlayProps {
   beams: BeamEndpoints[];
 }
 
-function CubicBeam({ from, to, id }: BeamEndpoints) {
-  const pathRef = useRef<SVGPathElement>(null);
-
+function Beam({ from, to, id }: BeamEndpoints) {
   const fromX = from.right;
   const fromY = from.top + from.height / 2;
   const toX = to.left;
   const toY = to.top + to.height / 2;
-
-  const dist = Math.abs(toX - fromX);
-  const cp1x = fromX + dist * 0.5;
-  const cp1y = fromY;
-  const cp2x = toX - dist * 0.5;
-  const cp2y = toY;
-
-  const d = `M ${fromX} ${fromY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toX} ${toY}`;
+  const dx = toX - fromX;
+  const c1x = fromX + Math.max(80, dx * 0.45);
+  const c1y = fromY;
+  const c2x = toX - Math.max(80, dx * 0.45);
+  const c2y = toY;
+  const d = `M ${fromX} ${fromY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${toX - 4} ${toY}`;
+  const length = Math.hypot(dx, toY - fromY) + 200;
 
   return (
     <g key={id}>
-      {/* Glow track */}
+      {/* glow */}
       <path
         d={d}
         fill="none"
-        stroke="url(#beamGradient)"
-        strokeWidth={2}
-        strokeOpacity={0.18}
-        filter="url(#beamBlur)"
+        stroke="var(--accent)"
+        strokeWidth="6"
+        opacity="0.18"
+        filter="url(#beam-glow)"
       />
-      {/* Animated beam */}
-      <motion.path
-        ref={pathRef}
+      {/* main */}
+      <path
         d={d}
         fill="none"
-        stroke="url(#beamGradient)"
-        strokeWidth={1.5}
+        stroke="var(--accent)"
+        strokeWidth="1.75"
         strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: 1, opacity: 1 }}
-        exit={{ pathLength: 0, opacity: 0 }}
-        transition={{ duration: 0.55, ease: "easeOut" }}
+        markerEnd="url(#beam-arrow)"
+        style={{
+          strokeDasharray: length,
+          strokeDashoffset: 0,
+          animation: "draw-line 0.6s cubic-bezier(.2,.7,.2,1) both",
+          ["--len" as any]: length,
+        }}
       />
-      {/* Dot at source */}
-      <motion.circle
-        cx={fromX}
-        cy={fromY}
-        r={4}
-        fill="#6366f1"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0, opacity: 0 }}
-        transition={{ delay: 0.1 }}
-      />
-      {/* Dot at destination */}
-      <motion.circle
-        cx={toX}
-        cy={toY}
-        r={4}
-        fill="#0ea5e9"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0, opacity: 0 }}
-        transition={{ delay: 0.45 }}
-      />
+      {/* origin halo */}
+      <circle cx={fromX} cy={fromY} r="4" fill="var(--accent)" />
+      <circle cx={fromX} cy={fromY} r="8" fill="var(--accent)" opacity="0.2" />
     </g>
   );
 }
 
 export default function BeamOverlay({ beams }: BeamOverlayProps) {
   if (beams.length === 0) return null;
-
   return (
     <svg
-      className="fixed inset-0 w-screen h-screen pointer-events-none"
-      style={{ zIndex: 9999 }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100vh",
+        pointerEvents: "none",
+        zIndex: 100,
+      }}
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <linearGradient id="beamGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#6366f1" />
-          <stop offset="100%" stopColor="#0ea5e9" />
-        </linearGradient>
-        <filter id="beamBlur" x="-20%" y="-200%" width="140%" height="500%">
-          <feGaussianBlur stdDeviation="4" />
+        <marker
+          id="beam-arrow"
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto"
+        >
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)" />
+        </marker>
+        <filter id="beam-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
         </filter>
       </defs>
-
-      <AnimatePresence>
-        {beams.map(b => (
-          <CubicBeam key={b.id} from={b.from} to={b.to} id={b.id} />
-        ))}
-      </AnimatePresence>
+      {beams.map((b) => (
+        <Beam key={b.id} {...b} />
+      ))}
     </svg>
   );
 }

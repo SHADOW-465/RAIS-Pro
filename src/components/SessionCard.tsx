@@ -1,12 +1,12 @@
 // src/components/SessionCard.tsx
 "use client";
 
-import { motion } from "framer-motion";
+import Icon from "@/components/editorial/Icon";
 
 export interface SessionSummary {
   id: string;
   title: string;
-  createdAt: string;      // ISO string
+  createdAt: string;
   fileNames: string[];
   slideCount: number;
   kpiPreview: Array<{ label: string; value: string | number }>;
@@ -23,54 +23,100 @@ function relativeDate(iso: string): string {
   const days = Math.floor(diff / 86_400_000);
   if (days === 0) return "Today";
   if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export default function SessionCard({ session, isActive, onClick }: SessionCardProps) {
-  return (
-    <motion.div
-      variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }}
-      className={`cursor-pointer p-4 ${isActive ? "glass-tinted" : "glass-card"}`}
-    >
-      {/* Date */}
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted mb-1.5">
-        {relativeDate(session.createdAt)}
-      </p>
+export default function SessionCard({ session, onClick }: SessionCardProps) {
+  // We don't know the actual trend without more data; default to neutral.
+  const trendColor = "var(--muted)";
+  const trendArrow = "→";
 
-      {/* Title */}
-      <h3 className="text-sm font-bold text-text-primary leading-snug mb-1">
+  return (
+    <div
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onClick();
+      }}
+      tabIndex={0}
+      role="button"
+      className="recent-card"
+      style={{
+        background: "var(--paper-soft)",
+        border: "1px solid var(--hairline)",
+        padding: 18,
+        cursor: "pointer",
+        position: "relative",
+      }}
+    >
+      <div
+        className="between"
+        style={{ alignItems: "flex-start", marginBottom: 12 }}
+      >
+        <div className="eyebrow muted" style={{ fontSize: 10 }}>
+          {relativeDate(session.createdAt)}
+        </div>
+        <span
+          style={{
+            color: trendColor,
+            fontFamily: "var(--mono)",
+            fontWeight: 600,
+            fontSize: 12,
+          }}
+        >
+          {trendArrow}
+        </span>
+      </div>
+      <h3
+        className="serif"
+        style={{
+          fontSize: 17,
+          margin: 0,
+          fontWeight: 600,
+          letterSpacing: "-0.01em",
+          lineHeight: 1.2,
+          minHeight: 41,
+        }}
+      >
         {session.title}
       </h3>
-
-      {/* File names */}
-      <p className="text-[11px] text-text-muted mb-3 truncate" title={session.fileNames.join(", ")}>
-        {session.fileNames.join(" · ")}
-      </p>
-
-      {/* KPI preview */}
-      <div className="flex gap-2 mb-3">
-        {session.kpiPreview.slice(0, 2).map((kpi, i) => (
-          <div
-            key={kpi.label}
-            className="flex-1 bg-white/60 rounded-lg px-2.5 py-2"
-          >
-            <p className="text-[8px] uppercase tracking-wider text-text-muted">{kpi.label}</p>
-            <p className="text-sm font-bold text-text-primary">{kpi.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold text-accent bg-accent/8 rounded-full px-2.5 py-1">
-          ◈ {session.slideCount} insight {session.slideCount === 1 ? "slide" : "slides"}
+      <div
+        className="flex gap-4 mt-4 mono"
+        style={{ fontSize: 11, color: "var(--muted)" }}
+      >
+        <span>
+          <strong style={{ color: "var(--ink)" }}>
+            {session.fileNames.length}
+          </strong>{" "}
+          file{session.fileNames.length === 1 ? "" : "s"}
         </span>
-        <span className="text-[11px] font-semibold text-accent">Open →</span>
+        <span>·</span>
+        <span>
+          <strong style={{ color: "var(--ink)" }}>
+            {session.kpiPreview.length}
+          </strong>{" "}
+          kpis
+        </span>
+        <span>·</span>
+        <span>
+          <strong style={{ color: "var(--ink)" }}>
+            {session.slideCount}
+          </strong>{" "}
+          slides
+        </span>
       </div>
-    </motion.div>
+      <div
+        className="recent-arrow"
+        style={{
+          position: "absolute",
+          right: 14,
+          bottom: 14,
+          opacity: 0,
+          transition: "opacity 0.2s ease, transform 0.2s ease",
+        }}
+      >
+        <Icon name="arrow-right" size={16} />
+      </div>
+    </div>
   );
 }

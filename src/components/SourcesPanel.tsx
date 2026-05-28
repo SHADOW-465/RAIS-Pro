@@ -2,136 +2,152 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, CheckCircle2, XCircle, AlertTriangle, Database } from "lucide-react";
+import Icon from "@/components/editorial/Icon";
 import type { MergePlan } from "@/types/analysis";
 
 interface SourcesPanelProps {
   mergePlan: MergePlan;
+  sectionNum?: string;
 }
 
-export default function SourcesPanel({ mergePlan }: SourcesPanelProps) {
-  const [open, setOpen] = useState(false);
-
-  const hasExclusions = mergePlan.excludedSheets.length > 0;
-  const hasWarnings   = mergePlan.warnings.length > 0;
-  const multiGroup    = mergePlan.groups.length > 1;
-
+export default function SourcesPanel({ mergePlan, sectionNum = "06" }: SourcesPanelProps) {
+  const [open, setOpen] = useState(true);
   const totalIncluded = mergePlan.groups.reduce((n, g) => n + g.sheets.length, 0);
+  const hasExclusions = mergePlan.excludedSheets.length > 0;
+  const hasWarnings = mergePlan.warnings.length > 0;
 
   return (
-    <div className="glass-card overflow-hidden">
-      {/* Header / toggle */}
+    <section
+      style={{
+        background: "var(--paper-soft)",
+        border: "1px solid var(--ink)",
+        padding: "var(--pad-card)",
+      }}
+    >
       <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full px-5 py-3.5 flex items-center gap-3 text-left hover:bg-white/20 transition-colors"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
       >
-        <Database size={13} className="text-accent shrink-0" />
-        <span className="text-[11px] font-bold uppercase tracking-widest text-text-muted flex-1">
-          Data Sources
-        </span>
-
-        {/* Quick badges */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] bg-success/10 text-success border border-success/20 px-2 py-0.5 rounded-full font-semibold">
-            {totalIncluded} sheet{totalIncluded !== 1 ? 's' : ''} used
-          </span>
-          {hasExclusions && (
-            <span className="text-[10px] bg-warning/10 text-warning border border-warning/20 px-2 py-0.5 rounded-full font-semibold">
-              {mergePlan.excludedSheets.length} excluded
-            </span>
-          )}
-          {hasWarnings && (
-            <span className="text-[10px] bg-danger/10 text-danger border border-danger/20 px-2 py-0.5 rounded-full font-semibold">
-              {mergePlan.warnings.length} warning{mergePlan.warnings.length !== 1 ? 's' : ''}
-            </span>
-          )}
-          <ChevronDown
-            size={13}
-            className={`text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
-          />
+        <div className="flex gap-4" style={{ alignItems: "baseline" }}>
+          <div className="eyebrow accent">{sectionNum} · The Receipts</div>
+          <h2 className="serif tracked-tight" style={{ fontSize: 22, margin: 0, fontWeight: 600 }}>
+            Sources &amp; merge audit
+          </h2>
         </div>
+        <Icon name={open ? "chevron-up" : "chevron-down"} size={18} />
       </button>
 
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="overflow-hidden"
-          >
-            <div className="px-5 pb-5 pt-1 space-y-4 border-t border-white/30">
+      {open && (
+        <div
+          className="fade-up"
+          style={{
+            marginTop: 20,
+            display: "grid",
+            gridTemplateColumns: "1.4fr 1fr 1fr",
+            gap: 32,
+          }}
+        >
+          {/* Included */}
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>
+              Included ({totalIncluded})
+            </div>
+            <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+              <tbody>
+                {mergePlan.groups.flatMap((g) =>
+                  g.sheets.map((sheet, j) => (
+                    <tr key={`${g.label}-${sheet}-${j}`} style={{ borderBottom: "1px solid var(--hairline)" }}>
+                      <td
+                        className="mono"
+                        style={{ padding: "8px 0", fontSize: 11, fontWeight: 500 }}
+                      >
+                        {sheet}
+                      </td>
+                      <td
+                        className="mono muted"
+                        style={{ padding: "8px 8px", fontSize: 11 }}
+                      >
+                        {g.label}
+                      </td>
+                    </tr>
+                  )),
+                )}
+              </tbody>
+            </table>
+          </div>
 
-              {/* Source groups */}
-              <div className="space-y-3">
-                {mergePlan.groups.map((group, i) => (
-                  <div key={i} className="space-y-1.5">
-                    {multiGroup && (
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-accent">
-                        {group.label}
-                      </p>
-                    )}
-                    {group.sheets.map((sheet, j) => (
-                      <div key={j} className="flex items-start gap-2">
-                        <CheckCircle2 size={12} className="text-success mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-xs text-text-primary font-medium">{sheet}</p>
-                          {j === 0 && (
-                            <p className="text-[10px] text-text-muted">{group.reason}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+          {/* Excluded + strategy */}
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 10, color: "var(--accent)" }}>
+              Excluded ({mergePlan.excludedSheets.length})
+            </div>
+            {hasExclusions ? (
+              mergePlan.excludedSheets.map((s, i) => (
+                <div
+                  key={i}
+                  style={{ padding: "10px 0", borderBottom: "1px solid var(--hairline)" }}
+                >
+                  <div className="mono" style={{ fontSize: 11, fontWeight: 600 }}>
+                    {s.sheet}
                   </div>
-                ))}
-              </div>
-
-              {/* Exclusions */}
-              {hasExclusions && (
-                <div className="space-y-2 pt-2 border-t border-white/20">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-warning flex items-center gap-1.5">
-                    <XCircle size={10} /> Excluded (would double-count)
-                  </p>
-                  {mergePlan.excludedSheets.map((e, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <XCircle size={12} className="text-warning/60 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-xs text-text-secondary">{e.sheet}</p>
-                        <p className="text-[10px] text-text-muted">{e.reason}</p>
-                      </div>
-                    </div>
-                  ))}
+                  <div style={{ fontSize: 12, marginTop: 4, color: "var(--ink-soft)" }}>
+                    {s.reason}
+                  </div>
                 </div>
-              )}
-
-              {/* Warnings */}
-              {hasWarnings && (
-                <div className="space-y-2 pt-2 border-t border-white/20">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-danger flex items-center gap-1.5">
-                    <AlertTriangle size={10} /> Warnings
-                  </p>
-                  {mergePlan.warnings.map((w, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <AlertTriangle size={12} className="text-danger/60 mt-0.5 shrink-0" />
-                      <p className="text-xs text-text-secondary">{w}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Strategy badge */}
-              <div className="pt-2 border-t border-white/20 flex items-center gap-2">
-                <span className="text-[10px] text-text-muted">Cross-file strategy:</span>
-                <span className="text-[10px] font-bold text-text-primary capitalize">
-                  {mergePlan.crossFileStrategy === 'sum' ? 'Sum all sources' : 'Show sources separately'}
-                </span>
+              ))
+            ) : (
+              <div className="muted" style={{ fontSize: 12 }}>None — every sheet was used.</div>
+            )}
+            <div className="mt-3">
+              <div className="eyebrow" style={{ marginBottom: 6 }}>Strategy</div>
+              <div
+                className="mono"
+                style={{
+                  fontSize: 11,
+                  padding: 10,
+                  background: "var(--paper-deep)",
+                  lineHeight: 1.5,
+                }}
+              >
+                {mergePlan.crossFileStrategy === "sum"
+                  ? "Sum across all included sources"
+                  : "Sources kept separate (no roll-up)"}
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          </div>
+
+          {/* Warnings */}
+          <div>
+            <div className="eyebrow" style={{ marginBottom: 10, color: "var(--warning)" }}>
+              Warnings ({mergePlan.warnings.length})
+            </div>
+            {hasWarnings ? (
+              mergePlan.warnings.map((w, i) => (
+                <div
+                  key={i}
+                  className="flex gap-2"
+                  style={{
+                    padding: "10px 0",
+                    borderBottom: "1px solid var(--hairline)",
+                    alignItems: "flex-start",
+                    fontSize: 12,
+                  }}
+                >
+                  <Icon name="alert" size={14} stroke={1.8} />
+                  <span>{w}</span>
+                </div>
+              ))
+            ) : (
+              <div className="muted" style={{ fontSize: 12 }}>No warnings.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

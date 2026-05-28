@@ -15,7 +15,7 @@ export async function GET(
     const db = createServerClient();
 
     const [sessionResult, slidesResult] = await Promise.all([
-      db.from("sessions").select("*").eq("id", id).eq("device_id", deviceId).single(),
+      db.from("sessions").select("*, data_summary").eq("id", id).eq("device_id", deviceId).single(),
       db.from("insight_slides").select("*").eq("session_id", id).order("created_at", { ascending: true }),
     ]);
 

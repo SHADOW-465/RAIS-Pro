@@ -2,8 +2,6 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Download, RefreshCw, Layers, Info, ShieldCheck, X } from "lucide-react";
 import KPICard from "./KPICard";
 import ChartContainer from "./ChartContainer";
 import StatusAlert from "./StatusAlert";
@@ -12,6 +10,9 @@ import InsightSlide from "./InsightSlide";
 import DataTable, { findColumn } from "./DataTable";
 import BeamOverlay, { type BeamEndpoints } from "./BeamOverlay";
 import SourcesPanel from "./SourcesPanel";
+import Icon from "@/components/editorial/Icon";
+import Pill from "@/components/editorial/Pill";
+import { useTweaks } from "@/components/editorial/TweaksContext";
 import type { DashboardConfig, RawSheet } from "@/types/dashboard";
 import type { InsightSlide as InsightSlideType } from "@/types/dashboard";
 import type { MergePlan } from "@/types/analysis";
@@ -27,6 +28,44 @@ interface DashboardProps {
   mergePlan?: MergePlan;
 }
 
+// Bold any number/percent/ID-like token in an insight string
+function bolden(s: string): string {
+  return s.replace(
+    /([0-9]+(?:\.[0-9]+)?%?(?:\s*pt)?|LOT-[A-Z0-9-]+|Line-\d+|Line\s\d+)/g,
+    '<strong style="font-weight:700; font-family:var(--mono); padding:1px 4px; background:var(--paper-deep);">$1</strong>',
+  );
+}
+
+function ReadingChip({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "critical" | "positive";
+}) {
+  const color =
+    tone === "critical"
+      ? "var(--accent)"
+      : tone === "positive"
+        ? "var(--positive)"
+        : "var(--ink)";
+  return (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <span className="eyebrow muted" style={{ fontSize: 9 }}>
+        {label}
+      </span>
+      <span
+        className="mono"
+        style={{ color, fontSize: 13, fontWeight: 600, marginTop: 2 }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function Dashboard({
   data,
   dataSummary,
@@ -39,58 +78,52 @@ export default function Dashboard({
 }: DashboardProps) {
   const [currentConfig, setCurrentConfig] = useState<DashboardConfig>(data);
   const [slides, setSlides] = useState<InsightSlideType[]>(initialSlides ?? []);
+  const { t } = useTweaks();
 
-  // ── Verify mode state ────────────────────────────────────────────────────────
   const [verifyMode, setVerifyMode] = useState(false);
   const [activeKpiIndex, setActiveKpiIndex] = useState<number | null>(null);
 
-  // Refs: KPI cards indexed by position
   const kpiRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  // Refs: column header cells indexed by column name
   const colRefs = useRef<Map<string, HTMLTableCellElement>>(new Map());
 
   const [beams, setBeams] = useState<BeamEndpoints[]>([]);
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  const rightPanelRef = useRef<HTMLDivElement>(null);
 
-  // ── Compute beams when active KPI or verify mode changes ─────────────────────
+  const hasRawData = !!rawSheets?.length;
+
   const computeBeams = useCallback(() => {
-    if (!verifyMode || activeKpiIndex === null) {
+    if (!verifyMode || activeKpiIndex === null || !t.showBeams) {
       setBeams([]);
       return;
     }
-
     const kpi = currentConfig.kpis[activeKpiIndex];
     if (!kpi?.sourceColumn || !rawSheets?.length) {
       setBeams([]);
       return;
     }
-
-    // Find the matching column across all sheets
     for (const sheet of rawSheets) {
-      const matchedCol = findColumn(kpi.sourceColumn, sheet.columns);
-      if (!matchedCol) continue;
-
+      const matched = findColumn(kpi.sourceColumn, sheet.columns);
+      if (!matched) continue;
       const kpiEl = kpiRefs.current.get(activeKpiIndex);
-      const colEl = colRefs.current.get(matchedCol);
+      const colEl = colRefs.current.get(matched);
       if (!kpiEl || !colEl) continue;
-
-      setBeams([{
-        id: `${activeKpiIndex}-${matchedCol}`,
-        from: kpiEl.getBoundingClientRect(),
-        to: colEl.getBoundingClientRect(),
-      }]);
+      setBeams([
+        {
+          id: `${activeKpiIndex}-${matched}`,
+          from: kpiEl.getBoundingClientRect(),
+          to: colEl.getBoundingClientRect(),
+        },
+      ]);
       return;
     }
-
     setBeams([]);
-  }, [verifyMode, activeKpiIndex, currentConfig.kpis, rawSheets]);
+  }, [verifyMode, activeKpiIndex, currentConfig.kpis, rawSheets, t.showBeams]);
 
   useEffect(() => {
     computeBeams();
   }, [computeBeams]);
 
-  // Recompute beams on scroll (both panels)
-  const leftPanelRef = useRef<HTMLDivElement>(null);
-  const rightPanelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handler = () => computeBeams();
     const left = leftPanelRef.current;
@@ -105,22 +138,23 @@ export default function Dashboard({
     };
   }, [computeBeams]);
 
-  // ── Resolve highlight columns for DataTable ──────────────────────────────────
   const highlightColumns: string[] = [];
   if (activeKpiIndex !== null && rawSheets?.length) {
     const kpi = currentConfig.kpis[activeKpiIndex];
     if (kpi?.sourceColumn) {
       for (const sheet of rawSheets) {
         const match = findColumn(kpi.sourceColumn, sheet.columns);
-        if (match) { highlightColumns.push(match); break; }
+        if (match) {
+          highlightColumns.push(match);
+          break;
+        }
       }
     }
   }
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
-  const handleKpiClick = (index: number) => {
+  const handleKpiClick = (i: number) => {
     if (!verifyMode) return;
-    setActiveKpiIndex(prev => prev === index ? null : index);
+    setActiveKpiIndex((prev) => (prev === i ? null : i));
   };
 
   const handleColRef = useCallback(
@@ -128,267 +162,517 @@ export default function Dashboard({
       if (el) colRefs.current.set(col, el);
       else colRefs.current.delete(col);
     },
-    []
+    [],
   );
 
   const toggleVerify = () => {
-    setVerifyMode(v => !v);
+    setVerifyMode((v) => !v);
     setActiveKpiIndex(null);
     setBeams([]);
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } },
-  };
+  const title = sessionTitle ?? currentConfig.dashboardTitle ?? "Analysis";
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
-  const hasRawData = !!rawSheets?.length;
+  const alerts = currentConfig.alerts ?? [];
+  const kpis = currentConfig.kpis ?? [];
+  const charts = currentConfig.charts ?? [];
+  const insights = currentConfig.insights ?? [];
+  const recommendations = currentConfig.recommendations ?? [];
+
+  // "In this issue" TOC built from what's actually present
+  const toc: Array<[string, string]> = [];
+  let secNum = 1;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (kpis.length) toc.push([pad(secNum++), "The numbers"]);
+  if (charts.length) toc.push([pad(secNum++), "The picture"]);
+  if (insights.length) toc.push([pad(secNum++), "Five things to know"]);
+  if (recommendations.length) toc.push([pad(secNum++), "What to do this week"]);
+  if (mergePlan) toc.push([pad(secNum++), "Sources & merge audit"]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* ── Sticky topbar ──────────────────────────────────── */}
-      <header className="topbar sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2 text-sm">
-          <button onClick={onReset} className="text-accent font-semibold hover:underline">
-            ← Home
-          </button>
-          <span className="text-text-muted">/</span>
-          <span className="font-bold text-text-primary truncate max-w-[260px]">
-            {sessionTitle || currentConfig.dashboardTitle || "Analysis"}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {hasRawData && (
-            <button
-              onClick={toggleVerify}
-              className={`flex items-center gap-2 text-sm font-semibold px-3.5 py-1.5 rounded-full border transition-all ${
-                verifyMode
-                  ? "bg-accent/15 border-accent/40 text-accent"
-                  : "btn-ghost border-transparent"
-              }`}
-            >
-              <ShieldCheck size={14} />
-              {verifyMode ? "Exit Verify" : "Verify Data"}
-            </button>
-          )}
-          <button onClick={() => window.print()} className="btn-ghost flex items-center gap-2">
-            <Download size={14} />
-            Export
-          </button>
-          <button onClick={onReset} className="btn-primary flex items-center gap-2">
-            <RefreshCw size={14} />
-            New Analysis
-          </button>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* ── Masthead ─────────────────────────────────────────────── */}
+      <header className="masthead">
+        <div className="shell-wide">
+          <div className="row1">
+            <div className="left" style={{ gap: 20 }}>
+              <button
+                className="btn ghost sm"
+                onClick={onReset}
+                title="Back to upload"
+                aria-label="Back"
+              >
+                <Icon name="arrow-left" size={14} />
+              </button>
+              <div className="nameplate">
+                The Rejection <em>Report</em>
+              </div>
+              <Pill tone="outline">{title}</Pill>
+            </div>
+            <div className="right">
+              {hasRawData && (
+                <button
+                  className={`btn ${verifyMode ? "primary" : ""}`}
+                  onClick={toggleVerify}
+                >
+                  <Icon name="split" size={13} /> Verify data
+                </button>
+              )}
+              <button className="btn" onClick={() => window.print()}>
+                <Icon name="print" size={13} /> Export
+              </button>
+              <button className="btn accent" onClick={onReset}>
+                <Icon name="plus" size={13} /> New analysis
+              </button>
+            </div>
+          </div>
+          <div className="meta">
+            <div>
+              <span className="mono" style={{ color: "var(--ink)", fontWeight: 600 }}>
+                RAIS Pro
+              </span>
+              <span className="pipe">·</span>
+              <span>{today}</span>
+            </div>
+            <div>
+              <span className="mono">
+                {kpis.length} kpis · {charts.length} figures
+              </span>
+              <span className="pipe">·</span>
+              <span style={{ color: "var(--positive)" }}>●</span>
+              <span style={{ marginLeft: 4 }}>compiled just now</span>
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* ── Verify mode hint banner ───────────────────────────── */}
-      <AnimatePresence>
-        {verifyMode && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden flex-shrink-0"
-          >
-            <div className="bg-accent/8 border-b border-accent/20 px-6 py-2 flex items-center gap-2 text-xs text-accent">
-              <ShieldCheck size={12} />
-              <span className="font-semibold">Verification mode —</span>
-              click any KPI card to highlight its source column and draw a data trace beam
-              <button onClick={toggleVerify} className="ml-auto opacity-60 hover:opacity-100">
-                <X size={12} />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Split body ─────────────────────────────────────────── */}
-      <div className={`flex flex-1 overflow-hidden ${verifyMode ? "divide-x divide-white/30" : ""}`}>
-
-        {/* LEFT — Dashboard content */}
+      {/* ── Split body ───────────────────────────────────────────── */}
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+        {/* LEFT: main scroll region */}
         <div
           ref={leftPanelRef}
-          className={`overflow-y-auto transition-all duration-300 ${verifyMode ? "w-1/2" : "w-full"}`}
+          id="main-scroll"
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            overflowX: "hidden",
+            paddingBottom: 260,
+            transition: "flex 0.4s ease",
+          }}
         >
-          <div className={`${verifyMode ? "px-5 py-6 max-w-none" : "max-w-5xl mx-auto px-6 py-8"}`}>
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="space-y-6"
-            >
-              {/* Alerts */}
-              {(currentConfig.alerts ?? []).map((alert, i) => (
-                <StatusAlert key={i} message={alert} type="danger" />
-              ))}
+          <div className="shell-wide" style={{ paddingTop: 36, paddingBottom: 48 }}>
+            {/* Critical alert */}
+            {alerts.length > 0 && (
+              <div style={{ marginBottom: 36 }}>
+                <StatusAlert message={alerts[0]} type="danger" />
+              </div>
+            )}
 
-              {/* Executive Summary */}
-              <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}>
-                <div className="glass-summary p-6 space-y-3">
-                  <div className="flex items-center gap-2 text-accent text-[10px] font-bold uppercase tracking-widest">
-                    <Layers size={12} /> Executive Summary
+            {/* Lead story */}
+            <section style={{ marginBottom: 56 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: verifyMode ? "1fr" : "1fr 320px",
+                  gap: 48,
+                }}
+              >
+                <div>
+                  <div className="eyebrow accent" style={{ marginBottom: 12 }}>
+                    The brief
                   </div>
-                  <p className="text-base font-medium text-text-primary leading-relaxed">
+                  <h1
+                    className="serif tracked-tight"
+                    style={{
+                      fontSize: verifyMode ? 40 : 52,
+                      fontWeight: 500,
+                      lineHeight: 1.05,
+                      margin: 0,
+                      letterSpacing: "-0.025em",
+                    }}
+                  >
+                    {title}
+                  </h1>
+                  <p
+                    style={{
+                      fontSize: 17,
+                      lineHeight: 1.55,
+                      color: "var(--ink-soft)",
+                      marginTop: 20,
+                      marginBottom: 0,
+                      maxWidth: 760,
+                    }}
+                  >
                     {currentConfig.executiveSummary}
                   </p>
-                </div>
-              </motion.div>
-
-              {/* KPI Grid */}
-              <div className={`grid gap-4 ${verifyMode ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4"}`}>
-                {(currentConfig.kpis ?? []).length === 0 ? (
-                  <div className="col-span-4 text-text-muted text-sm text-center py-4">
-                    No key metrics identified
+                  <div
+                    className="flex gap-6 mt-6"
+                    style={{ alignItems: "center", flexWrap: "wrap" }}
+                  >
+                    <ReadingChip
+                      label="Outlook"
+                      value={alerts.length > 0 ? "Action required" : "Steady"}
+                      tone={alerts.length > 0 ? "critical" : "positive"}
+                    />
+                    <ReadingChip label="Confidence" value="AI-generated" />
+                    <ReadingChip
+                      label="Reading time"
+                      value={`${Math.max(2, Math.round(insights.length * 0.8))} min`}
+                    />
+                    <ReadingChip label="Analyst" value="RAIS · Pro" />
                   </div>
-                ) : (
-                  currentConfig.kpis.map((kpi, i) => (
+                </div>
+
+                {!verifyMode && toc.length > 0 && (
+                  <aside
+                    style={{
+                      borderLeft: "2px solid var(--ink)",
+                      paddingLeft: 24,
+                    }}
+                  >
+                    <div className="eyebrow" style={{ marginBottom: 10 }}>
+                      In this issue
+                    </div>
+                    <ul
+                      style={{
+                        listStyle: "none",
+                        padding: 0,
+                        margin: 0,
+                        fontSize: 13,
+                        lineHeight: 1.8,
+                      }}
+                    >
+                      {toc.map(([n, label]) => (
+                        <li
+                          key={n}
+                          className="flex gap-3"
+                          style={{
+                            alignItems: "baseline",
+                            borderBottom: "1px dashed var(--hairline)",
+                            padding: "6px 0",
+                          }}
+                        >
+                          <span className="mono muted" style={{ fontSize: 11 }}>
+                            {n}
+                          </span>
+                          <span style={{ flex: 1 }}>{label}</span>
+                          <span
+                            className="muted mono"
+                            style={{ fontSize: 10 }}
+                          >
+                            p.{n}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </aside>
+                )}
+              </div>
+            </section>
+
+            <hr className="rule mb-8" />
+
+            {/* THE NUMBERS — KPI Grid */}
+            {kpis.length > 0 && (
+              <section style={{ marginBottom: 56 }}>
+                <SectionHeader
+                  eyebrow="01 · The Numbers"
+                  title="At a glance"
+                  sub={
+                    hasRawData
+                      ? "Click any number in Verify mode to trace it back to its source column."
+                      : undefined
+                  }
+                />
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${verifyMode ? 2 : Math.min(3, kpis.length)}, 1fr)`,
+                    gap: "var(--gap-grid)",
+                  }}
+                >
+                  {kpis.map((kpi, i) => (
                     <KPICard
-                      key={i}
+                      key={`${kpi.label}-${i}`}
                       kpi={kpi}
                       isActive={verifyMode && activeKpiIndex === i}
                       onClick={verifyMode ? () => handleKpiClick(i) : undefined}
-                      ref={el => {
+                      ref={(el) => {
                         if (el) kpiRefs.current.set(i, el);
                         else kpiRefs.current.delete(i);
                       }}
                     />
-                  ))
-                )}
-              </div>
-
-              {/* Chart Grid */}
-              <div className={`grid gap-5 ${verifyMode ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
-                {(currentConfig.charts ?? []).map((chart, i) => (
-                  <ChartContainer
-                    key={i}
-                    title={chart.title}
-                    description={chart.description}
-                    type={chart.type}
-                    data={chart.data}
-                  />
-                ))}
-              </div>
-
-              {/* Insights & Recommendations */}
-              <div className={`grid gap-5 ${verifyMode ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"}`}>
-                <motion.div
-                  variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                  className={`glass-card p-6 space-y-5 ${verifyMode ? "" : "lg:col-span-2"}`}
-                >
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-2">
-                    <Info size={12} className="text-accent" /> Key Insights
-                  </h3>
-                  <div className="space-y-4">
-                    {(currentConfig.insights ?? []).map((insight, idx) => (
-                      <div key={idx} className="flex gap-4 items-start">
-                        <span className="text-accent/40 font-mono text-base font-bold shrink-0">
-                          0{idx + 1}
-                        </span>
-                        <p className="text-sm text-text-secondary leading-relaxed">{insight}</p>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                  className="glass-tinted p-6 space-y-4"
-                >
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-accent">
-                    Recommendations
-                  </h3>
-                  <ul className="space-y-3">
-                    {(currentConfig.recommendations ?? []).map((rec, i) => (
-                      <li key={i} className="flex gap-2.5 text-sm text-text-primary">
-                        <span className="text-warning mt-0.5 shrink-0">→</span>
-                        {rec}
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              </div>
-
-              {/* Insight Slides */}
-              {slides.length > 0 && (
-                <div className="space-y-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">
-                    Insight Slides — from your questions
-                  </p>
-                  {slides.map((slide, i) => (
-                    <InsightSlide key={slide.id ?? i} slide={slide} />
                   ))}
                 </div>
-              )}
+              </section>
+            )}
 
-              {/* Sources panel — only shown when we have a merge plan */}
-              {mergePlan && !verifyMode && (
-                <SourcesPanel mergePlan={mergePlan} />
-              )}
-
-              {/* Chat Panel */}
-              {!verifyMode && (
-                <div data-no-print>
-                  <ChatPanel
-                    dataSummary={dataSummary}
-                    currentConfig={currentConfig}
-                    onRefresh={setCurrentConfig}
-                    sessionId={sessionId}
-                    onSlideAdded={(slide) => setSlides(prev => [...prev, slide])}
-                  />
+            {/* THE PICTURE — Charts */}
+            {charts.length > 0 && (
+              <section style={{ marginBottom: 56 }}>
+                <SectionHeader
+                  eyebrow="02 · The Picture"
+                  title="Where the data points"
+                />
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      verifyMode || charts.length === 1 ? "1fr" : "1fr 1fr",
+                    gap: "var(--gap-grid)",
+                  }}
+                >
+                  {charts.map((chart, i) => (
+                    <ChartContainer
+                      key={`${chart.title}-${i}`}
+                      title={chart.title}
+                      description={chart.description}
+                      type={chart.type}
+                      data={chart.data}
+                      figNum={String(i + 1).padStart(2, "0")}
+                    />
+                  ))}
                 </div>
-              )}
+              </section>
+            )}
 
-              {/* Footer */}
-              <div className="flex flex-wrap gap-2 pt-8 border-t border-white/40">
-                <span className="text-[10px] text-text-muted mr-2 font-semibold uppercase tracking-wider">
-                  Sources:
-                </span>
-                <span className="text-[10px] bg-white/50 border border-white/70 rounded-full px-3 py-1 text-text-muted">
-                  RAIS Analysis
-                </span>
-              </div>
-            </motion.div>
+            {/* Inserted insight slides */}
+            {slides.length > 0 && (
+              <section style={{ marginBottom: 56 }}>
+                <SectionHeader
+                  eyebrow="Drill-downs"
+                  title="From your questions"
+                  sub="Each panel is a standalone insight you can save as an image."
+                />
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {slides.map((s, i) => (
+                    <InsightSlide
+                      key={s.id ?? `slide-${i}`}
+                      slide={s}
+                      onRemove={() =>
+                        setSlides((prev) => prev.filter((_, j) => j !== i))
+                      }
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Insights + recommendations */}
+            {(insights.length > 0 || recommendations.length > 0) && (
+              <section style={{ marginBottom: 56 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: verifyMode || !insights.length || !recommendations.length ? "1fr" : "1fr 1fr",
+                    gap: 48,
+                  }}
+                >
+                  {insights.length > 0 && (
+                    <div>
+                      <SectionHeader
+                        eyebrow="03 · Five things to know"
+                        title="What the data is telling you"
+                      />
+                      <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                        {insights.map((line, i) => (
+                          <li
+                            key={i}
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "44px 1fr",
+                              gap: 16,
+                              padding: "16px 0",
+                              borderBottom: "1px solid var(--hairline)",
+                            }}
+                          >
+                            <span
+                              className="serif"
+                              style={{
+                                fontSize: 28,
+                                fontWeight: 500,
+                                color: "var(--accent)",
+                                lineHeight: 1,
+                                letterSpacing: "-0.02em",
+                              }}
+                            >
+                              {String(i + 1).padStart(2, "0")}
+                            </span>
+                            <span
+                              style={{ fontSize: 15, lineHeight: 1.55 }}
+                              dangerouslySetInnerHTML={{ __html: bolden(line) }}
+                            />
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                  {recommendations.length > 0 && (
+                    <div>
+                      <SectionHeader
+                        eyebrow="04 · This week"
+                        title="What to do about it"
+                      />
+                      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                        {recommendations.map((rec, i) => (
+                          <li
+                            key={i}
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "20px 1fr 80px",
+                              gap: 14,
+                              padding: "16px 0",
+                              borderBottom: "1px solid var(--hairline)",
+                              alignItems: "center",
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: 14,
+                                height: 14,
+                                border: "1.5px solid var(--ink)",
+                                marginTop: 2,
+                              }}
+                            />
+                            <span
+                              style={{ fontSize: 14, lineHeight: 1.5 }}
+                              dangerouslySetInnerHTML={{ __html: bolden(rec) }}
+                            />
+                            <span
+                              className="mono"
+                              style={{
+                                fontSize: 10,
+                                color: "var(--muted)",
+                                letterSpacing: "0.08em",
+                              }}
+                            >
+                              {["Today", "This wk", "Next wk", "30 days"][i] ?? "—"}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Sources audit */}
+            {mergePlan && !verifyMode && (
+              <SourcesPanel mergePlan={mergePlan} sectionNum={pad(toc.length)} />
+            )}
+
+            {/* Colophon */}
+            <div
+              className="mt-12"
+              style={{
+                borderTop: "1px solid var(--ink)",
+                paddingTop: 16,
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 11,
+                color: "var(--muted)",
+                fontFamily: "var(--mono)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              <span>RAIS Pro</span>
+              <span>
+                Compiled {new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+              <span>End of report</span>
+            </div>
           </div>
         </div>
 
-        {/* RIGHT — Data verification panel */}
-        <AnimatePresence>
-          {verifyMode && rawSheets && (
-            <motion.div
-              ref={rightPanelRef}
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 40 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="w-1/2 overflow-hidden flex flex-col bg-white/30 backdrop-blur-sm"
-            >
-              {/* Panel header */}
-              <div className="px-4 py-3 border-b border-white/40 flex-shrink-0">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted flex items-center gap-2">
-                  <ShieldCheck size={11} className="text-accent" />
-                  Source Data
-                  {activeKpiIndex !== null && (
-                    <span className="ml-auto text-accent font-semibold normal-case tracking-normal">
-                      Tracing: {currentConfig.kpis[activeKpiIndex]?.label}
-                    </span>
-                  )}
-                </p>
-              </div>
-
-              <DataTable
-                sheets={rawSheets}
-                highlightColumns={highlightColumns}
-                onColumnRef={handleColRef}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* RIGHT: Verify panel */}
+        {verifyMode && rawSheets && (
+          <div
+            ref={rightPanelRef}
+            id="verify-scroll"
+            style={{
+              width: "46%",
+              minWidth: 420,
+              borderLeft: "1px solid var(--ink)",
+              background: "var(--paper-deep)",
+              display: "flex",
+              flexDirection: "column",
+              position: "relative",
+            }}
+          >
+            <DataTable
+              sheets={rawSheets}
+              highlightColumns={highlightColumns}
+              onColumnRef={handleColRef}
+            />
+          </div>
+        )}
       </div>
 
-      {/* ── Bezier beam overlay ─────────────────────────────────── */}
-      <BeamOverlay beams={beams} />
+      {/* Beam overlay */}
+      {verifyMode && t.showBeams && activeKpiIndex !== null && (
+        <BeamOverlay beams={beams} />
+      )}
+
+      {/* Chat dock — hidden in verify mode to keep focus on tracing */}
+      {!verifyMode && (
+        <ChatPanel
+          dataSummary={dataSummary}
+          currentConfig={currentConfig}
+          onRefresh={setCurrentConfig}
+          sessionId={sessionId}
+          onSlideAdded={(slide) => setSlides((prev) => [...prev, slide])}
+        />
+      )}
+    </div>
+  );
+}
+
+// Editorial section header used inline (not exported — kept here to avoid a
+// fifth tiny file). Mirrors components.jsx SectionHeader.
+function SectionHeader({
+  eyebrow,
+  title,
+  sub,
+  right,
+}: {
+  eyebrow?: string;
+  title: string;
+  sub?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "space-between",
+        marginBottom: 20,
+      }}
+    >
+      <div>
+        {eyebrow && (
+          <div className="eyebrow accent" style={{ marginBottom: 6 }}>
+            {eyebrow}
+          </div>
+        )}
+        <h2 className="serif tracked-tight" style={{ fontSize: 28, margin: 0, fontWeight: 600 }}>
+          {title}
+        </h2>
+        {sub && (
+          <div className="muted" style={{ marginTop: 6, fontSize: 13, maxWidth: 640 }}>
+            {sub}
+          </div>
+        )}
+      </div>
+      {right && <div>{right}</div>}
     </div>
   );
 }

@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (.env.example is intentionally tracked)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -52,7 +53,17 @@ supabase/.temp/
 # brainstorm visuals
 .superpowers/
 
-# graphify
+# design handoff bundle (regenerated on demand)
+.design-fetch/
+
+# graphify — only the human-readable GRAPH_REPORT.md is committed.
+# Everything else (graph.json, graph.html, cache, converted source docs,
+# manifest with absolute paths) is regenerated locally via `graphify update .`.
 .graphify_python
 .graphify_uncached.txt
-graphify-out/
+graphify-out/cache/
+graphify-out/converted/
+graphify-out/graph.html
+graphify-out/graph.json
+graphify-out/manifest.json
+graphify-out/.graphify_root

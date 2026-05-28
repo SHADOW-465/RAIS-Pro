@@ -1,13 +1,14 @@
 // src/app/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import UploadZone from "@/components/UploadZone";
 import ProcessingLoader from "@/components/ProcessingLoader";
 import SessionCard, { type SessionSummary } from "@/components/SessionCard";
 import Dashboard from "@/components/Dashboard";
+import EditorialHeader from "@/components/editorial/EditorialHeader";
+import Icon from "@/components/editorial/Icon";
 import { getDeviceId } from "@/lib/device-id";
 import type { DashboardConfig, RawSheet } from "@/types/dashboard";
 import type { MergePlan } from "@/types/analysis";
@@ -22,11 +23,12 @@ export default function Home() {
   const [rawSheets, setRawSheets] = useState<RawSheet[]>([]);
   const [mergePlan, setMergePlan] = useState<MergePlan | undefined>(undefined);
 
-  // Load sessions on mount
   useEffect(() => {
     const deviceId = getDeviceId();
-    if (!deviceId) { setLoadingSessions(false); return; }
-
+    if (!deviceId) {
+      setLoadingSessions(false);
+      return;
+    }
     fetch(`/api/sessions?deviceId=${encodeURIComponent(deviceId)}`)
       .then((r) => r.json())
       .then((body) => {
@@ -51,11 +53,9 @@ export default function Home() {
   const handleUploadComplete = async (files: File[]) => {
     setProcessing(true);
     try {
-      // 1. Parse Excel files client-side — keeps raw rows for verification
       const { parseExcelFilesWithRaw } = await import("@/lib/parser");
       const { summaries, rawSheets: sheets } = await parseExcelFilesWithRaw(files);
 
-      // 2. Send summaries to /api/analyze — AI runs server-side, session saved to Supabase
       const deviceId = getDeviceId();
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -75,14 +75,16 @@ export default function Home() {
       const body = await res.json();
 
       if (body.sessionId) {
-        // Supabase saved — navigate to persistent session page
-        // Store raw sheets in sessionStorage so /session/[id] can access them
         try {
-          sessionStorage.setItem(`rais_raw_${body.sessionId}`, JSON.stringify(sheets));
-        } catch { /* quota exceeded — silently skip */ }
+          sessionStorage.setItem(
+            `rais_raw_${body.sessionId}`,
+            JSON.stringify(sheets),
+          );
+        } catch {
+          /* quota exceeded — silently skip */
+        }
         router.push(`/session/${body.sessionId}`);
       } else if (body.dashboardTitle) {
-        // Supabase not configured — render dashboard locally
         setRawSheets(sheets);
         setDataSummary(JSON.stringify(summaries));
         setMergePlan(body.mergePlan);
@@ -98,18 +100,7 @@ export default function Home() {
     }
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-  };
-
-  if (processing) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <ProcessingLoader />
-      </div>
-    );
-  }
+  if (processing) return <ProcessingLoader />;
 
   if (analysisData) {
     return (
@@ -118,66 +109,92 @@ export default function Home() {
         dataSummary={dataSummary}
         rawSheets={rawSheets}
         mergePlan={mergePlan}
-        onReset={() => { setAnalysisData(null); setRawSheets([]); setMergePlan(undefined); }}
+        onReset={() => {
+          setAnalysisData(null);
+          setRawSheets([]);
+          setMergePlan(undefined);
+        }}
       />
     );
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Topbar */}
-      <header className="topbar sticky top-0 z-50 px-8 py-4 flex items-center">
-        <span
-          className="text-lg font-extrabold tracking-tight"
-          style={{
-            background: "linear-gradient(135deg,#6366f1,#0ea5e9)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          RAIS
-        </span>
-        <span className="text-[10px] uppercase tracking-widest text-text-muted font-medium ml-3">
-          Rejection Analysis & Intelligence System
-        </span>
-      </header>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <EditorialHeader />
 
-      <main className="max-w-5xl mx-auto px-6 py-10 space-y-8">
-        {/* Welcome */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold text-text-primary mb-1">Good morning.</h1>
-          <p className="text-sm text-text-muted">
-            Your recent analyses are below. Drop new files to start a fresh session.
+      <div
+        className="shell"
+        style={{ paddingTop: 56, paddingBottom: 80, flex: 1 }}
+      >
+        {/* Greeting */}
+        <div className="mb-12">
+          <div className="eyebrow accent">Morning briefing</div>
+          <h1
+            className="serif tracked-tight"
+            style={{
+              fontSize: 64,
+              fontWeight: 500,
+              margin: "12px 0 6px",
+              letterSpacing: "-0.03em",
+            }}
+          >
+            Good morning.
+          </h1>
+          <p
+            className="muted"
+            style={{ fontSize: 17, maxWidth: 620, marginTop: 0 }}
+          >
+            Drop in this cycle&apos;s plant reports and you&apos;ll have an
+            executive read in under thirty seconds. Or pick up where you left
+            off below.
           </p>
-        </motion.div>
+        </div>
 
-        {/* Sessions grid */}
+        {/* Upload */}
+        <UploadZone onUpload={handleUploadComplete} />
+
+        {/* Recent sessions */}
         {!loadingSessions && sessions.length > 0 && (
-          <section>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted mb-3">
-              Recent Sessions
-            </p>
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="grid grid-cols-1 md:grid-cols-3 gap-4"
+          <div className="mt-12">
+            <div
+              className="between mb-4"
+              style={{ alignItems: "flex-end" }}
             >
-              {sessions.map((s, i) => (
+              <div>
+                <div className="eyebrow accent">Archive</div>
+                <h2
+                  className="serif tracked-tight"
+                  style={{
+                    fontSize: 30,
+                    margin: "6px 0 0",
+                    fontWeight: 500,
+                  }}
+                >
+                  Recent diagnostics
+                </h2>
+              </div>
+              <button className="btn ghost sm">
+                View all <Icon name="arrow-right" size={12} />
+              </button>
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: 16,
+              }}
+            >
+              {sessions.map((s) => (
                 <SessionCard
                   key={s.id}
                   session={s}
-                  isActive={i === 0}
                   onClick={() => router.push(`/session/${s.id}`)}
                 />
               ))}
-            </motion.div>
-          </section>
+            </div>
+          </div>
         )}
-
-        {/* Upload zone */}
-        <UploadZone onUpload={handleUploadComplete} />
-      </main>
+      </div>
     </div>
   );
 }

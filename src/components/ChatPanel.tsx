@@ -1,11 +1,9 @@
 // src/components/ChatPanel.tsx
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Send, MessageCircle, RefreshCw } from "lucide-react";
-import type { DashboardConfig, ChatMessage } from "@/types/dashboard";
-import InsightSlide from "./InsightSlide";
+import { useState } from "react";
+import Icon from "@/components/editorial/Icon";
+import type { DashboardConfig } from "@/types/dashboard";
 import type { InsightSlide as InsightSlideType } from "@/types/dashboard";
 import { getDeviceId } from "@/lib/device-id";
 
@@ -17,6 +15,13 @@ interface ChatPanelProps {
   onSlideAdded?: (slide: InsightSlideType) => void;
 }
 
+const SUGGESTED = [
+  "What stands out this cycle?",
+  "Which factor explains most of the change?",
+  "Forecast the next cycle.",
+  "Compare segments side-by-side.",
+];
+
 export default function ChatPanel({
   dataSummary,
   currentConfig,
@@ -24,22 +29,17 @@ export default function ChatPanel({
   sessionId,
   onSlideAdded,
 }: ChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
+  const [open, setOpen] = useState(true);
+  const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const sendMessage = async () => {
-    const question = input.trim();
+  const submit = async (q?: string) => {
+    const question = (q ?? text).trim();
     if (!question || loading) return;
-
-    setMessages(prev => [...prev, { role: "user", content: question }]);
-    setInput("");
+    setError(null);
     setLoading(true);
+    setText("");
 
     try {
       const res = await fetch("/api/chat", {
@@ -47,12 +47,10 @@ export default function ChatPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, dataSummary, currentConfig, sessionId }),
       });
-
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Chat request failed");
       }
-
       const result = await res.json();
 
       if (result.type === "slide" && result.slide) {
@@ -60,8 +58,6 @@ export default function ChatPanel({
           ...result.slide,
           sessionId: sessionId ?? "",
         };
-
-        // Save to DB (best-effort)
         if (sessionId) {
           const deviceId = getDeviceId();
           fetch(`/api/sessions/${sessionId}/slides`, {
@@ -70,105 +66,165 @@ export default function ChatPanel({
             body: JSON.stringify({ deviceId, slide }),
           }).catch(console.warn);
         }
-
         onSlideAdded?.(slide);
-        setMessages(prev => [
-          ...prev,
-          { role: "assistant", content: "↑ Insight slide generated above.", isRefresh: false },
-        ]);
       } else if (result.type === "refresh" && result.config) {
         onRefresh(result.config);
-        setMessages(prev => [
-          ...prev,
-          { role: "assistant", content: "Dashboard updated.", isRefresh: true },
-        ]);
-      } else {
-        setMessages(prev => [
-          ...prev,
-          { role: "assistant", content: result.text ?? "I couldn't generate a response." },
-        ]);
+      } else if (result.text) {
+        // Surface plain-text replies as an insight slide so the editorial flow stays consistent
+        onSlideAdded?.({
+          sessionId: sessionId ?? "",
+          question,
+          headline: result.text,
+          charts: [],
+          bullets: [],
+          createdAt: new Date().toISOString(),
+        });
       }
     } catch (err) {
-      setMessages(prev => [
-        ...prev,
-        {
-          role: "assistant",
-          content: err instanceof Error ? err.message : "Something went wrong. Try again.",
-          error: true,
-        },
-      ]);
+      setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-4">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted flex items-center gap-2">
-        <MessageCircle size={12} className="text-accent" /> Ask a Follow-Up
-      </p>
-
-      {/* Empty state */}
-      {messages.length === 0 && (
-        <p className="text-sm text-text-muted">
-          Ask anything about your data — get a focused insight slide back.
-        </p>
-      )}
-
-      {/* Message list */}
-      <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-        <AnimatePresence initial={false}>
-          {messages.map((msg, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-accent/10 border border-accent/20 text-text-primary"
-                  : msg.error
-                  ? "bg-danger/10 border border-danger/20 text-danger"
-                  : "bg-white/60 border border-white/80 text-text-secondary"
-              }`}>
-                {msg.isRefresh && <RefreshCw size={11} className="inline mr-1 text-accent" />}
-                {msg.content}
+    <div
+      data-no-print
+      style={{
+        position: "fixed",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background:
+          "linear-gradient(to top, var(--paper) 60%, color-mix(in oklab, var(--paper) 70%, transparent) 100%)",
+        borderTop: open ? "1px solid var(--ink)" : "none",
+        padding: open ? "18px 36px 18px" : 0,
+        zIndex: 40,
+        transition: "padding 0.3s ease",
+      }}
+    >
+      {open ? (
+        <div className="shell-wide">
+          <div className="between mb-3" style={{ alignItems: "center" }}>
+            <div className="flex gap-3" style={{ alignItems: "baseline" }}>
+              <div className="eyebrow accent">Ask RAIS</div>
+              <div className="muted" style={{ fontSize: 12 }}>
+                Every answer becomes a saveable insight slide.
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {loading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-            <div className="bg-white/60 border border-white/80 rounded-2xl px-4 py-2.5 text-sm text-text-muted">
-              Generating insight slide…
             </div>
-          </motion.div>
-        )}
-        <div ref={bottomRef} />
-      </div>
+            <button className="btn ghost sm" onClick={() => setOpen(false)}>
+              <Icon name="chevron-down" size={12} /> Hide
+            </button>
+          </div>
 
-      {/* Frosted pill input */}
-      <div className="flex items-center gap-2 bg-white/55 backdrop-blur-md border border-white/80 rounded-full px-4 py-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
-          placeholder="Ask anything about your data…"
-          disabled={loading}
-          className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none disabled:opacity-50"
-        />
+          <div className="flex gap-2 mb-3" style={{ flexWrap: "wrap" }}>
+            {SUGGESTED.map((q) => (
+              <button
+                key={q}
+                onClick={() => submit(q)}
+                disabled={loading}
+                className="mono"
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid var(--hairline-strong)",
+                  background: "var(--paper-soft)",
+                  fontSize: 11,
+                  borderRadius: 999,
+                  letterSpacing: "0.02em",
+                  cursor: loading ? "default" : "pointer",
+                  opacity: loading ? 0.55 : 1,
+                  transition: "all 0.15s",
+                }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit();
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              border: "2px solid var(--ink)",
+              background: "var(--paper-soft)",
+              padding: "4px 4px 4px 18px",
+              borderRadius: 999,
+            }}
+          >
+            <Icon name="search" size={16} />
+            <input
+              type="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Ask anything about your data…"
+              disabled={loading}
+              style={{
+                flex: 1,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                padding: "12px 0",
+                fontSize: 15,
+                fontFamily: "var(--sans)",
+              }}
+            />
+            <button
+              type="submit"
+              className="btn accent"
+              disabled={loading || !text.trim()}
+              style={{
+                borderRadius: 999,
+                padding: "10px 18px",
+                opacity: loading || !text.trim() ? 0.6 : 1,
+              }}
+            >
+              <Icon name="send" size={13} /> {loading ? "Asking…" : "Ask"}
+            </button>
+          </form>
+          {error && (
+            <div
+              className="mono"
+              style={{
+                marginTop: 8,
+                color: "var(--accent)",
+                fontSize: 11,
+                letterSpacing: "0.04em",
+              }}
+            >
+              {error}
+            </div>
+          )}
+        </div>
+      ) : (
         <button
-          onClick={sendMessage}
-          disabled={loading || !input.trim()}
-          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 disabled:opacity-40 transition-opacity"
-          style={{ background: "linear-gradient(135deg,#6366f1,#0ea5e9)" }}
+          onClick={() => setOpen(true)}
+          style={{
+            position: "fixed",
+            right: 36,
+            bottom: 24,
+            padding: "14px 22px",
+            background: "var(--ink)",
+            color: "var(--paper)",
+            fontFamily: "var(--sans)",
+            fontWeight: 600,
+            fontSize: 12,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            borderRadius: 999,
+            boxShadow: "0 6px 20px -8px rgba(20,18,12,0.4)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
         >
-          <Send size={13} className="text-white" />
+          <Icon name="spark" size={14} /> Ask RAIS
         </button>
-      </div>
+      )}
     </div>
   );
 }

@@ -20,9 +20,9 @@ export function normalizeColName(s: string): string {
 /** Find best matching column name in a list */
 export function findColumn(target: string, columns: string[]): string | null {
   const t = normalizeColName(target);
-  const exact = columns.find(c => normalizeColName(c) === t);
+  const exact = columns.find((c) => normalizeColName(c) === t);
   if (exact) return exact;
-  const partial = columns.find(c => {
+  const partial = columns.find((c) => {
     const n = normalizeColName(c);
     return n.includes(t) || t.includes(n);
   });
@@ -32,110 +32,195 @@ export function findColumn(target: string, columns: string[]): string | null {
 export default function DataTable({ sheets, highlightColumns, onColumnRef }: DataTableProps) {
   const [activeSheet, setActiveSheet] = useState(0);
   const sheet = sheets[activeSheet];
+  const wrapRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to first highlighted column when it changes
-  const tableWrapRef = useRef<HTMLDivElement>(null);
+  // Scroll first highlighted column into view
   useEffect(() => {
-    if (highlightColumns.length === 0 || !tableWrapRef.current) return;
-    const th = tableWrapRef.current.querySelector<HTMLTableCellElement>(
-      `[data-col="${CSS.escape(highlightColumns[0])}"]`
+    if (highlightColumns.length === 0 || !wrapRef.current) return;
+    const th = wrapRef.current.querySelector<HTMLTableCellElement>(
+      `[data-col="${CSS.escape(highlightColumns[0])}"]`,
     );
-    if (th) {
-      th.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-    }
+    if (th) th.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }, [highlightColumns]);
 
   if (!sheet) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-text-muted">
-        No source data available
+      <div
+        className="muted"
+        style={{
+          flex: 1,
+          display: "grid",
+          placeItems: "center",
+          fontSize: 13,
+        }}
+      >
+        No source data available.
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Sheet tabs */}
       {sheets.length > 1 && (
-        <div className="flex gap-1 px-4 pt-3 pb-2 border-b border-white/30 flex-shrink-0 overflow-x-auto">
-          {sheets.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveSheet(i)}
-              className={`text-[10px] font-semibold px-3 py-1 rounded-full whitespace-nowrap transition-colors ${
-                i === activeSheet
-                  ? "bg-accent/15 text-accent border border-accent/30"
-                  : "text-text-muted hover:text-text-primary border border-transparent"
-              }`}
-            >
-              {s.name}
-            </button>
-          ))}
+        <div
+          style={{
+            borderBottom: "1px solid var(--ink)",
+            padding: "12px 20px 0",
+            display: "flex",
+            gap: 4,
+            background: "var(--paper-soft)",
+            overflowX: "auto",
+            flexShrink: 0,
+          }}
+        >
+          {sheets.map((s, i) => {
+            const isActive = i === activeSheet;
+            return (
+              <button
+                key={`${s.fileName}-${s.name}-${i}`}
+                onClick={() => setActiveSheet(i)}
+                style={{
+                  padding: "10px 14px",
+                  background: isActive ? "var(--ink)" : "transparent",
+                  color: isActive ? "var(--paper-soft)" : "var(--ink)",
+                  border: isActive ? "1px solid var(--ink)" : "1px solid transparent",
+                  borderBottom: "none",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  fontFamily: "var(--sans)",
+                  position: "relative",
+                  top: 1,
+                  whiteSpace: "nowrap",
+                }}
+                title={`${s.fileName} :: ${s.name}`}
+              >
+                <span className="mono">{s.fileName.replace(/\.[^.]+$/, "")}</span>
+                <span style={{ opacity: 0.5, margin: "0 6px" }}>·</span>
+                <span>{s.name}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {/* Row count badge */}
-      <div className="px-4 py-2 flex-shrink-0">
-        <span className="text-[10px] text-text-muted">
-          {sheet.rows.length.toLocaleString()} rows
-          {sheet.rows.length === 500 ? " (first 500 shown)" : ""}
-          {" · "}{sheet.columns.length} columns
+      {/* Sheet meta strip */}
+      <div
+        style={{
+          padding: "8px 20px",
+          background: "var(--paper)",
+          borderBottom: "1px solid var(--hairline)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontSize: 11,
+          color: "var(--muted)",
+          fontFamily: "var(--mono)",
+          letterSpacing: "0.06em",
+          flexShrink: 0,
+        }}
+      >
+        <span>
+          {sheet.rows.length} of {sheet.rows.length} rows shown
+        </span>
+        <span className="flex gap-3">
+          <span>{sheet.columns.length} cols</span>
+          {highlightColumns[0] && (
+            <span style={{ color: "var(--accent)", fontWeight: 600 }}>
+              ◆ {highlightColumns[0]} highlighted
+            </span>
+          )}
         </span>
       </div>
 
       {/* Table */}
-      <div ref={tableWrapRef} className="flex-1 overflow-auto px-2 pb-4">
-        <table className="text-[11px] border-collapse w-max min-w-full">
-          <thead className="sticky top-0 z-10">
+      <div ref={wrapRef} style={{ flex: 1, overflow: "auto", padding: "12px 20px 20px" }}>
+        <table
+          style={{
+            borderCollapse: "collapse",
+            width: "100%",
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+          }}
+        >
+          <thead>
             <tr>
-              <th className="bg-white/80 backdrop-blur-sm border border-white/60 px-3 py-2 text-text-muted font-mono text-center min-w-[48px] sticky left-0 z-20">
+              <th
+                style={{
+                  padding: "8px 6px",
+                  textAlign: "left",
+                  background: "var(--paper)",
+                  borderBottom: "2px solid var(--ink)",
+                  fontFamily: "var(--sans)",
+                  fontWeight: 600,
+                  fontSize: 10,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--muted)",
+                  width: 28,
+                  position: "sticky",
+                  top: 0,
+                }}
+              >
                 #
               </th>
-              {sheet.columns.map(col => {
-                const isHighlighted = highlightColumns.includes(col);
+              {sheet.columns.map((c) => {
+                const isHighlight = highlightColumns.includes(c);
                 return (
                   <th
-                    key={col}
-                    data-col={col}
-                    ref={el => onColumnRef(col, el)}
-                    className={`border px-3 py-2 font-semibold text-left whitespace-nowrap transition-colors ${
-                      isHighlighted
-                        ? "bg-accent/20 border-accent/40 text-accent"
-                        : "bg-white/80 backdrop-blur-sm border-white/60 text-text-primary"
-                    }`}
+                    key={c}
+                    data-col={c}
+                    ref={(el) => onColumnRef(c, el)}
+                    style={{
+                      padding: "8px 10px",
+                      textAlign: "left",
+                      background: isHighlight ? "var(--accent)" : "var(--paper)",
+                      color: isHighlight ? "var(--paper-soft)" : "var(--ink)",
+                      borderBottom: "2px solid var(--ink)",
+                      fontFamily: "var(--sans)",
+                      fontWeight: 600,
+                      fontSize: 11,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      whiteSpace: "nowrap",
+                      transition: "background 0.25s ease",
+                      position: "sticky",
+                      top: 0,
+                      borderLeft: isHighlight ? "2px solid var(--accent)" : "none",
+                      borderRight: isHighlight ? "2px solid var(--accent)" : "none",
+                    }}
                   >
-                    {col}
-                    {isHighlighted && (
-                      <span className="ml-1.5 text-[9px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full font-bold">
-                        SOURCE
-                      </span>
-                    )}
+                    {c}
                   </th>
                 );
               })}
             </tr>
           </thead>
           <tbody>
-            {sheet.rows.map((row, rowIdx) => (
-              <tr
-                key={rowIdx}
-                className="hover:bg-white/40 transition-colors"
-              >
-                <td className="border border-white/40 px-3 py-1.5 text-text-muted font-mono text-center sticky left-0 bg-white/60 backdrop-blur-sm z-10">
-                  {rowIdx + 1}
+            {sheet.rows.map((row, ri) => (
+              <tr key={ri} style={{ borderBottom: "1px solid var(--hairline)" }}>
+                <td style={{ padding: "6px 6px", color: "var(--muted)", fontSize: 10 }}>
+                  {String(ri + 1).padStart(3, "0")}
                 </td>
-                {sheet.columns.map(col => {
-                  const isHighlighted = highlightColumns.includes(col);
+                {sheet.columns.map((c, ci) => {
+                  const isHighlight = highlightColumns.includes(c);
                   return (
                     <td
-                      key={col}
-                      className={`border px-3 py-1.5 whitespace-nowrap transition-colors ${
-                        isHighlighted
-                          ? "bg-accent/8 border-accent/20 text-text-primary"
-                          : "border-white/40 text-text-secondary"
-                      }`}
+                      key={`${ri}-${ci}`}
+                      style={{
+                        padding: "6px 10px",
+                        background: isHighlight ? "var(--accent-soft)" : "transparent",
+                        color: "var(--ink)",
+                        fontWeight: isHighlight ? 600 : 400,
+                        whiteSpace: "nowrap",
+                        borderLeft: isHighlight ? "2px solid var(--accent)" : "none",
+                        borderRight: isHighlight ? "2px solid var(--accent)" : "none",
+                        transition: "background 0.25s ease",
+                      }}
                     >
-                      {String(row[col] ?? "")}
+                      {String(row[c] ?? "")}
                     </td>
                   );
                 })}
@@ -143,6 +228,17 @@ export default function DataTable({ sheets, highlightColumns, onColumnRef }: Dat
             ))}
           </tbody>
         </table>
+
+        <div
+          className="mt-6 mono muted"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}
+        >
+          ↑ Showing {sheet.rows.length} rows · click a KPI on the left to trace its origin
+        </div>
       </div>
     </div>
   );

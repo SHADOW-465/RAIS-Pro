@@ -1,136 +1,211 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Upload, FileSpreadsheet, X } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import Icon from "@/components/editorial/Icon";
 
 interface UploadZoneProps {
   onUpload: (files: File[]) => void;
 }
 
+const ACCEPTED = [".xlsx", ".xls", ".csv"];
+
+function isAccepted(file: File) {
+  const lower = file.name.toLowerCase();
+  return ACCEPTED.some((ext) => lower.endsWith(ext));
+}
+
 export default function UploadZone({ onUpload }: UploadZoneProps) {
   const [files, setFiles] = useState<File[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const addFiles = useCallback((incoming: File[]) => {
-    const valid = incoming.filter(f =>
-      f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.csv')
-    );
+    const valid = incoming.filter(isAccepted);
     if (valid.length === 0) return;
-    setFiles(prev => {
-      const existingNames = new Set(prev.map(f => f.name));
-      const deduped = valid.filter(f => !existingNames.has(f.name));
-      return [...prev, ...deduped];
+    setFiles((prev) => {
+      const names = new Set(prev.map((f) => f.name));
+      return [...prev, ...valid.filter((f) => !names.has(f.name))];
     });
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
-    addFiles(Array.from(e.dataTransfer.files));
-  }, [addFiles]);
-
-  const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+    setDragOver(false);
+    if (e.dataTransfer.files?.length) addFiles(Array.from(e.dataTransfer.files));
   };
 
-  const processFiles = () => {
-    if (files.length > 0) {
-      onUpload(files);
-    }
+  const remove = (i: number) => setFiles((p) => p.filter((_, j) => j !== i));
+
+  const analyze = () => {
+    if (files.length > 0) onUpload(files);
   };
 
   return (
-    <div className="glass-card p-8 text-center">
+    <div>
+      {/* Drop zone */}
       <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-xl p-10 cursor-pointer transition-all duration-200 ${
-          isDragging
-            ? "border-accent bg-accent/5 scale-[1.01]"
-            : "border-accent/30 hover:border-accent/50 hover:bg-white/30"
-        }`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        onClick={() => inputRef.current?.click()}
+        style={{
+          border: `2px dashed ${
+            dragOver ? "var(--accent)" : "var(--hairline-strong)"
+          }`,
+          background: dragOver ? "var(--accent-soft)" : "var(--paper-soft)",
+          padding: 56,
+          transition: "all 0.2s ease",
+          cursor: "pointer",
+          borderRadius: "var(--card-radius)",
+          position: "relative",
+        }}
       >
-        {/* Icon */}
-        <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
-          <Upload size={22} className="text-accent" />
-        </div>
-
-        <h2 className="text-lg font-bold text-text-primary mb-2">
-          Drop your Excel files here
-        </h2>
-        <p className="text-sm text-text-muted mb-5">
-          Start a new analysis session — multiple files supported
-        </p>
-
-        {/* Format badges + browse button */}
-        <div className="flex gap-2 justify-center flex-wrap">
-          {["XLSX", "XLS", "CSV"].map((fmt) => (
-            <span
-              key={fmt}
-              className="bg-white/60 border border-white/80 rounded-full px-3 py-1 text-[11px] font-semibold text-slate-500"
-            >
-              {fmt}
-            </span>
-          ))}
-          <label className="bg-white/60 border border-white/80 rounded-full px-3 py-1 text-[11px] font-semibold text-accent cursor-pointer hover:bg-white/80 transition-colors">
-            Browse files
-            <input
-              type="file"
-              multiple
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files) addFiles(Array.from(e.target.files));
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept={ACCEPTED.join(",")}
+          style={{ display: "none" }}
+          onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))}
+        />
+        <div className="flex gap-6" style={{ alignItems: "center" }}>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              border: "1.5px solid var(--ink)",
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Icon name="upload" size={28} stroke={1.5} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div
+              className="serif"
+              style={{
+                fontSize: 26,
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
               }}
-            />
-          </label>
+            >
+              Drop spreadsheets here, or{" "}
+              <span
+                style={{
+                  color: "var(--accent)",
+                  textDecoration: "underline",
+                }}
+              >
+                browse files
+              </span>
+            </div>
+            <div className="muted" style={{ fontSize: 14, marginTop: 6 }}>
+              Multiple files welcome — rollup sheets are auto-detected and
+              excluded from totals.
+            </div>
+            <div
+              className="flex gap-2 mt-3"
+              style={{ alignItems: "center", flexWrap: "wrap" }}
+            >
+              {["xlsx", "xls", "csv"].map((t) => (
+                <span
+                  key={t}
+                  className="mono"
+                  style={{
+                    fontSize: 10,
+                    padding: "3px 8px",
+                    border: "1px solid var(--ink)",
+                    fontWeight: 600,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  .{t}
+                </span>
+              ))}
+              <span className="muted" style={{ fontSize: 11, marginLeft: 8 }}>
+                up to 50 MB · 12 files per session
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* File list — rendered below the drop zone when files are queued */}
+      {/* Queued files */}
       {files.length > 0 && (
-        <div className="mt-6 space-y-2">
-          {files.map((file, i) => (
-            <div
-              key={`${file.name}-${i}`}
-              className="flex items-center justify-between bg-white/50 border border-white/70 rounded-xl px-4 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <FileSpreadsheet size={16} className="text-accent" />
-                <div>
-                  <p className="text-sm font-semibold text-text-primary">{file.name}</p>
-                  <p className="text-[10px] text-text-muted">
-                    {(file.size / 1024).toFixed(0)} KB
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                className="text-text-muted hover:text-danger transition-colors"
-              >
-                <X size={14} />
-              </button>
+        <div className="mt-6 fade-up">
+          <div className="between mb-3">
+            <div className="eyebrow">
+              {files.length} file{files.length > 1 ? "s" : ""} queued
             </div>
-          ))}
-
-          <button
-            onClick={processFiles}
-            disabled={files.length === 0}
-            className="btn-primary w-full mt-4"
+            <button className="btn ghost sm" onClick={() => setFiles([])}>
+              Clear all
+            </button>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 8,
+            }}
           >
-            Analyze with AI
-          </button>
+            {files.map((f, i) => (
+              <div
+                key={`${f.name}-${i}`}
+                className="flex gap-3"
+                style={{
+                  padding: "10px 12px",
+                  background: "var(--paper-soft)",
+                  border: "1px solid var(--hairline)",
+                  alignItems: "center",
+                }}
+              >
+                <Icon name="file" size={18} stroke={1.4} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {f.name}
+                  </div>
+                  <div className="muted mono" style={{ fontSize: 10 }}>
+                    {(f.size / 1024).toFixed(1)} KB · .
+                    {f.name.split(".").pop()?.toLowerCase()}
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    remove(i);
+                  }}
+                  style={{ color: "var(--muted)" }}
+                  aria-label="Remove file"
+                >
+                  <Icon name="x" size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div
+            className="mt-6 flex gap-3"
+            style={{ alignItems: "center", flexWrap: "wrap" }}
+          >
+            <button className="btn accent" onClick={analyze}>
+              <Icon name="spark" size={14} /> Analyze with RAIS
+            </button>
+            <div className="muted" style={{ fontSize: 12 }}>
+              Estimated 12–25 sec
+            </div>
+          </div>
         </div>
       )}
     </div>
