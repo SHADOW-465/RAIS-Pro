@@ -2,6 +2,18 @@
 // Zod schemas for everything the AI returns. These replace the old
 // extractJson + normalize* pipeline — generateObject validates against them
 // and we get typed results back without manual coercion.
+//
+// ── Cross-provider compatibility rules ──────────────────────────────────────
+// Different providers enforce different JSON-schema dialects:
+//   • Google Gemini       — rejects integer-literal enums; wants plain types.
+//   • Groq strict mode    — every property must appear in `required`. No
+//                           omittable keys. Optional fields must be nullable.
+//   • Anthropic           — accepts most things, lenient.
+//   • OpenAI strict       — same as Groq strict mode.
+// We therefore use:
+//   • `.nullable()` for "optional" fields (always present, possibly null),
+//     NOT `.optional()` (which marks the key as omittable).
+//   • Plain `z.number().int()` for bounded integers, NOT literal unions.
 
 import { z } from "zod";
 
@@ -23,14 +35,15 @@ export const MergePlanSchema = z.object({
       }),
     )
     .min(1),
-  excludedSheets: z.array(
-    z.object({
-      sheet: z.string().describe("The sheetKey being excluded"),
-      reason: z
-        .string()
-        .describe("Why excluded (e.g. 'summary of included sheets, would double-count')"),
-    }),
-  ),
+  excludedSheets: z
+    .array(
+      z.object({
+        sheet: z.string().describe("The sheetKey being excluded"),
+        reason: z
+          .string()
+          .describe("Why excluded (e.g. 'summary of included sheets, would double-count')"),
+      }),
+    ),
   crossFileStrategy: z
     .enum(["sum", "separate"])
     .describe("Almost always 'sum' unless sheets clearly cover the same time period AND same source"),
@@ -56,7 +69,10 @@ const ChartTypeSchema = z.enum([
 const ChartSchema = z.object({
   title: z.string(),
   type: ChartTypeSchema,
-  description: z.string().optional(),
+  description: z
+    .string()
+    .nullable()
+    .describe("Short caption rendered below the chart. null when not applicable."),
   data: z.object({
     labels: z
       .array(z.string())
@@ -77,32 +93,39 @@ const ChartSchema = z.object({
 const KpiSchema = z.object({
   label: z.string().describe("Short metric name"),
   value: z
-    .union([z.string(), z.number()])
-    .describe("EXACT value from GRAND TOTALS or PER-SOURCE BREAKDOWN — never estimate"),
-  unit: z.string().optional().describe("Unit suffix (e.g. '%', 'units') — omit if already in value"),
+    .string()
+    .describe(
+      "EXACT value from GRAND TOTALS or PER-SOURCE BREAKDOWN — never estimate. " +
+        "Format as a string even for numbers (e.g. \"2.71\", \"35\", \"$1.2M\").",
+    ),
+  unit: z
+    .string()
+    .nullable()
+    .describe("Unit suffix (e.g. '%', 'units'). null if already encoded in value."),
   trend: z
-    .union([z.literal(-1), z.literal(0), z.literal(1)])
-    .describe("1 = improving, 0 = stable, -1 = declining"),
+    .number()
+    .int()
+    .describe("Integer trend indicator: 1 = improving, 0 = stable, -1 = declining"),
   context: z.string().describe("Short qualifier e.g. 'grand total', 'monthly avg'"),
   delta: z
     .string()
-    .optional()
-    .describe("Pre-formatted delta string e.g. '+0.42 pt' or '-9 vs Aug'"),
+    .nullable()
+    .describe("Pre-formatted delta string e.g. '+0.42 pt' or '-9 vs Aug'. null if no comparison."),
   history: z
     .array(z.number())
-    .optional()
+    .nullable()
     .describe(
-      "Recent values for inline sparkline (3-12 points). " +
-        "Use the most-recent time series for this metric when available.",
+      "Recent values (3-12 points) for inline sparkline. " +
+        "Use the most-recent time series for this metric when available, otherwise null.",
     ),
   source: z
     .string()
-    .optional()
-    .describe("Short source tag e.g. file or sheet name"),
+    .nullable()
+    .describe("Short source tag e.g. file or sheet name. null if not tracked."),
   sourceColumn: z
     .string()
-    .optional()
-    .describe("Exact column name this KPI was derived from — used for trace beams"),
+    .nullable()
+    .describe("Exact column name this KPI was derived from — used for trace beams. null if synthesised."),
 });
 
 export const DashboardConfigSchema = z.object({
@@ -151,7 +174,6 @@ export const InsightSlideAnswerSchema = z.object({
     .describe("One sentence finding that MUST contain a specific number from the data"),
   charts: z
     .array(InsightChartSchema)
-    .min(0)
     .max(2)
     .describe("0 charts for text-only, 1 for simple, 2 for comparative questions"),
   bullets: z

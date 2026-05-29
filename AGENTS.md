@@ -34,6 +34,12 @@ consume these CSS vars rather than hardcoding hex.
 
 See `README.md` § "Project layout" for the full map.
 
+## AI provider chain
+
+All AI calls flow through `tryModels(fn, opts)` in [`src/lib/ai.ts`](src/lib/ai.ts). It walks every configured backend in priority order: Gateway → Anthropic → OpenRouter → Google → Groq → Ollama. First success wins; failures cascade. Never call `generateObject` with a raw model handle in route handlers — always use `tryModels` so the chain is honored.
+
+When changing schemas, run `npm run check:ai` to confirm every backend still accepts the new shape. Cross-provider compatibility rules live in the [`src/lib/schemas.ts`](src/lib/schemas.ts) header: use `.nullable()` not `.optional()` (Groq/OpenAI strict mode), plain ints not literal unions (Google), and strings not type-unions for KPI values.
+
 ## Pipeline invariants
 
 1. **The model never does maths.** Aggregation is `applyMergePlan()` —

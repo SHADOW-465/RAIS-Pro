@@ -432,7 +432,7 @@ export default function Dashboard({
                     <ChartContainer
                       key={`${chart.title}-${i}`}
                       title={chart.title}
-                      description={chart.description}
+                      description={chart.description ?? undefined}
                       type={chart.type}
                       data={chart.data}
                       figNum={String(i + 1).padStart(2, "0")}

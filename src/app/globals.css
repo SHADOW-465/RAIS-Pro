@@ -23,8 +23,8 @@
   --positive: #1F5D3A;
   --warning: #B26B00;
 
-  --serif: 'Fraunces', 'Newsreader', Georgia, serif;
-  --sans: var(--font-inter-tight), 'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --serif: var(--font-lora), 'Lora', 'Fraunces', 'Newsreader', Georgia, serif;
+  --sans: var(--font-plus-jakarta-sans), 'Plus Jakarta Sans', var(--font-inter-tight), 'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, monospace;
   --condensed: var(--font-barlow-semi-condensed), 'Barlow Semi Condensed', sans-serif;
 

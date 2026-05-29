@@ -1,7 +1,7 @@
 // src/app/api/chat/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject, NoObjectGeneratedError } from "ai";
-import { getModel } from "@/lib/ai";
+import { tryModels } from "@/lib/ai";
 import { InsightSlideAnswerSchema } from "@/lib/schemas";
 import type { DashboardConfig } from "@/types/dashboard";
 
@@ -43,13 +43,15 @@ export async function POST(req: NextRequest) {
     );
 
     try {
-      const { object } = await generateObject({
-        model: getModel(),
-        schema: InsightSlideAnswerSchema,
-        system: SYSTEM_PROMPT,
-        prompt,
-        temperature: 0.2,
-      });
+      const { object } = await tryModels((model) =>
+        generateObject({
+          model,
+          schema: InsightSlideAnswerSchema,
+          system: SYSTEM_PROMPT,
+          prompt,
+          temperature: 0.2,
+        }),
+      );
 
       return NextResponse.json({
         type: "slide",

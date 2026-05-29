@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import {
-  Inter_Tight,
-  Fraunces,
+  Plus_Jakarta_Sans,
+  Lora,
   JetBrains_Mono,
   Barlow_Semi_Condensed,
 } from "next/font/google";
@@ -9,17 +9,17 @@ import "./globals.css";
 import { TweaksProvider } from "@/components/editorial/TweaksContext";
 import TweaksPanel from "@/components/editorial/TweaksPanel";
 
-const interTight = Inter_Tight({
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-inter-tight",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-plus-jakarta-sans",
 });
 
-const fraunces = Fraunces({
+const lora = Lora({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
-  variable: "--font-fraunces",
+  variable: "--font-lora",
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -45,7 +45,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${interTight.variable} ${fraunces.variable} ${jetbrainsMono.variable} ${barlowSemiCondensed.variable}`}
+        className={`${plusJakartaSans.variable} ${lora.variable} ${jetbrainsMono.variable} ${barlowSemiCondensed.variable}`}
         data-density="comfortable"
         data-bg="warm"
         data-card="outlined"

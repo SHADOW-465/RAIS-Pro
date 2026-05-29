@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject, NoObjectGeneratedError } from "ai";
 import { createServerClient } from "@/lib/supabase";
-import { getModel, activeBackend } from "@/lib/ai";
+import { availableBackends, tryModels } from "@/lib/ai";
 import {
   DashboardConfigSchema,
   MergePlanSchema,
@@ -76,8 +76,9 @@ export async function POST(req: NextRequest) {
       return true;
     });
 
-    const backend = activeBackend();
-    console.log(`[analyze] backend=${backend}, sheets=${uniqueSummaries.length}`);
+    console.log(
+      `[analyze] backends=[${availableBackends().join(", ")}], sheets=${uniqueSummaries.length}`,
+    );
 
     // ── Phase 1: merge plan ─────────────────────────────────────────────────
     let mergePlan: MergePlan;
@@ -86,13 +87,17 @@ export async function POST(req: NextRequest) {
 
     if (needsClassification && manifests.length > 0) {
       try {
-        const { object } = await generateObject({
-          model: getModel({ fast: true }),
-          schema: MergePlanSchema,
-          system: SYSTEM_PROMPT,
-          prompt: buildManifestPrompt(manifests),
-          temperature: 0.1,
-        });
+        const { object } = await tryModels(
+          (model) =>
+            generateObject({
+              model,
+              schema: MergePlanSchema,
+              system: SYSTEM_PROMPT,
+              prompt: buildManifestPrompt(manifests),
+              temperature: 0.1,
+            }),
+          { fast: true },
+        );
         mergePlan = patchOrphans(object, uniqueSummaries);
       } catch (err) {
         const msg =
@@ -121,13 +126,15 @@ export async function POST(req: NextRequest) {
     // ── Phase 3: dashboard generation ───────────────────────────────────────
     let dashboard: DashboardConfigOutput;
     try {
-      const { object } = await generateObject({
-        model: getModel(),
-        schema: DashboardConfigSchema,
-        system: SYSTEM_PROMPT,
-        prompt: buildPrompt(merged, uniqueSummaries),
-        temperature: 0.1,
-      });
+      const { object } = await tryModels((model) =>
+        generateObject({
+          model,
+          schema: DashboardConfigSchema,
+          system: SYSTEM_PROMPT,
+          prompt: buildPrompt(merged, uniqueSummaries),
+          temperature: 0.1,
+        }),
+      );
       dashboard = object;
     } catch (err) {
       if (err instanceof NoObjectGeneratedError) {

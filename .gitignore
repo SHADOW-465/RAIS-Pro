@@ -56,6 +56,13 @@ supabase/.temp/
 # design handoff bundle (regenerated on demand)
 .design-fetch/
 
+# user data — real factory spreadsheets stay local, never committed
+DATA/
+*.xlsx
+*.xls
+*.csv
+~$*
+
 # graphify — only the human-readable GRAPH_REPORT.md is committed.
 # Everything else (graph.json, graph.html, cache, converted source docs,
 # manifest with absolute paths) is regenerated locally via `graphify update .`.

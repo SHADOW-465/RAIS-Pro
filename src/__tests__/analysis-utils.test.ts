@@ -68,14 +68,26 @@ describe("buildManifestPrompt", () => {
   });
 });
 
+// Minimal KPI with all nullable fields set to null (cross-provider compat).
+const minimalKpi = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  label: "Metric",
+  value: "1",
+  unit: null,
+  trend: 0,
+  context: "ctx",
+  delta: null,
+  history: null,
+  source: null,
+  sourceColumn: null,
+  ...overrides,
+});
+
 describe("DashboardConfigSchema", () => {
   it("accepts a minimal valid dashboard", () => {
     const parsed = DashboardConfigSchema.parse({
       dashboardTitle: "Sales Q1",
       executiveSummary: "Revenue up.",
-      kpis: [
-        { label: "Revenue", value: "$2.4M", trend: 1, context: "vs last Q" },
-      ],
+      kpis: [minimalKpi({ label: "Revenue", value: "$2.4M", trend: 1, context: "vs last Q" })],
       charts: [],
       insights: ["Insight one"],
       recommendations: ["Do this"],
@@ -85,25 +97,25 @@ describe("DashboardConfigSchema", () => {
     expect(parsed.kpis[0].trend).toBe(1);
   });
 
-  it("accepts numeric KPI values", () => {
+  it("accepts string KPI values", () => {
     const parsed = DashboardConfigSchema.parse({
       dashboardTitle: "Orders",
       executiveSummary: "ok",
-      kpis: [{ label: "Orders", value: 340, trend: 0, context: "total" }],
+      kpis: [minimalKpi({ label: "Orders", value: "340", trend: 0, context: "total" })],
       charts: [],
       insights: [],
       recommendations: [],
       alerts: [],
     });
-    expect(parsed.kpis[0].value).toBe(340);
+    expect(parsed.kpis[0].value).toBe("340");
   });
 
-  it("rejects an invalid trend value", () => {
+  it("rejects a non-integer trend value", () => {
     expect(() =>
       DashboardConfigSchema.parse({
         dashboardTitle: "X",
         executiveSummary: "ok",
-        kpis: [{ label: "X", value: 1, trend: 7, context: "" }],
+        kpis: [minimalKpi({ trend: 1.5 })],
         charts: [],
         insights: [],
         recommendations: [],
@@ -126,19 +138,19 @@ describe("DashboardConfigSchema", () => {
     ).toThrow();
   });
 
-  it("accepts an optional history array for sparklines", () => {
+  it("accepts a history array for sparklines", () => {
     const parsed = DashboardConfigSchema.parse({
       dashboardTitle: "X",
       executiveSummary: "ok",
       kpis: [
-        {
+        minimalKpi({
           label: "Rate",
           value: "2.71",
           unit: "%",
           trend: -1,
           context: "monthly avg",
           history: [2.1, 2.3, 2.05, 2.45, 2.71],
-        },
+        }),
       ],
       charts: [],
       insights: [],
@@ -146,6 +158,21 @@ describe("DashboardConfigSchema", () => {
       alerts: [],
     });
     expect(parsed.kpis[0].history).toHaveLength(5);
+  });
+
+  it("requires every nullable field to be explicitly present (Groq strict mode contract)", () => {
+    // Missing `delta` etc — should fail under the new schema.
+    expect(() =>
+      DashboardConfigSchema.parse({
+        dashboardTitle: "X",
+        executiveSummary: "ok",
+        kpis: [{ label: "X", value: "1", trend: 0, context: "" }],
+        charts: [],
+        insights: [],
+        recommendations: [],
+        alerts: [],
+      }),
+    ).toThrow();
   });
 });
 

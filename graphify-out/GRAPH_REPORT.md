@@ -1,16 +1,16 @@
-# Graph Report - RAIS-Pro  (2026-05-28)
+# Graph Report - RAIS-Pro  (2026-05-29)
 
 ## Corpus Check
-- 48 files · ~229,505 words
+- 49 files · ~231,235 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 114 nodes · 126 edges · 29 communities (27 shown, 2 thin omitted)
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 15 edges (avg confidence: 0.8)
+- 125 nodes · 153 edges · 30 communities (28 shown, 2 thin omitted)
+- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 19 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bc417412`
+- Built from commit: `f0ace2f9`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -23,37 +23,38 @@
 - [[_COMMUNITY_Community 5|Community 5]]
 - [[_COMMUNITY_Community 6|Community 6]]
 - [[_COMMUNITY_Community 7|Community 7]]
-- [[_COMMUNITY_Community 10|Community 10]]
+- [[_COMMUNITY_Community 9|Community 9]]
+- [[_COMMUNITY_Community 11|Community 11]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `createServerClient()` - 11 edges
-2. `POST()` - 8 edges
-3. `getDeviceId()` - 7 edges
-4. `parseExcelFilesWithRaw()` - 7 edges
-5. `TrendLine()` - 6 edges
-6. `getModel()` - 6 edges
-7. `activeBackend()` - 4 edges
-8. `buildManifestPrompt()` - 4 edges
-9. `buildPrompt()` - 4 edges
-10. `applyMergePlan()` - 4 edges
+2. `POST()` - 10 edges
+3. `tryModels()` - 8 edges
+4. `availableBackends()` - 7 edges
+5. `getModel()` - 7 edges
+6. `getDeviceId()` - 7 edges
+7. `parseExcelFilesWithRaw()` - 7 edges
+8. `TrendLine()` - 6 edges
+9. `activeBackend()` - 6 edges
+10. `main()` - 4 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `main()` --calls--> `availableBackends()`  [INFERRED]
+  scripts/check-ai.ts → src/lib/ai.ts
 - `handleUploadComplete()` --calls--> `parseExcelFilesWithRaw()`  [INFERRED]
   src/app/page.tsx → src/lib/parser.ts
-- `POST()` --calls--> `activeBackend()`  [INFERRED]
-  src/app/api/analyze/route.ts → src/lib/ai.ts
-- `POST()` --calls--> `getModel()`  [INFERRED]
-  src/app/api/analyze/route.ts → src/lib/ai.ts
+- `POST()` --calls--> `applyMergePlan()`  [INFERRED]
+  src/app/api/analyze/route.ts → src/lib/merger.ts
 - `POST()` --calls--> `createServerClient()`  [INFERRED]
   src/app/api/analyze/route.ts → src/lib/supabase.ts
 - `GET()` --calls--> `createServerClient()`  [INFERRED]
   src/app/api/sessions/route.ts → src/lib/supabase.ts
 
-## Communities (29 total, 2 thin omitted)
+## Communities (30 total, 2 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.25
-Nodes (9): buildFallbackMergePlan(), patchOrphans(), POST(), buildManifestPrompt(), buildPrompt(), applyMergePlan(), fmtNum(), mergedResultToPromptText() (+1 more)
+Cohesion: 0.3
+Nodes (12): buildFallbackMergePlan(), patchOrphans(), POST(), buildPrompt(), POST(), activeBackend(), availableBackends(), getModel() (+4 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.21
@@ -64,20 +65,24 @@ Cohesion: 0.27
 Nodes (6): DELETE(), GET(), createServerClient(), GET(), GET(), POST()
 
 ### Community 3 - "Community 3"
+Cohesion: 0.27
+Nodes (5): buildPrompt(), applyMergePlan(), fmtNum(), mergedResultToPromptText(), roundSig()
+
+### Community 4 - "Community 4"
 Cohesion: 0.31
 Nodes (6): detectGranularity(), extractTimeRange(), isDateLike(), isSummaryCandidate(), parseExcelFiles(), parseExcelFilesWithRaw()
 
-### Community 5 - "Community 5"
+### Community 6 - "Community 6"
 Cohesion: 0.32
 Nodes (3): handleUploadComplete(), submit(), getDeviceId()
 
-### Community 6 - "Community 6"
+### Community 7 - "Community 7"
 Cohesion: 0.39
 Nodes (5): hexToRgb(), rgbToHex(), shade(), tint(), TweaksProvider()
 
-### Community 7 - "Community 7"
-Cohesion: 0.53
-Nodes (4): buildPrompt(), POST(), activeBackend(), getModel()
+### Community 9 - "Community 9"
+Cohesion: 0.7
+Nodes (4): check(), main(), pad(), resolveModel()
 
 ## Knowledge Gaps
 - **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
@@ -86,14 +91,16 @@ Nodes (4): buildPrompt(), POST(), activeBackend(), getModel()
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `createServerClient()` connect `Community 2` to `Community 0`?**
-  _High betweenness centrality (0.038) - this node is a cross-community bridge._
-- **Why does `POST()` connect `Community 0` to `Community 2`, `Community 7`?**
-  _High betweenness centrality (0.019) - this node is a cross-community bridge._
-- **Why does `getModel()` connect `Community 7` to `Community 0`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
+  _High betweenness centrality (0.046) - this node is a cross-community bridge._
+- **Why does `POST()` connect `Community 0` to `Community 2`, `Community 3`?**
+  _High betweenness centrality (0.030) - this node is a cross-community bridge._
+- **Why does `availableBackends()` connect `Community 0` to `Community 9`?**
+  _High betweenness centrality (0.025) - this node is a cross-community bridge._
 - **Are the 6 inferred relationships involving `createServerClient()` (e.g. with `POST()` and `GET()`) actually correct?**
   _`createServerClient()` has 6 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 5 inferred relationships involving `POST()` (e.g. with `activeBackend()` and `getModel()`) actually correct?**
-  _`POST()` has 5 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 2 inferred relationships involving `getDeviceId()` (e.g. with `handleUploadComplete()` and `submit()`) actually correct?**
-  _`getDeviceId()` has 2 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 7 inferred relationships involving `POST()` (e.g. with `availableBackends()` and `tryModels()`) actually correct?**
+  _`POST()` has 7 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 2 inferred relationships involving `tryModels()` (e.g. with `POST()` and `POST()`) actually correct?**
+  _`tryModels()` has 2 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 2 inferred relationships involving `availableBackends()` (e.g. with `main()` and `POST()`) actually correct?**
+  _`availableBackends()` has 2 INFERRED edges - model-reasoned connections that need verification._

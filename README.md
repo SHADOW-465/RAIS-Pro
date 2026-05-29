@@ -83,22 +83,32 @@ cp .env.example .env.local
 # 3. dev
 npm run dev          # http://localhost:3000
 
-# 4. typecheck + tests
+# 4. typecheck + tests + AI backend health
 npx tsc --noEmit
 npx jest
+npm run check:ai     # pings every configured AI backend, reports green/red
 ```
 
-## AI backend priority
+## AI backend chain
 
-The resolver in [`src/lib/ai.ts`](src/lib/ai.ts) picks the first one that's available:
+[`src/lib/ai.ts`](src/lib/ai.ts) walks a failover chain — every backend with credentials gets tried in priority order until one succeeds. Per-call routing log is emitted to the server console (`[ai] ✓ <backend>` / `[ai] ✗ <backend>: …`).
 
-| Priority | Backend | Env var | Models used |
+| Priority | Backend | Env var | Default models |
 |---|---|---|---|
-| 1 | Vercel AI Gateway | `AI_GATEWAY_API_KEY` (or OIDC on Vercel) | `anthropic/claude-sonnet-4.6` (main) · `anthropic/claude-haiku-4.5` (manifest) |
+| 1 | Vercel AI Gateway | `AI_GATEWAY_API_KEY` (or OIDC on Vercel) | `anthropic/claude-sonnet-4.6` · `anthropic/claude-haiku-4.5` |
 | 2 | Direct Anthropic | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` · `claude-haiku-4-5` |
-| 3 | Ollama (offline) | `OLLAMA_BASE_URL` + `OLLAMA_MODEL` | whatever you've pulled (default `qwen2.5:3b`) |
+| 3 | OpenRouter | `OPENROUTER_API_KEY` | `nvidia/nemotron-3-super-120b-a12b:free` (override with `OPENROUTER_MODEL` / `OPENROUTER_MODEL_FAST`) |
+| 4 | Google Gemini | `GOOGLE_GENERATIVE_AI_API_KEY` | `gemini-2.5-flash` · `gemini-2.5-flash-lite` |
+| 5 | Groq | `GROQ_API_KEY` | `openai/gpt-oss-120b` · `openai/gpt-oss-20b` |
+| 6 | Ollama (offline) | `OLLAMA_BASE_URL` + `OLLAMA_MODEL` | `qwen2.5:3b` (or whatever you've pulled) |
 
-Add `AI_GATEWAY_API_KEY` and you get observability, retries, and per-call cost tracking for free.
+To force a single backend (skip the chain), set `RAIS_AI_BACKEND` to one of: `gateway | anthropic | openrouter | google | groq | ollama`.
+
+**Recommended for production:** `AI_GATEWAY_API_KEY` alone. Gateway gives you observability, retries, per-call cost tracking, and zero-data-retention by default.
+
+**Recommended for free-tier development:** combine Google Gemini + Groq + OpenRouter. Three independent free pools — at least one is virtually always healthy.
+
+Run `npm run check:ai` to verify every configured backend can complete a structured-output request end-to-end. Reports per-backend latency and pass/fail.
 
 ## Pipeline
 

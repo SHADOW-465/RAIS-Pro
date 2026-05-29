@@ -3,19 +3,19 @@
 export interface KPI {
   label: string;
   value: string | number;
-  unit?: string;
-  /** -1 = declining/bad, 0 = stable/neutral, 1 = improving/good */
-  trend: -1 | 0 | 1;
+  /** Unit suffix (e.g. "%", "units"). Null if encoded in value. */
+  unit?: string | null;
+  /** -1 = declining/bad, 0 = stable/neutral, 1 = improving/good. Schema sends int. */
+  trend: number;
   context: string;
-  /** Column name in source data this KPI was derived from */
-  sourceColumn?: string;
-  // ── Editorial fields (optional) ────────────────────────────────────────────
-  /** Pre-formatted delta string e.g. "+0.42 pt" or "-9 vs Aug" */
-  delta?: string;
-  /** History values for inline sparkline */
-  history?: number[];
-  /** Short source tag e.g. "rejection_log" — falls back to sourceColumn */
-  source?: string;
+  /** Column name in source data this KPI was derived from. Null if synthesised. */
+  sourceColumn?: string | null;
+  /** Pre-formatted delta string e.g. "+0.42 pt" or "-9 vs Aug". Null if no comparison. */
+  delta?: string | null;
+  /** History values for inline sparkline (3-12 points). Null if no time series. */
+  history?: number[] | null;
+  /** Short source tag e.g. "rejection_log" — falls back to sourceColumn. */
+  source?: string | null;
 }
 
 /** Raw spreadsheet data kept client-side for data verification */
@@ -38,7 +38,8 @@ export interface ChartDataset {
 export interface Chart {
   title: string;
   type: 'line' | 'bar' | 'horizontalBar' | 'area' | 'pie' | 'doughnut' | 'radar';
-  description?: string;
+  /** Short caption rendered below the chart. Null/undefined when not applicable. */
+  description?: string | null;
   data: {
     labels: string[];
     datasets: ChartDataset[];
