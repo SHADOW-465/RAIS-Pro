@@ -131,11 +131,20 @@ export async function parseExcelFiles(files: File[]): Promise<SheetSummary[]> {
 }
 
 export async function parseExcelFilesWithRaw(files: File[]): Promise<ParseResult> {
+  const out: ParseResult = { summaries: [], rawSheets: [] };
+  for (const file of files) {
+    const r = parseWorkbookBuffer(await file.arrayBuffer(), file.name);
+    out.summaries.push(...r.summaries);
+    out.rawSheets.push(...r.rawSheets);
+  }
+  return out;
+}
+
+export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string): ParseResult {
   const summaries: SheetSummary[] = [];
   const rawSheets: RawSheet[] = [];
 
-  for (const file of files) {
-    const data = await file.arrayBuffer();
+  {
     const workbook = XLSX.read(data);
 
     for (const sheetName of workbook.SheetNames) {
@@ -274,8 +283,8 @@ export async function parseExcelFilesWithRaw(files: File[]): Promise<ParseResult
       }
 
       const manifest: SheetManifest = {
-        sheetKey: `${file.name} - ${sheetName}`,
-        fileName: file.name,
+        sheetKey: `${fileName} - ${sheetName}`,
+        fileName: fileName,
         sheetName,
         rowCount: cleanRows.length,
         totalRowsStripped,
@@ -291,7 +300,7 @@ export async function parseExcelFilesWithRaw(files: File[]): Promise<ParseResult
       const isMonthly = /jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(sheetName);
 
       summaries.push({
-        name: `${file.name} - ${sheetName}`,
+        name: `${fileName} - ${sheetName}`,
         rowCount: cleanRows.length,
         totalRowsStripped,
         columns: columnSummaries,
@@ -303,8 +312,8 @@ export async function parseExcelFilesWithRaw(files: File[]): Promise<ParseResult
 
       // ── Raw rows for verification panel ────────────────────────────────────
       rawSheets.push({
-        name: `${file.name} - ${sheetName}`,
-        fileName: file.name,
+        name: `${fileName} - ${sheetName}`,
+        fileName: fileName,
         columns,
         rows: cleanRows.slice(0, MAX_DISPLAY_ROWS).map(row =>
           Object.fromEntries(columns.map(c => [c, (row as any)[c] ?? '']))
