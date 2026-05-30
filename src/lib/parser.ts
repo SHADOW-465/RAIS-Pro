@@ -45,10 +45,13 @@ export interface ParseResult {
 
 const TOTAL_ROW_RE = /^(grand\s*)?total[s]?$|^subtotal[s]?$|^sum$|^gesamt$|^合計$|^총계$|^योग$/i;
 
-function isTotalRow(row: Record<string, unknown>, strCols: string[]): boolean {
-  for (const col of strCols) {
-    const v = String(row[col] ?? '').trim();
-    if (TOTAL_ROW_RE.test(v)) return true;
+function isJunkRow(row: Record<string, unknown>, cols: string[], dateCol: string | null): boolean {
+  if (cols.some(c => TOTAL_ROW_RE.test(String(row[c] ?? '').trim()))) return true;
+  if (cols.some(c => /^total in %$|^%$/i.test(String(row[c] ?? '').trim()))) return true;
+  if (dateCol) {
+    const dateBlank = String(row[dateCol] ?? '').trim() === '';
+    const hasNums = cols.some(c => c !== dateCol && typeof row[c] === 'number');
+    if (dateBlank && hasNums) return true;
   }
   return false;
 }
@@ -185,9 +188,15 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
         });
       });
 
-      // ── Strip total / grand-total rows ──────────────────────────────────────
-      const strCols = columns.filter(c => typeof (json[0] as any)[c] === 'string' || typeof (json[0] as any)[c] === 'undefined');
-      const cleanRows = json.filter(row => !isTotalRow(row as any, strCols));
+      // ── Pre-pass: identify the date column so junk-row filtering can use it ──
+      let preDateCol: string | null = null;
+      for (const col of columns) {
+        const vals = json.map((row: any) => row[col]).filter(v => v !== undefined && v !== null && v !== '');
+        if (isDateLike(col, vals.map(String)) || looksSerialDate(vals)) { preDateCol = col; break; }
+      }
+
+      // ── Strip total / subtotal / %-legend / junk rows ──────────────────────
+      const cleanRows = json.filter(row => !isJunkRow(row as any, columns, preDateCol));
       const totalRowsStripped = json.length - cleanRows.length;
 
       // ── Per-column statistics (on clean rows) ───────────────────────────────
