@@ -131,6 +131,44 @@ function serialToISO(n: number): string {
   return new Date(Math.round((n - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
 }
 
+// Collapse internal whitespace/newlines to a single space, trim, and de-duplicate
+// repeated header names by suffixing ` (2)`, ` (3)`, … to the 2nd+ occurrence.
+function normalizeHeaders(rawHeader: unknown[]): string[] {
+  const seen = new Map<string, number>();
+  return rawHeader.map(cell => {
+    const base = String(cell ?? '').replace(/\s+/g, ' ').trim();
+    if (base === '') return base;
+    const count = (seen.get(base) ?? 0) + 1;
+    seen.set(base, count);
+    return count === 1 ? base : `${base} (${count})`;
+  });
+}
+
+// Score each of the first 12 rows by its count of DISTINCT non-empty trimmed
+// string cells; pick the highest-scoring row that is immediately followed by a
+// row containing ≥1 numeric cell.
+function detectHeaderRow(rawRows: unknown[][]): number {
+  let bestIdx = 0;
+  let bestScore = -1;
+  const limit = Math.min(rawRows.length, 12);
+  for (let i = 0; i < limit; i++) {
+    const row = rawRows[i] ?? [];
+    const distinct = new Set(
+      row
+        .filter(c => typeof c === 'string' && (c as string).trim().length > 0)
+        .map(c => (c as string).trim())
+    );
+    const score = distinct.size;
+    const next = rawRows[i + 1] ?? [];
+    const nextHasNum = next.some(c => typeof c === 'number');
+    if (score > bestScore && nextHasNum) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+  return bestScore >= 0 ? bestIdx : 0;
+}
+
 function monthSortIndex(s: string): number {
   const idx = MONTH_ORDER.indexOf(s.toLowerCase().slice(0, 3));
   return idx === -1 ? 999 : idx;
@@ -162,24 +200,27 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
     for (const sheetName of workbook.SheetNames) {
       const sheet = workbook.Sheets[sheetName];
 
-      // ── Detect real header row ──────────────────────────────────────────────
+      // ── Detect real header row (score-based scan over first 12 rows) ────────
       const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
-      let headerRowIndex = 0;
-      for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
-        const row = rawRows[i] as unknown[];
-        const nonEmpty = row.filter(c => typeof c === 'string' && (c as string).trim().length > 0);
-        if (nonEmpty.length >= 2 && nonEmpty.length >= row.filter(c => c !== '').length * 0.4) {
-          headerRowIndex = i;
-          break;
-        }
-      }
+      const headerRowIndex = detectHeaderRow(rawRows);
 
-      let json = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: '' }) as Record<string, unknown>[];
+      // Normalize header cells ourselves (collapse newlines, dedup) and map data
+      // rows to those names rather than relying on xlsx's auto-dedup.
+      const normalizedHeader = normalizeHeaders(rawRows[headerRowIndex] ?? []);
+      const dataRows = rawRows.slice(headerRowIndex + 1);
+      let json: Record<string, unknown>[] = dataRows.map(row => {
+        const rec: Record<string, unknown> = {};
+        normalizedHeader.forEach((name, idx) => {
+          if (name === '') return;
+          rec[name] = row[idx] ?? '';
+        });
+        return rec;
+      });
       json = json.filter(row => Object.values(row).some(v => v !== '' && v !== null && v !== undefined));
       if (json.length === 0) continue;
 
       // ── Strip auto-named / all-empty columns ────────────────────────────────
-      const allColumns = Object.keys(json[0] as object);
+      const allColumns = normalizedHeader.filter(Boolean);
       const columns = allColumns.filter(col => {
         if (col.startsWith('__EMPTY')) return false;
         return json.some(row => {
