@@ -106,14 +106,6 @@ function isSummaryCandidate(sheetName: string, rowCount: number): boolean {
 
 // ─── Numeric helpers ──────────────────────────────────────────────────────────
 
-function roundSig(n: number, sig = 4): number {
-  if (!isFinite(n) || n === 0) return 0;
-  const d = Math.ceil(Math.log10(Math.abs(n)));
-  const p = sig - d;
-  const m = Math.pow(10, p);
-  return Math.round(n * m) / m;
-}
-
 function isDateLike(name: string, values: unknown[]): boolean {
   const n = name.toLowerCase();
   if (/month|year|date|period|week|quarter|day/.test(n)) return true;
@@ -270,8 +262,8 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
           numericCols.push(col);
           return {
             name: col, type: 'number',
-            sum: roundSig(sum),
-            mean: roundSig(sum / nums.length),
+            sum,
+            mean: sum / nums.length,
             min: Math.min(...nums),
             max: Math.max(...nums),
             uniqueCount: uniqueVals.size,
@@ -324,8 +316,8 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
           entries = entries.slice(0, MAX_GROUP_LABELS);
 
           const labels = entries.map(([k]) => k);
-          const sums  = entries.map(([, vs]) => roundSig(vs.reduce((a, b) => a + b, 0)));
-          const means = entries.map(([, vs]) => roundSig(vs.reduce((a, b) => a + b, 0) / vs.length));
+          const sums  = entries.map(([, vs]) => vs.reduce((a, b) => a + b, 0));
+          const means = entries.map(([, vs]) => vs.reduce((a, b) => a + b, 0) / vs.length);
 
           groupedSeries.push({ groupByColumn: dim, metricColumn: metric, aggregation: 'sum', labels, values: sums });
           if (means[0] < 100) {
