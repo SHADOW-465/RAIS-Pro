@@ -119,6 +119,15 @@ function isDateLike(name: string, values: unknown[]): boolean {
   return sample.filter(v => monthRe.test(v) || /^\d{4}/.test(v)).length >= 3;
 }
 
+const looksSerialDate = (vals: unknown[]): boolean => {
+  const nums = vals.filter((v): v is number => typeof v === 'number');
+  return nums.length >= 3 && nums.every(n => n >= 40000 && n <= 60000);
+};
+
+function serialToISO(n: number): string {
+  return new Date(Math.round((n - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
+}
+
 function monthSortIndex(s: string): number {
   const idx = MONTH_ORDER.indexOf(s.toLowerCase().slice(0, 3));
   return idx === -1 ? 999 : idx;
@@ -190,6 +199,21 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
         const rawVals = cleanRows.map((row: any) => row[col]).filter(v => v !== undefined && v !== null && v !== '');
         const uniqueVals = new Set(rawVals);
 
+        // Date columns must be classified before the numeric branch so serial
+        // dates are never summed.
+        if (isDateLike(col, rawVals.map(String)) || looksSerialDate(rawVals)) {
+          if (!dateDimCol) dateDimCol = col;
+          const sampleData = [...uniqueVals].slice(0, 5).map(v =>
+            typeof v === 'number' && v >= 40000 && v <= 60000 ? serialToISO(v) : v
+          );
+          return {
+            name: col,
+            type: 'date',
+            uniqueCount: uniqueVals.size,
+            sampleData,
+          } satisfies ColumnSummary;
+        }
+
         if (typeof rawVals[0] === 'number') {
           const nums = rawVals as number[];
           const sum = nums.reduce((a, b) => a + b, 0);
@@ -205,12 +229,9 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
           } satisfies ColumnSummary;
         } else {
           if (uniqueVals.size >= 2 && uniqueVals.size <= 50) dimensionCols.push(col);
-          const strVals = rawVals.map(String);
-          const isDate = isDateLike(col, strVals);
-          if (isDate && !dateDimCol) dateDimCol = col;
           return {
             name: col,
-            type: isDate ? 'date' : 'string',
+            type: 'string',
             uniqueCount: uniqueVals.size,
             sampleData: [...uniqueVals].slice(0, 5),
           } satisfies ColumnSummary;
