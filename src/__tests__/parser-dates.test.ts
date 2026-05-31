@@ -10,3 +10,13 @@ test("excel-serial date column is not summed", () => {
   expect(cols.find(c=>c.name==="DATE")!.sum).toBeUndefined();
   expect(cols.find(c=>c.name==="REJ QTY")!.sum).toBe(60);
 });
+
+test("5-digit quantity column is numeric, not a date", () => {
+  const ws = XLSX.utils.aoa_to_sheet([["VISUAL QTY"],[10982],[11054],[12039]]);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "S");
+  const buf = XLSX.write(wb,{type:"buffer",bookType:"xlsx"});
+  const { summaries } = parseWorkbookBuffer(buf,"f.xlsx");
+  const col = summaries[0].columns.find(c=>c.name==="VISUAL QTY")!;
+  expect(col.type).toBe("number");
+  expect(col.sum).toBe(34075);
+});

@@ -111,7 +111,13 @@ function isDateLike(name: string, values: unknown[]): boolean {
   if (/month|year|date|period|week|quarter|day/.test(n)) return true;
   const sample = values.slice(0, 10).map(v => String(v ?? '').trim());
   const monthRe = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
-  return sample.filter(v => monthRe.test(v) || /^\d{4}/.test(v)).length >= 3;
+  // Only treat a value as year-like when the WHOLE token is a plausible year
+  // (1900–2099). The loose `/^\d{4}/` previously matched any value beginning
+  // with 4 digits, so a 5-digit quantity (e.g. VISUAL QTY = 10982) was
+  // misclassified as a date and never summed. Real Excel-serial dates are
+  // handled separately by `looksSerialDate` (range 40000–60000).
+  const yearRe = /^(19|20)\d{2}$/;
+  return sample.filter(v => monthRe.test(v) || yearRe.test(v)).length >= 3;
 }
 
 const looksSerialDate = (vals: unknown[]): boolean => {
