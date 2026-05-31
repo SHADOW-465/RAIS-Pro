@@ -283,18 +283,24 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
           } satisfies ColumnSummary;
         }
 
-        if (typeof rawVals[0] === 'number') {
-          const nums = rawVals as number[];
-          const sum = nums.reduce((a, b) => a + b, 0);
+        // A column is numeric when actual numbers form the majority of its
+        // non-empty cells. Real sheets embed text markers (e.g. "HOLIDAY",
+        // "HAPPY DIWALI") inside otherwise-numeric quantity columns; those must
+        // never be folded into the sum.
+        const numericVals = rawVals.filter(
+          (v): v is number => typeof v === 'number' && Number.isFinite(v)
+        );
+        if (numericVals.length >= Math.max(1, rawVals.length * 0.5)) {
+          const sum = numericVals.reduce((a, b) => a + b, 0);
           numericCols.push(col);
           return {
             name: col, type: 'number',
             sum,
-            mean: sum / nums.length,
-            min: Math.min(...nums),
-            max: Math.max(...nums),
+            mean: sum / numericVals.length,
+            min: Math.min(...numericVals),
+            max: Math.max(...numericVals),
             uniqueCount: uniqueVals.size,
-            sampleData: nums.slice(0, 5),
+            sampleData: numericVals.slice(0, 5),
           } satisfies ColumnSummary;
         } else {
           if (uniqueVals.size >= 2 && uniqueVals.size <= 50) dimensionCols.push(col);

@@ -20,3 +20,15 @@ test("5-digit quantity column is numeric, not a date", () => {
   expect(col.type).toBe("number");
   expect(col.sum).toBe(34075);
 });
+
+test("numeric column with embedded text marker sums only the numbers", () => {
+  const ws = XLSX.utils.aoa_to_sheet([["QTY"],[100],["HOLIDAY"],[200],[300]]);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "S");
+  const buf = XLSX.write(wb,{type:"buffer",bookType:"xlsx"});
+  const { summaries } = parseWorkbookBuffer(buf,"f.xlsx");
+  const col = summaries[0].columns.find(c=>c.name==="QTY")!;
+  expect(col.type).toBe("number");
+  expect(col.sum).toBe(600);
+  expect(col.min).toBe(100);
+  expect(col.max).toBe(300);
+});

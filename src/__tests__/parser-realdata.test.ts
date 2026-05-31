@@ -31,3 +31,18 @@ test("VISUAL QTY is a numeric column and sums to the April total", () => {
   expect(visual.type).toBe("number");
   expect(visual.sum).toBe(247767); // matches the sheet's own Total row
 });
+
+test("numeric columns ignore embedded text markers (HOLIDAY etc) and stay finite", () => {
+  const buf = readFileSync(join(process.cwd(), "DATA", "ASSEMBLY REJECTION REPORT.xlsx"));
+  const { summaries } = parseWorkbookBuffer(buf, "ASSEMBLY REJECTION REPORT.xlsx");
+  for (const s of summaries) {
+    for (const c of s.columns) {
+      if (c.type === "number") {
+        expect(typeof c.sum).toBe("number");
+        expect(Number.isFinite(c.sum!)).toBe(true);
+        expect(Number.isFinite(c.min!)).toBe(true);
+        expect(Number.isFinite(c.max!)).toBe(true);
+      }
+    }
+  }
+});
