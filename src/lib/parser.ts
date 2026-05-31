@@ -137,8 +137,13 @@ function normalizeHeaders(rawHeader: unknown[]): string[] {
 }
 
 // Score each of the first 12 rows by its count of DISTINCT non-empty trimmed
-// string cells; pick the highest-scoring row that is immediately followed by a
-// row containing ≥1 numeric cell.
+// string cells; pick the highest-scoring row that is followed — within the next
+// up to 4 NON-BLANK rows (blank spacer rows are skipped) — by a row containing
+// ≥1 numeric cell. Real reports often place a blank spacer row between the
+// header and the first data row, so an immediate-next-row check would reject the
+// true header and wrongly promote a data row. A header row's cells are also
+// predominantly strings, so rows with more numeric than distinct-string cells
+// are not eligible (guards against a numeric data row outscoring the header).
 function detectHeaderRow(rawRows: unknown[][]): number {
   let bestIdx = 0;
   let bestScore = -1;
@@ -151,8 +156,24 @@ function detectHeaderRow(rawRows: unknown[][]): number {
         .map(c => (c as string).trim())
     );
     const score = distinct.size;
-    const next = rawRows[i + 1] ?? [];
-    const nextHasNum = next.some(c => typeof c === 'number');
+
+    // A header row should be predominantly strings, not numbers.
+    const numericCells = row.filter(c => typeof c === 'number').length;
+    if (numericCells >= distinct.size) continue;
+
+    // Look ahead up to 4 non-blank rows for a numeric cell (skip blank spacers).
+    let nextHasNum = false;
+    let scanned = 0;
+    for (let k = i + 1; k < rawRows.length && scanned < 4; k++) {
+      const candidate = rawRows[k] ?? [];
+      const isBlank = candidate.every(
+        c => c === '' || c === null || c === undefined
+      );
+      if (isBlank) continue;
+      scanned++;
+      if (candidate.some(c => typeof c === 'number')) { nextHasNum = true; break; }
+    }
+
     if (score > bestScore && nextHasNum) {
       bestScore = score;
       bestIdx = i;
