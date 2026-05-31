@@ -85,8 +85,8 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.45;
+  font-size: 16px;
+  line-height: 1.5;
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
