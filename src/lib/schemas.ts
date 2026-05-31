@@ -184,3 +184,88 @@ export const InsightSlideAnswerSchema = z.object({
 });
 
 export type InsightSlideAnswer = z.infer<typeof InsightSlideAnswerSchema>;
+
+// ── SheetGraph (Phase 3b — LLM column-role classification) ───────────────────
+// The model reads each sheet's columns and assigns a semantic role to every
+// one. This is the ONLY thing the model decides about the data — the actual
+// arithmetic is done by computeMetrics() against these roles. Keep in lockstep
+// with the SheetGraph / ColumnRole / ReportType types in src/types/metrics.ts.
+
+const ColumnRoleSchema = z.enum([
+  "date",
+  "stage_checked",
+  "stage_accepted",
+  "stage_rejected",
+  "stage_hold",
+  "reason_count",
+  "derived_total",
+  "dimension",
+  "ignore",
+]);
+
+const ReportTypeSchema = z.enum([
+  "assembly",
+  "balloon_valve",
+  "visual",
+  "shopfloor",
+  "cumulative",
+  "yearly_production",
+  "unknown",
+]);
+
+const SheetGraphSchema = z.object({
+  sheetKey: z.string().describe("EXACT sheetKey echoed from the input — must match verbatim"),
+  reportType: ReportTypeSchema.describe("Best-fit report family for this sheet"),
+  isSummary: z
+    .boolean()
+    .describe(
+      "true if this sheet is a roll-up/total/yearly/cumulative of OTHER sheets — " +
+        "such sheets are EXCLUDED from aggregation to avoid double-counting",
+    ),
+  stageOrder: z
+    .array(z.string())
+    .describe(
+      "Inspection stages in funnel order, earliest first (e.g. ['Eye Punching','Visual','Valve Integrity']). " +
+        "Empty [] for reason-matrix sheets with no explicit stages.",
+    ),
+  columns: z
+    .array(
+      z.object({
+        column: z.string().describe("EXACT column name from the input — must match verbatim"),
+        role: ColumnRoleSchema,
+        stage: z
+          .string()
+          .nullable()
+          .describe("Which stage this column belongs to (for stage_* roles). null otherwise."),
+      }),
+    )
+    .describe("One entry per column in the sheet. Classify EVERY column."),
+  notes: z.string().nullable().describe("One-sentence note on anything unusual. null if none."),
+});
+
+export const SheetGraphSetSchema = z.object({
+  sheets: z.array(SheetGraphSchema).min(1),
+});
+
+export type SheetGraphSetOutput = z.infer<typeof SheetGraphSetSchema>;
+
+// ── Narrative (Phase 3b — prose-only dashboard) ──────────────────────────────
+// KPIs and charts are built deterministically from computeMetrics(); the model
+// only writes the words. It never emits a single number it has to compute.
+
+export const NarrativeSchema = z.object({
+  dashboardTitle: z.string().max(80).describe("8 words or fewer — the lead headline"),
+  executiveSummary: z
+    .string()
+    .describe("2-3 sentences using ONLY the exact numbers from the PRE-COMPUTED METRICS section"),
+  insights: z
+    .array(z.string())
+    .max(7)
+    .describe("Findings, each citing a real number/stage/reason from the metrics"),
+  recommendations: z.array(z.string()).max(6).describe("Actionable items, time-ordered"),
+  alerts: z
+    .array(z.string())
+    .describe("Empty [] unless a genuine anomaly is present in the metrics"),
+});
+
+export type NarrativeOutput = z.infer<typeof NarrativeSchema>;

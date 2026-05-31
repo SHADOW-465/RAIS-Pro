@@ -1,57 +1,36 @@
 // src/app/api/analyze/route.ts
+//
+// Pipeline (see AGENTS.md "Pipeline invariants" — the model never does maths):
+//   Phase 1  GRAPH      AI classifies every column into a semantic role.
+//                       Heuristic inferSheetGraph() is the guaranteed fallback.
+//   Phase 2  COMPUTE    computeMetrics() turns the graph into exact numbers in
+//                       pure JS. We compute from BOTH the LLM graph and the
+//                       heuristic and only keep the LLM result if it is sane.
+//   Phase 3  NARRATIVE  AI writes prose only (title/summary/insights/recs).
+//                       KPIs + charts are built deterministically from Phase 2.
+
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject, NoObjectGeneratedError } from "ai";
 import { createServerClient } from "@/lib/supabase";
-import { availableBackends, tryModels } from "@/lib/ai";
+import { tryModels } from "@/lib/ai";
+import { NarrativeSchema, SheetGraphSetSchema } from "@/lib/schemas";
+import { buildGraphPrompt, buildNarrativePrompt } from "@/lib/analysis-utils";
+import { inferSheetGraph, computeMetrics } from "@/lib/metrics";
 import {
-  DashboardConfigSchema,
-  MergePlanSchema,
-  type DashboardConfigOutput,
-  type MergePlanOutput,
-} from "@/lib/schemas";
-import { buildManifestPrompt, buildPrompt } from "@/lib/analysis-utils";
-import { applyMergePlan } from "@/lib/merger";
+  reconcileGraph,
+  metricsSane,
+  metricsToKpis,
+  metricsToCharts,
+  deriveMergePlan,
+} from "@/lib/dashboard-builder";
 import type { SheetSummary } from "@/lib/parser";
-import type { MergePlan } from "@/types/analysis";
+import type { SheetGraph } from "@/types/metrics";
+import type { DashboardConfig } from "@/types/dashboard";
 
 const SYSTEM_PROMPT =
-  "You are a senior data analyst. Return ONLY data that conforms to the " +
-  "requested schema. Never invent numbers — every value must trace to the " +
-  "provided data section.";
-
-// Fallback merge plan for single-sheet uploads — skips the AI classification
-// round-trip since there's nothing to deduplicate.
-function buildFallbackMergePlan(summaries: SheetSummary[]): MergePlan {
-  return {
-    groups: [
-      {
-        label: "All Data",
-        sheets: summaries.map((s) => s.name),
-        reason: "Single source — no deduplication needed",
-      },
-    ],
-    excludedSheets: [],
-    crossFileStrategy: "sum",
-    warnings: [],
-  };
-}
-
-// Ensure every sheet appears in the plan; orphans get attached to the first
-// group rather than being silently dropped.
-function patchOrphans(plan: MergePlanOutput, summaries: SheetSummary[]): MergePlanOutput {
-  const planned = new Set([
-    ...plan.groups.flatMap((g) => g.sheets),
-    ...plan.excludedSheets.map((e) => e.sheet),
-  ]);
-  const orphans = summaries.map((s) => s.name).filter((k) => !planned.has(k));
-  if (orphans.length === 0) return plan;
-  if (plan.groups.length > 0) {
-    plan.groups[0].sheets.push(...orphans);
-  } else {
-    plan.groups.push({ label: "Data", sheets: orphans, reason: "auto-assigned" });
-  }
-  return plan;
-}
+  "You are a senior quality-analytics analyst. Return ONLY data that conforms " +
+  "to the requested schema. Never invent numbers — every value must trace to " +
+  "the provided data.";
 
 export async function POST(req: NextRequest) {
   try {
@@ -76,69 +55,79 @@ export async function POST(req: NextRequest) {
       return true;
     });
 
-    console.log(
-      `[analyze] backends=[${availableBackends().join(", ")}], sheets=${uniqueSummaries.length}`,
-    );
+    // ── Phase 1: semantic column-role graph ─────────────────────────────────
+    // Heuristic graph is the deterministic, golden-tested baseline + fallback.
+    const heuristicGraphs: SheetGraph[] = uniqueSummaries.map(inferSheetGraph);
+    let graphs = heuristicGraphs;
+    let graphSource: "llm" | "heuristic" = "heuristic";
 
-    // ── Phase 1: merge plan ─────────────────────────────────────────────────
-    let mergePlan: MergePlan;
-    const manifests = uniqueSummaries.map((s) => s.manifest).filter(Boolean);
-    const needsClassification = uniqueSummaries.length > 1;
+    try {
+      const { object } = await tryModels(
+        (model) =>
+          generateObject({
+            model,
+            schema: SheetGraphSetSchema,
+            system: SYSTEM_PROMPT,
+            prompt: buildGraphPrompt(uniqueSummaries),
+            temperature: 0.1,
+          }),
+        { fast: true },
+      );
 
-    if (needsClassification && manifests.length > 0) {
-      try {
-        const { object } = await tryModels(
-          (model) =>
-            generateObject({
-              model,
-              schema: MergePlanSchema,
-              system: SYSTEM_PROMPT,
-              prompt: buildManifestPrompt(manifests),
-              temperature: 0.1,
-            }),
-          { fast: true },
-        );
-        mergePlan = patchOrphans(object, uniqueSummaries);
-      } catch (err) {
-        const msg =
-          err instanceof NoObjectGeneratedError
-            ? `model returned no valid JSON (${err.cause})`
-            : err instanceof Error
-              ? err.message
-              : String(err);
-        console.warn(`[analyze] manifest classification failed (${msg}); using fallback`);
-        mergePlan = buildFallbackMergePlan(uniqueSummaries);
+      const llmByKey = new Map(object.sheets.map((g) => [g.sheetKey, g]));
+      const reconciled = uniqueSummaries.map((s, i) => {
+        const llm = llmByKey.get(s.name);
+        return llm ? reconcileGraph(llm, s, heuristicGraphs[i]) : heuristicGraphs[i];
+      });
+
+      // Accept the LLM graph only if the numbers it yields are sane.
+      const candidate = computeMetrics(uniqueSummaries, reconciled);
+      const baseline = computeMetrics(uniqueSummaries, heuristicGraphs);
+      if (metricsSane(candidate, baseline)) {
+        graphs = reconciled;
+        graphSource = "llm";
+      } else {
+        console.warn("[analyze] LLM graph failed sanity gate; using heuristic graph");
       }
-    } else {
-      mergePlan = buildFallbackMergePlan(uniqueSummaries);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[analyze] graph classification failed (${msg}); using heuristic graph`);
     }
 
+    // ── Phase 2: deterministic metric computation ───────────────────────────
+    const metrics = computeMetrics(uniqueSummaries, graphs);
+    const kpis = metricsToKpis(metrics);
+    const charts = metricsToCharts(metrics);
+    const mergePlan = deriveMergePlan(uniqueSummaries, graphs);
+
     console.log(
-      "[analyze] mergePlan:",
-      mergePlan.groups.map((g) => `${g.label}(${g.sheets.length})`).join(", "),
-      "excluded:",
-      mergePlan.excludedSheets.length,
+      `[analyze] graph=${graphSource}, kpis=${kpis.length}, charts=${charts.length}, ` +
+        `rate=${metrics.metrics.find((m) => m.id === "rejection_rate")?.display}`,
     );
 
-    // ── Phase 2: deterministic aggregation (no AI) ──────────────────────────
-    const merged = applyMergePlan(uniqueSummaries, mergePlan);
+    if (kpis.length === 0) {
+      return NextResponse.json(
+        { error: "No measurable quantities found in the uploaded sheets." },
+        { status: 422 },
+      );
+    }
 
-    // ── Phase 3: dashboard generation ───────────────────────────────────────
-    let dashboard: DashboardConfigOutput;
+    // ── Phase 3: narrative (prose only) ─────────────────────────────────────
+    let narrative;
     try {
       const { object } = await tryModels((model) =>
         generateObject({
           model,
-          schema: DashboardConfigSchema,
+          schema: NarrativeSchema,
           system: SYSTEM_PROMPT,
-          prompt: buildPrompt(merged, uniqueSummaries),
-          temperature: 0.1,
+          prompt: buildNarrativePrompt(metrics),
+          temperature: 0.2,
         }),
       );
-      dashboard = object;
+      narrative = object;
     } catch (err) {
       if (err instanceof NoObjectGeneratedError) {
-        console.error("[analyze] dashboard generation produced no valid object:", err.cause);
+        console.error("[analyze] narrative generation produced no valid object:", err.cause);
         return NextResponse.json(
           { error: "Analysis model returned no valid result. Try again." },
           { status: 502 },
@@ -146,6 +135,16 @@ export async function POST(req: NextRequest) {
       }
       throw err;
     }
+
+    const dashboard: DashboardConfig = {
+      dashboardTitle: narrative.dashboardTitle,
+      executiveSummary: narrative.executiveSummary,
+      kpis,
+      charts,
+      insights: narrative.insights,
+      recommendations: narrative.recommendations,
+      alerts: narrative.alerts,
+    };
 
     // ── Save to Supabase (best-effort) ──────────────────────────────────────
     let sessionId: string | null = null;
