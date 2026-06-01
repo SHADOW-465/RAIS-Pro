@@ -29,6 +29,7 @@ consume these CSS vars rather than hardcoding hex.
 - **Design-system primitives:** `src/components/editorial/`
 - **Domain components:** `src/components/`
 - **AI layer:** `src/lib/ai.ts` (backend resolver), `src/lib/schemas.ts` (Zod), `src/lib/analysis-utils.ts` (prompt builders)
+- **Analysis engine:** `src/lib/metrics.ts` (`inferSheetGraph` heuristic column-role classifier + `computeMetrics` deterministic aggregation), `src/lib/dashboard-builder.ts` (graph reconcile, metrics→KPI/chart mapping, sanity gate, merge-plan derivation), `src/types/metrics.ts` (graph + metric types)
 - **Routes:** `src/app/api/{analyze,chat,sessions}/`
 - **Persistence:** `src/lib/supabase.ts` + `supabase/migrations/`
 
@@ -42,17 +43,31 @@ When changing schemas, run `npm run check:ai` to confirm every backend still acc
 
 ## Pipeline invariants
 
-1. **The model never does maths.** Aggregation is `applyMergePlan()` —
-   pure JS arithmetic. AI is only for *classification* (manifest → merge plan)
-   and *narrative* (aggregates → dashboard config). Never let chart values
-   come from the model when raw rows could be summed.
-2. **Schemas are the contract.** `generateObject` + Zod. If the model can't
-   produce a valid object, surface a 502 — don't silently coerce.
-3. **`history` arrays power KPI sparklines.** When a metric has a time series
-   in PRE-COMPUTED CHART SERIES, the dashboard prompt instructs the model to
-   populate `kpi.history`. Don't add a parallel "history" path elsewhere.
-4. **Verify-mode beam math runs client-side** — KPI ref → column header ref
-   → `getBoundingClientRect()` on both, recompute on scroll/resize.
+The analyze route (`src/app/api/analyze/route.ts`) runs three phases:
+**graph → compute → narrative**.
+
+1. **The model never does maths.** AI is used only for *classification* (the
+   per-sheet column-role **graph**) and *narrative* (prose for the dashboard).
+   All numbers come from `computeMetrics()` in `src/lib/metrics.ts` — pure JS
+   arithmetic over the raw rows. Never let KPI or chart values come from the
+   model.
+2. **The graph has a heuristic fallback with a sanity gate.** Phase 1 always
+   computes a heuristic graph via `inferSheetGraph()` per sheet. The LLM graph
+   (Zod `SheetGraphSetSchema`) is `reconcileGraph()`'d against the real columns
+   (hallucinated columns dropped, omitted real ones back-filled), then its
+   metrics are accepted **only if** `metricsSane()` passes vs. the heuristic
+   baseline. Otherwise the golden-tested heuristic wins. The user gets
+   LLM-driven understanding without risking "random numbers."
+3. **Schemas are the contract.** `generateObject` + Zod via `tryModels`. If the
+   model can't produce a valid object, fall back (graph) or surface an error
+   (narrative) — don't silently coerce. Phase 2 returns 422 if no KPIs survive.
+4. **Views are derived deterministically.** `metricsToKpis()` /
+   `metricsToCharts()` / `deriveMergePlan()` in `src/lib/dashboard-builder.ts`
+   map a `MetricsResult` into the `DashboardConfig`. `rejection_rate` leads;
+   `kpi.history` + trend are computed from `monthlyTrend` here, not by the
+   model. Don't add a parallel "history" path elsewhere.
+5. **Verify-mode beam math runs client-side** — KPI `sourceColumn` ref → column
+   header ref → `getBoundingClientRect()` on both, recompute on scroll/resize.
 
 ## Hard rules
 

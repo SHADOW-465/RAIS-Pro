@@ -73,4 +73,7 @@ graphify-out/converted/
 graphify-out/graph.html
 graphify-out/graph.json
 graphify-out/manifest.json
+graphify-out/cost.json
 graphify-out/.graphify_root
+graphify-out/.graphify_*.json
+graphify-out/.graphify_chunk_*.json

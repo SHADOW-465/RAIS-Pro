@@ -7,9 +7,9 @@ auditable sources, follow-up chat that returns saveable insight slides.
 ## What it does
 
 1. **Upload** one or more `.xlsx` / `.xls` / `.csv` files (multiple plants, multiple sheets — rollup sheets are auto-detected and excluded from totals).
-2. **Parse + classify** client-side via SheetJS, then a small model classifies sheets into source groups and produces a merge plan.
-3. **Aggregate deterministically** — pure JS arithmetic from the merge plan, no AI involved in the maths.
-4. **Generate the dashboard** — a single structured-output call returns the lead story, KPIs (with sparkline history), editorial figures, insights, recommendations, and alerts.
+2. **Build a column-role graph** — client-side SheetJS parsing produces sheet summaries, then a small model classifies each column's *role* (stage-checked, stage-rejected, reason-count, date, …). The model only labels; it never computes. A golden-tested heuristic graph is always built in parallel as a fallback.
+3. **Compute metrics deterministically** — `computeMetrics()` does pure JS arithmetic over the raw rows from the graph. A sanity gate discards the LLM graph and keeps the heuristic if the LLM's numbers drift from the baseline, so the dashboard can never show "random numbers."
+4. **Generate the narrative** — a structured-output call writes prose only (title, executive summary, insights, recommendations, alerts). KPIs, charts, sparkline history and trends are derived from the computed metrics, not the model.
 5. **Verify** — split-pane mode draws an animated bezier trace beam from any KPI card to its source column in the raw spreadsheet.
 6. **Ask follow-ups** — the chat dock returns a focused insight slide (headline + chart + 3-4 bullets), saveable as PNG.
 
@@ -32,7 +32,7 @@ src/
 │  ├─ globals.css                 Editorial tokens, data-attr theme modes
 │  ├─ session/[id]/page.tsx       Persisted-session viewer
 │  └─ api/
-│     ├─ analyze/route.ts         3-phase pipeline (merge plan → aggregate → dashboard)
+│     ├─ analyze/route.ts         3-phase pipeline (graph → compute → narrative)
 │     ├─ chat/route.ts            Insight-slide answers
 │     └─ sessions/                CRUD for saved sessions + slides
 ├─ components/
@@ -56,17 +56,19 @@ src/
 │  ├─ SessionCard.tsx             Recent diagnostics tile
 │  └─ StatusAlert.tsx             Critical / warning / info banner
 ├─ lib/
-│  ├─ ai.ts                       Backend resolver: gateway → anthropic → ollama
-│  ├─ schemas.ts                  Zod: MergePlan, DashboardConfig, InsightSlide
-│  ├─ analyzer.ts                 Client-side analyzer caller
-│  ├─ analysis-utils.ts           Prompt builders for both AI phases
+│  ├─ ai.ts                       Backend resolver: gateway → anthropic → … → ollama
+│  ├─ schemas.ts                  Zod: SheetGraphSet, Narrative, DashboardConfig, InsightSlide
+│  ├─ metrics.ts                  inferSheetGraph (heuristic roles) + computeMetrics (deterministic)
+│  ├─ dashboard-builder.ts        reconcileGraph, metricsSane gate, metrics→KPI/chart, deriveMergePlan
+│  ├─ analysis-utils.ts           Prompt builders (graph + narrative; legacy manifest/prompt kept)
 │  ├─ parser.ts                   SheetJS → SheetSummary + RawSheet
-│  ├─ merger.ts                   Deterministic aggregation (no AI)
+│  ├─ merger.ts                   Legacy merge-plan aggregation (superseded by metrics.ts)
 │  ├─ supabase.ts                 Server + browser clients
 │  └─ device-id.ts                Browser-local device UUID
 └─ types/
    ├─ dashboard.ts                KPI, Chart, DashboardConfig, InsightSlide
-   └─ analysis.ts                 Manifests, MergePlan, MergedResult
+   ├─ metrics.ts                  SheetGraph, ColumnRole, Metric, MetricsResult
+   └─ analysis.ts                 Manifests, MergePlan, MergedResult (legacy)
 ```
 
 ## Setup
@@ -117,16 +119,23 @@ Browser                     Server
 ─────────                   ──────
 parser.ts → SheetSummary  → /api/analyze
                               │
-                              ├─ Phase 1: generateObject(MergePlanSchema)   ← AI (fast model)
-                              │   skipped for single-sheet uploads
+                              ├─ Phase 1 GRAPH:
+                              │     inferSheetGraph()  ← heuristic baseline (always)
+                              │     generateObject(SheetGraphSetSchema)  ← AI (fast model)
+                              │     reconcileGraph() + metricsSane() gate ← keep LLM only if sane
                               │
-                              ├─ Phase 2: applyMergePlan()                  ← deterministic JS
+                              ├─ Phase 2 COMPUTE:                          ← deterministic JS
+                              │     computeMetrics() → metricsToKpis()
+                              │                      → metricsToCharts()
+                              │                      → deriveMergePlan()
+                              │     (422 if no KPIs survive)
                               │
-                              └─ Phase 3: generateObject(DashboardConfigSchema) ← AI (main model)
+                              └─ Phase 3 NARRATIVE:
+                                    generateObject(NarrativeSchema)        ← AI (main model, prose only)
 
 Dashboard.tsx ← DashboardConfig + MergePlan + RawSheets
    │
-   ├─ Verify mode → BeamOverlay (bezier ink/accent)
+   ├─ Verify mode → BeamOverlay (bezier ink/accent, KPI.sourceColumn → header)
    └─ Ask RAIS → /api/chat → generateObject(InsightSlideAnswerSchema)
                                                       ↓
                                                 InsightSlide (PNG-exportable)
