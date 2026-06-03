@@ -29,7 +29,7 @@ export default function ChatPanel({
   sessionId,
   onSlideAdded,
 }: ChatPanelProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,9 +95,9 @@ export default function ChatPanel({
         left: 0,
         right: 0,
         bottom: 0,
-        background:
-          "linear-gradient(to top, var(--surface) 60%, color-mix(in oklab, var(--surface) 70%, transparent) 100%)",
+        background: open ? "var(--surface)" : "transparent",
         borderTop: open ? "1px solid var(--border)" : "none",
+        boxShadow: open ? "0 -8px 24px -12px rgba(15,23,42,0.18)" : "none",
         padding: open ? "18px 36px 18px" : 0,
         zIndex: 40,
         transition: "padding 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",

@@ -117,15 +117,16 @@ const KPICard = forwardRef<HTMLDivElement, KPICardProps>(function KPICard(
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 4, minWidth: 0 }}>
         <span
           className="num"
           style={{
-            fontSize: "3.25rem",
+            fontSize: "clamp(1.75rem, 2.6vw, 2.5rem)",
             fontWeight: 600,
-            lineHeight: 1,
+            lineHeight: 1.05,
             letterSpacing: "-0.02em",
             color: "var(--text)",
+            whiteSpace: "nowrap",
           }}
         >
           {value}
@@ -134,10 +135,10 @@ const KPICard = forwardRef<HTMLDivElement, KPICardProps>(function KPICard(
           <span
             className="num"
             style={{
-              fontSize: "1.25rem",
+              fontSize: "1rem",
               fontWeight: 500,
               color: "var(--text-3)",
-              marginLeft: 4,
+              marginLeft: 2,
             }}
           >
             {unit}

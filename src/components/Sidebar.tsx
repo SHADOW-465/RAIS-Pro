@@ -121,7 +121,9 @@ export default function Sidebar({
             fontWeight: !verifyMode ? 600 : 500,
             fontSize: 13,
             outline: "none",
-            border: "none",
+            borderTop: "none",
+            borderRight: "none",
+            borderBottom: "none",
             textAlign: "left",
           }}
         >
@@ -151,7 +153,9 @@ export default function Sidebar({
               fontWeight: verifyMode ? 600 : 500,
               fontSize: 13,
               outline: "none",
-              border: "none",
+              borderTop: "none",
+            borderRight: "none",
+            borderBottom: "none",
               textAlign: "left",
             }}
           >
@@ -180,7 +184,9 @@ export default function Sidebar({
             padding: 0,
             display: "grid",
             placeItems: "center",
-            border: "none",
+            borderTop: "none",
+            borderRight: "none",
+            borderBottom: "none",
             background: "transparent",
             cursor: "pointer",
           }}
