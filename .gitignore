@@ -77,3 +77,11 @@ graphify-out/cost.json
 graphify-out/.graphify_root
 graphify-out/.graphify_*.json
 graphify-out/.graphify_chunk_*.json
+
+# Playwright MCP diagnostic captures + ad-hoc screenshots
+.playwright-mcp/
+rais-*-output.png
+rais-*-FIXED.png
+
+# diagnostic screenshots from UI verification
+audit-*.png
