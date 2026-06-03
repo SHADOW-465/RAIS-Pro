@@ -142,6 +142,20 @@ function normalizeHeaders(rawHeader: unknown[]): string[] {
   });
 }
 
+// A genuine column-header row contains at least one of these "hint" words.
+// Requiring a hint stops a reason-code legend row (e.g. COAG | SD | TT | BL |
+// PS | … | BST — 21 distinct short tokens, none of them a hint word) from
+// out-scoring the real header (DATE | REC. QTY | ACCEPT QTY | … | REASON FOR
+// REJ — only ~8 cells). Without this guard the legend row wins on raw distinct
+// count and the quantity columns vanish, zeroing checked-qty. This mirrors the
+// independent oracle in scripts/ground-truth.ts, which documents the same trap.
+const HEADER_HINT_RE =
+  /\bqty\b|\bdate\b|\bmonth\b|\byear\b|\bperiod\b|\brej\b|\brec\.?\b|receiv|\baccept|\bhold\b|reason|defect|production|dispatch|trolley|\bsize\b|\bb\.?\s*no\b|checked|inspect|balloon|valve|punch/i;
+
+function rowHasHeaderHint(row: unknown[]): boolean {
+  return row.some(c => typeof c === 'string' && HEADER_HINT_RE.test(c));
+}
+
 // Score each of the first 12 rows by its count of DISTINCT non-empty trimmed
 // string cells; pick the highest-scoring row that is followed — within the next
 // up to 4 NON-BLANK rows (blank spacer rows are skipped) — by a row containing
@@ -150,9 +164,15 @@ function normalizeHeaders(rawHeader: unknown[]): string[] {
 // true header and wrongly promote a data row. A header row's cells are also
 // predominantly strings, so rows with more numeric than distinct-string cells
 // are not eligible (guards against a numeric data row outscoring the header).
+//
+// Two passes: prefer the best row that ALSO carries a header-hint word; only if
+// no eligible row has a hint do we fall back to the best by raw distinct count
+// (keeps behaviour for synthetic/odd files that lack hint words entirely).
 function detectHeaderRow(rawRows: unknown[][]): number {
   let bestIdx = 0;
   let bestScore = -1;
+  let bestHintIdx = -1;
+  let bestHintScore = -1;
   const limit = Math.min(rawRows.length, 12);
   for (let i = 0; i < limit; i++) {
     const row = rawRows[i] ?? [];
@@ -179,18 +199,83 @@ function detectHeaderRow(rawRows: unknown[][]): number {
       scanned++;
       if (candidate.some(c => typeof c === 'number')) { nextHasNum = true; break; }
     }
+    if (!nextHasNum) continue;
 
-    if (score > bestScore && nextHasNum) {
+    if (score > bestScore) {
       bestScore = score;
       bestIdx = i;
     }
+    if (rowHasHeaderHint(row) && score > bestHintScore) {
+      bestHintScore = score;
+      bestHintIdx = i;
+    }
   }
+  if (bestHintIdx >= 0) return bestHintIdx;
   return bestScore >= 0 ? bestIdx : 0;
 }
 
 function monthSortIndex(s: string): number {
   const idx = MONTH_ORDER.indexOf(s.toLowerCase().slice(0, 3));
   return idx === -1 ? 999 : idx;
+}
+
+// A "label row" is part of a multi-row header block: every non-empty cell is
+// either a small ordinal (1..100, e.g. the "1 2 3 … 21" reason-index row) or a
+// short code/abbreviation (≤8 chars, e.g. "COAG", "SD", "BST"). A real data row
+// fails this test because it carries a date string or a quantity > 100.
+const SHORT_CODE_RE = /^[A-Za-z0-9 ./_+-]{1,8}$/;
+
+function isHeaderLabelRow(row: unknown[]): boolean {
+  const nonEmpty = row.filter(c => c !== '' && c !== null && c !== undefined);
+  if (nonEmpty.length < 3) return false;
+  return nonEmpty.every(c => {
+    if (typeof c === 'number') return Number.isInteger(c) && Math.abs(c) <= 100;
+    if (typeof c === 'string') return SHORT_CODE_RE.test(c.trim());
+    return false;
+  });
+}
+
+// Build the effective header from a header row plus any immediately-following
+// label rows (sub-headers). Reports here use a two/three-row header: a main row
+// (DATE | REC. QTY | … | REASON FOR REJ) whose reason-matrix columns are blank,
+// then a "1 2 … 21" ordinal row, then a "COAG SD … BST" code row. For each
+// column we prefer the most specific *string* sub-label found in the label rows
+// (so a group header like "REASON FOR REJ" spanning the matrix is overridden by
+// the per-column code beneath it), falling back to the main header cell.
+// Numeric label cells (the ordinal row) are never used as names.
+// Returns the merged header and the index where real data begins.
+function buildHeaderBlock(
+  rawRows: unknown[][],
+  headerRowIndex: number
+): { header: unknown[]; dataStartIndex: number } {
+  const base = rawRows[headerRowIndex] ?? [];
+  const labelRows: unknown[][] = [];
+  let dataStartIndex = headerRowIndex + 1;
+
+  for (let k = headerRowIndex + 1; k < Math.min(headerRowIndex + 4, rawRows.length); k++) {
+    const row = rawRows[k] ?? [];
+    const blank = row.every(c => c === '' || c === null || c === undefined);
+    if (blank) break;
+    if (!isHeaderLabelRow(row)) break;
+    labelRows.push(row);
+    dataStartIndex = k + 1;
+  }
+
+  if (labelRows.length === 0) {
+    return { header: base, dataStartIndex };
+  }
+
+  const width = Math.max(base.length, ...labelRows.map(r => r.length));
+  const merged: unknown[] = [];
+  for (let c = 0; c < width; c++) {
+    let subLabel: string | null = null;
+    for (const lr of labelRows) {
+      const cell = lr[c];
+      if (typeof cell === 'string' && cell.trim().length > 0) { subLabel = cell.trim(); break; }
+    }
+    merged[c] = subLabel ?? base[c] ?? '';
+  }
+  return { header: merged, dataStartIndex };
 }
 
 // ─── Main exports ─────────────────────────────────────────────────────────────
@@ -223,10 +308,15 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
       const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
       const headerRowIndex = detectHeaderRow(rawRows);
 
+      // Merge any multi-row header block (main header + reason-code sub-headers)
+      // and learn where real data starts, so the "1 2 … 21" / "COAG … BST" rows
+      // become column names rather than data rows.
+      const { header: mergedHeader, dataStartIndex } = buildHeaderBlock(rawRows, headerRowIndex);
+
       // Normalize header cells ourselves (collapse newlines, dedup) and map data
       // rows to those names rather than relying on xlsx's auto-dedup.
-      const normalizedHeader = normalizeHeaders(rawRows[headerRowIndex] ?? []);
-      const dataRows = rawRows.slice(headerRowIndex + 1);
+      const normalizedHeader = normalizeHeaders(mergedHeader);
+      const dataRows = rawRows.slice(dataStartIndex);
       let json: Record<string, unknown>[] = dataRows.map(row => {
         const rec: Record<string, unknown> = {};
         normalizedHeader.forEach((name, idx) => {

@@ -27,12 +27,20 @@
 // aggregation → checkedQty/rejectedQty contribution 0. Their embedded TOTAL REJ
 // column sum is recorded in `referenceTotalRej` for cross-checking only.
 //
-// VISUAL INSPECTION REPORT 2025.xlsx note: in the ACTUAL file every monthly sheet
-// is a reason-matrix (COAG/SD/TT/…) with NO REC. QTY / ACCEPT QTY checked column,
-// so checkedQty = 0 and rejectedQty = Σ reason_count. The values carry float
-// noise inherited from the parser (REJ% bleed into reason columns), hence the
-// non-integer rejectedQty. SHOPFLOOR is likewise reason-only (rejectedQty =
-// Σ reason counts; "Total" column is derived_total and excluded).
+// VISUAL INSPECTION REPORT 2025.xlsx: each monthly sheet is a TWO-ROW header —
+// a main row (DATE | REC. QTY | ACCEPT QTY | HOLD QTY | REJ. QTY | REJ % |
+// REASON FOR REJ) followed by a reason-code sub-header (1 2 … 21 / COAG SD …
+// BST). The parser now merges that block (buildHeaderBlock) so REC. QTY etc.
+// are read and the reason matrix is still labelled. Checked = Σ REC. QTY,
+// rejected = Σ REJ. QTY (entry stage "Overall"). These numbers reconcile against
+// the file's own YEARLY rollup (APRIL REC. QTY = 247767, REJ. QTY = 19271) and
+// against the INDEPENDENT oracle scripts/ground-truth.ts (checked 2732719,
+// accepted 2477606, rejected 160812, rate 5.8847%) — i.e. they are NOT derived
+// solely from the app parser. (Earlier goldens recorded checkedQty=0 / rejected
+// ≈427k: that was the legend row being mis-picked as the header — a parser bug,
+// now fixed, that the circular derive-golden flow had rubber-stamped.)
+// SHOPFLOOR is genuinely reason-only (no REC. QTY column → checkedQty = 0;
+// rejectedQty = Σ reason counts; "Total" column is derived_total and excluded).
 
 export interface GoldenEntry {
   reportType:
@@ -76,11 +84,11 @@ export const GOLDEN: Record<string, GoldenEntry> = {
   "VISUAL INSPECTION REPORT 2025.xlsx": {
     reportType: "visual",
     isSummary: false,
-    checkedQty: 0,
-    acceptedQty: 0,
-    rejectedQty: 427191.61774889525,
-    holdQty: 0,
-    rejectionRate: 0,
+    checkedQty: 2732719,
+    acceptedQty: 2477606,
+    rejectedQty: 160812,
+    holdQty: 82881,
+    rejectionRate: 0.05884688473275152,
   },
   "SHOPFLOOR REJECTION REPORT.xlsx": {
     reportType: "shopfloor",
