@@ -1,195 +1,159 @@
 // src/components/DataTable.tsx
+// Presentational table for ONE sheet. Navigation (file / month switching) is
+// owned by VerifyPanel. Highlights a single source column and shows its
+// reconciliation total.
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { RawSheet } from "@/types/dashboard";
+import { columnTotal } from "@/lib/verify-nav";
+
+// Re-exported for backward compatibility with existing imports.
+export { findColumn, normalizeColName } from "@/lib/verify-nav";
 
 interface DataTableProps {
-  sheets: RawSheet[];
-  /** Exact column names to highlight (from matched sourceColumn) */
-  highlightColumns: string[];
-  /** Callback to expose column header DOM elements for beam drawing */
+  sheet: RawSheet;
+  /** Exact column name to highlight (already resolved), or null. */
+  highlightColumn: string | null;
+  /** Expose the highlighted column's header cell for beam drawing. */
   onColumnRef: (column: string, el: HTMLTableCellElement | null) => void;
 }
 
-/** Normalize a string for fuzzy column matching */
-export function normalizeColName(s: string): string {
-  return s.toLowerCase().replace(/[\s_\-().]/g, "");
+function fmt(n: number): string {
+  return Number.isInteger(n) ? n.toLocaleString() : n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-/** Find best matching column name in a list */
-export function findColumn(target: string, columns: string[]): string | null {
-  const t = normalizeColName(target);
-  const exact = columns.find((c) => normalizeColName(c) === t);
-  if (exact) return exact;
-  const partial = columns.find((c) => {
-    const n = normalizeColName(c);
-    return n.includes(t) || t.includes(n);
-  });
-  return partial ?? null;
-}
-
-export default function DataTable({ sheets, highlightColumns, onColumnRef }: DataTableProps) {
-  const [activeSheet, setActiveSheet] = useState(0);
-  const sheet = sheets[activeSheet];
+export default function DataTable({ sheet, highlightColumn, onColumnRef }: DataTableProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  // Scroll first highlighted column into view
+  // Scroll the highlighted column into view whenever it changes.
   useEffect(() => {
-    if (highlightColumns.length === 0 || !wrapRef.current) return;
+    if (!highlightColumn || !wrapRef.current) return;
     const th = wrapRef.current.querySelector<HTMLTableCellElement>(
-      `[data-col="${CSS.escape(highlightColumns[0])}"]`,
+      `[data-col="${CSS.escape(highlightColumn)}"]`,
     );
     if (th) th.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-  }, [highlightColumns]);
+  }, [highlightColumn, sheet.name]);
 
-  if (!sheet) {
-    return (
-      <div
-        className="muted"
-        style={{
-          flex: 1,
-          display: "grid",
-          placeItems: "center",
-          fontSize: 13,
-        }}
-      >
-        No source data available.
-      </div>
-    );
-  }
+  const total = highlightColumn ? columnTotal(sheet, highlightColumn) : null;
+
+  // Scan rows to determine which columns are numeric (>= 60% numeric values in non-blank rows)
+  const numericColumns = new Set<string>();
+  sheet.columns.forEach((c) => {
+    let numCount = 0;
+    let nonBlank = 0;
+    sheet.rows.forEach((row) => {
+      const val = row[c];
+      if (val !== undefined && val !== null && String(val).trim() !== "") {
+        nonBlank++;
+        if (!isNaN(Number(String(val).trim()))) {
+          numCount++;
+        }
+      }
+    });
+    if (nonBlank > 0 && numCount / nonBlank > 0.6) {
+      numericColumns.add(c);
+    }
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      {/* Sheet tabs */}
-      {sheets.length > 1 && (
-        <div
-          style={{
-            borderBottom: "1px solid var(--ink)",
-            padding: "12px 20px 0",
-            display: "flex",
-            gap: 4,
-            background: "var(--paper-soft)",
-            overflowX: "auto",
-            flexShrink: 0,
-          }}
-        >
-          {sheets.map((s, i) => {
-            const isActive = i === activeSheet;
-            return (
-              <button
-                key={`${s.fileName}-${s.name}-${i}`}
-                onClick={() => setActiveSheet(i)}
-                style={{
-                  padding: "10px 14px",
-                  background: isActive ? "var(--ink)" : "transparent",
-                  color: isActive ? "var(--paper-soft)" : "var(--ink)",
-                  border: isActive ? "1px solid var(--ink)" : "1px solid transparent",
-                  borderBottom: "none",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                  fontFamily: "var(--sans)",
-                  position: "relative",
-                  top: 1,
-                  whiteSpace: "nowrap",
-                }}
-                title={`${s.fileName} :: ${s.name}`}
-              >
-                <span className="mono">{s.fileName.replace(/\.[^.]+$/, "")}</span>
-                <span style={{ opacity: 0.5, margin: "0 6px" }}>·</span>
-                <span>{s.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Sheet meta strip */}
+      {/* Meta strip */}
       <div
         style={{
           padding: "8px 20px",
-          background: "var(--paper)",
-          borderBottom: "1px solid var(--hairline)",
+          background: "var(--surface-2)",
+          borderBottom: "1px solid var(--border)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           fontSize: 11,
-          color: "var(--muted)",
-          fontFamily: "var(--mono)",
+          color: "var(--text-3)",
+          fontFamily: "var(--font-mono)",
           letterSpacing: "0.06em",
           flexShrink: 0,
         }}
       >
-        <span>
-          {sheet.rows.length} of {sheet.rows.length} rows shown
-        </span>
-        <span className="flex gap-3">
-          <span>{sheet.columns.length} cols</span>
-          {highlightColumns[0] && (
-            <span style={{ color: "var(--accent)", fontWeight: 600 }}>
-              ◆ {highlightColumns[0]} highlighted
-            </span>
-          )}
-        </span>
+        <span>{sheet.rows.length} rows · {sheet.columns.length} cols</span>
+        {highlightColumn && (
+          <span style={{ color: "var(--accent-text)", fontWeight: 700, display: "inline-flex", gap: 6 }}>
+            <span>◆ {highlightColumn}</span>
+            {total != null && <span>· Σ = {fmt(total)}</span>}
+          </span>
+        )}
       </div>
 
       {/* Table */}
       <div ref={wrapRef} style={{ flex: 1, overflow: "auto", padding: "12px 20px 20px" }}>
+        <style dangerouslySetInnerHTML={{ __html: `
+          .verify-table tr:nth-child(even) td:not(.highlighted-cell) {
+            background-color: var(--surface-2);
+          }
+          .verify-table tr:hover td:not(.highlighted-cell) {
+            background-color: var(--surface-3) !important;
+          }
+          .verify-table tr:hover td.highlighted-cell {
+            background-color: var(--accent-weak) !important;
+            filter: brightness(0.97);
+          }
+        `}} />
         <table
+          className="verify-table"
           style={{
             borderCollapse: "collapse",
             width: "100%",
-            fontFamily: "var(--mono)",
-            fontSize: 11,
+            fontSize: 12,
           }}
         >
           <thead>
             <tr>
               <th
                 style={{
-                  padding: "8px 6px",
+                  padding: "10px 12px",
                   textAlign: "left",
-                  background: "var(--paper)",
-                  borderBottom: "2px solid var(--ink)",
-                  fontFamily: "var(--sans)",
-                  fontWeight: 600,
-                  fontSize: 10,
-                  letterSpacing: "0.1em",
+                  background: "var(--surface-2)",
+                  borderBottom: "2px solid var(--border-strong)",
+                  borderRight: "1px solid var(--border-strong)",
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 800,
+                  fontSize: 11,
+                  letterSpacing: "0.06em",
                   textTransform: "uppercase",
-                  color: "var(--muted)",
-                  width: 28,
+                  color: "var(--text-3)",
+                  width: 36,
                   position: "sticky",
                   top: 0,
+                  zIndex: 4,
                 }}
               >
                 #
               </th>
               {sheet.columns.map((c) => {
-                const isHighlight = highlightColumns.includes(c);
+                const isHighlight = c === highlightColumn;
+                const isNum = numericColumns.has(c);
                 return (
                   <th
                     key={c}
                     data-col={c}
                     ref={(el) => onColumnRef(c, el)}
                     style={{
-                      padding: "8px 10px",
-                      textAlign: "left",
-                      background: isHighlight ? "var(--accent)" : "var(--paper)",
-                      color: isHighlight ? "var(--paper-soft)" : "var(--ink)",
-                      borderBottom: "2px solid var(--ink)",
-                      fontFamily: "var(--sans)",
-                      fontWeight: 600,
+                      padding: "10px 12px",
+                      textAlign: isNum ? "right" : "left",
+                      background: isHighlight ? "var(--accent)" : "var(--surface)",
+                      color: isHighlight ? "var(--text-invert)" : "var(--text)",
+                      borderBottom: isHighlight ? "2px solid var(--accent)" : "2px solid var(--border-strong)",
+                      fontFamily: "var(--font-sans)",
+                      fontWeight: 800,
                       fontSize: 11,
-                      letterSpacing: "0.06em",
+                      letterSpacing: "0.04em",
                       textTransform: "uppercase",
                       whiteSpace: "nowrap",
-                      transition: "background 0.25s ease",
+                      transition: "background 0.25s ease, color 0.25s ease",
                       position: "sticky",
                       top: 0,
                       borderLeft: isHighlight ? "2px solid var(--accent)" : "none",
                       borderRight: isHighlight ? "2px solid var(--accent)" : "none",
+                      zIndex: isHighlight ? 3 : 1,
                     }}
                   >
                     {c}
@@ -200,20 +164,34 @@ export default function DataTable({ sheets, highlightColumns, onColumnRef }: Dat
           </thead>
           <tbody>
             {sheet.rows.map((row, ri) => (
-              <tr key={ri} style={{ borderBottom: "1px solid var(--hairline)" }}>
-                <td style={{ padding: "6px 6px", color: "var(--muted)", fontSize: 10 }}>
+              <tr key={ri} style={{ borderBottom: "1px solid var(--border)" }}>
+                <td
+                  style={{
+                    padding: "10px 12px",
+                    color: "var(--text-3)",
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    borderRight: "1px solid var(--border)",
+                    backgroundColor: "var(--surface-2)",
+                    textAlign: "center",
+                  }}
+                >
                   {String(ri + 1).padStart(3, "0")}
                 </td>
                 {sheet.columns.map((c, ci) => {
-                  const isHighlight = highlightColumns.includes(c);
+                  const isHighlight = c === highlightColumn;
+                  const isNum = numericColumns.has(c);
                   return (
                     <td
                       key={`${ri}-${ci}`}
+                      className={isHighlight ? "highlighted-cell" : ""}
                       style={{
-                        padding: "6px 10px",
-                        background: isHighlight ? "var(--accent-soft)" : "transparent",
-                        color: "var(--ink)",
-                        fontWeight: isHighlight ? 600 : 400,
+                        padding: "10px 12px",
+                        background: isHighlight ? "var(--accent-weak)" : "transparent",
+                        color: "var(--text)",
+                        fontFamily: isNum ? "var(--font-mono)" : "var(--font-sans)",
+                        fontWeight: isHighlight ? 700 : 400,
+                        textAlign: isNum ? "right" : "left",
                         whiteSpace: "nowrap",
                         borderLeft: isHighlight ? "2px solid var(--accent)" : "none",
                         borderRight: isHighlight ? "2px solid var(--accent)" : "none",
@@ -228,17 +206,6 @@ export default function DataTable({ sheets, highlightColumns, onColumnRef }: Dat
             ))}
           </tbody>
         </table>
-
-        <div
-          className="mt-6 mono muted"
-          style={{
-            fontSize: 10,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-        >
-          ↑ Showing {sheet.rows.length} rows · click a KPI on the left to trace its origin
-        </div>
       </div>
     </div>
   );
