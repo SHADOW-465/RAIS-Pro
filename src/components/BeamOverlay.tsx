@@ -50,6 +50,16 @@ function Beam({ from, to, id }: BeamEndpoints) {
           ["--len" as any]: length,
         }}
       />
+      {/* flowing dots overlay */}
+      <path
+        d={d}
+        fill="none"
+        stroke="var(--accent-hover)"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        className="beam-flow"
+        opacity="0.8"
+      />
       {/* origin halo */}
       <circle cx={fromX} cy={fromY} r="4" fill="var(--accent)" />
       <circle cx={fromX} cy={fromY} r="8" fill="var(--accent)" opacity="0.2" />

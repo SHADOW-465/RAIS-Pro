@@ -96,19 +96,19 @@ export default function ChatPanel({
         right: 0,
         bottom: 0,
         background:
-          "linear-gradient(to top, var(--paper) 60%, color-mix(in oklab, var(--paper) 70%, transparent) 100%)",
-        borderTop: open ? "1px solid var(--ink)" : "none",
+          "linear-gradient(to top, var(--surface) 60%, color-mix(in oklab, var(--surface) 70%, transparent) 100%)",
+        borderTop: open ? "1px solid var(--border)" : "none",
         padding: open ? "18px 36px 18px" : 0,
         zIndex: 40,
-        transition: "padding 0.3s ease",
+        transition: "padding 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
       }}
     >
       {open ? (
         <div className="shell-wide">
           <div className="between mb-3" style={{ alignItems: "center" }}>
             <div className="flex gap-3" style={{ alignItems: "baseline" }}>
-              <div className="eyebrow accent">Ask RAIS</div>
-              <div className="muted" style={{ fontSize: 12 }}>
+              <div className="eyebrow accent" style={{ fontWeight: 700 }}>Ask RAIS</div>
+              <div className="muted" style={{ fontSize: 12, fontWeight: 500, color: "var(--text-3)" }}>
                 Every answer becomes a saveable insight slide.
               </div>
             </div>
@@ -123,17 +123,18 @@ export default function ChatPanel({
                 key={q}
                 onClick={() => submit(q)}
                 disabled={loading}
-                className="mono"
+                className="num card-hover"
                 style={{
                   padding: "6px 12px",
-                  border: "1px solid var(--hairline-strong)",
-                  background: "var(--paper-soft)",
+                  border: "1px solid var(--border)",
+                  background: "var(--surface-2)",
+                  color: "var(--text)",
                   fontSize: 11,
-                  borderRadius: 999,
+                  borderRadius: "var(--radius-pill)",
                   letterSpacing: "0.02em",
                   cursor: loading ? "default" : "pointer",
                   opacity: loading ? 0.55 : 1,
-                  transition: "all 0.15s",
+                  transition: "all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)",
                 }}
               >
                 {q}
@@ -150,13 +151,13 @@ export default function ChatPanel({
               display: "flex",
               alignItems: "center",
               gap: 12,
-              border: "2px solid var(--ink)",
-              background: "var(--paper-soft)",
+              border: "1.5px solid var(--border-strong)",
+              background: "var(--surface-2)",
               padding: "4px 4px 4px 18px",
-              borderRadius: 999,
+              borderRadius: "var(--radius-pill)",
             }}
           >
-            <Icon name="search" size={16} />
+            <Icon name="search" size={16} style={{ color: "var(--text-3)" }} />
             <input
               type="text"
               value={text}
@@ -170,7 +171,8 @@ export default function ChatPanel({
                 background: "transparent",
                 padding: "12px 0",
                 fontSize: 15,
-                fontFamily: "var(--sans)",
+                color: "var(--text)",
+                fontFamily: "var(--font-sans)",
               }}
             />
             <button
@@ -178,7 +180,7 @@ export default function ChatPanel({
               className="btn accent"
               disabled={loading || !text.trim()}
               style={{
-                borderRadius: 999,
+                borderRadius: "var(--radius-pill)",
                 padding: "10px 18px",
                 opacity: loading || !text.trim() ? 0.6 : 1,
               }}
@@ -188,12 +190,13 @@ export default function ChatPanel({
           </form>
           {error && (
             <div
-              className="mono"
+              className="num"
               style={{
                 marginTop: 8,
-                color: "var(--accent)",
+                color: "var(--critical)",
                 fontSize: 11,
                 letterSpacing: "0.04em",
+                fontWeight: 600,
               }}
             >
               {error}
@@ -208,15 +211,15 @@ export default function ChatPanel({
             right: 36,
             bottom: 24,
             padding: "14px 22px",
-            background: "var(--ink)",
-            color: "var(--paper)",
-            fontFamily: "var(--sans)",
-            fontWeight: 600,
+            background: "var(--accent)",
+            color: "var(--text-invert)",
+            fontFamily: "var(--font-sans)",
+            fontWeight: 700,
             fontSize: 12,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            borderRadius: 999,
-            boxShadow: "0 6px 20px -8px rgba(20,18,12,0.4)",
+            borderRadius: "var(--radius-pill)",
+            boxShadow: "var(--shadow-2)",
             display: "flex",
             alignItems: "center",
             gap: 8,

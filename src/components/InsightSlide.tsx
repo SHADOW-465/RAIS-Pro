@@ -12,17 +12,11 @@ import {
   Donut,
 } from "@/components/editorial/EditorialCharts";
 import type { InsightSlide as InsightSlideType, InsightChart } from "@/types/dashboard";
+import { safeBolden } from "./Dashboard";
 
 interface InsightSlideProps {
   slide: InsightSlideType;
   onRemove?: () => void;
-}
-
-function bolden(s: string): string {
-  return s.replace(
-    /([0-9]+(?:\.[0-9]+)?%?(?:\s*pt)?|LOT-[A-Z0-9-]+|Line-\d+|Line\s\d+)/g,
-    '<strong style="font-weight:700; font-family:var(--mono); padding:1px 4px; background:var(--paper-deep);">$1</strong>',
-  );
 }
 
 function renderInsightChart(chart: InsightChart) {
@@ -62,9 +56,9 @@ export default function InsightSlide({ slide, onRemove }: InsightSlideProps) {
   const handleSave = async () => {
     if (!slideRef.current) return;
     try {
-      const paper = getComputedStyle(document.body).getPropertyValue("--paper-soft").trim() || "#FAF8F2";
+      const accentWeak = getComputedStyle(document.body).getPropertyValue("--accent-weak").trim() || "#EEF0FF";
       const canvas = await html2canvas(slideRef.current, {
-        backgroundColor: paper,
+        backgroundColor: accentWeak,
         scale: 2,
         useCORS: true,
       });
@@ -93,9 +87,9 @@ export default function InsightSlide({ slide, onRemove }: InsightSlideProps) {
       id={slide.id ? `slide-${slide.id}` : undefined}
       className="fade-up"
       style={{
-        background: "var(--paper-soft)",
-        border: "1px solid var(--hairline)",
-        borderLeft: "4px solid var(--accent)",
+        background: "var(--accent-weak)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-lg)",
         padding: 28,
         position: "relative",
       }}
@@ -103,10 +97,13 @@ export default function InsightSlide({ slide, onRemove }: InsightSlideProps) {
       {/* Top row */}
       <div className="between mb-4" style={{ alignItems: "flex-start", gap: 16 }}>
         <div className="flex gap-3" style={{ alignItems: "center", flexWrap: "wrap" }}>
-          <Pill tone="accent">Drill-down</Pill>
+          <Pill tone="accent">
+            <span className="flex" style={{ alignItems: "center", gap: 4 }}>
+              <Icon name="spark" size={10} /> Drill-down
+            </span>
+          </Pill>
           <span
-            className="serif"
-            style={{ fontStyle: "italic", fontSize: 15, color: "var(--muted)" }}
+            style={{ fontFamily: "var(--font-sans)", fontStyle: "italic", fontSize: 14, color: "var(--text-3)", fontWeight: 500 }}
           >
             &ldquo;{slide.question}&rdquo;
           </span>
@@ -126,13 +123,14 @@ export default function InsightSlide({ slide, onRemove }: InsightSlideProps) {
 
       {/* Headline */}
       <h3
-        className="serif tracked-tight"
         style={{
-          fontSize: 28,
-          fontWeight: 500,
+          fontFamily: "var(--font-display)",
+          fontSize: 24,
+          fontWeight: 800,
           margin: "8px 0 20px",
-          lineHeight: 1.15,
+          lineHeight: 1.25,
           letterSpacing: "-0.02em",
+          color: "var(--text)",
           maxWidth: 900,
         }}
       >
@@ -160,8 +158,8 @@ export default function InsightSlide({ slide, onRemove }: InsightSlideProps) {
               <div key={i}>
                 {chart.title && (
                   <div
-                    className="eyebrow muted"
-                    style={{ fontSize: 10, marginBottom: 6 }}
+                    className="eyebrow"
+                    style={{ fontSize: 10, marginBottom: 6, color: "var(--text-3)", fontWeight: 700 }}
                   >
                     {chart.title}
                   </div>
@@ -180,7 +178,7 @@ export default function InsightSlide({ slide, onRemove }: InsightSlideProps) {
                 padding: "10px 0",
                 borderBottom:
                   i < slide.bullets.length - 1
-                    ? "1px dashed var(--hairline)"
+                    ? "1px dashed var(--border)"
                     : "none",
                 fontSize: 13,
                 lineHeight: 1.55,
@@ -188,7 +186,7 @@ export default function InsightSlide({ slide, onRemove }: InsightSlideProps) {
               }}
             >
               <span
-                className="mono"
+                className="num"
                 style={{
                   color: "var(--accent)",
                   fontWeight: 700,
@@ -198,7 +196,7 @@ export default function InsightSlide({ slide, onRemove }: InsightSlideProps) {
               >
                 {String(i + 1).padStart(2, "0")}
               </span>
-              <span dangerouslySetInnerHTML={{ __html: bolden(b) }} />
+              <span style={{ color: "var(--text)" }}>{safeBolden(b)}</span>
             </li>
           ))}
         </ul>
@@ -206,14 +204,14 @@ export default function InsightSlide({ slide, onRemove }: InsightSlideProps) {
 
       {/* Footer */}
       <div
-        className="mt-6 between mono"
+        className="mt-6 between num"
         style={{
           paddingTop: 14,
-          borderTop: "1px solid var(--hairline)",
+          borderTop: "1px solid var(--border)",
           fontSize: 10,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          color: "var(--muted)",
+          color: "var(--text-3)",
         }}
       >
         <span>RAIS · Insight slide{slide.id ? ` #${slide.id.slice(0, 6)}` : ""}</span>

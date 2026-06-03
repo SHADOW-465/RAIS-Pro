@@ -17,15 +17,35 @@ function isAccepted(file: File) {
 export default function UploadZone({ onUpload }: UploadZoneProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [rejections, setRejections] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const addFiles = useCallback((incoming: File[]) => {
-    const valid = incoming.filter(isAccepted);
-    if (valid.length === 0) return;
-    setFiles((prev) => {
-      const names = new Set(prev.map((f) => f.name));
-      return [...prev, ...valid.filter((f) => !names.has(f.name))];
+    const valid: File[] = [];
+    const newRejections: string[] = [];
+
+    incoming.forEach((file) => {
+      if (!isAccepted(file)) {
+        newRejections.push(`${file.name} (Unsupported format. Only .xlsx, .xls, .csv allowed)`);
+      } else if (file.size > 50 * 1024 * 1024) {
+        newRejections.push(`${file.name} (File exceeds 50 MB limit)`);
+      } else {
+        valid.push(file);
+      }
     });
+
+    if (newRejections.length > 0) {
+      setRejections(newRejections);
+    } else {
+      setRejections([]);
+    }
+
+    if (valid.length > 0) {
+      setFiles((prev) => {
+        const names = new Set(prev.map((f) => f.name));
+        return [...prev, ...valid.filter((f) => !names.has(f.name))];
+      });
+    }
   }, []);
 
   const onDrop = (e: React.DragEvent) => {
@@ -53,13 +73,13 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         onClick={() => inputRef.current?.click()}
         style={{
           border: `2px dashed ${
-            dragOver ? "var(--accent)" : "var(--hairline-strong)"
+            dragOver ? "var(--accent)" : "var(--border-strong)"
           }`,
-          background: dragOver ? "var(--accent-soft)" : "var(--paper-soft)",
+          background: dragOver ? "var(--accent-weak)" : "var(--surface)",
           padding: 56,
-          transition: "all 0.2s ease",
+          transition: "all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)",
           cursor: "pointer",
-          borderRadius: "var(--card-radius)",
+          borderRadius: "var(--radius-lg)",
           position: "relative",
         }}
       >
@@ -74,23 +94,27 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         <div className="flex gap-6" style={{ alignItems: "center" }}>
           <div
             style={{
-              width: 64,
-              height: 64,
-              border: "1.5px solid var(--ink)",
+              width: 56,
+              height: 56,
+              border: "1px solid var(--border)",
+              background: "var(--surface-2)",
               display: "grid",
               placeItems: "center",
               flexShrink: 0,
+              borderRadius: "var(--radius-md)",
+              transition: "transform 0.2s",
+              transform: dragOver ? "scale(1.1) translateY(-2px)" : "none",
             }}
           >
-            <Icon name="upload" size={28} stroke={1.5} />
+            <Icon name="upload" size={24} stroke={1.5} style={{ color: "var(--accent)" }} />
           </div>
           <div style={{ flex: 1 }}>
             <div
-              className="serif"
               style={{
-                fontSize: 26,
-                fontWeight: 600,
-                letterSpacing: "-0.01em",
+                fontFamily: "var(--font-display)",
+                fontSize: 24,
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
               }}
             >
               Drop spreadsheets here, or{" "}
@@ -114,12 +138,14 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
               {["xlsx", "xls", "csv"].map((t) => (
                 <span
                   key={t}
-                  className="mono"
+                  className="num"
                   style={{
                     fontSize: 10,
                     padding: "3px 8px",
-                    border: "1px solid var(--ink)",
-                    fontWeight: 600,
+                    border: "1px solid var(--border-strong)",
+                    background: "var(--surface-2)",
+                    borderRadius: "var(--radius-sm)",
+                    fontWeight: 700,
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
                   }}
@@ -135,14 +161,48 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         </div>
       </div>
 
+      {/* Rejection Feedbacks */}
+      {rejections.length > 0 && (
+        <div className="mt-4 fade-up" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {rejections.map((rej, idx) => (
+            <div
+              key={idx}
+              className="flex gap-3"
+              style={{
+                background: "var(--critical-weak)",
+                border: "1px solid var(--critical)",
+                padding: "10px 14px",
+                borderRadius: "var(--radius-md)",
+                fontSize: 13,
+                alignItems: "center",
+                color: "var(--text)",
+              }}
+            >
+              <Icon name="alert" size={14} style={{ color: "var(--critical)" }} />
+              <span style={{ fontWeight: 600 }}>{rej}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRejections((prev) => prev.filter((_, i) => i !== idx));
+                }}
+                style={{ marginLeft: "auto", cursor: "pointer", opacity: 0.6 }}
+                aria-label="Dismiss error"
+              >
+                <Icon name="x" size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Queued files */}
       {files.length > 0 && (
         <div className="mt-6 fade-up">
           <div className="between mb-3">
-            <div className="eyebrow">
+            <div className="eyebrow" style={{ fontWeight: 700 }}>
               {files.length} file{files.length > 1 ? "s" : ""} queued
             </div>
-            <button className="btn ghost sm" onClick={() => setFiles([])}>
+            <button className="btn ghost sm" onClick={() => { setFiles([]); setRejections([]); }}>
               Clear all
             </button>
           </div>
@@ -150,26 +210,28 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 8,
+              gap: 12,
             }}
           >
             {files.map((f, i) => (
               <div
                 key={`${f.name}-${i}`}
-                className="flex gap-3"
+                className="flex gap-3 card-hover"
                 style={{
-                  padding: "10px 12px",
-                  background: "var(--paper-soft)",
-                  border: "1px solid var(--hairline)",
+                  padding: "12px 14px",
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
                   alignItems: "center",
+                  borderRadius: "var(--radius-md)",
+                  animationDelay: `${i * 0.05}s`,
                 }}
               >
-                <Icon name="file" size={18} stroke={1.4} />
+                <Icon name="file" size={18} stroke={1.4} style={{ color: "var(--accent)" }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
                       fontSize: 13,
-                      fontWeight: 500,
+                      fontWeight: 600,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -177,7 +239,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                   >
                     {f.name}
                   </div>
-                  <div className="muted mono" style={{ fontSize: 10 }}>
+                  <div className="muted num" style={{ fontSize: 10 }}>
                     {(f.size / 1024).toFixed(1)} KB · .
                     {f.name.split(".").pop()?.toLowerCase()}
                   </div>
@@ -187,7 +249,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                     e.stopPropagation();
                     remove(i);
                   }}
-                  style={{ color: "var(--muted)" }}
+                  style={{ color: "var(--text-3)", cursor: "pointer" }}
                   aria-label="Remove file"
                 >
                   <Icon name="x" size={14} />
@@ -202,7 +264,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
             <button className="btn accent" onClick={analyze}>
               <Icon name="spark" size={14} /> Analyze with RAIS
             </button>
-            <div className="muted" style={{ fontSize: 12 }}>
+            <div className="muted num" style={{ fontSize: 12 }}>
               Estimated 12–25 sec
             </div>
           </div>

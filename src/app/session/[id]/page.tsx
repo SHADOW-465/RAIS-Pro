@@ -66,7 +66,7 @@ export default function SessionPage({ params }: Props) {
           style={{ maxWidth: 480, textAlign: "center", padding: 36 }}
         >
           <div className="eyebrow accent" style={{ marginBottom: 8 }}>Error</div>
-          <h2 className="serif tracked-tight" style={{ fontSize: 26, fontWeight: 500, margin: "0 0 12px" }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.02em" }}>
             Could not load session
           </h2>
           <p className="muted" style={{ fontSize: 13, marginBottom: 20 }}>{error}</p>

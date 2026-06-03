@@ -1,4 +1,4 @@
-"use client";
+import { useId, useState } from "react";
 
 /**
  * Inline SVG editorial charts. Each chart respects the body[data-chart-style]
@@ -8,6 +8,23 @@
 
 function buildLinePath(values: number[], xs: (i: number) => number, ys: (v: number) => number) {
   return values.map((v, i) => `${i === 0 ? "M" : "L"} ${xs(i)} ${ys(v)}`).join(" ");
+}
+
+function buildBezierPath(values: number[], xs: (i: number) => number, ys: (v: number) => number) {
+  if (values.length === 0) return "";
+  let path = `M ${xs(0)} ${ys(values[0])}`;
+  for (let i = 0; i < values.length - 1; i++) {
+    const x0 = xs(i);
+    const y0 = ys(values[i]);
+    const x1 = xs(i + 1);
+    const y1 = ys(values[i + 1]);
+    const cp1x = x0 + (x1 - x0) * 0.35;
+    const cp1y = y0;
+    const cp2x = x1 - (x1 - x0) * 0.35;
+    const cp2y = y1;
+    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x1} ${y1}`;
+  }
+  return path;
 }
 
 function chartStyle(): "filled" | "outline" | "minimal" {
@@ -40,11 +57,14 @@ export function TrendLine({
   const max = Math.max(...values, target ?? -Infinity) * 1.06;
   const xs = (i: number) => padL + (i * innerW) / Math.max(1, values.length - 1);
   const ys = (v: number) => padT + innerH - ((v - min) / Math.max(0.0001, max - min)) * innerH;
-  const path = buildLinePath(values, xs, ys);
+  const path = buildBezierPath(values, xs, ys);
   const areaPath =
     path + ` L ${xs(values.length - 1)} ${padT + innerH} L ${xs(0)} ${padT + innerH} Z`;
   const style = chartStyle();
   const lastIdx = values.length - 1;
+  const gradId = useId().replace(/:/g, "");
+
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   return (
     <svg
@@ -53,6 +73,12 @@ export function TrendLine({
       preserveAspectRatio="none"
       style={{ overflow: "visible" }}
     >
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--viz-1)" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="var(--viz-1)" stopOpacity="0.0" />
+        </linearGradient>
+      </defs>
       {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
         <line
           key={i}
@@ -60,7 +86,7 @@ export function TrendLine({
           x2={w - padR}
           y1={padT + innerH * p}
           y2={padT + innerH * p}
-          stroke="var(--hairline)"
+          stroke="var(--border)"
           strokeWidth="1"
         />
       ))}
@@ -69,7 +95,7 @@ export function TrendLine({
         x2={w - padR}
         y1={padT + innerH}
         y2={padT + innerH}
-        stroke="var(--ink)"
+        stroke="var(--border-strong)"
         strokeWidth="1.5"
       />
       {showTarget && target !== undefined && (
@@ -79,7 +105,7 @@ export function TrendLine({
             x2={w - padR}
             y1={ys(target)}
             y2={ys(target)}
-            stroke="var(--ink)"
+            stroke="var(--text-3)"
             strokeWidth="1"
             strokeDasharray="4 4"
             opacity="0.55"
@@ -89,47 +115,99 @@ export function TrendLine({
             y={ys(target) - 6}
             fontSize="10"
             textAnchor="end"
-            fontFamily="var(--mono)"
-            fill="var(--ink)"
+            fontFamily="var(--font-mono)"
+            fill="var(--text-3)"
           >
             target {target.toFixed(2)}
           </text>
         </g>
       )}
-      {style === "filled" && <path d={areaPath} fill="var(--accent)" opacity="0.10" />}
+      {style === "filled" && <path d={areaPath} fill={`url(#${gradId})`} />}
       <path
         d={path}
         fill="none"
-        stroke={style === "minimal" ? "var(--ink)" : "var(--accent)"}
+        stroke={style === "minimal" ? "var(--text)" : "var(--viz-1)"}
         strokeWidth={style === "minimal" ? 1.5 : 2.25}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       {values.map((v, i) => {
-        const r = i === lastIdx ? 5 : style === "minimal" ? 0 : 3;
-        const isAccent = i === lastIdx || i === accentIdx;
+        const isHovered = hoveredIdx === i;
+        const r = i === lastIdx ? 5.5 : style === "minimal" ? (isHovered ? 4.5 : 0) : (isHovered ? 5 : 3.5);
+        const isAccent = i === lastIdx || i === accentIdx || isHovered;
         return (
           <circle
             key={i}
             cx={xs(i)}
             cy={ys(v)}
             r={r}
-            fill={isAccent ? "var(--accent)" : "var(--paper-soft)"}
-            stroke={isAccent ? "var(--accent)" : "var(--ink)"}
-            strokeWidth="1.5"
+            fill={isAccent ? "var(--viz-1)" : "var(--surface)"}
+            stroke={isAccent ? "var(--viz-1)" : "var(--border)"}
+            strokeWidth="2"
+            onMouseEnter={() => setHoveredIdx(i)}
+            onMouseLeave={() => setHoveredIdx(null)}
+            style={{ cursor: "pointer", transition: "r 0.15s ease" }}
           />
         );
       })}
-      <text
-        x={xs(lastIdx) + 10}
-        y={ys(values[lastIdx]) - 10}
-        fontSize="13"
-        fontFamily="var(--mono)"
-        fontWeight="600"
-        fill="var(--accent)"
-      >
-        {values[lastIdx].toFixed(2)}
-      </text>
+      {hoveredIdx === null && (
+        <text
+          x={xs(lastIdx) + 10}
+          y={ys(values[lastIdx]) - 10}
+          fontSize="13"
+          fontFamily="var(--font-mono)"
+          fontWeight="800"
+          fill="var(--viz-1)"
+        >
+          {values[lastIdx].toFixed(2)}%
+        </text>
+      )}
+      {hoveredIdx !== null && (
+        <g pointerEvents="none">
+          <rect
+            x={xs(hoveredIdx) - 60}
+            y={ys(values[hoveredIdx]) - 54}
+            width={120}
+            height={44}
+            rx={6}
+            fill="var(--surface)"
+            stroke="var(--border-strong)"
+            strokeWidth="1"
+          />
+          <text
+            x={xs(hoveredIdx)}
+            y={ys(values[hoveredIdx]) - 38}
+            fontSize="10"
+            fontWeight="700"
+            textAnchor="middle"
+            fill="var(--text-2)"
+            fontFamily="var(--font-sans)"
+            letterSpacing="0.04em"
+          >
+            {cycles[hoveredIdx].toUpperCase()}
+          </text>
+          <text
+            x={xs(hoveredIdx)}
+            y={ys(values[hoveredIdx]) - 22}
+            fontSize="13"
+            textAnchor="middle"
+            fill="var(--viz-1)"
+            fontFamily="var(--font-mono)"
+            fontWeight="800"
+          >
+            {values[hoveredIdx].toFixed(2)}%
+          </text>
+          <line
+            x1={xs(hoveredIdx)}
+            x2={xs(hoveredIdx)}
+            y1={ys(values[hoveredIdx]) - 10}
+            y2={ys(values[hoveredIdx])}
+            stroke="var(--viz-1)"
+            strokeWidth="1"
+            strokeDasharray="2 2"
+          />
+        </g>
+      )}
       {cycles.map((c, i) => (
         <text
           key={`${c}-${i}`}
@@ -137,8 +215,8 @@ export function TrendLine({
           y={h - 8}
           fontSize="11"
           textAnchor="middle"
-          fontFamily="var(--sans)"
-          fill="var(--muted)"
+          fontFamily="var(--font-sans)"
+          fill="var(--text-3)"
           letterSpacing="0.1em"
         >
           {c.toUpperCase()}
@@ -171,6 +249,7 @@ export function HorizontalBars({
   const barX = labelW + 12;
   const barW = w - barX - padR;
   const style = chartStyle();
+  const baseId = useId().replace(/:/g, "");
 
   return (
     <svg viewBox={`0 0 ${w} ${height}`} width="100%" preserveAspectRatio="none" style={{ overflow: "visible" }}>
@@ -180,19 +259,26 @@ export function HorizontalBars({
         const y = padT + i * rowH;
         const cy = y + rowH / 2;
         const isTop = accentTop && i === 0;
-        const fill = isTop ? "var(--accent)" : style === "minimal" ? "transparent" : "var(--ink)";
-        const stroke = isTop ? "var(--accent)" : "var(--ink)";
+        const fill = `var(--viz-${(i % 8) + 1})`;
+        const stroke = fill;
+        const gradId = `${baseId}-grad-${i}`;
 
         return (
           <g key={i}>
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={fill} stopOpacity="0.3" />
+                <stop offset="100%" stopColor={fill} stopOpacity="0.95" />
+              </linearGradient>
+            </defs>
             <text
               x={labelW}
               y={cy + 4}
               fontSize="13"
               textAnchor="end"
-              fontFamily="var(--sans)"
-              fontWeight={isTop ? 600 : 500}
-              fill="var(--ink)"
+              fontFamily="var(--font-sans)"
+              fontWeight={isTop ? 700 : 500}
+              fill="var(--text)"
             >
               {d[labelKey]}
             </text>
@@ -201,17 +287,18 @@ export function HorizontalBars({
               y={cy - rowH * 0.32}
               width={Math.max(0, bw)}
               height={rowH * 0.64}
-              fill={style === "outline" ? "transparent" : fill}
-              stroke={style === "outline" ? stroke : "none"}
-              strokeWidth="1.5"
+              rx="6"
+              fill={style === "outline" ? "transparent" : `url(#${gradId})`}
+              stroke={stroke}
+              strokeWidth="1.2"
             />
             <text
               x={barX + bw + 8}
               y={cy + 4}
               fontSize="12"
-              fontFamily="var(--mono)"
-              fontWeight="600"
-              fill="var(--ink)"
+              fontFamily="var(--font-mono)"
+              fontWeight="700"
+              fill="var(--text)"
             >
               {v}
               {suffix}
@@ -252,9 +339,22 @@ export function VerticalBars({
   const barW = Math.min(bandW * 0.55, 80);
   const style = chartStyle();
 
+  const baseId = useId().replace(/:/g, "");
+
+  // Find the index of the worst performer (highest valueKey, since rates and defect counts are "higher is worse")
+  let worstIdx = -1;
+  let maxVal = -Infinity;
+  data.forEach((d, idx) => {
+    const val = d[valueKey] as number;
+    if (typeof val === "number" && val > maxVal) {
+      maxVal = val;
+      worstIdx = idx;
+    }
+  });
+
   return (
     <svg viewBox={`0 0 ${w} ${height}`} width="100%" preserveAspectRatio="none" style={{ overflow: "visible" }}>
-      <line x1={padL} x2={w - padR} y1={padT + innerH} y2={padT + innerH} stroke="var(--ink)" strokeWidth="1.5" />
+      <line x1={padL} x2={w - padR} y1={padT + innerH} y2={padT + innerH} stroke="var(--border-strong)" strokeWidth="1.5" />
       {target !== null && target !== undefined && (
         <g>
           <line
@@ -262,7 +362,7 @@ export function VerticalBars({
             x2={w - padR}
             y1={padT + innerH - (target / max) * innerH}
             y2={padT + innerH - (target / max) * innerH}
-            stroke="var(--ink)"
+            stroke="var(--border-strong)"
             strokeWidth="1"
             strokeDasharray="4 4"
             opacity="0.55"
@@ -272,8 +372,8 @@ export function VerticalBars({
             y={padT + innerH - (target / max) * innerH - 4}
             fontSize="10"
             textAnchor="end"
-            fontFamily="var(--mono)"
-            fill="var(--ink)"
+            fontFamily="var(--font-mono)"
+            fill="var(--text-3)"
           >
             target {target}{suffix}
           </text>
@@ -284,27 +384,50 @@ export function VerticalBars({
         const bh = (v / max) * innerH;
         const x = padL + i * bandW + bandW / 2 - barW / 2;
         const y = padT + innerH - bh;
-        const isAccent = i === accentIdx;
-        const fill = isAccent ? "var(--accent)" : style === "minimal" ? "transparent" : "var(--ink)";
+        
+        const isWorst = i === worstIdx;
+        const fill = isWorst ? "var(--critical)" : "var(--viz-1)";
+        const gradId = `${baseId}-vgrad-${i}`;
         return (
           <g key={i}>
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={fill} stopOpacity="0.95" />
+                <stop offset="100%" stopColor={fill} stopOpacity="0.3" />
+              </linearGradient>
+            </defs>
             <rect
               x={x}
               y={y}
               width={barW}
               height={Math.max(0, bh)}
-              fill={style === "outline" ? "transparent" : fill}
-              stroke={style === "outline" ? (isAccent ? "var(--accent)" : "var(--ink)") : "none"}
-              strokeWidth="1.5"
+              rx="6"
+              fill={style === "outline" ? "transparent" : `url(#${gradId})`}
+              stroke={fill}
+              strokeWidth="1.2"
             />
+            {isWorst && (
+              <text
+                x={x + barW / 2}
+                y={y - 24}
+                fontSize="9"
+                fontWeight="700"
+                textAnchor="middle"
+                fill="var(--critical)"
+                fontFamily="var(--font-sans)"
+                letterSpacing="0.05em"
+              >
+                ▲ WORST
+              </text>
+            )}
             <text
               x={x + barW / 2}
               y={y - 8}
               fontSize="14"
-              fontWeight="600"
+              fontWeight="800"
               textAnchor="middle"
-              fontFamily="var(--mono)"
-              fill="var(--ink)"
+              fontFamily="var(--font-mono)"
+              fill={isWorst ? "var(--critical)" : "var(--text)"}
             >
               {typeof v === "number" ? v.toFixed(2) : v}
               {suffix}
@@ -314,8 +437,8 @@ export function VerticalBars({
               y={padT + innerH + 18}
               fontSize="11"
               textAnchor="middle"
-              fontFamily="var(--sans)"
-              fill="var(--ink)"
+              fontFamily="var(--font-sans)"
+              fill="var(--text-2)"
               fontWeight="500"
               letterSpacing="0.04em"
             >
@@ -327,8 +450,8 @@ export function VerticalBars({
                 y={padT + innerH + 32}
                 fontSize="10"
                 textAnchor="middle"
-                fontFamily="var(--mono)"
-                fill="var(--muted)"
+                fontFamily="var(--font-mono)"
+                fill="var(--text-3)"
               >
                 {subLabelFn(d)}
               </text>
@@ -361,10 +484,18 @@ export function Donut({
   const inner = r * 0.62;
   const style = chartStyle();
 
-  function sliceColor(i: number) {
-    if (i === 0) return "var(--accent)";
-    const palette = ["#1F1D18", "#3F3D34", "#615C50", "#85806F", "#A8A28F", "#C9C0A6"];
-    return palette[(i - 1) % palette.length];
+  function sliceColor(label: string, i: number) {
+    const l = label.toLowerCase();
+    if (l.includes("reject") || l.includes("defect") || l.includes("fail")) {
+      return "var(--critical)";
+    }
+    if (l.includes("accept") || l.includes("pass") || l.includes("ok") || l.includes("good")) {
+      return "var(--positive)";
+    }
+    if (l.includes("hold")) {
+      return "var(--warning)";
+    }
+    return `var(--viz-${(i % 8) + 1})`;
   }
 
   let cursor = -Math.PI / 2;
@@ -389,14 +520,15 @@ export function Donut({
           `A ${inner} ${inner} 0 ${large} 0 ${ix2} ${iy2}`,
           "Z",
         ].join(" ");
-        const fill = style === "outline" ? "transparent" : sliceColor(i);
+        const label = d[labelKey] || "";
+        const fill = style === "outline" ? "transparent" : sliceColor(label, i);
         cursor += angle;
         return (
           <path
             key={`${d[labelKey]}-${i}`}
             d={path}
             fill={fill}
-            stroke={sliceColor(i)}
+            stroke={sliceColor(label, i)}
             strokeWidth="1"
           />
         );
@@ -406,8 +538,8 @@ export function Donut({
         y={cy - 4}
         fontSize="11"
         textAnchor="middle"
-        fontFamily="var(--sans)"
-        fill="var(--muted)"
+        fontFamily="var(--font-sans)"
+        fill="var(--text-3)"
         letterSpacing="0.12em"
       >
         {centerLabel}
@@ -416,10 +548,10 @@ export function Donut({
         x={cx}
         y={cy + 16}
         fontSize="26"
-        fontWeight="700"
+        fontWeight="800"
         textAnchor="middle"
-        fontFamily="var(--serif)"
-        fill="var(--ink)"
+        fontFamily="var(--font-display)"
+        fill="var(--text)"
       >
         {total}
       </text>
@@ -444,11 +576,22 @@ export function Sparkline({
   const max = Math.max(...values);
   const xs = (i: number) => (i * width) / (values.length - 1);
   const ys = (v: number) => height - 2 - ((v - min) / Math.max(0.0001, max - min || 1)) * (height - 4);
-  const d = buildLinePath(values, xs, ys);
+  const d = buildBezierPath(values, xs, ys);
   const isBad = trend.includes("bad");
-  const color = isBad ? "var(--accent)" : "var(--positive)";
+  const color = isBad ? "var(--critical)" : "var(--positive)";
+  const baseId = useId().replace(/:/g, "");
+  const gradId = `${baseId}-spark-grad`;
+  const areaPath = d + ` L ${xs(values.length - 1)} ${height} L ${xs(0)} ${height} Z`;
+
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} style={{ overflow: "visible" }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradId})`} />
       <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
       <circle cx={xs(values.length - 1)} cy={ys(values[values.length - 1])} r="2.5" fill={color} />
     </svg>
@@ -475,24 +618,42 @@ export function DualLine({
   const xs = (i: number) => padL + (i * innerW) / Math.max(1, len - 1);
   const ys = (v: number) => padT + innerH - ((v - min) / Math.max(0.0001, max - min)) * innerH;
 
-  const colors = ["var(--accent)", "var(--ink)"];
+  const colors = ["var(--viz-1)", "var(--viz-2)"];
 
   return (
     <svg viewBox={`0 0 ${w} ${height}`} width="100%" style={{ overflow: "visible" }}>
-      <line x1={padL} x2={w - padR} y1={padT + innerH} y2={padT + innerH} stroke="var(--ink)" strokeWidth="1.5" />
+      <line x1={padL} x2={w - padR} y1={padT + innerH} y2={padT + innerH} stroke="var(--border-strong)" strokeWidth="1.5" />
       {keys.map((k, ki) => {
         const vals = data[k];
         const segments: string[] = [];
-        let current = "";
+        let currentGroup: Array<{ v: number; i: number }> = [];
+        
         vals.forEach((v, i) => {
           if (v === null) {
-            if (current) segments.push(current);
-            current = "";
+            if (currentGroup.length > 0) {
+              segments.push(
+                buildBezierPath(
+                  currentGroup.map((g) => g.v),
+                  (idx) => xs(currentGroup[idx].i),
+                  (val) => ys(val),
+                ),
+              );
+              currentGroup = [];
+            }
           } else {
-            current += `${current === "" ? "M" : "L"} ${xs(i)} ${ys(v)} `;
+            currentGroup.push({ v, i });
           }
         });
-        if (current) segments.push(current);
+        if (currentGroup.length > 0) {
+          segments.push(
+            buildBezierPath(
+              currentGroup.map((g) => g.v),
+              (idx) => xs(currentGroup[idx].i),
+              (val) => ys(val),
+            ),
+          );
+        }
+        
         const isForecast = k.toLowerCase().includes("forecast");
         return (
           <g key={k}>
@@ -515,7 +676,7 @@ export function DualLine({
                   cy={ys(v)}
                   r="3"
                   fill={colors[ki % colors.length]}
-                  stroke="var(--paper-soft)"
+                  stroke="var(--surface)"
                   strokeWidth="1.5"
                 />
               ) : null,
@@ -527,7 +688,7 @@ export function DualLine({
         {keys.map((k, i) => (
           <g key={k} transform={`translate(${i * 110}, 0)`}>
             <rect x="0" y="-9" width="14" height="3" fill={colors[i % colors.length]} />
-            <text x="20" y="0" fontSize="10" fontFamily="var(--sans)" fill="var(--muted)" letterSpacing="0.08em">
+            <text x="20" y="0" fontSize="10" fontFamily="var(--font-sans)" fill="var(--text-3)" letterSpacing="0.08em">
               {k.toUpperCase()}
             </text>
           </g>

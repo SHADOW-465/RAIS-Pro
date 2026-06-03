@@ -1,60 +1,58 @@
 import type { Metadata } from "next";
 import {
   Plus_Jakarta_Sans,
-  Lora,
+  Inter,
   JetBrains_Mono,
-  Barlow_Semi_Condensed,
 } from "next/font/google";
 import "./globals.css";
 import { TweaksProvider } from "@/components/editorial/TweaksContext";
-import TweaksPanel from "@/components/editorial/TweaksPanel";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-plus-jakarta-sans",
+  variable: "--font-display",
 });
 
-const lora = Lora({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-lora",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sans",
 });
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-  variable: "--font-jetbrains-mono",
-});
-
-const barlowSemiCondensed = Barlow_Semi_Condensed({
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
-  variable: "--font-barlow-semi-condensed",
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
-  title: "RAIS Pro — The Rejection Report",
-  description: "Editorial diagnostic for pharma operations.",
+  title: "RAIS Pro — Rejection Diagnostic",
+  description: "Soft modern diagnostic briefing for plant operations.",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const theme = localStorage.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+              } catch (_) {}
+            `,
+          }}
+        />
+      </head>
       <body
-        className={`${plusJakartaSans.variable} ${lora.variable} ${jetbrainsMono.variable} ${barlowSemiCondensed.variable}`}
-        data-density="comfortable"
-        data-bg="warm"
-        data-card="outlined"
-        data-chart-style="filled"
-        style={{ fontFamily: "var(--sans)" }}
+        className={`${plusJakartaSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+        style={{ fontFamily: "var(--font-sans)" }}
       >
         <TweaksProvider>
           {children}
-          <TweaksPanel />
         </TweaksProvider>
       </body>
     </html>

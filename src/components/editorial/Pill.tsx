@@ -2,15 +2,16 @@
 
 import type { ReactNode } from "react";
 
-type Tone = "ink" | "accent" | "outline" | "soft" | "critical" | "positive";
+type Tone = "ink" | "accent" | "outline" | "soft" | "critical" | "positive" | "warning";
 
 const STYLES: Record<Tone, { bg: string; fg: string; border?: string }> = {
-  ink:      { bg: "var(--ink)",        fg: "var(--paper-soft)" },
-  accent:   { bg: "var(--accent)",     fg: "var(--paper-soft)" },
-  outline:  { bg: "transparent",       fg: "var(--ink)", border: "1px solid var(--ink)" },
-  soft:     { bg: "var(--paper-deep)", fg: "var(--ink)" },
-  critical: { bg: "var(--critical)",   fg: "#FCE7E7" },
-  positive: { bg: "var(--positive)",   fg: "#E7F5EC" },
+  ink:      { bg: "var(--text)",        fg: "var(--text-invert)" },
+  accent:   { bg: "var(--accent-weak)", fg: "var(--accent-text)" },
+  outline:  { bg: "transparent",        fg: "var(--text-2)", border: "1px solid var(--border-strong)" },
+  soft:     { bg: "var(--surface-2)",   fg: "var(--text-2)" },
+  critical: { bg: "var(--critical-weak)", fg: "var(--critical)" },
+  positive: { bg: "var(--positive-weak)", fg: "var(--positive)" },
+  warning:  { bg: "var(--warning-weak)",  fg: "var(--warning)" },
 };
 
 export default function Pill({
@@ -27,15 +28,16 @@ export default function Pill({
         display: "inline-flex",
         alignItems: "center",
         gap: 4,
-        fontFamily: "var(--sans)",
+        fontFamily: "var(--font-sans)",
         fontSize: 10,
         fontWeight: 700,
-        letterSpacing: "0.1em",
+        letterSpacing: "0.06em",
         textTransform: "uppercase",
-        padding: "4px 8px",
+        padding: "4px 10px",
         background: s.bg,
         color: s.fg,
         border: s.border ?? "none",
+        borderRadius: "var(--radius-pill)",
         whiteSpace: "nowrap",
       }}
     >

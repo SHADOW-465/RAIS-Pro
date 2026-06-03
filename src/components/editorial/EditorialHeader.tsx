@@ -1,8 +1,44 @@
 "use client";
 
+import { useTweaks } from "./TweaksContext";
+import Icon from "./Icon";
+
 interface EditorialHeaderProps {
   initials?: string;
   name?: string;
+}
+
+export function ThemeSwitcher({ showLabel = false }: { showLabel?: boolean }) {
+  const { t, setTweak } = useTweaks();
+  const isDark = t.theme === "dark";
+
+  const toggleTheme = () => {
+    setTweak("theme", isDark ? "light" : "dark");
+  };
+
+  return (
+    <button
+      onClick={toggleTheme}
+      className="btn"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        cursor: "pointer",
+        padding: "8px 12px",
+        minHeight: "var(--tap)",
+      }}
+      title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      aria-label="Toggle Theme"
+    >
+      <Icon name={isDark ? "sun" : "moon"} size={14} stroke={2} />
+      {showLabel && (
+        <span style={{ fontSize: 12, fontWeight: 600 }}>
+          {isDark ? "Dark" : "Light"}
+        </span>
+      )}
+    </button>
+  );
 }
 
 /**
@@ -22,52 +58,50 @@ export default function EditorialHeader({
   return (
     <header
       style={{
-        borderTop: "6px solid var(--ink)",
-        borderBottom: "1px solid var(--ink)",
-        padding: "20px 0 14px",
-        background: "var(--paper)",
+        borderBottom: "1px solid var(--border)",
+        padding: "16px 0",
+        background: "var(--surface)",
       }}
     >
       <div className="shell between">
         <div
           className="flex"
-          style={{ alignItems: "baseline", gap: 18, whiteSpace: "nowrap" }}
+          style={{ alignItems: "baseline", gap: 14, whiteSpace: "nowrap" }}
         >
           <div
-            className="serif"
             style={{
-              fontSize: 28,
-              fontWeight: 600,
-              letterSpacing: "-0.02em",
+              fontFamily: "var(--font-display)",
+              fontSize: 22,
+              fontWeight: 800,
+              letterSpacing: "-0.03em",
               whiteSpace: "nowrap",
             }}
           >
-            R<span style={{ color: "var(--accent)" }}>·</span>A
-            <span style={{ color: "var(--accent)" }}>·</span>I
-            <span style={{ color: "var(--accent)" }}>·</span>S&nbsp;
-            <em style={{ fontWeight: 400, fontStyle: "italic" }}>Pro</em>
+            RAIS <span style={{ fontWeight: 500, color: "var(--accent)" }}>Pro</span>
           </div>
           <div
             className="muted"
             style={{
-              fontSize: 11,
-              letterSpacing: "0.12em",
+              fontSize: 10,
+              letterSpacing: "0.08em",
               textTransform: "uppercase",
               whiteSpace: "nowrap",
+              fontWeight: 600,
             }}
           >
-            Rejection · Analysis · Intelligence
+            Rejection Analysis Intelligence
           </div>
         </div>
         <div
           className="flex gap-4"
           style={{ alignItems: "center", whiteSpace: "nowrap" }}
         >
-          <div className="muted mono" style={{ fontSize: 11 }}>
+          <div className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>
             {today}
           </div>
+          <ThemeSwitcher />
           <div
-            style={{ width: 1, height: 16, background: "var(--hairline-strong)" }}
+            style={{ width: 1, height: 16, background: "var(--border)" }}
           />
           <div className="flex gap-2" style={{ alignItems: "center" }}>
             <div
@@ -75,21 +109,22 @@ export default function EditorialHeader({
                 width: 28,
                 height: 28,
                 borderRadius: "50%",
-                background: "var(--ink)",
-                color: "var(--paper)",
+                background: "var(--accent)",
+                color: "var(--text-invert)",
                 display: "grid",
                 placeItems: "center",
-                fontFamily: "var(--serif)",
-                fontWeight: 600,
-                fontSize: 13,
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
+                fontSize: 12,
               }}
             >
               {initials}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 500 }}>{name}</div>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{name}</div>
           </div>
         </div>
       </div>
     </header>
   );
 }
+

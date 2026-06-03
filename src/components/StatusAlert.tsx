@@ -9,9 +9,9 @@ interface StatusAlertProps {
 }
 
 const TONES = {
-  danger:  { bg: "var(--critical)", fg: "#FCE7E7", rule: "#FFD1D1", label: "CRITICAL" },
-  warning: { bg: "var(--warning)",  fg: "#FFF6E0", rule: "#FFE6A8", label: "WATCH" },
-  info:    { bg: "var(--ink)",      fg: "var(--paper-soft)", rule: "var(--accent)", label: "NOTE" },
+  danger:  { bg: "var(--critical-weak)",  fg: "var(--critical)", rule: "var(--critical)", label: "CRITICAL" },
+  warning: { bg: "var(--warning-weak)",   fg: "var(--warning)",  rule: "var(--warning)",  label: "WATCH" },
+  info:    { bg: "var(--accent-weak)",    fg: "var(--accent)",   rule: "var(--accent)",   label: "NOTE" },
 } as const;
 
 export default function StatusAlert({ message, type = "danger", onClose }: StatusAlertProps) {
@@ -32,7 +32,9 @@ export default function StatusAlert({ message, type = "danger", onClose }: Statu
         display: "flex",
         alignItems: "flex-start",
         gap: 14,
+        border: `1px solid ${t.rule}`,
         borderLeft: `6px solid ${t.rule}`,
+        borderRadius: "var(--radius-md)",
       }}
     >
       <div style={{ marginTop: 2 }}>
@@ -46,23 +48,25 @@ export default function StatusAlert({ message, type = "danger", onClose }: Statu
               alignItems: "center",
               padding: "4px 8px",
               border: `1px solid ${t.fg}`,
+              borderRadius: "var(--radius-sm)",
               fontSize: 10,
               fontWeight: 700,
               letterSpacing: "0.1em",
               textTransform: "uppercase",
+              fontFamily: "var(--font-sans)",
             }}
           >
             {t.label}
           </span>
-          <span style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.7 }}>
+          <span style={{ fontSize: 11, fontFamily: "var(--font-sans)", letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.7, fontWeight: 600 }}>
             Anomaly detection · auto-flagged
           </span>
         </div>
         <div
-          className="serif"
           style={{
+            fontFamily: "var(--font-display)",
             fontSize: 18,
-            fontWeight: 600,
+            fontWeight: 800,
             marginTop: 8,
             letterSpacing: "-0.01em",
           }}
@@ -70,7 +74,7 @@ export default function StatusAlert({ message, type = "danger", onClose }: Statu
           {title}
         </div>
         {detail && (
-          <div style={{ fontSize: 13, marginTop: 4, opacity: 0.85 }}>{detail}</div>
+          <div style={{ fontSize: 13, marginTop: 4, opacity: 0.85, fontFamily: "var(--font-sans)" }}>{detail}</div>
         )}
       </div>
       {onClose && (

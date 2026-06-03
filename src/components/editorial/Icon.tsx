@@ -6,7 +6,8 @@ export type IconName =
   | "upload" | "file" | "x" | "check" | "arrow-right" | "arrow-left"
   | "send" | "save" | "split" | "search" | "chevron-down" | "chevron-up"
   | "alert" | "trend-up" | "trend-down" | "minus" | "plus" | "spark"
-  | "table" | "external" | "dot" | "lightning" | "tally" | "print";
+  | "table" | "external" | "dot" | "lightning" | "tally" | "print"
+  | "sun" | "moon";
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, "stroke"> {
   name: IconName;
@@ -22,8 +23,8 @@ export default function Icon({ name, size = 16, stroke = 1.6, ...rest }: IconPro
     fill: "none",
     stroke: "currentColor",
     strokeWidth: stroke,
-    strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
+    strokeLinecap: "round" as const,
     ...rest,
   };
   switch (name) {
@@ -46,11 +47,13 @@ export default function Icon({ name, size = 16, stroke = 1.6, ...rest }: IconPro
     case "plus":        return <svg {...common}><path d="M12 5v14M5 12h14" /></svg>;
     case "spark":       return <svg {...common}><path d="M12 3v3M21 12h-3M12 21v-3M3 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" /></svg>;
     case "table":       return <svg {...common}><rect x="3" y="3" width="18" height="18" rx="1" /><path d="M3 9h18M3 15h18M9 3v18M15 3v18" /></svg>;
-    case "external":    return <svg {...common}><path d="M14 3h7v7" /><path d="M10 14L21 3" /><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5" /></svg>;
+    case "external":    return <svg {...common}><path d="M14 3h7v7" /><path d="M10 14L21 3" /><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h10" /></svg>;
     case "dot":         return <svg {...common}><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" /></svg>;
     case "lightning":   return <svg {...common}><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></svg>;
     case "tally":       return <svg {...common}><path d="M5 5v14M9 5v14M13 5v14M17 5v14M3 12l18-2" /></svg>;
     case "print":       return <svg {...common}><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" /></svg>;
+    case "sun":         return <svg {...common}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>;
+    case "moon":        return <svg {...common}><path d="M12 3a9 9 0 109 9 9.75 9.75 0 00-9-9z" /></svg>;
     default: return null;
   }
 }

@@ -29,7 +29,7 @@ function relativeDate(iso: string): string {
 
 export default function SessionCard({ session, onClick }: SessionCardProps) {
   // We don't know the actual trend without more data; default to neutral.
-  const trendColor = "var(--muted)";
+  const trendColor = "var(--text-3)";
   const trendArrow = "→";
 
   return (
@@ -40,10 +40,11 @@ export default function SessionCard({ session, onClick }: SessionCardProps) {
       }}
       tabIndex={0}
       role="button"
-      className="recent-card"
+      className="recent-card card-hover"
       style={{
-        background: "var(--paper-soft)",
-        border: "1px solid var(--hairline)",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-lg)",
         padding: 18,
         cursor: "pointer",
         position: "relative",
@@ -53,13 +54,13 @@ export default function SessionCard({ session, onClick }: SessionCardProps) {
         className="between"
         style={{ alignItems: "flex-start", marginBottom: 12 }}
       >
-        <div className="eyebrow muted" style={{ fontSize: 10 }}>
+        <div className="eyebrow" style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 700 }}>
           {relativeDate(session.createdAt)}
         </div>
         <span
           style={{
             color: trendColor,
-            fontFamily: "var(--mono)",
+            fontFamily: "var(--font-mono)",
             fontWeight: 600,
             fontSize: 12,
           }}
@@ -68,38 +69,39 @@ export default function SessionCard({ session, onClick }: SessionCardProps) {
         </span>
       </div>
       <h3
-        className="serif"
         style={{
+          fontFamily: "var(--font-display)",
           fontSize: 17,
           margin: 0,
-          fontWeight: 600,
+          fontWeight: 800,
           letterSpacing: "-0.01em",
-          lineHeight: 1.2,
+          lineHeight: 1.25,
+          color: "var(--text)",
           minHeight: 41,
         }}
       >
         {session.title}
       </h3>
       <div
-        className="flex gap-4 mt-4 mono"
-        style={{ fontSize: 11, color: "var(--muted)" }}
+        className="flex gap-4 mt-4 num"
+        style={{ fontSize: 11, color: "var(--text-3)" }}
       >
         <span>
-          <strong style={{ color: "var(--ink)" }}>
+          <strong style={{ color: "var(--text)" }}>
             {session.fileNames.length}
           </strong>{" "}
           file{session.fileNames.length === 1 ? "" : "s"}
         </span>
         <span>·</span>
         <span>
-          <strong style={{ color: "var(--ink)" }}>
+          <strong style={{ color: "var(--text)" }}>
             {session.kpiPreview.length}
           </strong>{" "}
           kpis
         </span>
         <span>·</span>
         <span>
-          <strong style={{ color: "var(--ink)" }}>
+          <strong style={{ color: "var(--text)" }}>
             {session.slideCount}
           </strong>{" "}
           slides
@@ -115,7 +117,7 @@ export default function SessionCard({ session, onClick }: SessionCardProps) {
           transition: "opacity 0.2s ease, transform 0.2s ease",
         }}
       >
-        <Icon name="arrow-right" size={16} />
+        <Icon name="arrow-right" size={16} style={{ color: "var(--accent)" }} />
       </div>
     </div>
   );
