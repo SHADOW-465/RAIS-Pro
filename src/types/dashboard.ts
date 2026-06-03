@@ -46,6 +46,16 @@ export interface Chart {
   };
 }
 
+/** A per-sheet slice of the dashboard (one section per data sheet, e.g. a month). */
+export interface DashboardSection {
+  /** stable id = the sheet key (e.g. "FILE.xlsx - APRIL 25") */
+  id: string;
+  /** human label, e.g. "April 2025" */
+  label: string;
+  kpis: KPI[];
+  charts: Chart[];
+}
+
 export interface DashboardConfig {
   dashboardTitle: string;
   executiveSummary: string;
@@ -54,6 +64,8 @@ export interface DashboardConfig {
   insights: string[];
   recommendations: string[];
   alerts: string[];
+  /** Deterministic per-sheet breakdowns. The top-level kpis/charts are the combined view. */
+  sections?: DashboardSection[];
 }
 
 export interface ChatMessage {

@@ -198,7 +198,23 @@ export default function Dashboard({
   // Bumps on every KPI click so VerifyPanel deep-links to the metric's sheets.
   const [verifyRequest, setVerifyRequest] = useState(0);
 
-  const activeKpi = activeKpiIndex !== null ? currentConfig.kpis[activeKpiIndex] : null;
+  // Per-sheet sections. scope = "all" (combined) or a section id. The KPI grid
+  // and charts follow the active scope so a user can drill into / verify one
+  // sheet (e.g. one month) at a time.
+  const sections = currentConfig.sections ?? [];
+  const [scope, setScope] = useState<string>("all");
+  const activeSection = scope === "all" ? null : sections.find((s) => s.id === scope) ?? null;
+  const kpis = activeSection ? activeSection.kpis : currentConfig.kpis ?? [];
+  const charts = activeSection ? activeSection.charts : currentConfig.charts ?? [];
+  const changeScope = (next: string) => {
+    setScope(next);
+    setActiveKpiIndex(null);
+    setResolvedCol(null);
+    setBeams([]);
+    setNoMatchWarning(null);
+  };
+
+  const activeKpi = activeKpiIndex !== null ? kpis[activeKpiIndex] : null;
   const activeSourceColumn = activeKpi?.sourceColumn ?? null;
   const traceLabel = activeKpi?.label ?? null;
 
@@ -262,11 +278,11 @@ export default function Dashboard({
         setNoMatchWarning(null);
         return next;
       }
-      const col = currentConfig.kpis[next]?.sourceColumn ?? null;
+      const col = kpis[next]?.sourceColumn ?? null;
       const sources = findContributingSheets(rawSheets ?? [], col);
       setNoMatchWarning(
         sources.length === 0
-          ? `Could not trace "${col ?? currentConfig.kpis[next]?.label ?? "this metric"}" to a source column in the raw data.`
+          ? `Could not trace "${col ?? kpis[next]?.label ?? "this metric"}" to a source column in the raw data.`
           : null,
       );
       setVerifyRequest((r) => r + 1);
@@ -304,8 +320,6 @@ export default function Dashboard({
   });
 
   const alerts = currentConfig.alerts ?? [];
-  const kpis = currentConfig.kpis ?? [];
-  const charts = currentConfig.charts ?? [];
   const insights = currentConfig.insights ?? [];
   const recommendations = currentConfig.recommendations ?? [];
 
@@ -352,7 +366,7 @@ export default function Dashboard({
                 <span style={{ fontFamily: "var(--font-sans)" }}>{today}</span>
               </div>
               <div style={{ fontSize: 12, color: "var(--text-3)" }}>
-                <span className="num">{kpis.length} KPIs</span> · <span className="num">{charts.length} figures</span> · <span style={{ color: "var(--positive)" }}>●</span> compiles verified
+                <span className="num">{kpis.length} KPIs</span> · <span className="num">{charts.length} figures</span> · <span style={{ color: "var(--positive)" }}>●</span> Verified
               </div>
             </div>
           </div>
@@ -518,12 +532,38 @@ export default function Dashboard({
                 )}
               </section>
 
+              {/* Scope selector — drill into a single sheet (e.g. a month) or All Data */}
+              {sections.length > 1 && (
+                <section style={{ marginBottom: 28 }} className="fade-up">
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        color: "var(--text-3)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      View
+                    </span>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <ScopeChip label="All Data" active={scope === "all"} onClick={() => changeScope("all")} />
+                      {sections.map((s) => (
+                        <ScopeChip key={s.id} label={s.label} active={scope === s.id} onClick={() => changeScope(s.id)} />
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )}
+
               {/* 3. The Numbers — KPI Grid */}
               {kpis.length > 0 && (
                 <section id="kpi-grid" style={{ marginBottom: 56 }} className="fade-up">
                   <SectionHeader
                     eyebrow="01 · The Numbers"
-                    title="At a glance"
+                    title={activeSection ? `At a glance · ${activeSection.label}` : "At a glance"}
                     sub={
                       hasRawData
                         ? "✓ Computed facts · Click any number in Verify mode to trace it back to its source column."
@@ -533,7 +573,9 @@ export default function Dashboard({
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: `repeat(${verifyMode ? 2 : Math.min(4, kpis.length)}, 1fr)`,
+                      gridTemplateColumns: verifyMode
+                        ? "repeat(2, minmax(0, 1fr))"
+                        : `repeat(${Math.min(3, kpis.length)}, minmax(0, 1fr))`,
                       gap: "var(--gap-grid)",
                     }}
                   >
@@ -857,5 +899,33 @@ function SectionHeader({
       </div>
       {right && <div>{right}</div>}
     </div>
+  );
+}
+
+// Scope selector chip — switches the KPI/charts region between "All Data" and
+// a single sheet's deterministic breakdown.
+function ScopeChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      style={{
+        padding: "6px 12px",
+        borderRadius: "var(--radius-pill)",
+        fontSize: 12,
+        fontWeight: 600,
+        fontFamily: "var(--font-sans)",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        background: active ? "var(--accent)" : "var(--surface)",
+        color: active ? "var(--text-invert)" : "var(--text-2)",
+        borderWidth: 1,
+        borderStyle: "solid",
+        borderColor: active ? "var(--accent)" : "var(--border-strong)",
+        transition: "all 0.15s ease",
+      }}
+    >
+      {label}
+    </button>
   );
 }

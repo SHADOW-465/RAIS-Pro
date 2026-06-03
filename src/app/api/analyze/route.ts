@@ -26,6 +26,7 @@ import {
   metricsToCharts,
   deriveMergePlan,
 } from "@/lib/dashboard-builder";
+import { parseMonth, sheetNameOf } from "@/lib/verify-nav";
 import type { SheetSummary } from "@/lib/parser";
 import type { SheetGraph } from "@/types/metrics";
 import type { DashboardConfig } from "@/types/dashboard";
@@ -123,6 +124,26 @@ export async function POST(req: NextRequest) {
     const charts = metricsToCharts(metrics);
     const mergePlan = deriveMergePlan(uniqueSummaries, graphs);
 
+    // Per-sheet sections: each non-summary sheet gets its own deterministic
+    // KPIs + charts so the user can drill into (and verify) one sheet at a time.
+    const sections = uniqueSummaries
+      .map((s, i) => ({ s, g: graphs[i] }))
+      .filter(({ g }) => !g.isSummary)
+      .map(({ s, g }) => {
+        const m = computeMetrics([s], [g]);
+        const month = parseMonth(sheetNameOf(s.name));
+        return {
+          id: s.name,
+          label: month ? month.label : sheetNameOf(s.name),
+          sortIndex: month ? month.sortIndex : Number.MAX_SAFE_INTEGER,
+          kpis: metricsToKpis(m),
+          charts: metricsToCharts(m),
+        };
+      })
+      .filter((sec) => sec.kpis.length > 0)
+      .sort((a, b) => a.sortIndex - b.sortIndex)
+      .map(({ id, label, kpis: k, charts: c }) => ({ id, label, kpis: k, charts: c }));
+
     console.log(
       `[analyze] graph=${graphSource}, kpis=${kpis.length}, charts=${charts.length}, ` +
         `rate=${metrics.metrics.find((m) => m.id === "rejection_rate")?.display}`,
@@ -145,6 +166,7 @@ export async function POST(req: NextRequest) {
       insights: [],
       recommendations: [],
       alerts: [],
+      sections,
     };
 
     // ── Save to Supabase (best-effort) ──────────────────────────────────────
