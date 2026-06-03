@@ -85,3 +85,6 @@ rais-*-FIXED.png
 
 # diagnostic screenshots from UI verification
 audit-*.png
+
+# stray graphify cache written under src/ during --update
+src/graphify-out/
