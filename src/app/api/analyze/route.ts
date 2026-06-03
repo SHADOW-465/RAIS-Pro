@@ -1,20 +1,23 @@
 // src/app/api/analyze/route.ts
 //
+// COMPUTE phase only (fast, deterministic). The slow AI prose lives in
+// /api/narrative, so the dashboard can render its real numbers immediately and
+// the narrative fills in afterwards (progressive reveal).
+//
 // Pipeline (see AGENTS.md "Pipeline invariants" — the model never does maths):
 //   Phase 1  GRAPH      AI classifies every column into a semantic role.
 //                       Heuristic inferSheetGraph() is the guaranteed fallback.
 //   Phase 2  COMPUTE    computeMetrics() turns the graph into exact numbers in
 //                       pure JS. We compute from BOTH the LLM graph and the
 //                       heuristic and only keep the LLM result if it is sane.
-//   Phase 3  NARRATIVE  AI writes prose only (title/summary/insights/recs).
-//                       KPIs + charts are built deterministically from Phase 2.
+//   (Phase 3 NARRATIVE now lives in /api/narrative.)
 
 import { NextRequest, NextResponse } from "next/server";
-import { generateObject, NoObjectGeneratedError } from "ai";
+import { generateObject } from "ai";
 import { createServerClient } from "@/lib/supabase";
 import { tryModels } from "@/lib/ai";
-import { NarrativeSchema, SheetGraphSetSchema } from "@/lib/schemas";
-import { buildGraphPrompt, buildNarrativePrompt } from "@/lib/analysis-utils";
+import { SheetGraphSetSchema } from "@/lib/schemas";
+import { buildGraphPrompt } from "@/lib/analysis-utils";
 import { inferSheetGraph, computeMetrics } from "@/lib/metrics";
 import {
   reconcileGraph,
@@ -31,6 +34,22 @@ const SYSTEM_PROMPT =
   "You are a senior quality-analytics analyst. Return ONLY data that conforms " +
   "to the requested schema. Never invent numbers — every value must trace to " +
   "the provided data.";
+
+/** Deterministic placeholder title shown until the narrative supplies a real one. */
+function fallbackTitle(fileNames?: string[]): string {
+  const first = fileNames?.[0]?.replace(/\.[^.]+$/, "").trim();
+  return first ? `${first} — Rejection Analysis` : "Rejection Inspection Analysis";
+}
+
+/** Bound the optional LLM-graph call so compute always returns fast even if a
+ *  provider hangs — the heuristic graph is the guaranteed fallback. */
+const GRAPH_TIMEOUT_MS = 12_000;
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,16 +81,20 @@ export async function POST(req: NextRequest) {
     let graphSource: "llm" | "heuristic" = "heuristic";
 
     try {
-      const { object } = await tryModels(
-        (model) =>
-          generateObject({
-            model,
-            schema: SheetGraphSetSchema,
-            system: SYSTEM_PROMPT,
-            prompt: buildGraphPrompt(uniqueSummaries),
-            temperature: 0.1,
-          }),
-        { fast: true },
+      const { object } = await withTimeout(
+        tryModels(
+          (model) =>
+            generateObject({
+              model,
+              schema: SheetGraphSetSchema,
+              system: SYSTEM_PROMPT,
+              prompt: buildGraphPrompt(uniqueSummaries),
+              temperature: 0.1,
+            }),
+          { fast: true },
+        ),
+        GRAPH_TIMEOUT_MS,
+        "graph classification",
       );
 
       const llmByKey = new Map(object.sheets.map((g) => [g.sheetKey, g]));
@@ -112,41 +135,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Phase 3: narrative (prose only) ─────────────────────────────────────
-    let narrative;
-    try {
-      const { object } = await tryModels((model) =>
-        generateObject({
-          model,
-          schema: NarrativeSchema,
-          system: SYSTEM_PROMPT,
-          prompt: buildNarrativePrompt(metrics),
-          temperature: 0.2,
-        }),
-      );
-      narrative = object;
-    } catch (err) {
-      if (err instanceof NoObjectGeneratedError) {
-        console.error("[analyze] narrative generation produced no valid object:", err.cause);
-        return NextResponse.json(
-          { error: "Analysis model returned no valid result. Try again." },
-          { status: 502 },
-        );
-      }
-      throw err;
-    }
-
+    // Deterministic dashboard: real numbers now, prose fields left empty for
+    // /api/narrative to fill in (the client shows skeletons meanwhile).
     const dashboard: DashboardConfig = {
-      dashboardTitle: narrative.dashboardTitle,
-      executiveSummary: narrative.executiveSummary,
+      dashboardTitle: fallbackTitle(fileNames),
+      executiveSummary: "",
       kpis,
       charts,
-      insights: narrative.insights,
-      recommendations: narrative.recommendations,
-      alerts: narrative.alerts,
+      insights: [],
+      recommendations: [],
+      alerts: [],
     };
 
     // ── Save to Supabase (best-effort) ──────────────────────────────────────
+    // Saved now (numbers only) so the session appears in the archive instantly;
+    // /api/narrative patches in the prose when it's ready.
     let sessionId: string | null = null;
     try {
       if (deviceId && typeof deviceId === "string") {
@@ -169,7 +172,8 @@ export async function POST(req: NextRequest) {
       console.warn("[analyze] session save failed (non-fatal):", saveErr);
     }
 
-    return NextResponse.json({ ...dashboard, sessionId, mergePlan });
+    // metrics is returned so /api/narrative can write prose without recomputing.
+    return NextResponse.json({ ...dashboard, sessionId, mergePlan, metrics, narrativePending: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[analyze] fatal:", message);

@@ -9,6 +9,7 @@ import SessionCard, { type SessionSummary } from "@/components/SessionCard";
 import Dashboard from "@/components/Dashboard";
 import EditorialHeader from "@/components/editorial/EditorialHeader";
 import Icon from "@/components/editorial/Icon";
+import StatusAlert from "@/components/StatusAlert";
 import { getDeviceId } from "@/lib/device-id";
 import type { DashboardConfig, RawSheet } from "@/types/dashboard";
 import type { MergePlan } from "@/types/analysis";
@@ -16,12 +17,16 @@ import type { MergePlan } from "@/types/analysis";
 export default function Home() {
   const router = useRouter();
   const [processing, setProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState<number>(0);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [analysisData, setAnalysisData] = useState<DashboardConfig | null>(null);
   const [dataSummary, setDataSummary] = useState<string>("");
   const [rawSheets, setRawSheets] = useState<RawSheet[]>([]);
   const [mergePlan, setMergePlan] = useState<MergePlan | undefined>(undefined);
+  const [errorState, setErrorState] = useState<string | null>(null);
+  const [narrativePending, setNarrativePending] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     const deviceId = getDeviceId();
@@ -50,11 +55,52 @@ export default function Home() {
       .finally(() => setLoadingSessions(false));
   }, []);
 
+  // Fire-and-forget: the slow AI prose fills into the already-rendered dashboard.
+  // Bounded by a client timeout so a hung provider eventually clears the skeleton.
+  const fetchNarrative = async (metrics: unknown, sid: string | null) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90_000);
+    try {
+      const res = await fetch("/api/narrative", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ metrics, sessionId: sid }),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        setNarrativePending(false);
+        return;
+      }
+      const prose = await res.json();
+      setAnalysisData((prev) =>
+        prev
+          ? {
+              ...prev,
+              dashboardTitle: prose.dashboardTitle ?? prev.dashboardTitle,
+              executiveSummary: prose.executiveSummary ?? "",
+              insights: prose.insights ?? [],
+              recommendations: prose.recommendations ?? [],
+              alerts: prose.alerts ?? [],
+            }
+          : prev,
+      );
+      setNarrativePending(false);
+    } catch {
+      setNarrativePending(false);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   const handleUploadComplete = async (files: File[]) => {
     setProcessing(true);
+    setProcessingStep(1); // 1. Reading spreadsheets
+    setErrorState(null);
     try {
       const { parseExcelFilesWithRaw } = await import("@/lib/parser");
       const { summaries, rawSheets: sheets } = await parseExcelFilesWithRaw(files);
+
+      setProcessingStep(2); // 2. Extracting data structures
 
       const deviceId = getDeviceId();
       const res = await fetch("/api/analyze", {
@@ -73,34 +119,43 @@ export default function Home() {
       }
 
       const body = await res.json();
+      setProcessingStep(3); // 3. Computing metrics
 
-      if (body.sessionId) {
+      if (!body.dashboardTitle || !(body.kpis?.length)) {
+        throw new Error(body.error ?? "Analysis returned no usable data");
+      }
+
+      const sid: string | null = body.sessionId ?? null;
+      if (sid) {
         try {
-          sessionStorage.setItem(
-            `rais_raw_${body.sessionId}`,
-            JSON.stringify(sheets),
-          );
+          sessionStorage.setItem(`rais_raw_${sid}`, JSON.stringify(sheets));
         } catch {
           /* quota exceeded — silently skip */
         }
-        router.push(`/session/${body.sessionId}`);
-      } else if (body.dashboardTitle) {
-        setRawSheets(sheets);
-        setDataSummary(JSON.stringify(summaries));
-        setMergePlan(body.mergePlan);
-        setAnalysisData(body as DashboardConfig);
-        setProcessing(false);
-      } else {
-        throw new Error(body.error ?? "Analysis returned no usable data");
       }
-    } catch (error) {
+
+      // Render the dashboard NOW with real numbers; prose streams in next.
+      setRawSheets(sheets);
+      setDataSummary(JSON.stringify(summaries));
+      setMergePlan(body.mergePlan);
+      setSessionId(sid);
+      setNarrativePending(true);
+      setAnalysisData(body as DashboardConfig);
+      setProcessing(false);
+
+      // Kick off the narrative fill (does not block the dashboard).
+      void fetchNarrative(body.metrics, sid);
+    } catch (error: any) {
       console.error("Analysis failed:", error);
       setProcessing(false);
-      alert("Analysis failed. Check your API configuration and try again.");
+      setProcessingStep(0);
+      setErrorState(error.message ?? "Analysis failed. Please check your spreadsheet structure.");
     }
   };
 
-  if (processing) return <ProcessingLoader />;
+  if (processing) {
+    return <ProcessingLoader activeStep={processingStep} />;
+  }
 
   if (analysisData) {
     return (
@@ -109,10 +164,14 @@ export default function Home() {
         dataSummary={dataSummary}
         rawSheets={rawSheets}
         mergePlan={mergePlan}
+        sessionId={sessionId ?? undefined}
+        narrativePending={narrativePending}
         onReset={() => {
           setAnalysisData(null);
           setRawSheets([]);
           setMergePlan(undefined);
+          setSessionId(null);
+          setNarrativePending(false);
         }}
       />
     );
@@ -124,76 +183,139 @@ export default function Home() {
 
       <div
         className="shell"
-        style={{ paddingTop: 56, paddingBottom: 80, flex: 1 }}
+        style={{ paddingTop: 64, paddingBottom: 96, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}
       >
-        {/* Greeting */}
-        <div className="mb-12">
-          <div className="eyebrow accent">Morning briefing</div>
-          <h1
-            className="serif tracked-tight"
-            style={{
-              fontSize: 64,
-              fontWeight: 500,
-              margin: "12px 0 6px",
-              letterSpacing: "-0.03em",
-            }}
-          >
-            Good morning.
-          </h1>
-          <p
-            className="muted"
-            style={{ fontSize: 17, maxWidth: 620, marginTop: 0 }}
-          >
-            Drop in this cycle&apos;s plant reports and you&apos;ll have an
-            executive read in under thirty seconds. Or pick up where you left
-            off below.
-          </p>
-        </div>
-
-        {/* Upload */}
-        <UploadZone onUpload={handleUploadComplete} />
-
-        {/* Recent sessions */}
-        {!loadingSessions && sessions.length > 0 && (
-          <div className="mt-12">
-            <div
-              className="between mb-4"
-              style={{ alignItems: "flex-end" }}
-            >
-              <div>
-                <div className="eyebrow accent">Archive</div>
-                <h2
-                  className="serif tracked-tight"
-                  style={{
-                    fontSize: 30,
-                    margin: "6px 0 0",
-                    fontWeight: 500,
-                  }}
-                >
-                  Recent diagnostics
-                </h2>
-              </div>
-              <button className="btn ghost sm">
-                View all <Icon name="arrow-right" size={12} />
-              </button>
+        <div style={{ maxWidth: 720, width: "100%", margin: "0 auto" }}>
+          {/* Error Feedback Banner */}
+          {errorState && (
+            <div style={{ marginBottom: 32 }} className="fade-up">
+              <StatusAlert
+                message={errorState}
+                type="danger"
+                onClose={() => setErrorState(null)}
+              />
             </div>
-            <div
+          )}
+
+          {/* Greeting */}
+          <div style={{ textAlign: "center", marginBottom: 40 }} className="fade-up">
+            <div className="eyebrow accent" style={{ fontSize: 11, fontWeight: 700 }}>Morning Briefing</div>
+            <h1
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                gap: 16,
+                fontFamily: "var(--font-display)",
+                fontSize: 38,
+                fontWeight: 800,
+                margin: "8px 0 10px",
+                letterSpacing: "-0.03em",
+                color: "var(--text)",
               }}
             >
-              {sessions.map((s) => (
-                <SessionCard
-                  key={s.id}
-                  session={s}
-                  onClick={() => router.push(`/session/${s.id}`)}
-                />
-              ))}
-            </div>
+              Good morning.
+            </h1>
+            <p
+              className="muted"
+              style={{ fontSize: 15, maxWidth: 540, margin: "0 auto", lineHeight: 1.6 }}
+            >
+              Drop in this cycle&apos;s plant reports and you&apos;ll have an
+              executive read in under thirty seconds.
+            </p>
           </div>
-        )}
+
+          {/* Upload */}
+          <div style={{ marginBottom: 48 }} className="fade-up">
+            <UploadZone onUpload={handleUploadComplete} />
+          </div>
+
+          {/* Recent sessions */}
+          {!loadingSessions && sessions.length > 0 && (
+            <div className="mt-8 fade-up">
+              <div
+                className="between mb-4"
+                style={{ alignItems: "flex-end" }}
+              >
+                <div>
+                  <div className="eyebrow accent" style={{ fontSize: 11, fontWeight: 700 }}>Archive</div>
+                  <h2
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: 24,
+                      margin: "4px 0 0",
+                      fontWeight: 800,
+                      letterSpacing: "-0.02em",
+                      color: "var(--text)",
+                    }}
+                  >
+                    Recent diagnostics
+                  </h2>
+                </div>
+                <button
+                  className="btn ghost sm"
+                  style={{ border: "none", background: "transparent", cursor: "pointer" }}
+                >
+                  View all <Icon name="arrow-right" size={12} />
+                </button>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: 16,
+                }}
+              >
+                {sessions.map((s) => (
+                  <SessionCard
+                    key={s.id}
+                    session={s}
+                    onClick={() => router.push(`/session/${s.id}`)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state for sessions */}
+          {!loadingSessions && sessions.length === 0 && (
+            <div
+              className="fade-up"
+              style={{
+                marginTop: 48,
+                borderTop: "1px solid var(--border)",
+                paddingTop: 32,
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  display: "inline-flex",
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  background: "var(--surface-2)",
+                  color: "var(--text-3)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <Icon name="file" size={20} />
+              </div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  margin: "0 0 4px",
+                  color: "var(--text)",
+                }}
+              >
+                No recent diagnostics
+              </h3>
+              <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+                Previously run analysis briefs will appear here.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
