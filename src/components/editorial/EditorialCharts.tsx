@@ -571,6 +571,10 @@ export function Sparkline({
   width?: number;
   trend?: string;
 }) {
+  // Hooks must run unconditionally — call useId BEFORE any early return,
+  // otherwise a sparkline whose history crosses the 2-point threshold between
+  // renders changes its hook count and crashes (Rules of Hooks).
+  const baseId = useId().replace(/:/g, "");
   if (!values || values.length < 2) return null;
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -579,7 +583,6 @@ export function Sparkline({
   const d = buildBezierPath(values, xs, ys);
   const isBad = trend.includes("bad");
   const color = isBad ? "var(--critical)" : "var(--positive)";
-  const baseId = useId().replace(/:/g, "");
   const gradId = `${baseId}-spark-grad`;
   const areaPath = d + ` L ${xs(values.length - 1)} ${height} L ${xs(0)} ${height} Z`;
 

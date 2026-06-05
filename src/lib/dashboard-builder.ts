@@ -10,7 +10,7 @@
 // (4) derives a MergePlan for the Sources audit panel.
 
 import type { SheetSummary } from "./parser";
-import type { Metric, MetricsResult, SheetGraph } from "@/types/metrics";
+import type { MetricsResult, SheetGraph } from "@/types/metrics";
 import type { MergePlan } from "@/types/analysis";
 import type { KPI, Chart } from "@/types/dashboard";
 

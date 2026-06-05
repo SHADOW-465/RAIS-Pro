@@ -110,7 +110,6 @@ export interface FileGroup {
 }
 
 const SUMMARY_RE = /year|cumul|commulative|summary|rollup|grand\s*total|consolidat/i;
-const TEMPLATE_RE = /format|template|legend|sample|^sheet\d*$/i;
 
 function classifyKind(sheetName: string, month: MonthInfo | null): SheetKind {
   if (month) return "month";

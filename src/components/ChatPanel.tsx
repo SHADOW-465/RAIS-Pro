@@ -10,7 +10,6 @@ import { getDeviceId } from "@/lib/device-id";
 interface ChatPanelProps {
   dataSummary: string;
   currentConfig: DashboardConfig;
-  onRefresh: (config: DashboardConfig) => void;
   sessionId?: string;
   onSlideAdded?: (slide: InsightSlideType) => void;
 }
@@ -25,7 +24,6 @@ const SUGGESTED = [
 export default function ChatPanel({
   dataSummary,
   currentConfig,
-  onRefresh,
   sessionId,
   onSlideAdded,
 }: ChatPanelProps) {
@@ -67,8 +65,6 @@ export default function ChatPanel({
           }).catch(console.warn);
         }
         onSlideAdded?.(slide);
-      } else if (result.type === "refresh" && result.config) {
-        onRefresh(result.config);
       } else if (result.text) {
         // Surface plain-text replies as an insight slide so the editorial flow stays consistent
         onSlideAdded?.({

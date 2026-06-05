@@ -6,7 +6,7 @@
 // arithmetic in pure JS (the model never sums). See AGENTS.md "Pipeline
 // invariants".
 
-import type { ColumnSummary, SheetSummary } from "@/lib/parser";
+import type { SheetSummary } from "@/lib/parser";
 import type {
   ColumnMapping,
   ColumnRole,

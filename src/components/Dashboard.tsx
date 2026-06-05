@@ -851,7 +851,6 @@ export default function Dashboard({
         <ChatPanel
           dataSummary={dataSummary}
           currentConfig={currentConfig}
-          onRefresh={setCurrentConfig}
           sessionId={sessionId}
           onSlideAdded={(slide) => setSlides((prev) => [...prev, slide])}
         />

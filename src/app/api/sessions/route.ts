@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
     if (error) throw error;
     return NextResponse.json({ sessions: data ?? [] });
   } catch (err) {
+    // Persistence is best-effort. If Supabase is unconfigured/unreachable,
+    // degrade to an empty archive instead of a 500 (no client console error).
     const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.warn("[sessions] list unavailable (non-fatal):", message);
+    return NextResponse.json({ sessions: [] });
   }
 }

@@ -30,24 +30,22 @@ interface Ctx {
 
 const TweaksCtx = createContext<Ctx | null>(null);
 
+// Seed from the data-theme the pre-paint inline script (in layout.tsx) already
+// set, so there is no flash and the saved preference is never clobbered.
+function initialTheme(): Theme {
+  if (typeof document !== "undefined") {
+    const attr = document.documentElement.getAttribute("data-theme");
+    if (attr === "light" || attr === "dark") return attr;
+  }
+  return TWEAK_DEFAULTS.theme;
+}
+
 export function TweaksProvider({ children }: { children: ReactNode }) {
-  const [t, setT] = useState<Tweaks>(TWEAK_DEFAULTS);
+  const [t, setT] = useState<Tweaks>(() => ({ ...TWEAK_DEFAULTS, theme: initialTheme() }));
 
-  // Initialize theme on client mount to prevent hydration mismatch
+  // Sync theme changes with the document attribute + persisted preference.
   useEffect(() => {
-    const stored = localStorage.getItem("theme") as Theme;
-    if (stored === "light" || stored === "dark") {
-      setT({ theme: stored, showBeams: true });
-    } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setT({ theme: prefersDark ? "dark" : "light", showBeams: true });
-    }
-  }, []);
-
-  // Sync theme changes with document attribute
-  useEffect(() => {
-    const root = document.documentElement;
-    root.setAttribute("data-theme", t.theme);
+    document.documentElement.setAttribute("data-theme", t.theme);
     localStorage.setItem("theme", t.theme);
   }, [t.theme]);
 
