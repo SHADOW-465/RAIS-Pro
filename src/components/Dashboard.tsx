@@ -928,6 +928,7 @@ export default function Dashboard({
                 verifyRequest={verifyRequest}
                 onHighlightResolved={onHighlightResolved}
                 onColumnRef={handleColRef}
+                activeScope={scope}
               />
             </div>
           )}

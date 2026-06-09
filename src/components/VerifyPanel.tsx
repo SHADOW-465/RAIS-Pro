@@ -32,6 +32,12 @@ interface VerifyPanelProps {
   onHighlightResolved: (col: string | null) => void;
   /** expose header cells for beam drawing */
   onColumnRef: (column: string, el: HTMLTableCellElement | null) => void;
+  /**
+   * The current dashboard scope — the section id (= sheetKey) when a month is
+   * active, or "all" for the combined view. Used to pre-select the matching
+   * sheet in the verify panel instead of always jumping to source[0].
+   */
+  activeScope?: string;
 }
 
 function fmtInt(n: number): string {
@@ -49,6 +55,7 @@ export default function VerifyPanel({
   verifyRequest,
   onHighlightResolved,
   onColumnRef,
+  activeScope,
 }: VerifyPanelProps) {
   const groups = useMemo(() => buildFileGroups(sheets, mergePlan), [sheets, mergePlan]);
 
@@ -87,14 +94,25 @@ export default function VerifyPanel({
     lastRequest.current = verifyRequest;
     const sources = findContributingSheets(sheets, activeSourceColumn);
     if (sources.length > 0) {
-      setTrace({ sources, pos: 0 });
-      setSheetIndex(sources[0]);
-      const f = entryByIndex.get(sources[0])?.fileName;
+      // When a specific month/section is active, prefer the sheet that
+      // corresponds to that scope (section id === sheet.name === sheetKey).
+      // Fall back to sources[0] when viewing the combined "All Data" view.
+      let startIndex = sources[0];
+      if (activeScope && activeScope !== "all") {
+        const matchedIdx = sources.find(
+          (idx) => sheets[idx]?.name === activeScope,
+        );
+        if (matchedIdx !== undefined) startIndex = matchedIdx;
+      }
+      const startPos = sources.indexOf(startIndex);
+      setTrace({ sources, pos: Math.max(0, startPos) });
+      setSheetIndex(startIndex);
+      const f = entryByIndex.get(startIndex)?.fileName;
       if (f) setSelectedFile(f);
     } else {
       setTrace(null);
     }
-  }, [verifyRequest, activeSourceColumn, sheets, entryByIndex]);
+  }, [verifyRequest, activeSourceColumn, sheets, entryByIndex, activeScope]);
 
   // ── navigation helpers ─────────────────────────────────────────────────────
   const goOverview = () => {
