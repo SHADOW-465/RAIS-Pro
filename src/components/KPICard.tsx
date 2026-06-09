@@ -10,10 +10,11 @@ interface KPICardProps {
   kpi: KPI;
   isActive?: boolean;
   onClick?: () => void;
+  compact?: boolean;
 }
 
 const KPICard = forwardRef<HTMLDivElement, KPICardProps>(function KPICard(
-  { kpi, isActive, onClick },
+  { kpi, isActive, onClick, compact },
   ref,
 ) {
   const { label, value, unit, trend, context, delta, history, source, sourceColumn } = kpi;
@@ -121,7 +122,7 @@ const KPICard = forwardRef<HTMLDivElement, KPICardProps>(function KPICard(
         <span
           className="num"
           style={{
-            fontSize: "clamp(1.75rem, 2.6vw, 2.5rem)",
+            fontSize: compact ? "1.75rem" : "clamp(1.75rem, 2.6vw, 2.5rem)",
             fontWeight: 600,
             lineHeight: 1.05,
             letterSpacing: "-0.02em",
@@ -154,7 +155,7 @@ const KPICard = forwardRef<HTMLDivElement, KPICardProps>(function KPICard(
           <Sparkline
             values={history}
             trend={trend === -1 ? "up-bad" : "up-good"}
-            width={110}
+            width={compact ? 80 : 110}
             height={28}
           />
         )}

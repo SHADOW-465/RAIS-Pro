@@ -233,6 +233,18 @@ export default function Dashboard({
       setBeams([]);
       return;
     }
+
+    // Clip: don't draw if the active KPI card is scrolled out of the left panel viewport.
+    const leftPanel = leftPanelRef.current?.getBoundingClientRect();
+    if (leftPanel) {
+      const kpiRect = kpiEl.getBoundingClientRect();
+      const kpiCenterY = kpiRect.top + kpiRect.height / 2;
+      if (kpiCenterY < leftPanel.top || kpiCenterY > leftPanel.bottom) {
+        setBeams([]);
+        return;
+      }
+    }
+
     const colRect = colEl.getBoundingClientRect();
     // Clip: don't draw when the column header is scrolled outside the verify panel.
     const panel = rightPanelRef.current?.getBoundingClientRect();
@@ -333,7 +345,7 @@ export default function Dashboard({
   if (mergePlan) toc.push([pad(secNum++), "Sources & merge audit", "sources-audit"]);
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", background: "var(--bg)" }}>
+    <div style={{ height: "100vh", overflow: "hidden", display: "flex", background: "var(--bg)" }}>
       <Sidebar
         verifyMode={verifyMode}
         onVerifyToggle={toggleVerify}
@@ -424,7 +436,15 @@ export default function Dashboard({
               </div>
             )}
 
-            <div className="shell-wide" style={{ paddingTop: 36, paddingBottom: 48 }}>
+            <div
+              className={verifyMode ? "" : "shell-wide"}
+              style={{
+                paddingLeft: verifyMode ? 24 : undefined,
+                paddingRight: verifyMode ? 24 : undefined,
+                paddingTop: 36,
+                paddingBottom: 48,
+              }}
+            >
               {/* Mobile viewport warning */}
               {mobileVerifyWarning && (
                 <div style={{ marginBottom: 24 }}>
@@ -583,6 +603,7 @@ export default function Dashboard({
                       <KPICard
                         key={`${kpi.label}-${i}`}
                         kpi={kpi}
+                        compact={verifyMode}
                         isActive={verifyMode && activeKpiIndex === i}
                         onClick={verifyMode ? () => handleKpiClick(i) : undefined}
                         ref={(el) => {
@@ -662,7 +683,7 @@ export default function Dashboard({
                       <div
                         style={{
                           display: "grid",
-                          gridTemplateColumns: !insights.length || !recommendations.length ? "1fr" : "1fr 1fr",
+                          gridTemplateColumns: verifyMode || !insights.length || !recommendations.length ? "1fr" : "1fr 1fr",
                           gap: 48,
                         }}
                       >

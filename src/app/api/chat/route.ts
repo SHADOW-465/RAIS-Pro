@@ -3,44 +3,95 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateObject, NoObjectGeneratedError } from "ai";
 import { tryModels } from "@/lib/ai";
 import { InsightSlideAnswerSchema } from "@/lib/schemas";
-import type { DashboardConfig } from "@/types/dashboard";
+import type { DashboardConfig, KPI, Chart } from "@/types/dashboard";
 
 const SYSTEM_PROMPT =
-  "You are a data analyst answering follow-up questions on a dashboard. " +
-  "Reply with a focused insight slide. Every chart and bullet must use " +
-  "numbers that appear in the provided dataset summary — never invent values.";
+  "You are a quality-analytics assistant answering follow-up questions about a " +
+  "dashboard. You reply with a focused insight slide. CRITICAL: every number you " +
+  "state in a chart or bullet MUST be one of the VERIFIED FIGURES provided below — " +
+  "these were computed deterministically from the source data. Never invent, " +
+  "estimate, or recompute a value. If the answer is not derivable from the verified " +
+  "figures, say so plainly in a bullet instead of guessing.";
 
-function buildPrompt(
-  question: string,
-  dataSummary: string,
-  currentConfig: DashboardConfig,
-): string {
+const fmtKpi = (k: KPI) =>
+  `- ${k.label}: ${k.value}${k.unit ? " " + k.unit : ""}` +
+  `${k.context ? `  [${k.context}]` : ""}${k.delta ? `  (${k.delta})` : ""}`;
+
+function fmtChart(c: Chart): string {
+  const labels = c.data?.labels ?? [];
+  const series = c.data?.datasets?.[0]?.data ?? [];
+  const pairs = labels.map((l, i) => `${l}=${series[i] ?? "?"}`).join(", ");
+  return `- ${c.title} (${c.type}): ${pairs}`;
+}
+
+/**
+ * Ground the chat in the SAME verified, structured data the dashboard shows
+ * (KPIs, chart series, per-sheet sections) — not the raw parser input. This
+ * keeps chat answers consistent with the dashboard and auditable.
+ */
+function buildChatContext(cfg: DashboardConfig): string {
+  const parts: string[] = [];
+  if (cfg.dashboardTitle) parts.push(`ANALYSIS: ${cfg.dashboardTitle}`);
+  if (cfg.executiveSummary) parts.push(`SUMMARY: ${cfg.executiveSummary}`);
+
+  parts.push("VERIFIED HEADLINE METRICS (combined across all sheets):");
+  parts.push((cfg.kpis ?? []).map(fmtKpi).join("\n") || "(none)");
+
+  if (cfg.charts?.length) {
+    parts.push("VERIFIED CHART SERIES:");
+    parts.push(cfg.charts.map(fmtChart).join("\n"));
+  }
+
+  if (cfg.sections?.length) {
+    parts.push("VERIFIED PER-SHEET BREAKDOWN (one row per source sheet / month):");
+    parts.push(
+      cfg.sections
+        .map(
+          (s) =>
+            `- ${s.label}: ` +
+            s.kpis
+              .map((k) => `${k.label}=${k.value}${k.unit ? " " + k.unit : ""}`)
+              .join(", "),
+        )
+        .join("\n"),
+    );
+  }
+
+  if (cfg.insights?.length) {
+    parts.push("PRIOR OBSERVATIONS:\n" + cfg.insights.map((i) => `- ${i}`).join("\n"));
+  }
+  return parts.join("\n\n");
+}
+
+function buildPrompt(question: string, currentConfig: DashboardConfig): string {
   return [
-    "DATASET SUMMARY:",
-    dataSummary,
-    "",
-    "DASHBOARD CONTEXT (current KPIs):",
-    JSON.stringify(currentConfig?.kpis ?? [], null, 2).slice(0, 1500),
+    buildChatContext(currentConfig),
     "",
     `USER QUESTION: ${question}`,
     "",
-    "Generate the insight slide now.",
+    "Answer using ONLY the verified figures above (reference specific labels and " +
+      "numbers). For comparisons or trends, build a chart from the per-sheet " +
+      "breakdown or chart series. Generate the insight slide now.",
   ].join("\n");
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { question, dataSummary, currentConfig } = await req.json();
+    const { question, currentConfig } = await req.json();
 
     if (!question || typeof question !== "string") {
       return NextResponse.json({ error: "question is required" }, { status: 400 });
     }
 
-    const prompt = buildPrompt(
-      question,
-      String(dataSummary ?? ""),
-      (currentConfig ?? {}) as DashboardConfig,
-    );
+    const cfg = (currentConfig ?? {}) as DashboardConfig;
+    if (!cfg.kpis?.length) {
+      return NextResponse.json(
+        { error: "No analysis context available to answer against." },
+        { status: 400 },
+      );
+    }
+
+    const prompt = buildPrompt(question, cfg);
 
     try {
       const { object } = await tryModels((model) =>
