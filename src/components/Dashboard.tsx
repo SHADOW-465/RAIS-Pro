@@ -4,6 +4,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import KPICard from "./KPICard";
 import ChartContainer from "./ChartContainer";
+import ParetoChart from "./ParetoChart";
 import StatusAlert from "./StatusAlert";
 import ChatPanel from "./ChatPanel";
 import InsightSlide from "./InsightSlide";
@@ -206,6 +207,8 @@ export default function Dashboard({
   const activeSection = scope === "all" ? null : sections.find((s) => s.id === scope) ?? null;
   const kpis = activeSection ? activeSection.kpis : currentConfig.kpis ?? [];
   const charts = activeSection ? activeSection.charts : currentConfig.charts ?? [];
+  // Lean Six Sigma 80/20 analysis follows the active scope (combined or one sheet).
+  const pareto = (activeSection ? activeSection.pareto : currentConfig.pareto) ?? null;
   const changeScope = (next: string) => {
     setScope(next);
     setActiveKpiIndex(null);
@@ -341,6 +344,7 @@ export default function Dashboard({
   const pad = (n: number) => String(n).padStart(2, "0");
   if (kpis.length) toc.push([pad(secNum++), "The numbers", "kpi-grid"]);
   if (charts.length) toc.push([pad(secNum++), "The picture", "charts-grid"]);
+  if (pareto && pareto.items.length > 0) toc.push([pad(secNum++), "Pareto diagnostics", "pareto-diagnostics"]);
   if (insights.length || recommendations.length || isNarrativePending) toc.push([pad(secNum++), "Observations", "observations"]);
   if (mergePlan) toc.push([pad(secNum++), "Sources & merge audit", "sources-audit"]);
 
@@ -642,6 +646,74 @@ export default function Dashboard({
                         figNum={String(i + 1).padStart(2, "0")}
                       />
                     ))}
+                  </div>
+                </section>
+              )}
+
+              {/* 4b. Pareto diagnostics — Lean Six Sigma 80/20 */}
+              {pareto && pareto.items.length > 0 && (
+                <section id="pareto-diagnostics" style={{ marginBottom: 56 }} className="fade-up">
+                  <SectionHeader
+                    eyebrow="03 · Lean Diagnostics"
+                    title="The vital few"
+                    sub="✓ Computed facts · 80/20 Pareto analysis of rejection reasons."
+                  />
+
+                  {/* Diagnostic brief */}
+                  <div
+                    style={{
+                      border: "1px solid var(--accent)",
+                      borderRadius: "var(--radius-lg)",
+                      padding: "var(--pad-card)",
+                      marginBottom: "var(--gap-grid)",
+                      background: "var(--accent-weak)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 800,
+                          background: "var(--accent)",
+                          color: "var(--text-invert)",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        ⚡ 80/20 Rule
+                      </span>
+                      <span className="eyebrow accent" style={{ fontWeight: 700, margin: 0 }}>
+                        Critical Improvement Area Flagged
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 17, lineHeight: 1.5, margin: 0, fontWeight: 600, color: "var(--text)" }}>
+                      {pareto.criticalAreaText}
+                    </p>
+                    <p style={{ fontSize: 14, lineHeight: 1.55, margin: "12px 0 0", color: "var(--text-2)" }}>
+                      <strong>Action plan:</strong> Prioritizing corrective engineering on
+                      {" "}
+                      {pareto.vitalFewCount === 1 ? "this category" : `these ${pareto.vitalFewCount} categories`}
+                      {" "}
+                      will resolve the vast majority of shopfloor quality losses.
+                    </p>
+                  </div>
+
+                  {/* Dual-axis Pareto chart */}
+                  <div className="card" style={{ overflow: "hidden" }}>
+                    <div style={{ paddingBottom: 16 }}>
+                      <div className="eyebrow" style={{ marginBottom: 4 }}>
+                        <span style={{ color: "var(--accent)" }}>Fig. P1</span>
+                        <span style={{ marginLeft: 8, color: "var(--text-3)" }}>
+                          · {pareto.totalDefects.toLocaleString()} total rejects
+                        </span>
+                      </div>
+                      <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: 0, fontWeight: 800, color: "var(--text)" }}>
+                        Pareto chart — defect counts vs. cumulative %
+                      </h3>
+                    </div>
+                    <ParetoChart analysis={pareto} />
                   </div>
                 </section>
               )}

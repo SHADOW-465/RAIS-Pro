@@ -10,7 +10,7 @@
 // (4) derives a MergePlan for the Sources audit panel.
 
 import type { SheetSummary } from "./parser";
-import type { MetricsResult, SheetGraph } from "@/types/metrics";
+import type { MetricsResult, SheetGraph, SeriesPoint, ParetoItem, ParetoAnalysis } from "@/types/metrics";
 import type { MergePlan } from "@/types/analysis";
 import type { KPI, Chart } from "@/types/dashboard";
 
@@ -178,6 +178,57 @@ export function metricsToCharts(result: MetricsResult): Chart[] {
   }
 
   return charts;
+}
+
+// ── 4b. reasonPareto → Lean Six Sigma 80/20 analysis ─────────────────────────
+// Pure JS over the already-aggregated, descending reason series. Distinguishes
+// the "vital few" (smallest subset crossing the 80% cumulative cut-off) from the
+// "useful many". Numbers are exact; only criticalAreaText is prose, and it is
+// templated here (not by the model) so it always traces to the computed values.
+
+/** Collapse SCREAMING reason labels into a readable "Struck Balloon" form. */
+function prettyLabel(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+export function calculatePareto(data: SeriesPoint[]): ParetoAnalysis | null {
+  const sorted = data
+    .filter((p) => p.value > 0)
+    .sort((a, b) => b.value - a.value);
+  if (sorted.length === 0) return null;
+
+  const totalDefects = sorted.reduce((sum, p) => sum + p.value, 0);
+  if (totalDefects <= 0) return null;
+
+  let cumulative = 0;
+  let prevCumulative = 0; // cumulative % of the element BEFORE this one
+  const items: ParetoItem[] = sorted.map((p, i) => {
+    const contribution = (p.value / totalDefects) * 100;
+    cumulative += contribution;
+    // Vital few = every element up to and including the first one that pushes
+    // the running total past 80%. Gated on the PREVIOUS cumulative so the
+    // crossing element is itself included.
+    const isVitalFew = prevCumulative < 80;
+    prevCumulative = cumulative;
+    return { rank: i + 1, label: p.label, value: p.value, contribution, cumulative, isVitalFew };
+  });
+
+  const vitalFew = items.filter((it) => it.isVitalFew);
+  const vitalFewCount = vitalFew.length;
+  const vitalFewContribution = vitalFew.reduce((sum, it) => sum + it.contribution, 0);
+
+  const names = vitalFew.map((v) => prettyLabel(v.label));
+  const nameList =
+    names.length <= 3 ? names.join(", ") : `${names.slice(0, 3).join(", ")}, +${names.length - 3} more`;
+  const noun = vitalFewCount === 1 ? "category" : "categories";
+  const criticalAreaText =
+    `The top ${vitalFewCount} defect ${noun} (${nameList}) account for ` +
+    `${vitalFewContribution.toFixed(1)}% of total quality rejects.`;
+
+  return { items, totalDefects, vitalFewCount, vitalFewContribution, criticalAreaText };
 }
 
 // ── 5. graphs → MergePlan (Sources audit panel) ──────────────────────────────

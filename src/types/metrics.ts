@@ -65,3 +65,25 @@ export interface MetricsResult {
   reasonPareto: SeriesPoint[]; // reason → total rejected qty, desc
   monthlyTrend: SeriesPoint[]; // month → rejection rate
 }
+
+// ── Lean Six Sigma Pareto (80/20) analysis ───────────────────────────────────
+// Derived deterministically from reasonPareto in dashboard-builder. The "vital
+// few" are the smallest subset of defect categories that together account for
+// ~80% of all rejects — the priority targets for corrective engineering.
+
+export interface ParetoItem {
+  rank: number; // 1-based, descending by value
+  label: string;
+  value: number; // defect count
+  contribution: number; // (value / totalDefects) * 100
+  cumulative: number; // running sum of contribution %
+  isVitalFew: boolean; // part of the subset crossing the 80% cut-off
+}
+
+export interface ParetoAnalysis {
+  items: ParetoItem[];
+  totalDefects: number;
+  vitalFewCount: number;
+  vitalFewContribution: number; // combined % of the vital few
+  criticalAreaText: string; // automated Lean diagnostic brief
+}

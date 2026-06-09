@@ -51,7 +51,7 @@ import type { LanguageModel } from "ai";
 const MODELS = {
   gateway:    { main: "anthropic/claude-sonnet-4.6",       fast: "anthropic/claude-haiku-4.5"        },
   anthropic:  { main: "claude-sonnet-4-6",                 fast: "claude-haiku-4-5"                  },
-  openrouter: { main: "nvidia/nemotron-3-super-120b-a12b:free", fast: "nvidia/nemotron-3-super-120b-a12b:free" },
+  openrouter: { main: "openrouter/free", fast: "openrouter/free" },
   google:     { main: "gemini-2.5-flash",                  fast: "gemini-2.5-flash-lite"             },
   groq:       { main: "openai/gpt-oss-120b",               fast: "openai/gpt-oss-20b"                },
 } as const;

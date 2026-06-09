@@ -3,6 +3,7 @@ import {
   metricsSane,
   metricsToKpis,
   metricsToCharts,
+  calculatePareto,
   deriveMergePlan,
 } from "../lib/dashboard-builder";
 import type { MetricsResult, SheetGraph, Metric } from "@/types/metrics";
@@ -158,6 +159,45 @@ describe("metricsToCharts", () => {
 
   it("omits charts with no data", () => {
     expect(metricsToCharts(result())).toHaveLength(0);
+  });
+});
+
+// ── calculatePareto ──────────────────────────────────────────────────────────
+
+describe("calculatePareto", () => {
+  it("returns null when there is no positive reason data", () => {
+    expect(calculatePareto([])).toBeNull();
+    expect(calculatePareto([{ label: "X", value: 0 }])).toBeNull();
+  });
+
+  it("ranks descending, reaches 100% cumulative, and flags the vital few", () => {
+    // 50 / 35 / 10 / 5  →  totals 100. First crosses 50, second crosses 85 (>80).
+    const p = calculatePareto([
+      { label: "STRUCK BALLOON", value: 35 },
+      { label: "LEAKAGE", value: 50 },
+      { label: "DENT", value: 10 },
+      { label: "SCRATCH", value: 5 },
+    ])!;
+    expect(p.totalDefects).toBe(100);
+    expect(p.items.map((i) => i.label)).toEqual(["LEAKAGE", "STRUCK BALLOON", "DENT", "SCRATCH"]);
+    expect(p.items.map((i) => i.rank)).toEqual([1, 2, 3, 4]);
+    // cumulative strictly reaches 100 on the last item
+    expect(p.items[p.items.length - 1].cumulative).toBeCloseTo(100, 6);
+    // vital few = items up to and including the one crossing 80% (50 then 85)
+    expect(p.items.map((i) => i.isVitalFew)).toEqual([true, true, false, false]);
+    expect(p.vitalFewCount).toBe(2);
+    expect(p.vitalFewContribution).toBeCloseTo(85, 6);
+    expect(p.criticalAreaText).toContain("top 2 defect categories");
+    expect(p.criticalAreaText).toContain("85.0%");
+  });
+
+  it("uses singular phrasing when one category dominates", () => {
+    const p = calculatePareto([
+      { label: "LEAKAGE", value: 90 },
+      { label: "DENT", value: 10 },
+    ])!;
+    expect(p.vitalFewCount).toBe(1);
+    expect(p.criticalAreaText).toContain("top 1 defect category");
   });
 });
 

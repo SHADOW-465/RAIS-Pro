@@ -24,6 +24,7 @@ import {
   metricsSane,
   metricsToKpis,
   metricsToCharts,
+  calculatePareto,
   deriveMergePlan,
 } from "@/lib/dashboard-builder";
 import { parseMonth, sheetNameOf } from "@/lib/verify-nav";
@@ -122,6 +123,7 @@ export async function POST(req: NextRequest) {
     const metrics = computeMetrics(uniqueSummaries, graphs);
     const kpis = metricsToKpis(metrics);
     const charts = metricsToCharts(metrics);
+    const pareto = calculatePareto(metrics.reasonPareto);
     const mergePlan = deriveMergePlan(uniqueSummaries, graphs);
 
     // Per-sheet sections: each non-summary sheet gets its own deterministic
@@ -138,11 +140,12 @@ export async function POST(req: NextRequest) {
           sortIndex: month ? month.sortIndex : Number.MAX_SAFE_INTEGER,
           kpis: metricsToKpis(m),
           charts: metricsToCharts(m),
+          pareto: calculatePareto(m.reasonPareto),
         };
       })
       .filter((sec) => sec.kpis.length > 0)
       .sort((a, b) => a.sortIndex - b.sortIndex)
-      .map(({ id, label, kpis: k, charts: c }) => ({ id, label, kpis: k, charts: c }));
+      .map(({ id, label, kpis: k, charts: c, pareto: p }) => ({ id, label, kpis: k, charts: c, pareto: p }));
 
     console.log(
       `[analyze] graph=${graphSource}, kpis=${kpis.length}, charts=${charts.length}, ` +
@@ -167,6 +170,7 @@ export async function POST(req: NextRequest) {
       recommendations: [],
       alerts: [],
       sections,
+      pareto,
     };
 
     // ── Save to Supabase (best-effort) ──────────────────────────────────────

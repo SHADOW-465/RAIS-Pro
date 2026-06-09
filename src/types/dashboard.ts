@@ -1,5 +1,7 @@
 // src/types/dashboard.ts
 
+import type { ParetoAnalysis } from "./metrics";
+
 export interface KPI {
   label: string;
   value: string | number;
@@ -54,6 +56,8 @@ export interface DashboardSection {
   label: string;
   kpis: KPI[];
   charts: Chart[];
+  /** Lean Six Sigma 80/20 analysis for this sheet's rejection reasons. Null when no reason data. */
+  pareto?: ParetoAnalysis | null;
 }
 
 export interface DashboardConfig {
@@ -66,6 +70,8 @@ export interface DashboardConfig {
   alerts: string[];
   /** Deterministic per-sheet breakdowns. The top-level kpis/charts are the combined view. */
   sections?: DashboardSection[];
+  /** Combined-view Lean Six Sigma 80/20 analysis of rejection reasons. Null when no reason data. */
+  pareto?: ParetoAnalysis | null;
 }
 
 export interface ChatMessage {
