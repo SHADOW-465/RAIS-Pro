@@ -178,9 +178,8 @@ export const InsightSlideAnswerSchema = z.object({
     .describe("0 charts for text-only, 1 for simple, 2 for comparative questions"),
   bullets: z
     .array(z.string())
-    .min(3)
-    .max(4)
-    .describe("3-4 supporting points, each referencing a specific data point"),
+    .max(5)
+    .describe("2-5 supporting points, each referencing a specific data point"),
 });
 
 export type InsightSlideAnswer = z.infer<typeof InsightSlideAnswerSchema>;

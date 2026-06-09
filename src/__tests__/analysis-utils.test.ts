@@ -218,13 +218,12 @@ describe("InsightSlideAnswerSchema", () => {
     expect(slide.bullets).toHaveLength(3);
   });
 
-  it("rejects fewer than 3 bullets", () => {
-    expect(() =>
-      InsightSlideAnswerSchema.parse({
-        headline: "X 1.",
-        charts: [],
-        bullets: ["only one"],
-      }),
-    ).toThrow();
+  it("accepts fewer than 3 bullets (min() removed to prevent strict-mode NoObjectGeneratedError)", () => {
+    const slide = InsightSlideAnswerSchema.parse({
+      headline: "X 1.",
+      charts: [],
+      bullets: ["only one"],
+    });
+    expect(slide.bullets).toHaveLength(1);
   });
 });

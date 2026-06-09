@@ -67,8 +67,8 @@ export type ModelBackend =
 const ALL_BACKENDS: readonly ModelBackend[] = [
   "gateway",
   "anthropic",
-  "openrouter",
   "google",
+  "openrouter",
   "groq",
   "ollama",
 ];

@@ -52,8 +52,15 @@ export default function ChatPanel({
       const result = await res.json();
 
       if (result.type === "slide" && result.slide) {
+        const s = result.slide;
+        // Guard: if the model returned a structurally empty slide, surface it as
+        // an error rather than silently appending a blank card to the dashboard.
+        if (!s.headline && (!s.bullets || s.bullets.length === 0)) {
+          setError("The model returned an empty response. Please try rephrasing your question.");
+          return;
+        }
         const slide: InsightSlideType = {
-          ...result.slide,
+          ...s,
           sessionId: sessionId ?? "",
         };
         if (sessionId) {
