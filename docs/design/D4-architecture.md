@@ -20,6 +20,7 @@ The data path is being replaced (SheetSummary→LLM-graph→metrics becomes Even
 | `src/lib/supabase.ts`, `device-id.ts` | **Reuse as-is** | |
 | `src/lib/verify-nav.ts`, `BeamOverlay.tsx`, `VerifyPanel.tsx` | **Reuse + upgrade (B3/B4)** | The beam is product identity. Upgrade: targets resolve from D1 `Provenance.cells` instead of ad-hoc sourceColumn refs; independent-scroll fix verified in D5. |
 | `Dashboard.tsx`, `KPICard`, `ChartContainer`, `ParetoChart`, `EditorialCharts` | **Port (B4)** | Visual components stay; data props change to analytics-with-lineage (trust badge on every metric). |
+| `InsightSlide.tsx` (Observations & Diagnostics / recommendations panel) | **Port (B4) — keep, do not drop** | The current dashboard's centerpiece. Observations/recommendations stay; B4 makes every inline numeric token carry a trust badge + click-to-lineage, and the narrative LLM cites event ids instead of re-deriving numbers. |
 | `UploadZone`, `ProcessingLoader`, `Sidebar`, `SessionCard`, editorial primitives, `TweaksContext` | **Reuse as-is** | |
 | `ChatPanel.tsx`, `/api/chat` | **Port (B4)** | Answers must cite event provenance; tool surface changes to query the canonical store. |
 | `/api/analyze`, `/api/narrative` | **Replace (B1/B2)** | Become `/api/ingest` (events) + `/api/validate` (findings); narrative survives as a thin prose pass over computed analytics. The LLM-graph + sanity-gate *pattern* inside analyze is ported into ingestion. |

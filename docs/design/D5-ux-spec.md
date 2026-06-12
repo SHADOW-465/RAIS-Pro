@@ -60,9 +60,15 @@ When open count hits 0: full-width card *"All questions answered — the dashboa
 ### 3.1 Decision dashboard (`/session/[id]`, ported Dashboard.tsx)
 - **Verification banner** (replaces nothing; sits under masthead): *"Verified to 94% · 2 questions await your call"* → links to GM queue. Hidden at 100%/0.
 - **Trust badge on every metric** (KPI cards, chart headers, table columns): a small mark — `verified` (solid ink check), `assumed` (outlined tilde, hover shows the rulebook rationale), `unresolved` (accent ring, hover shows the open question). Click → **lineage trail**: side panel listing contributing events → click event → beam to source cells (existing VerifyPanel/BeamOverlay, retargeted to `Provenance.cells`). **Data sources:** `analytics/*` + `MetricLineage` per metric.
-- **Pareto chart** (existing ParetoChart, fed by `analytics/pareto.ts` over adjudicated events only). Defect names from the registry's canonical labels — never raw misspellings.
-- **Exceptions strip:** top 3 findings by magnitude this period, read-only (adjudication is the steward's job; GM sees state).
+- **Observations & Diagnostics panel — KEPT and upgraded (the current dashboard's centerpiece, `InsightSlide`/narrative).** The two-column "What the data is telling you" (observations) → "What to do about it" (recommendations) stays as the GM's primary reading surface. B4 changes are additive, not a replacement:
+  - Every **numeric token inside an observation** (the inline mono chips like `5.88%`, `41,621`, `82,881` in the screenshot) gets the same **trust badge + click-to-lineage** as KPI numbers. The observation *"top rejection reason is BM with 41,621 occurrences"* is now clickable straight to the cells that produced 41,621.
+  - Observations are generated **only from adjudicated canonical events** (the narrative LLM cites event ids; it never re-derives numbers — pipeline invariant #1). An observation that depends on an `unresolved`/`assumed` metric inherits that badge, so the GM can see which insights are still provisional.
+  - Recommendations keep their checklist + horizon ("Today / This wk / Next wk / 30 days"). Where a recommendation targets a defect (e.g. "investigate BM"), it deep-links to the relevant Pareto bar / finding.
+- **Pareto chart — ADDED alongside, not replacing the above** (existing ParetoChart, fed by `analytics/pareto.ts` over adjudicated events only). Defect names from the registry's canonical labels — never raw misspellings. It complements observation #2 ("top rejection reason is BM…") by showing the full ranked distribution; clicking a bar filters the observations/recommendations to that defect.
+- **Exceptions strip:** top 3 findings by magnitude this period, read-only (adjudication is the steward's job; GM sees state). This is a *small status row*, distinct from the Observations panel above — it surfaces open data-quality questions, whereas Observations surface analytical insight.
 - **Learning indicator:** *"14 questions on first upload → 3 this month"* (`questionsAsked(ingestion)` series + rule-applications count). This is the moat made visible.
+
+> **Section ordering on the GM dashboard (top → bottom):** verification banner → KPI row → **Observations & Diagnostics (primary)** → Pareto → trend charts → exceptions strip → learning indicator → chat. Nothing from the current dashboard is dropped; the redesign *adds* trust/lineage to what's already insightful.
 
 ### 3.2 GM authority queue
 Same card anatomy as steward queue, filtered to `requiresGmAuthority`, with the steward's recommendation (if any) pre-rendered as a quote. Two-item typical depth; designed as a modal-free single column — the GM should clear it in under a minute.
@@ -87,6 +93,7 @@ Derived from `VerifyPanel` with the fixes from commit 9834817 carried over and v
 | `TrustBadge` + `LineagePanel` | new | B4 |
 | `VerificationBanner`, `LearningIndicator` | new | B4 |
 | `GmQueue` | FindingCard variant | B3 |
+| `InsightSlide` / Observations & Diagnostics panel | existing, **kept** — data-port + per-token trust badges | B4 |
 | Dashboard, KPICard, ParetoChart, ChatPanel | existing, data-port | B4 |
 
 Every new component consumes CSS variables only (no new theme utility classes), per AGENTS.md hard rules.
