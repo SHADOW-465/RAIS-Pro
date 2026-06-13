@@ -1,8 +1,10 @@
 # RAIS Pro — The Rejection Report
 
-Editorial diagnostic for pharma operations. Drop in plant spreadsheets, get an
-executive read in under thirty seconds — magazine-style layout, real numbers,
-auditable sources, follow-up chat that returns saveable insight slides.
+Editorial diagnostic for regulated manufacturing operations (pilot: Disposafe, a
+medical-device maker in Delhi — ISO 13485 / MDR 2017). RAIS Pro is **MO!D V1** —
+see `docs/MOID-BLUEPRINT.md`. Drop in plant spreadsheets, get an executive read in
+under thirty seconds — magazine-style layout, real numbers, auditable sources,
+follow-up chat that returns saveable insight slides.
 
 ## What it does
 
