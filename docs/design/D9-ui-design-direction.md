@@ -74,6 +74,22 @@ focus panel), stage bars, defect Pareto w/ 80% line, Data-Health findings (the 3
 with Mistake/Intentional/Not-sure adjudication buttons). **This is the D5 design-cues gate
 artifact — show it to the GM for sign-off BEFORE building production UI.**
 
+## 7b. Printable report mockup (built 2026-06-14)
+`docs/blueprint/monthly-report-mockup.html` (copy: `_Export/moid-monthly-report-mockup.html`).
+Addresses client feedback ("needs depth + a threshold line to separate good/bad; we print these;
+gets all the one-by-one graphs into one place"). A **4-page A4 report** = dark app frame holding
+a pristine white printable document (`@media print` → clean A4, `window.print()` → PDF). Built on
+their REAL artifacts: Daily Activity Report (Doc F/DIP/13:00) + FBC Process Flow (DS/ANX/02:00,
+Foley Balloon Catheter, 27 steps) + real May-2026 daily rej% (5.5–33.9%, mean 12.56%).
+Contents: P1 letterhead+doc-control + exec KPIs + **daily trend with target/warn/critical zone
+bands + target/warn/mean threshold lines** + narrative + stage-status grid; P2 stage-rejection
+bars (vs target) + consolidated stage register (their column format) + 27-step FBC flow with
+inspection coverage; P3 defect Pareto (80% line) + **SPC control chart (UCL/CL/LCL, out-of-control
+flagged)** + weekly trend; P4 data-health findings (real anomalies: negative REJ, 18-May 33.9%
+spike, missing days) w/ adjudication + CAPA-ready actions + QA sign-off block (Prepared/Reviewed/
+Approved/Issued — mirrors their format). This is the **report/print deliverable (D6)** — show
+alongside the interactive GM-overview for sign-off.
+
 ## 8. After sign-off
 - Take their feedback on THIS screen → lock the design language → then build the real GM
   overview against live data, then the QE diagnostics view, then the (calm, separate) steward
