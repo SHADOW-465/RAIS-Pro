@@ -63,7 +63,18 @@ The reference mostly **confirms** our existing design (scope selector, trust bad
 - Entry forms: which stages, which fields, who enters, on what device (PC/tablet/phone)?
 - Light vs dark for the printed GM report (print likely needs light).
 
-## 7. Next step
-Produce a visual concept (static mockup or clickable HTML) of the GM overview in this language
-for client sign-off BEFORE building (this is the D5 design-cues gate). Don't build UI until the
-hero screen is approved.
+## 7. Next step — DONE (concept built)
+Visual concept of the GM overview built: `docs/blueprint/gm-overview-mockup.html` (copy on OS
+dashboard: `_Export/moid-gm-overview-mockup.html`). Interactive, TradingView-grade, using
+Disposafe's REAL structure (Assembly stages Visual/Balloon/Valve/Final; real defect names Thin
+Spod/Struck Balloon/Leakage/Balloon Brust/Bubble; real April/May figures; values elsewhere
+illustrative). Demonstrates: dark terminal shell, global scope bar, KPI strip w/ trust badges,
+interactive trend chart (hover crosshair, empty-Jan finding flagged), stage watchlist (click →
+focus panel), stage bars, defect Pareto w/ 80% line, Data-Health findings (the 3 real anomalies
+with Mistake/Intentional/Not-sure adjudication buttons). **This is the D5 design-cues gate
+artifact — show it to the GM for sign-off BEFORE building production UI.**
+
+## 8. After sign-off
+- Take their feedback on THIS screen → lock the design language → then build the real GM
+  overview against live data, then the QE diagnostics view, then the (calm, separate) steward
+  entry view. Don't build production UI until they approve the hero screen.
