@@ -108,7 +108,7 @@ Design notes:
 | ALCOA+ framing / audit traceability | **KEEP** | Medical-device plant; our immutable ledger already delivers it. |
 | One-click audit ZIP (CSV + SHA-256 manifest) | **KEEP (light)** | Buildable from data we have; strong regulatory hook. |
 | Explain toggle / L0–L1–L2 layered depth | **KEEP** | Good dual-audience UX (GM + engineer). |
-| COPQ in rupees | **DEFER** | High value, but blocked on a client-confirmed ₹/unit; and Decision 2 de-emphasizes cost-weight model. Add as config when the GM gives one number. |
+| COPQ in rupees | **DEFER (now top-blocked)** | High value, blocked on a client-confirmed ₹/unit. The PA review's "quantify impact" (§7 point 5) depends on this — so getting one ₹/unit is now the **#1 client follow-up**. Add as config the moment the GM gives a number. |
 | 12-stage production line, RTY, FPY-across-line | **DEFER/REJECT for v1** | Decision 2 — production is out of scope; his files don't track it. |
 | OEE tracker (availability/performance) | **DEFER (V3)** | No shift-time/downtime data exists in any file. |
 | Correlation engine (machine/operator/batch/shift) | **DEFER (V2)** | None of these fields exist in the source data; would need new capture. |
@@ -132,9 +132,25 @@ Design notes:
 - **D5 (UX):** re-skin to the TradingView mockup + light/dark; move Data Health/provenance into **Ask RAIS chat**; keep the Observations & Diagnostics panel (already corrected); the steward finding-cards become the live-clarification UI.
 - **D6 (report):** template = the 4-page mockup **minus** the sign-off/data-health page; keep print trust marks.
 
-## 7. Open questions (for the next client touchpoint)
+## 7. PA dashboard review outcomes (2026-06-17)
 
-1. One real **₹/unit** (and rework cost, if any) to unlock COPQ — otherwise COPQ stays deferred.
+The PA reviewed the **current live** RAIS-pro dashboard (`MO!D/RAIS DASHBOARD ANALYSIS REPORT.pdf`). Headline: *"it currently feels more like a digital report than an executive decision-making dashboard."* This is precisely the gap the redesign targets, so the review is validation + concrete refinement, not a pivot. Mapping and resolutions:
+
+| PA point (priority) | Resolution |
+|---|---|
+| 1. AI executive insights at top, plain language **(HIGH)** | Already core (Observations & Diagnostics panel, kept). Confirms it sits **at the top**, above the fold. |
+| 2. Rejection Rate = primary KPI; **trend vs previous period**; color status **(HIGH)** | Matches rejection-only + "rejection_rate leads." **ADD:** period-over-period delta indicator (▲/▼ vs prior month, colored) on every KPI — cheap, we already compute monthly trend. |
+| 3. Reduce hero/header height **(HIGH)** | Resolved by re-skinning to the dense TradingView `mockup-1`; the tall "Executive Briefing" hero is removed. |
+| 4. Insight caption under each chart | **ADD:** a one-line plain-language takeaway beneath *each* visualization (LLM writes the prose from computed numbers; never the number). Extends the single panel to per-chart. |
+| 5. Recommended actions + **quantify impact** | "What to do about it" recommendations stay. Quantified ₹ impact **stays blocked on a client ₹/unit** (open-Q 1) — this review makes that the top client follow-up. |
+| 6. Green/amber/red visual hierarchy | **Reconcile, don't reject:** add semantic **status tokens** (`--status-good/warn/bad`) used only for state/threshold signaling, distinct from the brand burnt-orange accent. Legitimate within the editorial system; keeps the Tweaks panel working (CSS vars). |
+| 7. Trust scorecard with confidence scores | **ADD a dashboard trust scorecard** (glanceable: "% verified · checks passed · open questions · confidence"), sourced from D3 lineage states. **This amends Decision 3:** provenance is *both* a dashboard summary scorecard **and** per-number drill-down in Ask RAIS chat (View Source) — not chat-only. |
+
+Net new build items from this review: (a) KPI period-delta indicators, (b) per-chart insight captions, (c) dashboard trust scorecard, (d) semantic status-color tokens. All fold into the dashboard re-skin; none require new engine work (they read existing analytics + D3 lineage).
+
+## 8. Open questions (for the next client touchpoint)
+
+1. **(Top priority)** One real **₹/unit** (and rework cost, if any) to unlock COPQ — without it the PA's highest-value "quantify impact" ask (§7.5) cannot render.
 2. **On-prem/air-gapped vs cloud** deployment → decides local-LLM vs AI Gateway.
 3. **Hindi labels** scope for direct-entry forms (client is Delhi; Hindi/English).
 4. Confirm the 4 rejection stages are the complete v1 set, and whether "Final" = the assembly-file Final or a separate sheet.
