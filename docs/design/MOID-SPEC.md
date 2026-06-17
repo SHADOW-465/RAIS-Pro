@@ -115,6 +115,7 @@ src/app/api/         ingest · entry · findings · rulebook · chat · export/a
 - **Reuse from current code:** `parser.ts` internals → `ingest/reader`; `metrics.inferSheetGraph` → `classify` heuristic; `dashboard-builder.reconcileGraph`/`metricsSane` → graph sanity gate; `ai.ts tryModels` as-is; verify beam / VerifyPanel → chat View Source + scorecard drill-down. **Delete:** `merger.ts` (merge plan is what the ledger does). Detail in archived D4.
 - **Storage** (Supabase, append-only): `ingestions, raw_files, events, findings, adjudications, rulebook_rules, rule_applications` + `registry`/`cost_config`. No `CHECK` that forces qty balance (rejected → Finding, never insert error). UPDATE/DELETE revoked on event/finding tables; `superseded_by` set only via the adjudication path. DDL in archived D4 §3.
 - **Failure posture:** any LLM failure degrades to heuristics (classify) or absence (rule draft); ingest→store→validate→adjudicate is deterministic and must not throw on any real workbook.
+- **Security & deployment:** see [`MOID-SECURITY-SPEC.md`](MOID-SECURITY-SPEC.md). Build as a **self-hosted on-prem web app**; **local LLM by default (zero egress)**, optional scrubbed-cloud fallback behind a fail-closed **egress guard** (allowlist + pseudonymizing scrubber + outbound audit log). The LLM only ever receives column structure + de-identified aggregates — never raw counts, batch/operator/machine ids, SKU/cost. This is enforced structurally (compute and LLM layers don't share inputs) and is the basis of the IT "get-unblocked" dossier.
 
 ## 12. Build order
 
@@ -123,7 +124,7 @@ B1 store + dual ingestion (+ schema-verify + cost config) → B2 validation engi
 ## 13. Open questions (client)
 
 1. **(Top)** A real ₹/unit to seed `CostConfig` defaults (otherwise users still self-enter; cost just starts empty).
-2. On-prem/air-gapped vs cloud → local-LLM vs AI Gateway.
+2. On-prem/air-gapped vs cloud → resolved in `MOID-SECURITY-SPEC.md`: on-prem web app, local-LLM default + optional scrubbed-cloud. Remaining: will they provision a local GPU box, and which single endpoint to allowlist if cloud.
 3. Hindi label scope for direct-entry forms (Delhi; Hindi/English).
 4. Confirm the 4 rejection stages are complete and that "Final" maps to one source.
 5. Total Rejection % his way (sum of stage %s) vs consistent count-based, with an endnote (V-005, GM call).
