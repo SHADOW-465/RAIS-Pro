@@ -1,7 +1,9 @@
-# D0 — Spec Reconciliation & Current Truth
+# D0 — Spec Reconciliation & Decision History
 
-**Status:** v1.0 (2026-06-17) · **Read this before D1–D6 or any `docs/*-exhaustive` doc.**
-**Why this exists:** requirements have evolved across several doc generations (old `docs/trash/design/D1–D10`, the data-grounded `docs/design/D1–D6`, and the newest `docs/*-exhaustive` set). They conflict. This doc is the single pointer to what is *currently* true, what is kept, what is deferred, and what is rejected — with the evidence for each call. When a future decision changes things, update **this** file first.
+> **Finalized into:** [`MOID-SPEC.md`](MOID-SPEC.md) (functional + architecture — the build contract) and [`MOID-DESIGN-SPEC.md`](MOID-DESIGN-SPEC.md) (UI/UX — for Antigravity). **Build from those two.** D0 is retained as the *decision-rationale log* — the "why" behind the finalized specs. When a decision changes, update MOID-SPEC/DESIGN first, then note it here.
+
+**Status:** v1.1 (2026-06-17) · decision history.
+**Why this exists:** requirements evolved across several doc generations (old `docs/trash/design/D1–D10`, the data-grounded D1–D6 now archived in `docs/trash/design/`, and the `docs/*-exhaustive` set). They conflicted. This doc records what was kept, deferred, and rejected — with the evidence for each call — and is now distilled into the two finalized specs above.
 
 **Primary evidence used here:**
 - The real client workbooks (`DATA/` + `DATA/profile_d1_output.md`, 6 workbooks / 47 sheets, profiled).
