@@ -1,193 +1,198 @@
-# RAIS — Product Requirements Document
-*Version 1.0 · MVP · April 2026*
+# RAIS / MO!D — Exhaustive Product Requirements Document & System Specification
+*Version 2.0 · Pilot Production Specification · June 2026*
+
+This document serves as the single source of truth for the **RAIS/MO!D** system built for **Disposafe Health and Life Care Limited**'s latex Foley Balloon Catheter (FBC) dipping and assembly plant in Ballabgarh (Faridabad), Haryana. It consolidates all data contracts, mathematical formulations, user roles, UI/UX systems, and compliance frameworks.
 
 ---
 
-## Overview
+## 1. Executive Summary & Scope
 
-| Field | Detail |
-|---|---|
-| Product name | RAIS — Rejection Analysis & Intelligence System |
-| Version | 1.0 MVP |
-| Product type | AI-powered data analytics dashboard (Next.js web app) |
-| Primary user | General Manager / Operations Director |
-| Problem statement | GMs spend 60–180 minutes per reporting cycle reading multiple Excel files to understand operational data before they can make decisions. The data is correct but the format is wrong for decision-making. |
-| Solution | A drag-and-drop interface that ingests multiple Excel/CSV files and uses AI to generate a fully contextualised, dynamic analytics dashboard in under 30 seconds. |
-| Success metric | Time from opening RAIS to data-informed decision: under 5 minutes (down from 60–180 minutes) |
+RAIS/MO!D is a manufacturing quality intelligence and diagnostics application. It ingests daily production Excel sheets and manual records, reconstructs them into an immutable ledger, runs deterministic calculations, and produces role-specific dashboards.
+
+* **Client:** Disposafe Health and Life Care Limited.
+* **Product Focus:** Foley Balloon Catheter (FBC) Dipping & Assembly lines.
+* **Primary Objective:** Transform raw quality paperwork into traceable, money-denominated, audit-ready operational insights to support Lean/Kaizen practices without introducing hardware dependencies.
+* **System Language:** English UI with Hindi labels for operator data entry.
 
 ---
 
-## Problem Statement
+## 2. Core Design & Usability Pillars
 
-### Context
-Operations teams at manufacturing, retail, logistics, and service companies collect data in Excel. Department heads export reports as .xlsx files and email them to their GM for review. The GM must:
-- Open each file individually
-- Cross-reference numbers across files
-- Mentally aggregate and compare data points
-- Build their own summary interpretation
-- Create reports and communicate findings
-
-This process is time-consuming, error-prone, and entirely manual. The GM is not a data analyst — they are a decision-maker performing analyst work because the tooling has not caught up.
-
-### The Gap
-Existing BI tools (Power BI, Tableau, Looker) solve this problem but require: dedicated data engineers, database connections, weeks of setup, and ongoing maintenance. They are built for organisations with data infrastructure. RAIS is built for organisations where the data infrastructure is someone's email inbox.
+Every software engineering and UI decision must conform to these four principles:
+1. **Legible-First:** Essential screen text must be $\ge 14\text{px}$. Numbers are the heroes; tabular-num spacing is mandatory. Print text floor is $9.5\text{pt}$ for data.
+2. **Layered Depth (The L0–L2 Model):**
+   * **L0 (Glance):** Large display text showing a single headline metric and a plain-language verdict (e.g., `"Rejection is HIGH — 12.56%"`).
+   * **L1 (Read):** Standard dashboard charts, KPI cards, and "what it means" summaries for managers.
+   * **L2 (Drill):** Comprehensive daily tables, formulas, SPC mathematics, and raw source references.
+3. **Dual-Audience (The Explain Layer):** A global **"Explain" toggle** in the top bar. When active, every metric label and chart gets a plain-language definition, ensuring the General Manager (layman) and the Quality Engineer (expert) can collaborate on the same screen.
+4. **Trustable & Printable:** Every figure carries a trust badge that can be clicked to trace its lineage back to the source Excel cell. Every view has a print-layout equivalent that renders as an A4 controlled document.
 
 ---
 
-## User Personas
+## 3. Data Contract & Canonical Ledger
 
-### Primary: The GM
-- **Name:** Ahmad (composite)
-- **Role:** General Manager, mid-size company (50–500 employees)
-- **Tech comfort:** Intermediate — uses Excel, email, basic SaaS tools
-- **Context:** Receives 5–10 Excel reports per week from department heads
-- **Pain:** Spends first 1–2 hours of each day reading Excel before management calls
-- **Goal:** Understand the business state quickly and make confident decisions
-- **Non-goal:** Deep dive analytics, statistical modelling, data warehousing
+The system parses raw read-only sheets, neutralizes all pre-calculated Excel formulas, and inserts raw values into a canonical, transaction-safe event ledger.
 
-### Secondary: The Department Head (data provider)
-- Not a direct RAIS user — they provide the Excel files
-- Their behaviour does not need to change for RAIS to work
-- Benefit: fewer follow-up questions from the GM
+### A. The 6 Production Dispositions
+Every event in the ledger represents a material log entry classified under one of six dispositions:
+1. **Accept:** Passed inspection, moves to next stage.
+2. **Reject:** Irreversibly scrapped at this stage.
+3. **Rework:** Defective but fixable, sent back to previous step.
+4. **Hold:** Defective, placed in quarantine pending reinspection.
+5. **Scrap:** Disposed material, cannot be reused.
+6. **Downgrade:** Passed secondary inspection but downgraded to lower-value SKU.
 
----
+### B. Event Schema
+Every row parsed or typed represents a database transaction with the following columns:
+* `event_id`: Unique UUID.
+* `timestamp`: ISO Date/Time.
+* `sku_id`: Catheter SKU reference.
+* `line_id`: Production line ID.
+* `stage_name`: Dipping/assembly stage.
+* `quantity_checked`: Integer.
+* `quantity_accepted`: Integer.
+* `quantity_hold`: Integer.
+* `quantity_rejected`: Integer.
+* `provenance_id`: Link to source metadata.
 
-## Functional Requirements
-
-### F1 — File Ingestion
-| ID | Requirement | Priority |
-|---|---|---|
-| F1.1 | Accept multiple .xlsx files simultaneously via drag-and-drop | Must have |
-| F1.2 | Accept .xls and .csv files | Must have |
-| F1.3 | Accept file selection via browse button | Must have |
-| F1.4 | Allow files to be removed from the queue before analysis | Must have |
-| F1.5 | Allow additional files to be added after initial selection | Must have |
-| F1.6 | Parse all sheets within a multi-sheet workbook | Must have |
-| F1.7 | Handle Excel files with merged cells, empty rows, and mixed data types | Must have |
-| F1.8 | Display file name and size for each queued file | Should have |
-| F1.9 | Show sheet count per file after parsing | Nice to have |
-
-### F2 — Data Processing
-| ID | Requirement | Priority |
-|---|---|---|
-| F2.1 | Parse Excel files entirely client-side — no data transmitted to any storage server | Must have |
-| F2.2 | Compute per-column statistics: min, max, avg, sum, count (numeric columns) | Must have |
-| F2.3 | Compute value frequency distributions for categorical columns (top 20 values) | Must have |
-| F2.4 | Preserve 8 sample rows per sheet for AI context | Must have |
-| F2.5 | Truncate combined dataset summary at 12,000 characters before sending to AI | Must have |
-| F2.6 | Handle files with up to 50,000 rows without browser crash | Must have |
-
-### F3 — AI Analysis
-| ID | Requirement | Priority |
-|---|---|---|
-| F3.1 | Send summarised dataset to Anthropic Claude API | Must have |
-| F3.2 | Receive structured JSON response specifying dashboard configuration | Must have |
-| F3.3 | AI response must include: title, executive summary, 4–6 KPIs, 4–8 charts, 5 insights, 4 recommendations | Must have |
-| F3.4 | AI must select chart types appropriate to the data (not a fixed template) | Must have |
-| F3.5 | All KPI values and chart data must be derived from actual uploaded data | Must have |
-| F3.6 | Display 5-step progress indicator during API call | Must have |
-| F3.7 | Handle API errors gracefully with human-readable message and retry option | Must have |
-| F3.8 | AI must detect and flag critical data anomalies in an alerts section | Should have |
-
-### F4 — Dashboard Rendering
-| ID | Requirement | Priority |
-|---|---|---|
-| F4.1 | Render dynamic dashboard from AI-generated configuration | Must have |
-| F4.2 | Display 4–6 KPI cards with value, trend arrow, percentage change, and context | Must have |
-| F4.3 | Render 4–8 charts using Chart.js, dynamically sized (full/half/third width) | Must have |
-| F4.4 | Support chart types: bar, horizontal bar, line, area, pie, doughnut, radar | Must have |
-| F4.5 | Display AI-generated executive summary as the first content element | Must have |
-| F4.6 | Display 5 numbered insights with specific data references | Must have |
-| F4.7 | Display 4 actionable recommendations | Must have |
-| F4.8 | Show data source file names in footer | Must have |
-| F4.9 | Show conditional alerts banner when AI detects critical issues | Must have |
-| F4.10 | Dashboard title generated by AI based on data content | Must have |
-| F4.11 | Timestamp showing when analysis was run | Should have |
-| F4.12 | "New Analysis" button that resets to upload screen | Must have |
-| F4.13 | Browser print / export via native print dialog | Should have |
+### C. Cell Provenance Schema
+To support the verification layer, the ingestion engine logs exact coordinates of the source files:
+* `file_hash`: MD5 checksum of the uploaded file (prevents duplicate ingestion).
+* `filename`: Name of the source Excel workbook.
+* `sheet_name`: Worksheet name.
+* `cell_coordinate_checked`: String (e.g., `'Sheet1!B18'`).
+* `cell_coordinate_rejected`: String (e.g., `'Sheet1!E18'`).
 
 ---
 
-## Non-Functional Requirements
+## 4. Yield, OEE, & Financial Formulations
 
-### Performance
-- File parsing (client-side): < 3 seconds for files up to 10MB
-- API response: 10–30 seconds (acceptable given value delivered)
-- Dashboard render after response: < 1 second
-- Total time from drop to dashboard: target under 35 seconds
+The core analytical engine runs deterministic calculations on the canonical ledger to derive yields and financial leakage.
 
-### Privacy & Security
-- No Excel data is stored on any server — processing is entirely client-side
-- Only statistical summaries (not raw data) are sent to the Anthropic API
-- Anthropic API key is managed securely via environment variables or a proxy.
-- No user accounts, no cookies, no tracking
+### A. First Pass Yield (FPY)
+FPY measures the proportion of units that pass an inspection stage without being rejected or put on hold for rework.
+For stage $s$ on date $d$:
+$$FPY_{s,d} = \frac{\text{Checked}_{s,d} - \text{Hold}_{s,d} - \text{Rejected}_{s,d}}{\text{Checked}_{s,d}}$$
 
-### Compatibility
-- Chrome 90+ (primary)
-- Arc, Edge (Chromium-based)
-- Firefox 88+
-- Safari 14+ (with caveat: streaming fetch may differ)
-- Mobile: not a primary use case, no responsive optimisation required for MVP
+### B. Rolled Throughput Yield (RTY)
+RTY is the cumulative probability that a catheter passes through all 12 stages of the dipping and assembly line without rework or reject. It is the product of individual FPYs:
+$$RTY_d = \prod_{s=1}^{12} FPY_{s,d} = FPY_{1,d} \times FPY_{2,d} \times \dots \times FPY_{12,d}$$
+* *Baseline Performance:* With Visual Inspection rejections at 8.1% and Valve Integrity holds at 9.1%, the FBC line RTY averages **79.1%**.
 
-### Reliability
-- App must not crash on: empty sheets, single-column files, all-text data, files with special characters in column names
-- AI errors must surface as readable messages, never as unhandled exceptions
-- Chart rendering must never block the rest of the dashboard from loading
+### C. Progressive Financial Leakage (Money Lost)
+Instead of applying a flat rate, rejections are priced progressively based on the accumulated value-add at each stage.
 
----
+1. **Stage Cost Weights ($W_s$):** Each stage $s$ has a defined cost multiplier:
+   * `Production` (0.15), `Eye Punching` (0.20), `Leaching` (0.25), `Chlorination` (0.30), `Hanging` (0.35), `Gauge` (0.40), `Trimming` (0.45), `Visual Insp.` (0.60), `Balloon Insp.` (0.65), `Valve Fixing` (0.70), `Valve Integrity` (0.85), `Final Insp.` (1.00).
 
-## Out of Scope (MVP)
+2. **Scrap Loss:** For a finished catheter cost $C_{\text{finished}}$ (default ₹20):
+   $$\text{Scrap Loss}_{s,d} = \text{Rejected}_{s,d} \times (C_{\text{finished}} \times W_s)$$
 
-The following are explicitly excluded from v1.0:
+3. **Rework Loss:** For a standard inspection/rework labor cost $C_{\text{rework}}$ (default ₹5):
+   $$\text{Rework Loss}_{s,d} = \text{Hold}_{s,d} \times C_{\text{rework}}$$
 
-| Feature | Reason excluded |
-|---|---|
-| User authentication / accounts | Requires backend — contradicts zero-server architecture |
-| Dashboard save / share | Requires storage — revisit in v2 |
-| PDF export | Requires headless rendering — use native print for MVP |
-| Historical comparison across sessions | Requires state persistence |
-| Column mapping configuration | Contradicts zero-friction value prop |
-| Multiple analytical lenses | Doubles AI cost — v2 feature |
-| Scheduled / recurring analysis | Requires server-side triggers |
-| Database or API connections | RAIS is file-based — this is a different product |
-| Mobile-first layout | GM use case is desktop/laptop |
-| Multi-language support | English only for MVP |
+4. **Total Daily Financial Leakage:**
+   $$\text{Total Loss}_d = \sum_{s=1}^{12} \left[ \text{Rejected}_{s,d} \times (C_{\text{finished}} \times W_s) + \text{Hold}_{s,d} \times C_{\text{rework}} \right]$$
+
+### D. Dipping Machine OEE
+Calculated for the former dipping machines using operator shift logs:
+* **Availability:** $\frac{\text{Shift Duration} - \text{Logged Downtime}}{\text{Shift Duration}}$ (categorizes mechanical vs setup stoppages).
+* **Performance:** $\frac{\text{Actual Dip Qty}}{\text{Ideal Qty}}$ (ideal rate = 1,200 catheters per hour).
+* **Quality:** $\frac{\text{Accepted Dip Qty}}{\text{Total Dip Qty}}$ (yield of the dipping stage).
+* **OEE:** $\text{Availability} \times \text{Performance} \times \text{Quality}$.
 
 ---
 
-## Acceptance Criteria
+## 5. Disposafe Dipping Line Ontology
 
-The MVP is complete when:
+To ensure strict data classification, the system restricts inputs to the following stages and defects:
 
-1. A GM can drop 5 different Excel files and receive a unique, data-accurate dashboard within 35 seconds, without configuring anything.
+### A. The 12 Dipping & Assembly Stages
+1. **Production:** Main former dipping and compounding.
+2. **Eye Punching:** Catheter tip hole-punching.
+3. **Leaching:** Hot water leaching to extract proteins.
+4. **Chlorination:** Outer surface treatment.
+5. **Hanging:** Curing and drying racks.
+6. **Gauge:** Sizing and balloon thickness check.
+7. **Trimming:** Excess latex removal.
+8. **Visual Insp. (Visual Inspection):** Major visual QC (historical rejection mean = 8.1%).
+9. **Balloon Insp. (Balloon Inspection):** Low-pressure balloon inflation check.
+10. **Valve Fixing:** Assembling the valve.
+11. **Valve Integrity:** Core integrity test (historical hold mean = 9.1%).
+12. **Final Insp. (Final Inspection):** Double-check QC before sterilization.
 
-2. The dashboard produced from a sales Excel is demonstrably different from the dashboard produced from a manufacturing rejection Excel — different chart types, different KPIs, different recommendations.
-
-3. Removing all Excel files from the queue and clicking "New Analysis" correctly resets to a clean upload state.
-
-4. Dropping a corrupted or unsupported file shows a specific error on that file card without breaking the rest of the upload flow.
-
-5. An API failure (wrong key, timeout, malformed response) shows a readable error message with a retry option — never a blank screen or unhandled console error.
-
-6. The application can be accessed via a fast, permanently hosted URL with premium animations throughout the UX.
+### B. The 8 Defect Modes
+* `Thin Spod` (Visual defect - dipping thickness variance)
+* `Struck Balloon` (Balloon sticking defect)
+* `Leakage` (Inflation leak)
+* `Balloon Burst` (Rupture during testing)
+* `Bubble` (Air pockets in latex)
+* `90/10` (Component alignment defect)
+* `Pinhole` (Microscopic membrane breaches)
+* `Others` (Miscellaneous mechanical/surface defects)
 
 ---
 
-## Risks
+## 6. Functional Requirements
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| AI returns malformed JSON | Medium | High | Regex extraction + JSON.parse try/catch + user-facing error with retry |
-| Excel file has no identifiable numeric data | Medium | Medium | AI will still describe what it sees and generate text-based insights; charts may be sparse |
-| Token limit exceeded for very large files | Medium | Medium | 12,000 char truncation on summary; sampling strategy can be improved post-MVP |
-| Anthropic API key exposed if file is shared | High | High | Document clearly in README; provide proxy option for shared deployments |
-| Browser blocks fetch to api.anthropic.com (CORS) | Low | High | Anthropic allows browser-side CORS for the messages endpoint; verify before launch |
-| User uploads 20+ files and the prompt becomes incoherent | Low | Medium | Test with high file counts; consider a "max 10 files" limit with clear messaging |
+### F1 — Ingestion & In-App Data Entry
+* **Multi-file Ingestion:** Parse raw `.xlsx` and `.csv` workbooks entirely on the client side using SheetJS.
+* **Form Ingest:** Web entry forms mapped to the 12 FBC stages. The forms pre-populate defaults, enforce positive integers, and auto-calculate accepted counts (`Checked - Hold - Rejected`).
+* **Header Mapping:** A rule-based mapper that maps client headers (e.g. "Appearance Test") to the canonical ontology (`Visual Insp.`).
+
+### F2 — Validation & Findings Queue
+* **Negative Check:** Flags files where rejection or checked values are negative (e.g. `Rej = -2` entry errors).
+* **Arithmetic Verification:** Recomputes every subtotal and percentage column. Any difference between raw sheet values and recomputed math triggers a `Finding`.
+* **Outlier Flags:** Tracks daily rejection % and triggers an SPC warning if a day exceeds the Upper Control Limit (UCL) or follows Nelson Rules for special-cause variations.
+
+### F3 — Adjudication & Action (CAPA)
+* **Adjudication UI:** GMs/QAs mark a finding as *Mistake* (system overrides using corrected math), *Intentional* (accepts variance, logs note), or *Not Sure* (marks for follow-up).
+* **CAPA Trigger:** UCL breaches allow QAs to issue a Corrective and Preventive Action (CAPA) ticket containing: Problem, Root Cause (fishbone/5-Why template), Owner, Target Date, and Status.
+
+### F4 — Verification Panel (The Moat)
+* Double-clicking any metric or chart node triggers the **Provenance Bridge**.
+* Draws a bezier highlight beam from the dashboard metric to a split-screen view showing the exact Excel workbook row, sheet name, cell coordinate, and raw value, proving 100% data traceability.
 
 ---
 
-## Version History
+## 7. Role-Based Dashboards
 
-| Version | Date | Changes |
-|---|---|---|
-| 1.0 | April 2026 | Initial MVP specification |
+1. **Data Steward / Operator:** Minimal-distraction screen for uploading files, checking sheet validation indicators, and filling out daily logs with large, touch-friendly inputs.
+2. **Quality Engineer (QE):** Technical view showing Pareto defect charts, SPC control charts with UCL/CL/LCL, and the correlation matrix (e.g., connecting Machine 3 with "Thin Spod" spikes).
+3. **Plant Director / GM:** High-level dashboard showing monthly OEE, cumulative FPY/RTY, total rupees lost, the open CAPA queue, and the print/export gateway.
+4. **Admin:** Configuration screen for setting finished SKU costs ($C_{\text{finished}}$), rework costs ($C_{\text{rework}}$), and editing stage weights ($W_s$).
+
+---
+
+## 8. Technical Specifications & UI/UX Directives
+
+### A. Typography & Fonts
+* **Serif:** `Newsreader` (Georgia fallback) for screen titles, headings, and printable letters.
+* **Sans-Serif:** `IBM Plex Sans` (system-ui fallback) for UI controls, inputs, and labels.
+* **Monospace:** `IBM Plex Mono` (Consolas fallback) with `font-variant-numeric: tabular-nums` for data tables and numeric displays.
+* **Line Height:** $\ge 1.5$ for body text, $\ge 1.3$ for titles.
+
+### B. Color & Themes
+* **Screen Backdrop:** Dark theme (`#0c0f14` background, `#121821` card, `#e7edf3` text) for operation terminals.
+* **Backdrop Toggle:** Toggles screen workspace background between Dark Blueprint (`#0c0f14`) and Light Studio (`#f0f4f8`) to optimize screen readability in bright offices.
+* **Print Canvas:** Flips automatically to light theme (`#ffffff` background, `#14181f` text, `#d9dee4` borders) to conserve ink.
+* **Status Colors:** In-control/good (`#1a9d6e`), warning (`#d98a0b`), out-of-control/bad (`#d23f55`).
+
+### C. Printable 4-Page Monthly Quality Report Specification
+* **Page 1:** Letterhead, Document Control Table, Executive Summary, Narrative Insight, Daily Rejection Control Chart, Stage Status Grid.
+* **Page 2:** Stage Rejection Bar Chart, Consolidated Stage Register Table (13 rows including Totals), FBC Process Flow Inspection Coverage Strip.
+* **Page 3:** Defect Pareto Chart, SPC Visual Inspection Control Chart, Weekly Trend Table.
+* **Page 4:** Open Findings & Adjudication queue, Recommended Actions Table (CAPA status), Sign-off Signature blocks.
+* **Print Requirements:** Margins set to `14mm 16mm 16mm`. Repeating headers and page numbers (`PAGE X / 4`). Safe page-breaks configured to prevent table split cuts.
+
+---
+
+## 9. Compliance Framework (ALCOA+)
+
+To meet regulatory audits (ISO 13485 QMS and CDSCO Medical Device Rules 2017):
+* **Attributable:** Every Excel upload is tagged with the operator's digital signature and timestamp.
+* **Legible:** Typography floors ensure all audit logs remain readable forever.
+* **Contemporaneous:** Logs contain validation checks matching the date of entry.
+* **Original:** Raw files are saved unmodified. MO!D works on derived ledger entries.
+* **Accurate:** Every recomputed total is verified; deviations are flagged as unresolved findings.
+* **Plus (+) Integrity:** The system hashes local databases to prevent database-tampering or unauthorized direct edits.
