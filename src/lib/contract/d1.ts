@@ -20,8 +20,13 @@ export const SCHEMA_VERSION = "1.0.0";
 /* Shared primitives                                                    */
 /* ------------------------------------------------------------------ */
 
-/** A1-style cell reference, e.g. "K30" */
-export const CellRef = z.string().regex(/^[A-Z]{1,3}[1-9][0-9]{0,6}$/);
+/**
+ * A provenance locator string. Usually an A1 cell ref ("K30"), but also accepts
+ * sheet-qualified refs from ingestion ("VISUAL!REJECTION12") and synthetic refs
+ * from direct entry ("ENTRY!checked"). Kept permissive so every value can carry
+ * an honest pointer back to where it came from.
+ */
+export const CellRef = z.string().min(1).max(160);
 
 export const PeriodKind = z.enum(["day", "week", "month", "fiscal-year"]);
 

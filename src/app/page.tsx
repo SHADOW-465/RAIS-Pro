@@ -197,9 +197,9 @@ export default function Home() {
             </div>
           )}
 
-          {/* Greeting */}
-          <div style={{ textAlign: "center", marginBottom: 40 }} className="fade-up">
-            <div className="eyebrow accent" style={{ fontSize: 11, fontWeight: 700 }}>Morning Briefing</div>
+          {/* Dashboard-first cockpit shell (ingestion is a workflow, not a gate) */}
+          <div style={{ textAlign: "center", marginBottom: 32 }} className="fade-up">
+            <div className="eyebrow accent" style={{ fontSize: 11, fontWeight: 700 }}>Quality Intelligence</div>
             <h1
               style={{
                 fontFamily: "var(--font-display)",
@@ -210,20 +210,22 @@ export default function Home() {
                 color: "var(--text)",
               }}
             >
-              Good morning.
+              Rejection cockpit
             </h1>
-            <p
-              className="muted"
-              style={{ fontSize: 15, maxWidth: 540, margin: "0 auto", lineHeight: 1.6 }}
-            >
-              Drop in this cycle&apos;s plant reports and you&apos;ll have an
-              executive read in under thirty seconds.
+            <p className="muted" style={{ fontSize: 15, maxWidth: 560, margin: "0 auto", lineHeight: 1.6 }}>
+              What failed, where it came from, and what to do about it — every number traceable
+              to its source. Bring in rejection data to begin.
             </p>
           </div>
 
-          {/* Upload */}
-          <div style={{ marginBottom: 48 }} className="fade-up">
-            <UploadZone onUpload={handleUploadComplete} />
+          {/* Primary action → ingestion pipeline */}
+          <div className="fade-up" style={{ marginBottom: 48, display: "flex", justifyContent: "center", gap: 12 }}>
+            <button
+              onClick={() => router.push("/ingest")}
+              style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 12, padding: "14px 28px", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
+            >
+              <Icon name="upload" size={16} /> Ingest rejection data
+            </button>
           </div>
 
           {/* Recent sessions */}

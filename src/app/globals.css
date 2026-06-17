@@ -34,8 +34,13 @@
   --positive-weak: #ECFDF5;
   --warning:       #D97706;
   --warning-weak:  #FEF3C7;
-  --critical:      #DC2626;   
+  --critical:      #DC2626;
   --critical-weak: #FEF2F2;
+  /* status aliases (MO!D cockpit: green/amber/red for status only) — inherit
+     the per-theme semantic values above */
+  --status-good:   var(--positive);
+  --status-warn:   var(--warning);
+  --status-bad:    var(--critical);
 
   /* Elevation (minimalist soft shadows) */
   --shadow-1: 0 1px 2px rgba(0,0,0,0.04);
