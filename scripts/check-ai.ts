@@ -10,22 +10,9 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import {
   availableBackends,
+  resolveModel,
   type ModelBackend,
 } from "../src/lib/ai";
-
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type { LanguageModel } from "ai";
-
-const MODELS = {
-  openrouter: { main: "openrouter/free", fast: "openrouter/free" },
-} as const;
-
-function resolveModel(backend: ModelBackend, fast: boolean): LanguageModel {
-  const router = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY! });
-  const mainModel = process.env.OPENROUTER_MODEL      ?? MODELS.openrouter.main;
-  const fastModel = process.env.OPENROUTER_MODEL_FAST ?? MODELS.openrouter.fast;
-  return router.chat(fast ? fastModel : mainModel);
-}
 
 const PingSchema = z.object({
   status: z.string().describe("Always 'ok'"),
@@ -71,7 +58,7 @@ function pad(s: string, n: number): string {
 async function main() {
   const backends = availableBackends();
   if (backends.length === 0) {
-    console.error("✗ No backends configured. Set OPENROUTER_API_KEY in .env.local.");
+    console.error("✗ No backends configured. Set NVIDIA_API_KEY or OPENROUTER_API_KEY in .env.local.");
     process.exit(1);
   }
 
@@ -95,10 +82,10 @@ async function main() {
 
   console.log();
   if (anyHealthy) {
-    console.log("✓ OpenRouter is healthy.");
+    console.log("✓ AI backends are healthy.");
     process.exit(0);
   } else {
-    console.error("✗ OpenRouter failed. Fix credentials or model IDs.");
+    console.error("✗ AI backends failed. Fix credentials or model IDs.");
     process.exit(1);
   }
 }
