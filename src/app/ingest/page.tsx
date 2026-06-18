@@ -3,12 +3,13 @@
 // Data ingestion pipeline (MOID-SPEC §13). Upload Excel → human-verifiable
 // mapping (with per-row comments) → commit to the canonical ledger.
 
-import { useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import UploadZone from "@/components/UploadZone";
 import EditorialHeader from "@/components/editorial/EditorialHeader";
 import Icon from "@/components/editorial/Icon";
 import { classifyRejectionSheets, type MappingRow } from "@/lib/ingest/from-rejection-sheets";
+import { buildReviewRows, reviewSummary, applyEdit, type ReviewRow } from "@/lib/ingest/review";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 
 type Phase = "upload" | "parsing" | "review" | "committing" | "done";
@@ -70,8 +71,9 @@ export default function IngestPage() {
         body: JSON.stringify({ ingestionId, fileName, records, comments }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Commit failed");
-      setResult(await res.json());
-      setPhase("done");
+      await res.json();
+      // Saved → automatically generate the dashboard.
+      router.push("/");
     } catch (e: any) {
       setError(e?.message ?? "Commit failed");
       setPhase("review");
@@ -79,6 +81,10 @@ export default function IngestPage() {
   }
 
   const totalDays = mappings.reduce((a, m) => a + m.dayCount, 0);
+  const reviewRows = useMemo(() => buildReviewRows(records), [records]);
+  const summary = useMemo(() => reviewSummary(reviewRows), [reviewRows]);
+  const editCell = (index: number, field: "checked" | "rejected", value: number) =>
+    setRecords((rs) => applyEdit(rs, index, field, value));
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -114,60 +120,35 @@ export default function IngestPage() {
           {phase === "parsing" && <Pending label="Reading the workbook…" />}
           {phase === "committing" && <Pending label="Recording to the ledger…" />}
 
-          {/* REVIEW / VERIFY with comments */}
+          {/* REVIEW / VERIFY — recomputed-from-scratch, in the sheet's own format */}
           {phase === "review" && (
             <div className="fade-up">
-              <div className="between" style={{ marginBottom: 14, alignItems: "flex-end" }}>
-                <p className="muted" style={{ fontSize: 14, margin: 0 }}>
-                  Understood <strong style={{ color: "var(--text)" }}>{mappings.length}</strong> stage sheet(s) ·{" "}
-                  <strong style={{ color: "var(--text)" }}>{totalDays}</strong> day rows · {fileName}
-                </p>
-                <button onClick={commit} disabled={totalDays === 0}
-                  style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: totalDays ? "pointer" : "not-allowed", opacity: totalDays ? 1 : 0.5 }}>
-                  Confirm &amp; record →
+              <p className="muted" style={{ fontSize: 14, margin: "0 0 6px" }}>
+                MO!D recomputed every % from the raw counts (it does <strong style={{ color: "var(--text)" }}>not</strong> trust the
+                sheet&apos;s formulas). Review the corrected figures, fix any flagged rows, then save.
+              </p>
+              <div className="between" style={{ marginBottom: 16, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 14, fontSize: 13, flexWrap: "wrap" }}>
+                  <Chip dot="var(--status-good)" text={`${summary.ok} clean`} />
+                  <Chip dot="var(--status-warn)" text={`${summary.corrected} corrected`} />
+                  <Chip dot="var(--status-bad)" text={`${summary.invalid} need fixing`} />
+                  <span className="muted">· {fileName}</span>
+                </div>
+                <button onClick={commit} disabled={totalDays === 0 || summary.invalid > 0}
+                  title={summary.invalid > 0 ? "Fix the impossible rows first" : "Save the corrected data and build the dashboard"}
+                  style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: totalDays && !summary.invalid ? "pointer" : "not-allowed", opacity: totalDays && !summary.invalid ? 1 : 0.5 }}>
+                  Save &amp; build dashboard →
                 </button>
               </div>
 
-              {/* mapping table */}
-              <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
-                {mappings.map((m) => (
-                  <div key={m.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 80px 90px", gap: 12, alignItems: "center", padding: "14px 16px" }}>
-                      <div>
-                        <div style={{ fontWeight: 700, color: "var(--text)", fontSize: 14 }}>{m.stageLabel}</div>
-                        <div className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono, monospace)" }}>{m.sheet}</div>
-                      </div>
-                      <ColMap label="Date" value={m.dateColumn} />
-                      <ColMap label="Checked" value={m.checkedColumn} />
-                      <ColMap label="Rejected" value={m.rejectedColumn} />
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ fontFamily: "var(--font-mono, monospace)", fontWeight: 700, color: "var(--text)" }}>{m.dayCount}</div>
-                        <div className="muted" style={{ fontSize: 10 }}>days</div>
-                      </div>
-                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
-                        <span title={m.status === "ok" ? "Looks good" : "Please check"} style={{ width: 9, height: 9, borderRadius: "50%", background: m.status === "ok" ? "var(--status-good, #1a9d6e)" : "var(--status-warn, #d98a0b)" }} />
-                        {/* the per-row COMMENT button */}
-                        <button onClick={() => setOpenComment(openComment === m.id ? null : m.id)}
-                          title="Add a comment / correct the mapping"
-                          style={{ position: "relative", background: comments[m.id]?.trim() ? "var(--accent)" : "var(--surface-2, #eee)", color: comments[m.id]?.trim() ? "#fff" : "var(--text-2, #555)", border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                          <Icon name="comment" size={14} />
-                        </button>
-                      </div>
-                    </div>
-                    {openComment === m.id && (
-                      <div style={{ padding: "0 16px 14px" }} className="fade-up">
-                        <textarea
-                          autoFocus
-                          value={comments[m.id] ?? ""}
-                          onChange={(e) => setComments((c) => ({ ...c, [m.id]: e.target.value }))}
-                          placeholder={`Correct MO!D's reading of "${m.sheet}" — e.g. "Checked column is wrong, use column C" or "this sheet is Valve, not Balloon".`}
-                          style={{ width: "100%", minHeight: 64, padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface, #fff)", color: "var(--text)", fontSize: 13, fontFamily: "inherit", resize: "vertical" }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <ReviewGrids
+                rows={reviewRows}
+                onEdit={editCell}
+                comments={comments}
+                setComments={setComments}
+                openComment={openComment}
+                setOpenComment={setOpenComment}
+              />
 
               {skipped.length > 0 && (
                 <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>
@@ -223,6 +204,92 @@ export default function IngestPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function Chip({ dot, text }: { dot: string; text: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--text-2)" }}>
+      <span style={{ width: 9, height: 9, borderRadius: "50%", background: dot }} /> {text}
+    </span>
+  );
+}
+
+const rowTint = (s: ReviewRow["status"]) =>
+  s === "invalid" ? "color-mix(in srgb, var(--status-bad) 9%, transparent)" :
+  s === "corrected" ? "color-mix(in srgb, var(--status-warn) 9%, transparent)" : "transparent";
+
+function ReviewGrids({ rows, onEdit, comments, setComments, openComment, setOpenComment }: {
+  rows: ReviewRow[];
+  onEdit: (index: number, field: "checked" | "rejected", value: number) => void;
+  comments: Record<string, string>;
+  setComments: (fn: (c: Record<string, string>) => Record<string, string>) => void;
+  openComment: string | null;
+  setOpenComment: (id: string | null) => void;
+}) {
+  const groups = new Map<string, ReviewRow[]>();
+  for (const r of rows) (groups.get(r.stageLabel) ?? groups.set(r.stageLabel, []).get(r.stageLabel)!).push(r);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {[...groups.entries()].map(([stage, stageRows]) => (
+        <div key={stage} style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ padding: "10px 14px", fontWeight: 700, fontSize: 14, color: "var(--text)", borderBottom: "1px solid var(--border)", background: "var(--surface-2)" }}>{stage}</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <th style={gth}>Date</th><th style={gth}>Checked</th><th style={gth}>Rejected</th>
+                <th style={gth}>Sheet %</th><th style={gth}>Corrected %</th><th style={gth}>Status</th><th style={{ ...gth, textAlign: "right" }}>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stageRows.map((r) => {
+                const cid = `r${r.recordIndex}`;
+                const corrected = r.status === "corrected";
+                return (
+                  <Fragment key={cid}>
+                    <tr style={{ borderTop: "1px solid var(--border)", background: rowTint(r.status) }}>
+                      <td style={gtd}><span style={{ fontFamily: "var(--font-mono)" }}>{r.date}</span></td>
+                      <td style={gtd}><EditNum value={r.checked} onCommit={(v) => onEdit(r.recordIndex, "checked", v)} /></td>
+                      <td style={gtd}><EditNum value={r.rejected} onCommit={(v) => onEdit(r.recordIndex, "rejected", v)} /></td>
+                      <td style={{ ...gtd, fontFamily: "var(--font-mono)", color: "var(--text-3)", textDecoration: corrected ? "line-through" : "none" }}>{r.statedPct != null ? r.statedPct.toFixed(2) : "—"}</td>
+                      <td style={{ ...gtd, fontFamily: "var(--font-mono)", fontWeight: 700, color: r.status === "invalid" ? "var(--status-bad)" : corrected ? "var(--status-warn)" : "var(--text)" }}>{r.correctedPct != null ? r.correctedPct.toFixed(2) : "—"}</td>
+                      <td style={{ ...gtd, fontSize: 11, color: "var(--text-2)" }}>{r.flags[0] ?? "ok"}</td>
+                      <td style={{ ...gtd, textAlign: "right" }}>
+                        <button onClick={() => setOpenComment(openComment === cid ? null : cid)} title="Add a note"
+                          style={{ background: comments[cid]?.trim() ? "var(--accent)" : "var(--surface-2)", color: comments[cid]?.trim() ? "#fff" : "var(--text-2)", border: "none", borderRadius: 7, width: 26, height: 26, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                          <Icon name="comment" size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                    {openComment === cid && (
+                      <tr><td colSpan={7} style={{ padding: "0 12px 12px", background: rowTint(r.status) }}>
+                        <textarea autoFocus value={comments[cid] ?? ""} onChange={(e) => setComments((c) => ({ ...c, [cid]: e.target.value }))}
+                          placeholder="Note / correction for this row…"
+                          style={{ width: "100%", minHeight: 48, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13, fontFamily: "inherit", resize: "vertical" }} />
+                      </td></tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  );
+}
+const gth: React.CSSProperties = { padding: "8px 12px", fontWeight: 600 };
+const gtd: React.CSSProperties = { padding: "7px 12px", color: "var(--text)" };
+
+function EditNum({ value, onCommit }: { value: number | null; onCommit: (v: number) => void }) {
+  return (
+    <input
+      type="number"
+      defaultValue={value ?? ""}
+      onBlur={(e) => { const n = Number(e.target.value); if (Number.isFinite(n)) onCommit(n); }}
+      style={{ width: 84, padding: "4px 7px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: 12 }}
+    />
   );
 }
 
