@@ -20,8 +20,13 @@ export const SCHEMA_VERSION = "1.0.0";
 /* Shared primitives                                                    */
 /* ------------------------------------------------------------------ */
 
-/** A1-style cell reference, e.g. "K30" */
-export const CellRef = z.string().regex(/^[A-Z]{1,3}[1-9][0-9]{0,6}$/);
+/**
+ * A provenance locator string. Usually an A1 cell ref ("K30"), but also accepts
+ * sheet-qualified refs from ingestion ("VISUAL!REJECTION12") and synthetic refs
+ * from direct entry ("ENTRY!checked"). Kept permissive so every value can carry
+ * an honest pointer back to where it came from.
+ */
+export const CellRef = z.string().min(1).max(160);
 
 export const PeriodKind = z.enum(["day", "week", "month", "fiscal-year"]);
 
@@ -99,24 +104,41 @@ export const ClientRegistry = z.object({
   fiscalYearStartMonth: z.number().int().min(1).max(12), // Disposafe: 4 (April)
   stages: z.array(StageDef).min(1),
   defects: z.array(DefectDef),
+  costConfig: z.lazy(() => CostConfig).nullable(), // §cost — optional, user-supplied
 });
 
-/** Disposafe v1 stage flow (D1 §4.1). */
+/**
+ * Cost configuration — OPTIONAL, user-entered (MOID-SPEC §8).
+ * The plant types a ₹/unit per stage (or a single finished cost) only IF they
+ * want rejection-cost figures. Absent → cost UI hides; analytics never invent it.
+ * Deterministic: rejectionCost = Σ rejectedQty × costPerUnit(stage).
+ */
+export const StageCost = z.object({
+  stageId: z.string().min(1),
+  costPerUnitInr: z.number().nonnegative(), // value-add cost at this stage
+});
+export const CostConfig = z.object({
+  enabled: z.boolean(),                 // user toggles cost calculations on
+  currency: z.string().min(1),          // "INR"
+  finishedUnitCostInr: z.number().nonnegative().nullable(), // flat fallback
+  perStage: z.array(StageCost),         // optional per-stage overrides
+  reworkCostPerUnitInr: z.number().nonnegative().nullable(),
+});
+export type CostConfig = z.infer<typeof CostConfig>;
+
+/** Disposafe v1 REJECTION stage set (rejection-only scope; MOID-SPEC §3). */
 export const DISPOSAFE_STAGE_IDS = [
-  "shopfloor-dipping",
-  "eye-punching", // effectiveFrom 2025-11-01
-  "visual",
-  "balloon",
-  "valve-integrity",
-  "final",
-  "dispatch",
+  "visual",          // 100% Visual Inspection (P17)
+  "balloon",         // Balloon Inspection (P18)
+  "valve-integrity", // Valve Integrity & Balloon Inspection (P20)
+  "final",           // Final Inspection (P24)
 ] as const;
 
 /* ------------------------------------------------------------------ */
 /* Canonical events                                                     */
 /* ------------------------------------------------------------------ */
 
-export const Disposition = z.enum(["accepted", "rejected", "hold", "downgrade"]);
+export const Disposition = z.enum(["accepted", "rejected", "rework", "hold", "downgrade"]);
 export const Unit = z.enum(["pcs", "trolleys"]);
 
 export const ProductionEvent = z.object({

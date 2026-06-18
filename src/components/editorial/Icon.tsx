@@ -7,7 +7,7 @@ export type IconName =
   | "send" | "save" | "split" | "search" | "chevron-down" | "chevron-up"
   | "alert" | "trend-up" | "trend-down" | "minus" | "plus" | "spark"
   | "table" | "external" | "dot" | "lightning" | "tally" | "print"
-  | "sun" | "moon";
+  | "sun" | "moon" | "comment";
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, "stroke"> {
   name: IconName;
@@ -54,6 +54,7 @@ export default function Icon({ name, size = 16, stroke = 1.6, ...rest }: IconPro
     case "print":       return <svg {...common}><path d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" /></svg>;
     case "sun":         return <svg {...common}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>;
     case "moon":        return <svg {...common}><path d="M12 3a9 9 0 109 9 9.75 9.75 0 00-9-9z" /></svg>;
+    case "comment":     return <svg {...common}><path d="M21 11.5a8.38 8.38 0 01-8.5 8.5 8.5 8.5 0 01-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 01-.9-3.8 8.38 8.38 0 018.5-8.5 8.38 8.38 0 018.5 8.5z" /></svg>;
     default: return null;
   }
 }

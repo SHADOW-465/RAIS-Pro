@@ -6,9 +6,7 @@ import { useId, useState } from "react";
  * they live-update with the accent tweak.
  */
 
-function buildLinePath(values: number[], xs: (i: number) => number, ys: (v: number) => number) {
-  return values.map((v, i) => `${i === 0 ? "M" : "L"} ${xs(i)} ${ys(v)}`).join(" ");
-}
+
 
 function buildBezierPath(values: number[], xs: (i: number) => number, ys: (v: number) => number) {
   if (values.length === 0) return "";
@@ -318,7 +316,6 @@ export function VerticalBars({
   suffix = "",
   height = 240,
   target = null,
-  accentIdx = 0,
   subLabelFn,
 }: {
   data: Array<Record<string, any>>;
@@ -327,7 +324,6 @@ export function VerticalBars({
   suffix?: string;
   height?: number;
   target?: number | null;
-  accentIdx?: number;
   subLabelFn?: (d: Record<string, any>) => string;
 }) {
   const w = 600;

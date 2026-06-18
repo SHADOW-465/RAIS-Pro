@@ -1,0 +1,496 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import Icon, { type IconName } from "@/components/editorial/Icon";
+import { useTweaks } from "@/components/editorial/TweaksContext";
+
+export type NavKey =
+  | "dashboard" | "data-entry" | "staging" | "stage" | "size" | "defect"
+  | "spc" | "process-flow" | "copq" | "reports" | "capa" | "ask" | "audit" | "settings";
+
+interface NavItem { 
+  key: NavKey; 
+  label: string; 
+  icon: IconName; 
+  href?: string; 
+  badge?: number; 
+  soon?: boolean; 
+  indent?: boolean;
+  aiBadge?: boolean;
+}
+
+const NAV: NavItem[] = [
+  { key: "dashboard", label: "Dashboard", icon: "table", href: "/" },
+  { key: "data-entry", label: "Data Entry", icon: "file", href: "/data-entry" },
+  { key: "staging", label: "Staging & Review", icon: "upload", href: "/staging", badge: 12 },
+  { key: "stage", label: "Stage Analysis", icon: "trend-up", href: "/stage-analysis" },
+  { key: "size", label: "Size Analysis", icon: "tally", href: "/size-analysis" },
+  { key: "defect", label: "Defect Analysis", icon: "spark", href: "/defect-analysis" },
+  { key: "spc", label: "SPC & Control Charts", icon: "trend-down", href: "/spc" },
+  { key: "process-flow", label: "Process Flow", icon: "split", href: "/process-flow" },
+  { key: "copq", label: "COPQ & Savings", icon: "lightning", href: "/copq" },
+  { key: "reports", label: "Reports", icon: "print", href: "/reports" },
+  { key: "capa", label: "CAPA & Actions", icon: "check", href: "/capa" },
+  { key: "ask", label: "Ask RAIS", icon: "comment", href: "/chat", aiBadge: true },
+  { key: "audit", label: "Audit Trail", icon: "search", href: "/audit" },
+  { key: "settings", label: "Settings", icon: "external", href: "/settings" },
+];
+
+export default function AppShell({
+  active, trustScore, statusCounts, dateRange, children,
+}: {
+  active: NavKey;
+  trustScore?: number | null;
+  statusCounts?: { alerts?: number; capa?: number; overdue?: number; anomalies?: number };
+  dateRange?: string;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const { t, setTweak } = useTweaks();
+  const [mounted, setMounted] = useState(false);
+
+
+  const [analyticsExpanded] = useState(true);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = t.theme === "dark";
+  const toggleTheme = () => {
+    setTweak("theme", isDark ? "light" : "dark");
+  };
+
+  const sc = statusCounts ?? {};
+
+  return (
+    <div style={{ 
+      minHeight: "100vh", 
+      background: "var(--bg)", 
+      color: "var(--text)", 
+      display: "grid", 
+      gridTemplateColumns: "240px 1fr", 
+      gridTemplateRows: "70px 1fr 44px", 
+      gridTemplateAreas: `"side top" "side main" "side status"` 
+    }}>
+      {/* Sidebar Navigation */}
+      <aside style={{ 
+        gridArea: "side", 
+        borderRight: "1px solid var(--border)", 
+        background: "var(--surface)", 
+        display: "flex", 
+        flexDirection: "column", 
+        position: "sticky", 
+        top: 0, 
+        height: "100vh",
+        zIndex: 100
+      }}>
+        {/* logo */}
+        <div style={{ 
+          padding: "20px 18px", 
+          display: "flex", 
+          alignItems: "center", 
+          gap: 6, 
+          borderBottom: "1px solid var(--border)" 
+        }}>
+          <span style={{ 
+            fontFamily: "var(--font-display)", 
+            fontWeight: 800, 
+            fontSize: 24, 
+            color: "var(--text)",
+            letterSpacing: "-0.03em"
+          }}>
+            MO<span style={{ color: "#C8421C" }}>!</span>D
+          </span>
+          <span className="muted" style={{ 
+            fontSize: 8.5, 
+            lineHeight: 1.15,
+            fontWeight: 500,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            marginLeft: 8
+          }}>
+            Manufacturing Operational<br />Intelligence &amp; Diagnostics
+          </span>
+        </div>
+
+        {/* nav links */}
+        <nav style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }}>
+          {NAV.map((n) => {
+            const isActive = n.key === active;
+            const isAnalyticsChild = n.indent;
+            
+            if (isAnalyticsChild && !analyticsExpanded) return null;
+
+            // Render header item for Analytics group
+            if (n.key === "stage" && isAnalyticsChild && NAV.find(item => item.key === "stage")?.key === n.key) {
+              // We inject the Analytics group header before Stage Analysis
+            }
+
+            return (
+              <button key={n.key} disabled={n.soon}
+                onClick={() => {
+                  if (n.href) {
+                    router.push(n.href);
+                  }
+                }}
+                title={n.soon ? "Coming soon" : n.label}
+                style={{
+                  width: "100%", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 10, 
+                  padding: isAnalyticsChild ? "8px 16px 8px 32px" : "10px 16px",
+                  marginBottom: 2,
+                  background: isActive 
+                    ? "var(--accent-weak)" 
+                    : "transparent",
+                  borderRadius: "var(--radius-sm)",
+                  color: isActive 
+                    ? "var(--text)" 
+                    : n.soon 
+                      ? "var(--text-3)" 
+                      : "var(--text-2)",
+                  border: "none", 
+                  cursor: n.soon ? "default" : "pointer",
+                  fontSize: isAnalyticsChild ? 12.5 : 13.5, 
+                  fontWeight: isActive ? 600 : 500, 
+                  textAlign: "left",
+                  transition: "all 0.15s ease",
+                  position: "relative"
+                }}>
+                {isActive && (
+                  <div style={{
+                    position: "absolute",
+                    left: 0,
+                    top: "15%",
+                    height: "70%",
+                    width: 3,
+                    background: "#C8421C",
+                    borderRadius: "0 2px 2px 0"
+                  }} />
+                )}
+                <Icon name={n.icon} size={isAnalyticsChild ? 13 : 15} stroke={isActive ? 2 : 1.5} />
+                <span style={{ flex: 1 }}>{n.label}</span>
+                {n.badge ? (
+                  <span style={{ 
+                    background: "var(--critical)", 
+                    color: "#fff", 
+                    fontSize: 10, 
+                    borderRadius: "var(--radius-sm)", 
+                    padding: "2px 6px", 
+                    fontWeight: 700,
+                    fontFamily: "var(--font-mono)" 
+                  }}>{n.badge}</span>
+                ) : null}
+                {n.aiBadge ? (
+                  <span style={{ 
+                    background: "var(--accent-weak)", 
+                    color: "var(--accent)", 
+                    fontSize: 9, 
+                    borderRadius: 4, 
+                    padding: "1px 5px", 
+                    fontWeight: 800,
+                    border: "1px solid var(--border)"
+                  }}>AI</span>
+                ) : null}
+                {n.soon ? <span className="muted" style={{ fontSize: 9 }}>soon</span> : null}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Data Trust Score */}
+        <div style={{ 
+          padding: "16px", 
+          borderTop: "1px solid var(--border)",
+          background: "var(--surface-2)"
+        }}>
+          <div className="muted" style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+            Data Trust Score
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: "var(--positive-weak)",
+              display: "grid",
+              placeItems: "center",
+              color: "var(--positive)"
+            }}>
+              <Icon name="check" size={16} stroke={2.5} />
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ 
+                  fontFamily: "var(--font-mono)", 
+                  fontSize: 20, 
+                  fontWeight: 800, 
+                  color: "var(--positive)" 
+                }}>
+                  {trustScore != null ? `${trustScore.toFixed(1)}%` : "98.4%"}
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--positive)" }}>Excellent</span>
+              </div>
+              <div className="muted" style={{ fontSize: 9, marginTop: 1 }}>
+                Last Validated: 17 Jun 2026 09:41 AM
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Topbar / Masthead */}
+      <header style={{ 
+        gridArea: "top", 
+        borderBottom: "1px solid var(--border)", 
+        background: "var(--surface)", 
+        padding: "0 24px", 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "space-between", 
+        position: "sticky", 
+        top: 0, 
+        zIndex: 50
+      }}>
+        {/* left filter selectors */}
+        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          <Selector label="Plant" value="Disposable Baddi" />
+          <Selector label="Line" value="FBC Line 1" />
+          
+          {/* D, W, M, FY Segmented Control */}
+          <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
+            <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
+              Grain
+            </span>
+            <div style={{ 
+              display: "flex",
+              border: "1px solid var(--border-strong)", 
+              borderRadius: "var(--radius-sm)", 
+              padding: 2, 
+              background: "var(--surface-2)",
+              alignItems: "center"
+            }}>
+              {(["day", "week", "month", "fy"] as const).map((g) => {
+                const active = t.grain === g;
+                return (
+                  <button
+                    key={g}
+                    onClick={() => setTweak("grain", g)}
+                    style={{
+                      padding: "2px 8px",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      borderRadius: 3,
+                      background: active ? "var(--accent)" : "transparent",
+                      color: active ? "var(--text-invert)" : "var(--text-2)",
+                      transition: "all 0.12s ease",
+                      textTransform: "uppercase"
+                    }}
+                  >
+                    {g === "fy" ? "FY" : g[0]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <Selector label="Date Range" value={
+            dateRange || (
+              t.grain === "day" ? "14 Jun 2026" :
+              t.grain === "week" ? "Week 24 (Jun 2026)" :
+              t.grain === "month" ? "May 2025" : "Apr 25 – Jan 26"
+            )
+          } icon="calendar" />
+        </div>
+
+        {/* right profile / actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {/* Notifications */}
+          <button style={{ 
+            position: "relative",
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: "1px solid var(--border)",
+            display: "grid",
+            placeItems: "center",
+            background: "var(--surface-2)"
+          }}>
+            <Icon name="alert" size={16} />
+            <span style={{
+              position: "absolute",
+              top: -2,
+              right: -2,
+              background: "var(--critical)",
+              color: "#fff",
+              fontSize: 9,
+              fontWeight: 800,
+              width: 15,
+              height: 15,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center"
+            }}>4</span>
+          </button>
+
+          {/* Theme Toggle */}
+          <button 
+            onClick={toggleTheme}
+            style={{ 
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              border: "1px solid var(--border)",
+              display: "grid",
+              placeItems: "center",
+              background: "var(--surface-2)",
+              transition: "transform 0.2s"
+            }}>
+            <Icon name={mounted && isDark ? "sun" : "moon"} size={16} />
+          </button>
+
+          {/* User Profile */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ 
+              width: 34, 
+              height: 34, 
+              borderRadius: "50%", 
+              background: "var(--surface-3)", 
+              color: "var(--text)", 
+              display: "grid", 
+              placeItems: "center",
+              fontFamily: "var(--font-display)",
+              fontWeight: 700,
+              fontSize: 12.5,
+              border: "1px solid var(--border-strong)"
+            }}>
+              RK
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Rajesh Kumar</span>
+              <span className="muted" style={{ fontSize: 10.5 }}>Quality Manager</span>
+            </div>
+          </div>
+
+          {/* Export Action */}
+          <button style={{ 
+            background: "var(--accent)", 
+            color: "var(--text-invert)", 
+            border: "none", 
+            borderRadius: "var(--radius-md)", 
+            padding: "8px 16px", 
+            fontSize: 13, 
+            fontWeight: 600, 
+            cursor: "pointer", 
+            display: "inline-flex", 
+            gap: 6, 
+            alignItems: "center",
+            boxShadow: "var(--shadow-1)",
+            minHeight: 36
+          }}>
+            <Icon name="print" size={13} /> Export <Icon name="arrow-right" size={10} style={{ transform: "rotate(90deg)" }} />
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main style={{ 
+        gridArea: "main", 
+        overflowY: "auto", 
+        padding: "24px",
+        background: "var(--bg)"
+      }}>
+        {children}
+      </main>
+
+      {/* Footer Status Bar */}
+      <footer style={{ 
+        gridArea: "status", 
+        borderTop: "1px solid var(--border)", 
+        background: "var(--surface)", 
+        padding: "0 24px", 
+        display: "flex", 
+        alignItems: "center",
+        justifyContent: "space-between", 
+        fontSize: 12
+      }}>
+        <div style={{ display: "flex", gap: 24 }}>
+          <Status tone="var(--critical)" label="Active Alerts" value={`${sc.alerts ?? 3} Critical`} />
+          <Status tone="var(--positive)" label="Pending CAPA" value={`${sc.capa ?? 7} Actions`} />
+          <Status tone="var(--warning)" label="Overdue Actions" value={`${sc.overdue ?? 2}`} />
+          <Status tone="var(--accent)" label="Data Anomalies" value={`${sc.anomalies ?? 5}`} />
+        </div>
+        
+        {/* Ask RAIS text input field */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, width: 340 }}>
+          <span className="muted" style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, fontSize: 11.5 }}>
+            <Icon name="comment" size={12} style={{ color: "var(--accent)" }} /> Ask RAIS:
+          </span>
+          <input 
+            type="text" 
+            placeholder="Ask Rejection Advisory System..." 
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                router.push(`/chat?q=${encodeURIComponent(e.currentTarget.value.trim())}`);
+                e.currentTarget.value = "";
+              }
+            }}
+            style={{ 
+              flex: 1, 
+              fontSize: 11.5, 
+              padding: "4px 10px", 
+              border: "1px solid var(--border-strong)", 
+              borderRadius: "var(--radius-sm)",
+              background: "var(--bg)",
+              outline: "none"
+            }} 
+          />
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function Selector({ label, value, icon }: { label: string; value: string; icon?: string }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
+      <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
+        {label}
+      </span>
+      <div style={{ 
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        fontSize: 12.5, 
+        fontWeight: 600, 
+        border: "1px solid var(--border-strong)", 
+        borderRadius: "var(--radius-sm)", 
+        padding: "4px 10px", 
+        background: "var(--surface-2)",
+        cursor: "pointer"
+      }}>
+        {icon === "calendar" && <Icon name="file" size={12} style={{ color: "var(--text-3)" }} />}
+        <span>{value}</span>
+        <Icon name="arrow-right" size={10} style={{ transform: "rotate(90deg)", color: "var(--text-3)" }} />
+      </div>
+    </div>
+  );
+}
+
+function Status({ tone, label, value }: { tone: string; label: string; value: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <span style={{ 
+        width: 8, 
+        height: 8, 
+        borderRadius: "50%", 
+        background: tone 
+      }} />
+      <span className="muted" style={{ fontSize: 11.5 }}>{label}:</span>
+      <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: 11.5 }}>{value}</strong>
+    </span>
+  );
+}

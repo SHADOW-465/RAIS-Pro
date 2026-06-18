@@ -1,29 +1,7 @@
 import type { Metadata } from "next";
-import {
-  Plus_Jakarta_Sans,
-  Inter,
-  JetBrains_Mono,
-} from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { TweaksProvider } from "@/components/editorial/TweaksContext";
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-display",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-sans",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-mono",
-});
 
 export const metadata: Metadata = {
   title: "RAIS Pro — Rejection Diagnostic",
@@ -35,8 +13,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
+      <body
+        style={{ fontFamily: "var(--font-sans)" }}
+      >
+        <Script
+          id="theme-initializer"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               try {
@@ -46,11 +28,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body
-        className={`${plusJakartaSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
-        style={{ fontFamily: "var(--font-sans)" }}
-      >
         <TweaksProvider>
           {children}
         </TweaksProvider>
@@ -58,3 +35,4 @@ export default function RootLayout({
     </html>
   );
 }
+

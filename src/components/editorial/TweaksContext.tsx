@@ -15,11 +15,13 @@ export type Theme = "light" | "dark";
 export interface Tweaks {
   theme: Theme;
   showBeams: boolean;
+  grain: "day" | "week" | "month" | "fy";
 }
 
 export const TWEAK_DEFAULTS: Tweaks = {
   theme: "light",
   showBeams: true,
+  grain: "month",
 };
 
 interface Ctx {

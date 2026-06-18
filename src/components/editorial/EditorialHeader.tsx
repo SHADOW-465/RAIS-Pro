@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useTweaks } from "./TweaksContext";
 import Icon from "./Icon";
 
@@ -10,11 +11,20 @@ interface EditorialHeaderProps {
 
 export function ThemeSwitcher({ showLabel = false }: { showLabel?: boolean }) {
   const { t, setTweak } = useTweaks();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isDark = t.theme === "dark";
 
   const toggleTheme = () => {
     setTweak("theme", isDark ? "light" : "dark");
   };
+
+  const themeToDisplay = mounted ? t.theme : "light";
+  const displayDark = themeToDisplay === "dark";
 
   return (
     <button
@@ -28,13 +38,13 @@ export function ThemeSwitcher({ showLabel = false }: { showLabel?: boolean }) {
         padding: "8px 12px",
         minHeight: "var(--tap)",
       }}
-      title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      title={displayDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
       aria-label="Toggle Theme"
     >
-      <Icon name={isDark ? "sun" : "moon"} size={14} stroke={2} />
+      <Icon name={displayDark ? "sun" : "moon"} size={14} stroke={2} />
       {showLabel && (
         <span style={{ fontSize: 12, fontWeight: 600 }}>
-          {isDark ? "Dark" : "Light"}
+          {displayDark ? "Dark" : "Light"}
         </span>
       )}
     </button>

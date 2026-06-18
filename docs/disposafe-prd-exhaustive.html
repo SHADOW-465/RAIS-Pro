@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Disposafe Exhaustive Product Requirements Document</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0c0f14;
+  --panel: #161b22;
+  --panel2: #1c2230;
+  --line: #2a3140;
+  --ink: #e8edf4;
+  --mut: #9aa6b8;
+  --acc: #f5a524;
+  --acc2: #9b7bff;
+  --ok: #56d3a0;
+  --warn: #f0a35e;
+  --bad: #f06a6a;
+  --grad: linear-gradient(135deg, #f5a524, #9b7bff);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: radial-gradient(120% 50% at 50% -10%, #1a1510, #0c0f14 55%);
+  color: var(--ink);
+  font: 15.5px/1.65 "IBM Plex Sans", -apple-system, Segoe UI, Roboto, sans-serif;
+}
+.wrap { max-width: 1000px; margin: 0 auto; padding: 40px 22px 90px; }
+h1 {
+  font-size: 32px;
+  margin: 20px 0 12px;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: Archivo, sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.sub { color: var(--mut); margin: 0 0 16px; font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+h2 {
+  font-size: 14px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--acc);
+  margin: 40px 0 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: bold;
+}
+h3 {
+  font-size: 18px;
+  color: #fff;
+  margin: 28px 0 12px;
+  font-family: Archivo, sans-serif;
+}
+p { margin: 12px 0; }
+a { color: var(--acc); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  background: #161b22;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13.5px;
+  border: 1px solid var(--line);
+}
+pre {
+  background: #090d12;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  overflow: auto;
+  margin: 20px 0;
+}
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+}
+blockquote {
+  border-left: 3px solid var(--acc);
+  margin: 16px 0;
+  padding: 6px 20px;
+  color: var(--mut);
+  background: #161b2255;
+  border-radius: 0 8px 8px 0;
+}
+ul, ol { padding-left: 24px; margin: 16px 0; }
+li { margin-bottom: 8px; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 24px 0;
+  display: block;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+th, td {
+  border: 1px solid var(--line);
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 14px;
+}
+th {
+  background: #161b22;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--mut);
+}
+tr:nth-child(even) {
+  background: #161b2233;
+}
+.back {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: var(--mut);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: .1em;
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 40px 0;
+}
+</style>
+<!-- MathJax for rendering LaTeX formulas -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html">← Command Center</a>
+  <h1>EXHAUSTIVE PRODUCT REQUIREMENTS DOCUMENT (PRD) &amp; SYSTEM SPECIFICATION</h1>
+<p>*Version 2.1 · Engineering-Ready Pilot Specification · June 2026*</p>
+<p>This document serves as the single source of truth for the product requirements, functional specifications, system architecture, database schemas, and mathematical formulations of the <strong>RAIS/MO!D</strong> application built for <strong>Disposafe Health and Life Care Limited</strong>&#x27;s Foley Balloon Catheter (FBC) dipping and assembly plant in Ballabgarh, Haryana.</p>
+<hr>
+<h2>1. Document Control &amp; Metadata</h2>
+<ul>
+<li><strong>Project Name:</strong> RAIS Pro / MO!D (Manufacturing Operational Intelligence &amp; Diagnostics)</li>
+<li><strong>Client Organization:</strong> Disposafe Health and Life Care Limited</li>
+<li><strong>Process Focus:</strong> Foley Balloon Catheter (FBC) Production Line</li>
+<li><strong>Primary Objective:</strong> Transform raw operational data (manual inputs and spreadsheets) into traceable, money-denominated quality diagnostics and audit-ready compliance trails.</li>
+<li><strong>Target Audience:</strong> Frontend/Backend Developers, Database Engineers, and QA Auditors.</li>
+</ul>
+<hr>
+<h2>2. Core Product Pillars &amp; UX Framework</h2>
+<p>The application must adhere to these four core design principles:</p>
+<h3>A. The Legible-First Design</h3>
+<ul>
+<li><strong>Typography:</strong></li>
+<li>*Serif Font:* <code>Newsreader</code> (Georgia fallback) for editorial screens, headings, print titles, and formal letters.</li>
+<li>*Sans-Serif Font:* <code>IBM Plex Sans</code> for UI controls, navigation, input forms, and status labels.</li>
+<li>*Monospace Font:* <code>IBM Plex Mono</code> with <code>font-variant-numeric: tabular-nums</code> for all numeric data tables, yield calculations, and KPI counters.</li>
+<li><strong>Size Hierarchy:</strong></li>
+<li>Minimum dashboard font size: <code>14px</code>.</li>
+<li>Monospace table body cells: <code>10.5px</code> (row padding <code>5.5px 7px</code>).</li>
+<li>Monospace table headers: <code>10px</code> bold uppercase.</li>
+<li>Big KPI display numbers: <code>26px</code> tabular-nums.</li>
+<li>Print layout body text floor: <code>9.5pt</code> (A4 format).</li>
+</ul>
+<h3>B. Layered Depth (The L0–L2 model)</h3>
+<ul>
+<li><strong>L0 (Glance):</strong> Large card layout showing a single primary metric and a plain-language summary verdict (e.g., <code>&quot;Rejection is HIGH — 8.10% visual scrap detected&quot;</code>).</li>
+<li><strong>L1 (Read):</strong> Interactive SVG trend lines, Pareto charts, and CAPA summary cards.</li>
+<li><strong>L2 (Drill):</strong> Traceability tables, source data cells, raw equations, and SQL query filters.</li>
+</ul>
+<h3>C. The Dual-Audience Explain Layer</h3>
+<ul>
+<li>A global <strong>&quot;Explain&quot; Toggle</strong> in the navigation header. </li>
+<li>When enabled, every mathematical metric, SPC chart label, and dashboard metric displays an inline tooltip or subtitle card explaining what the metric means in layman&#x27;s terms (e.g., *“Rolled Throughput Yield (RTY) is the probability of a catheter passing all 12 stages without any defects or rework. Currently at 79.1%, meaning 20.9% of catheters require correction or are scrapped.”*).</li>
+</ul>
+<h3>D. The Provenance Bridge (Trust Badge)</h3>
+<ul>
+<li>Double-clicking any computed metric triggers a bezier highlight beam.</li>
+<li>The screen splits to show the exact source data provenance:</li>
+<li>File hash, filename, and sheet name.</li>
+<li>Cell coordinate (e.g., <code>&#x27;Visual_Inspection!D24&#x27;</code>).</li>
+<li>Raw uncalculated value.</li>
+</ul>
+<hr>
+<h2>3. Database Schema &amp; Data Contracts (Golden Schema)</h2>
+<p>The database runs on Supabase (PostgreSQL). Below are the five canonical table schemas, extended with the correlation and validation columns.</p>
+<pre><code class="language-">                  DATABASE SCHEMA RELATIONSHIPS
+  
+  ┌─────────────────┐        ┌──────────────────────┐
+  │      skus       │        │  daily_production_   │
+  │  - sku_id (PK)  ◄────────┤       summary        │
+  └────────┬────────┘        │  - date (PK)         │
+           │                 └──────────────────────┘
+           │
+           │   ┌──────────────────────┐
+           ├───►  stage_measurements  │
+           │   │  - id (PK)           │
+           │   │  - sku_id (FK)       │
+           │   └──────────┬───────────┘
+           │              │
+           │              ▼
+           │   ┌──────────────────────┐
+           └───►     defect_logs      │
+               │  - id (PK)           │
+               │  - measurement_id (FK)
+               └──────────────────────┘</code></pre>
+<h3>A. SKUs Table</h3>
+<p>Stores standard finished product parameters and cost metrics:</p>
+<pre><code class="language-sql">CREATE TABLE skus (
+    sku_id TEXT PRIMARY KEY,
+    sku_name TEXT NOT NULL,
+    finished_cost REAL NOT NULL DEFAULT 20.0, -- Default ₹20 finished cost
+    rework_cost REAL NOT NULL DEFAULT 5.0,     -- Default ₹5 rework labor cost
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone(&#x27;utc&#x27;::text, now()) NOT NULL
+);</code></pre>
+<h3>B. Stage Cost Weights Table</h3>
+<p>Defines progressive value multipliers as raw material moves down the line:</p>
+<pre><code class="language-sql">CREATE TABLE stage_cost_weights (
+    stage_name TEXT PRIMARY KEY,
+    sequence_order INTEGER NOT NULL,
+    cost_weight REAL NOT NULL CHECK (cost_weight BETWEEN 0.0 AND 1.0)
+);
+-- Seeding data:
+-- &#x27;Former Assembly&#x27; (1, 0.15), &#x27;Coagulant Dipping&#x27; (2, 0.18), &#x27;Latex Dipping&#x27; (3, 0.22),
+-- &#x27;Leaching&#x27; (4, 0.25), &#x27;Chlorination&#x27; (5, 0.30), &#x27;Hanging&#x27; (6, 0.35), &#x27;Gauge&#x27; (7, 0.40),
+-- &#x27;Trimming&#x27; (8, 0.45), &#x27;Visual Insp.&#x27; (9, 0.60), &#x27;Balloon Insp.&#x27; (10, 0.65),
+-- &#x27;Valve Fixing&#x27; (11, 0.70), &#x27;Valve Integrity&#x27; (12, 0.85), &#x27;Final Insp.&#x27; (13, 1.00)</code></pre>
+<h3>C. Daily Production Summary Table</h3>
+<p>Stores daily rollup values and OEE inputs:</p>
+<pre><code class="language-sql">CREATE TABLE daily_production_summary (
+    date DATE PRIMARY KEY,
+    sku_id TEXT REFERENCES skus(sku_id),
+    total_produced INTEGER NOT NULL DEFAULT 0,
+    total_rejected INTEGER NOT NULL DEFAULT 0,
+    planned_production_time_minutes INTEGER NOT NULL DEFAULT 480, -- 8 hour shift
+    actual_run_time_minutes INTEGER NOT NULL DEFAULT 480,
+    standard_dip_rate_per_hour INTEGER NOT NULL DEFAULT 1200,
+    calculated_oee REAL,
+    ingestion_file_hash TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone(&#x27;utc&#x27;::text, now()) NOT NULL
+);</code></pre>
+<h3>D. Stage Measurements Table</h3>
+<p>Logs raw production run metrics per stage:</p>
+<pre><code class="language-sql">CREATE TABLE stage_measurements (
+    id SERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    stage_name TEXT REFERENCES stage_cost_weights(stage_name),
+    sku_id TEXT REFERENCES skus(sku_id),
+    qty_checked INTEGER NOT NULL CHECK (qty_checked &gt;= 0),
+    qty_accepted INTEGER NOT NULL CHECK (qty_accepted &gt;= 0),
+    qty_hold INTEGER NOT NULL DEFAULT 0 CHECK (qty_hold &gt;= 0),
+    qty_rejected INTEGER NOT NULL CHECK (qty_rejected &gt;= 0),
+    machine_id TEXT,             -- Extended for Correlation Engine
+    operator_id TEXT,            -- Extended for Correlation Engine
+    material_batch_no TEXT,      -- Extended for Correlation Engine
+    provenance_coordinate TEXT,  -- Excel cell reference (e.g. &#x27;Sheet1!B18&#x27;)
+    CONSTRAINT chk_math CHECK (qty_checked = qty_accepted + qty_hold + qty_rejected),
+    CONSTRAINT unique_date_stage UNIQUE (date, stage_name)
+);</code></pre>
+<h3>E. Defect Logs Table</h3>
+<p>Records specific defect reason rollups:</p>
+<pre><code class="language-sql">CREATE TABLE defect_logs (
+    id SERIAL PRIMARY KEY,
+    measurement_id INTEGER REFERENCES stage_measurements(id) ON DELETE CASCADE,
+    defect_type TEXT NOT NULL, -- &#x27;Thin Spod&#x27;, &#x27;Struck Balloon&#x27;, &#x27;Leakage&#x27;, &#x27;Bubble&#x27;, &#x27;90/10&#x27;, &#x27;Pinhole&#x27;, &#x27;Others&#x27;
+    qty_defective INTEGER NOT NULL CHECK (qty_defective &gt;= 0),
+    machine_id TEXT,           -- Extended for Correlation Engine
+    operator_id TEXT           -- Extended for Correlation Engine
+);</code></pre>
+<hr>
+<h2>4. Extended Operational Features</h2>
+<p>To bridge the gap between Disposafe&#x27;s operational vulnerabilities and technical code, the system implements these five critical features:</p>
+<h3>1. Ingestion Integrity Engine (Sequence Mass Balance)</h3>
+<ul>
+<li><strong>Objective:</strong> Prevent operators from entering falsified low rejection numbers.</li>
+<li><strong>Mechanism:</strong> Upon excel upload or data entry, run a sequence-check query:</li>
+</ul>
+<p>  $$\text{Checked}_{s,d} \le \text{Accepted}_{s-1,d} + \text{Carryover}_{s-1,d}$$</p>
+<ul>
+<li><strong>System Action:</strong> If the quantity checked at stage $s$ exceeds the available stock passed from stage $s-1$ (after factoring in carryover WIP), the system halts ingestion, flags a <strong>Mass Balance Delta Warning ($\Delta_{\text{MB}} &gt; 0$)</strong>, and moves the record to the Adjudication Queue.</li>
+</ul>
+<h3>2. VSM Buffer &amp; WIP Cost Tracker</h3>
+<ul>
+<li><strong>Objective:</strong> Highlight capital tied up on the factory floor due to bottleneck delays.</li>
+<li><strong>Table Schema:</strong></li>
+</ul>
+<pre><code class="language-sql">CREATE TABLE wip_buffers (
+    id SERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    stage_name TEXT REFERENCES stage_cost_weights(stage_name),
+    buffer_quantity INTEGER NOT NULL DEFAULT 0 CHECK (buffer_quantity &gt;= 0),
+    carrying_cost_per_day REAL GENERATED ALWAYS AS (buffer_quantity * 0.10) STORED, -- ₹0.10 per catheter/day
+    CONSTRAINT unique_date_wip UNIQUE (date, stage_name)
+);</code></pre>
+<ul>
+<li><strong>System Action:</strong> Displays alerts on the Plant GM dashboard when a buffer&#x27;s daily carrying cost exceeds ₹1,000, signaling a bottleneck.</li>
+</ul>
+<h3>3. Multivariable Correlation Engine</h3>
+<ul>
+<li><strong>Objective:</strong> Pinpoint the mechanical or material root causes of defect spikes.</li>
+<li><strong>Mechanism:</strong> Runs correlation queries across <code>stage_measurements</code> and <code>defect_logs</code> metadata:</li>
+</ul>
+<pre><code class="language-sql">-- Identifies if a defect is correlated with a specific machine
+SELECT machine_id, SUM(qty_defective) as total_defects
+FROM defect_logs
+WHERE defect_type = &#x27;Thin Spod&#x27;
+GROUP BY machine_id
+ORDER BY total_defects DESC;</code></pre>
+<ul>
+<li><strong>UX Visualization:</strong> Renders a heatmap highlighting high-correlation cells (e.g., M3 machine and Thin Spod rejections on night shift).</li>
+</ul>
+<h3>4. Dynamic OEE Tracker</h3>
+<ul>
+<li><strong>Objective:</strong> Eliminate manual, static OEE reporting.</li>
+<li><strong>System Action:</strong> Dynamic calculations utilizing shift parameters:</li>
+<li>$\text{Availability} = \frac{\text{actual\_run\_time\_minutes}}{\text{planned\_production\_time\_minutes}}$</li>
+<li>$\text{Performance} = \frac{\text{total\_produced}}{\text{actual\_run\_time\_minutes} \times (\text{standard\_dip\_rate\_per\_hour} / 60)}$</li>
+<li>$\text{Quality} = \frac{\text{total\_produced} - \text{total\_rejected}}{\text{total\_produced}}$</li>
+<li>$\text{OEE} = \text{Availability} \times \text{Performance} \times \text{Quality}$</li>
+</ul>
+<h3>5. Process Rulebook &amp; Adjudication Loop</h3>
+<ul>
+<li><strong>Objective:</strong> Ensure supervisors can handle exceptions transparently.</li>
+<li><strong>Table Schemas:</strong></li>
+</ul>
+<pre><code class="language-sql">CREATE TABLE adjudication_logs (
+    id SERIAL PRIMARY KEY,
+    finding_description TEXT NOT NULL,
+    adjudication_type TEXT NOT NULL, -- &#x27;MISTAKE&#x27; (override), &#x27;INTENTIONAL&#x27; (bypass), &#x27;UNRESOLVED&#x27;
+    resolved_by UUID REFERENCES auth.users(id),
+    notes TEXT,
+    resolved_at TIMESTAMP WITH TIME ZONE DEFAULT timezone(&#x27;utc&#x27;::text, now()) NOT NULL
+);
+
+CREATE TABLE process_rulebook (
+    id SERIAL PRIMARY KEY,
+    rule_type TEXT NOT NULL, -- &#x27;ALLOW_NEGATIVE&#x27;, &#x27;IGNORE_OUTLIER&#x27;, &#x27;STAGE_TOLERANCE&#x27;
+    stage_name TEXT REFERENCES stage_cost_weights(stage_name),
+    allowed_tolerance REAL DEFAULT 0.0,
+    created_by UUID REFERENCES auth.users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone(&#x27;utc&#x27;::text, now()) NOT NULL
+);</code></pre>
+<h3>6. One-Click Compliance ZIP Exporter</h3>
+<ul>
+<li><strong>Endpoint:</strong> <code>/api/export/audit-pack</code> (Next.js serverless route).</li>
+<li><strong>Operation:</strong> </li>
+</ul>
+<ol>
+<li>Queries all five active tables for the requested month.</li>
+<li>Generates CSV files: <code>daily_summary.csv</code>, <code>measurements.csv</code>, <code>wip_buffers.csv</code>, <code>CAPA.csv</code>.</li>
+<li>Creates a <code>manifest.json</code> containing the SHA-256 hash of each CSV file to prove compliance logs have not been tampered with.</li>
+<li>Archives the files into a single <code>.zip</code> dossier downloadable with one click.</li>
+</ol>
+<hr>
+<h2>5. UI/UX Directives &amp; Role Workflows</h2>
+<p>The interface is customized for four distinct factory roles:</p>
+<pre><code class="language-">┌────────────────────────────────────────────────────────┐
+│                   USER INTERFACES                      │
+├───────────────────┬───────────────────┬────────────────┤
+│ OPERATOR TERMINAL │ QUALITY ENGINEER  │ EXECUTIVE GM   │
+│ - Large Inputs    │ - SPC Charts      │ - Rupees Lost  │
+│ - Bilingual Labels│ - Pareto Heatmaps │ - Audit Pack   │
+└───────────────────┴───────────────────┴────────────────┘</code></pre>
+<h3>Role A: The Operator (Shop Floor Entry)</h3>
+<ul>
+<li><strong>View:</strong> Mobile/tablet-first layout. Large touch-friendly input cards.</li>
+<li><strong>Localization:</strong> English titles with Hindi sub-labels (e.g., <strong>Visual Inspection (visual जांच)</strong>).</li>
+<li><strong>Validation:</strong> Immediate inline validation. Form will not submit if <code>Accepted + Hold + Rejected</code> does not equal <code>Checked</code>.</li>
+</ul>
+<h3>Role B: The Quality Engineer (Analytic Control)</h3>
+<ul>
+<li><strong>View:</strong> Full-screen desktop view featuring:</li>
+<li><strong>Pareto defect distribution</strong> (bar charts showing major failure reasons).</li>
+<li><strong>SPC Control Charts</strong> (X-Bar / R-Charts showing UCL, LCL, and Mean).</li>
+<li><strong>CAPA Action Center</strong> allowing the engineer to open 5-Why and Fishbone diagrams.</li>
+</ul>
+<h3>Role C: The Executive GM (Financial &amp; Regulatory Shield)</h3>
+<ul>
+<li><strong>View:</strong> Clean, dashboard layout displaying:</li>
+<li><strong>Money Lost:</strong> Rupees lost per day and month-to-date (calculated using stage multipliers).</li>
+<li><strong>OEE Gauge:</strong> Clean radial gauges showing availability and quality performance.</li>
+<li><strong>Export Button:</strong> One-click compliance zip exporter.</li>
+</ul>
+<hr>
+<h2>6. Regulatory &amp; Data Integrity Compliance (ALCOA+)</h2>
+<p>To pass ISO 13485 and CDSCO inspections, the system enforces the ALCOA+ framework:</p>
+<ol>
+<li><strong>Attributable:</strong> Every database record stores the <code>UUID</code> of the logged-in user who entered it.</li>
+<li><strong>Legible:</strong> Typography guidelines guarantee audit logs remain readable on operations screens.</li>
+<li><strong>Contemporaneous:</strong> The server records the <code>created_at</code> timestamp automatically at the moment of entry.</li>
+<li><strong>Original:</strong> Raw uploaded Excel workbooks are stored in a secure cloud bucket before parsing.</li>
+<li><strong>Accurate:</strong> Mandatory check constraints prevent negative entries, and the ingestion engine flags math mismatches immediately.</li>
+<li><strong>Plus (+) Integrity:</strong> Cryptographic hashes in the <code>manifest.json</code> verify that the data has not been modified.</li>
+</ol>
+</div>
+</body>
+</html>

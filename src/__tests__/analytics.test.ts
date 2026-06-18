@@ -1,0 +1,108 @@
+import { classifyRejectionSheets } from "@/lib/ingest/from-rejection-sheets";
+import { emitMany } from "@/lib/ingest/emit";
+import type { Event } from "@/lib/store/types";
+import type { RawSheet } from "@/types/dashboard";
+import {
+  rejectionRate, totalRejected, totalChecked, fpy, byStage, trend, stageTrend,
+} from "@/lib/analytics/rejection";
+import { byDefect, bySize } from "@/lib/analytics/defect";
+import { prevWindow, periodKey, type Scope } from "@/lib/analytics/scope";
+
+// Real April-2025 numbers from the GM's REJECTION ANALYSIS file.
+function visualSheet(): RawSheet {
+  return {
+    name: "VISUAL", fileName: "APR.xlsx",
+    columns: ["DATE", "QUANTITY CHECKED", "REJECTION", "%"],
+    rows: [
+      { DATE: "2025-04-01", "QUANTITY CHECKED": 10982, REJECTION: 1054, "%": 9.5975 },
+      { DATE: "2025-04-02", "QUANTITY CHECKED": 11054, REJECTION: 828, "%": 7.4905 },
+      { DATE: "2025-05-01", "QUANTITY CHECKED": 8346, REJECTION: 451, "%": 5.4038 },
+    ],
+  };
+}
+function valveSheet(): RawSheet {
+  return {
+    name: "VALVE INTEGRITY", fileName: "APR.xlsx",
+    columns: ["DATE", "QUANTITY CHECKED", "REJECTION", "%"],
+    rows: [{ DATE: "2025-04-01", "QUANTITY CHECKED": 9612, REJECTION: 129, "%": 1.342 }],
+  };
+}
+
+function build(): Event[] {
+  const { records } = classifyRejectionSheets([visualSheet(), valveSheet()], "ing-1");
+  return emitMany(records);
+}
+
+const FY: Scope = { grain: "month", dateFrom: "2025-04-01", dateTo: "2026-03-31" };
+
+describe("analytics — rejection selectors", () => {
+  const events = build();
+
+  test("totals reconcile to the source rows", () => {
+    expect(totalChecked(events, FY).value).toBe(10982 + 11054 + 8346 + 9612);
+    expect(totalRejected(events, FY).value).toBe(1054 + 828 + 451 + 129);
+  });
+
+  test("rejection rate = rejected / checked", () => {
+    const r = rejectionRate(events, FY).value;
+    expect(r).toBeCloseTo((1054 + 828 + 451 + 129) / (10982 + 11054 + 8346 + 9612), 9);
+  });
+
+  test("fpy falls back to 1 − rejection rate when no accepted-good events", () => {
+    expect(fpy(events, FY).value).toBeCloseTo(1 - rejectionRate(events, FY).value, 9);
+  });
+
+  test("byStage splits visual vs valve and computes contribution", () => {
+    const rows = byStage(events, FY);
+    const visual = rows.find((r) => r.stageId === "visual")!;
+    const valve = rows.find((r) => r.stageId === "valve-integrity")!;
+    expect(visual.checked).toBe(10982 + 11054 + 8346);
+    expect(valve.rejected).toBe(129);
+    const totalRej = 1054 + 828 + 451 + 129;
+    expect(visual.contributionPct).toBeCloseTo(((1054 + 828 + 451) / totalRej) * 100, 6);
+  });
+
+  test("monthly trend buckets April vs May", () => {
+    const t = trend(events, FY, "totalRejected");
+    expect(t.map((p) => p.period)).toEqual(["2025-04", "2025-05"]);
+    expect(t.find((p) => p.period === "2025-04")!.value).toBe(1054 + 828 + 129);
+    expect(t.find((p) => p.period === "2025-05")!.value).toBe(451);
+  });
+
+  test("stageTrend exposes per-stage rate per period", () => {
+    const st = stageTrend(events, FY);
+    const apr = st.find((p) => p.period === "2025-04")!;
+    expect(apr.perStage["valve-integrity"]).toBeCloseTo(129 / 9612, 9);
+  });
+});
+
+describe("analytics — scope", () => {
+  const events = build();
+  test("date scope narrows to April only", () => {
+    const apr: Scope = { grain: "month", dateFrom: "2025-04-01", dateTo: "2025-04-30" };
+    expect(totalChecked(events, apr).value).toBe(10982 + 11054 + 9612); // no May
+  });
+  test("stage scope filters to one stage", () => {
+    const s: Scope = { ...FY, stageIds: ["valve-integrity"] };
+    expect(totalRejected(events, s).value).toBe(129);
+  });
+  test("prevWindow returns the prior equal-length window", () => {
+    const p = prevWindow({ grain: "month", dateFrom: "2025-05-01", dateTo: "2025-05-31" });
+    expect(p.dateTo).toBe("2025-04-30");
+    expect(p.dateFrom).toBe("2025-03-31"); // 31-day window back
+  });
+  test("periodKey FY label spans Apr–Mar", () => {
+    expect(periodKey("2025-04-01", "fy")).toBe("FY2025-26");
+    expect(periodKey("2026-03-31", "fy")).toBe("FY2025-26");
+  });
+});
+
+describe("analytics — defect & size empty-states", () => {
+  const events = build(); // rejection-analysis sheets have no per-defect or size data
+  test("byDefect is empty when no per-defect events (→ empty-state, not fake)", () => {
+    expect(byDefect(events, FY)).toEqual([]);
+  });
+  test("bySize is empty when no size-tagged events", () => {
+    expect(bySize(events, FY)).toEqual([]);
+  });
+});

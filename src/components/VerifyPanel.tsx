@@ -78,10 +78,9 @@ export default function VerifyPanel({
   const currentSheet = currentEntry?.sheet ?? null;
 
   // Resolve the highlighted column for the currently shown sheet.
-  const resolved = useMemo(() => {
-    if (!activeSourceColumn || !currentSheet) return null;
-    return findColumn(activeSourceColumn, currentSheet.columns);
-  }, [activeSourceColumn, currentSheet]);
+  const resolved = activeSourceColumn && currentSheet
+    ? findColumn(activeSourceColumn, currentSheet.columns)
+    : null;
 
   useEffect(() => {
     onHighlightResolved(resolved);

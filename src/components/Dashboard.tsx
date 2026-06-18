@@ -14,7 +14,8 @@ import { findContributingSheets } from "@/lib/verify-nav";
 import BeamOverlay, { type BeamEndpoints } from "./BeamOverlay";
 import SourcesPanel from "./SourcesPanel";
 import Icon from "@/components/editorial/Icon";
-import Pill from "@/components/editorial/Pill";
+import FloatingDetailModal from "@/components/FloatingDetailModal";
+import { TrendLine, VerticalBars } from "@/components/editorial/EditorialCharts";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { ThemeSwitcher } from "@/components/editorial/EditorialHeader";
 import type { DashboardConfig, RawSheet } from "@/types/dashboard";
@@ -168,6 +169,72 @@ export default function Dashboard({
   narrativePending,
 }: DashboardProps) {
   const [currentConfig, setCurrentConfig] = useState<DashboardConfig>(data);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalInsight, setModalInsight] = useState<string | string[]>([]);
+  const [modalContent, setModalContent] = useState<React.ReactNode>(null);
+
+  const openKpiModal = (kpi: any) => {
+    const labelLower = kpi.label.toLowerCase();
+    const matchingInsights = insights.filter(ins => ins.toLowerCase().includes(labelLower) || ins.toLowerCase().includes("rejection"));
+    const insightText = matchingInsights.length > 0 
+      ? matchingInsights.slice(0, 2)
+      : [`The metric "${kpi.label}" stands at ${kpi.value}${kpi.unit ?? ""}. Context: ${kpi.context ?? "YTD aggregated ledger data."}`];
+
+    const modalView = (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}>
+        <span style={{ fontSize: 13, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>{kpi.label}</span>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 48, fontWeight: 800, color: "var(--accent)" }}>
+          {kpi.value}{kpi.unit ?? ""}
+        </div>
+        {kpi.history && kpi.history.length > 1 ? (
+          <div style={{ width: "100%", height: 180, marginTop: 12 }}>
+            <TrendLine cycles={kpi.history.map((_: any, idx: number) => `M${idx + 1}`)} values={kpi.history} height={180} />
+          </div>
+        ) : null}
+      </div>
+    );
+
+    setModalTitle(kpi.label);
+    setModalInsight(insightText);
+    setModalContent(modalView);
+    setModalOpen(true);
+  };
+
+  const openChartModal = (chart: any, figIndex: number) => {
+    const matchingInsights = insights.filter(ins => ins.toLowerCase().includes(chart.title.toLowerCase()) || ins.toLowerCase().includes("defect") || ins.toLowerCase().includes("trend"));
+    const insightText = matchingInsights.length > 0
+      ? matchingInsights.slice(0, 2)
+      : [`Figure ${figIndex} displays the trend for ${chart.title}. Review detailed peaks and distribution for root cause analysis.`];
+
+    const labels = chart.data?.labels ?? [];
+    const series = chart.data?.datasets?.[0]?.data ?? [];
+
+    const largeChart = (
+      <div style={{ width: "100%", minHeight: 280 }}>
+        {chart.type === "line" || chart.type === "area" ? (
+          <TrendLine cycles={labels} values={series} height={280} />
+        ) : chart.type === "bar" || chart.type === "radar" ? (
+          <VerticalBars data={labels.map((l: string, i: number) => ({ label: l, value: series[i] ?? 0 }))} labelKey="label" valueKey="value" height={280} />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {labels.map((l: string, i: number) => (
+              <div key={l} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span>{l}</span>
+                <span className="num" style={{ fontWeight: 700 }}>{series[i] ?? 0}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+
+    setModalTitle(chart.title);
+    setModalInsight(insightText);
+    setModalContent(largeChart);
+    setModalOpen(true);
+  };
 
   useEffect(() => {
     setCurrentConfig(data);
@@ -609,7 +676,7 @@ export default function Dashboard({
                         kpi={kpi}
                         compact={verifyMode}
                         isActive={verifyMode && activeKpiIndex === i}
-                        onClick={verifyMode ? () => handleKpiClick(i) : undefined}
+                        onClick={verifyMode ? () => handleKpiClick(i) : () => openKpiModal(kpi)}
                         ref={(el) => {
                           if (el) kpiRefs.current.set(i, el);
                           else kpiRefs.current.delete(i);
@@ -644,6 +711,7 @@ export default function Dashboard({
                         type={chart.type}
                         data={chart.data}
                         figNum={String(i + 1).padStart(2, "0")}
+                        onClick={() => openChartModal(chart, i + 1)}
                       />
                     ))}
                   </div>
@@ -949,6 +1017,15 @@ export default function Dashboard({
           onSlideAdded={(slide) => setSlides((prev) => [...prev, slide])}
         />
       )}
+
+      <FloatingDetailModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={modalTitle}
+        insight={modalInsight}
+      >
+        {modalContent}
+      </FloatingDetailModal>
     </div>
   );
 }

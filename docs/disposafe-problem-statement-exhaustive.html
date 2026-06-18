@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Disposafe Exhaustive Problem Statement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0c0f14;
+  --panel: #161b22;
+  --panel2: #1c2230;
+  --line: #2a3140;
+  --ink: #e8edf4;
+  --mut: #9aa6b8;
+  --acc: #f5a524;
+  --acc2: #9b7bff;
+  --ok: #56d3a0;
+  --warn: #f0a35e;
+  --bad: #f06a6a;
+  --grad: linear-gradient(135deg, #f5a524, #9b7bff);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: radial-gradient(120% 50% at 50% -10%, #1a1510, #0c0f14 55%);
+  color: var(--ink);
+  font: 15.5px/1.65 "IBM Plex Sans", -apple-system, Segoe UI, Roboto, sans-serif;
+}
+.wrap { max-width: 1000px; margin: 0 auto; padding: 40px 22px 90px; }
+h1 {
+  font-size: 32px;
+  margin: 20px 0 12px;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: Archivo, sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.sub { color: var(--mut); margin: 0 0 16px; font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+h2 {
+  font-size: 14px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--acc);
+  margin: 40px 0 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: bold;
+}
+h3 {
+  font-size: 18px;
+  color: #fff;
+  margin: 28px 0 12px;
+  font-family: Archivo, sans-serif;
+}
+p { margin: 12px 0; }
+a { color: var(--acc); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  background: #161b22;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13.5px;
+  border: 1px solid var(--line);
+}
+pre {
+  background: #090d12;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  overflow: auto;
+  margin: 20px 0;
+}
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+}
+blockquote {
+  border-left: 3px solid var(--acc);
+  margin: 16px 0;
+  padding: 6px 20px;
+  color: var(--mut);
+  background: #161b2255;
+  border-radius: 0 8px 8px 0;
+}
+ul, ol { padding-left: 24px; margin: 16px 0; }
+li { margin-bottom: 8px; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 24px 0;
+  display: block;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+th, td {
+  border: 1px solid var(--line);
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 14px;
+}
+th {
+  background: #161b22;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--mut);
+}
+tr:nth-child(even) {
+  background: #161b2233;
+}
+.back {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: var(--mut);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: .1em;
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 40px 0;
+}
+</style>
+<!-- MathJax for rendering LaTeX formulas -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html">← Command Center</a>
+  <h1>EXHAUSTIVE SYSTEM DIAGNOSTIC &amp; OPERATIONAL PROBLEM STATEMENT</h1>
+<p>*Version 2.0 · Reference Diagnostic Context for Disposafe FBC Plant · June 2026*</p>
+<p>This document provides the exhaustive, structured, and clinically organized problem statement for <strong>Disposafe Health and Life Care Limited</strong>&#x27;s Foley Balloon Catheter (FBC) dipping and assembly facility in Ballabgarh, Haryana. It details the latent business blindspots, shop floor operational bottlenecks, data-entry anomalies, and progressive financial leaks that the <strong>RAIS/MO!D</strong> application is engineered to solve.</p>
+<hr>
+<h2>1. Context &amp; Operational Boundaries</h2>
+<p>Disposafe operates under strict regulatory and quality parameters:</p>
+<ul>
+<li><strong>Compliance Framework:</strong> CDSCO (Medical Device Rules 2017) and ISO 13485 (Medical Devices — Quality Management Systems). </li>
+<li><strong>Product Focus:</strong> Latex Foley Balloon Catheters (FBC) — a multi-stage dipping, curing, assembly, and testing process.</li>
+<li><strong>Audit Environment:</strong> High-scrutiny regulatory inspections where audit trail compliance, data integrity, and CAPA (Corrective and Preventive Action) loops are legally binding.</li>
+</ul>
+<hr>
+<h2>2. The Root Cause of Profit Drain: Operational Problem Catalog</h2>
+<p>The factory&#x27;s operational inefficiencies are categorized into four distinct layers: Executive, Managerial, Process/Shopfloor, and Data/Spreadsheet.</p>
+<pre><code class="language-">┌────────────────────────────────────────────────────────┐
+│               EXECUTIVE BLINDSPOTS                     │
+│  - COPQ Invisible Bleed      - Regulatory Risk         │
+└──────────────────────────┬─────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│               MANAGERIAL BLINDSPOTS                    │
+│  - Operator Data Falsification  - Correlation Blindness │
+└──────────────────────────┬─────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│               PROCESS / SHOPFLOOR LEAKS                │
+│  - Visual Inspection (8.1%)   - Valve Integrity (9.1%)  │
+└──────────────────────────┬─────────────────────────────┘
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│             DATA &amp; SPREADSHEET PATHOLOGIES             │
+│  - Negative Rejections       - Unjustified Spikes      │
+└────────────────────────────────────────────────────────┘</code></pre>
+<h3>Layer A: Executive Blindspots (The Boardroom)</h3>
+<ol>
+<li><strong>Invisible Cost of Poor Quality (COPQ):</strong></li>
+</ol>
+<ul>
+<li><strong>The Problem:</strong> The General Manager tracks rejections in *pieces* (e.g., &quot;we rejected 5,000 units today&quot;) rather than *rupees*. This decouples quality failures from financial metrics.</li>
+<li><strong>The Impact:</strong> The true cash impact of scrap is hidden from the monthly balance sheet, preventing senior management from understanding that a 2% reduction in scrap directly recovers millions in profit.</li>
+<li><strong>Financial Scale:</strong> A nominal 2% to 5% rejection rate typically consumes up to <strong>20% of a factory&#x27;s net profit margin</strong>.</li>
+</ul>
+<ol>
+<li><strong>The Regulatory Sword of Damocles:</strong></li>
+</ol>
+<ul>
+<li><strong>The Problem:</strong> Compiling compliance logs and audit trails for ISO 13485 and CDSCO takes weeks of senior engineering time.</li>
+<li><strong>The Impact:</strong> Preparation panic during audits creates massive administrative friction. A single missing or tampered record can lead to a regulatory audit warning, which risks shutting down production lines and halting shipments.</li>
+</ul>
+<ol>
+<li><strong>High Enterprise IT Overhead:</strong></li>
+</ol>
+<ul>
+<li><strong>The Problem:</strong> Traditional Manufacturing Execution Systems (MES) and ERPs require expensive on-premises servers, dedicated database administrators, and intensive staff retraining.</li>
+<li><strong>The Impact:</strong> Traditional enterprise software is cost-prohibitive and too complex for MSME manufacturing facilities, leaving them stuck with insecure Excel sheets.</li>
+</ul>
+<hr>
+<h3>Layer B: Managerial &amp; Analytical Blindspots (The Quality Lab)</h3>
+<ol>
+<li><strong>The &quot;Clean Data&quot; Lie (Operator Data Falsification):</strong></li>
+</ol>
+<ul>
+<li><strong>The Problem:</strong> Operators and supervisors are penalized for high scrap rates and rewarded for hitting output targets.</li>
+<li><strong>The Impact:</strong> Operators under-report scrap, misclassify critical defects (e.g., classifying a machine-fault &quot;Struck Balloon&quot; as a raw-material &quot;Bubble&quot;), or shift defect numbers to other shifts to avoid blame.</li>
+<li><strong>Diagnostic Gap:</strong> Excel spreadsheets have no validation checks to ensure that the sum of parts accepted and rejected at Stage $s$ equals the quantity checked at Stage $s+1$ (Sequence Mass-Balance check).</li>
+</ul>
+<ol>
+<li><strong>Blindness to Process Correlation:</strong></li>
+</ol>
+<ul>
+<li><strong>The Problem:</strong> Daily quality logs state *what* failed (e.g., 2,417 &quot;Thin Spod&quot; rejects) but do not record *why*.</li>
+<li><strong>The Impact:</strong> GMs and Quality Engineers cannot correlate defect spikes with shifting process variables like operator ID, machine ID, latex compounding batch number, or ambient humidity. Root cause analysis becomes guesswork.</li>
+</ul>
+<ol>
+<li><strong>Excessive WIP Inventory Carrying Costs:</strong></li>
+</ol>
+<ul>
+<li><strong>The Problem:</strong> Because production managers receive quality reports 12 to 24 hours after the shift ends, they cannot balance the production flow.</li>
+<li><strong>The Impact:</strong> Managers hold high &quot;safety stocks&quot; of semi-finished catheters between dipping and assembly (WIP buffers) to avoid line stoppages. This ties up capital in inventory and masks shopfloor bottlenecks.</li>
+</ul>
+<hr>
+<h3>Layer C: Process &amp; Shopfloor Leaks (The Production Line)</h3>
+<p>The Foley Balloon Catheter manufacturing process contains two massive yield bottlenecks:</p>
+<pre><code class="language-">        FOLEY BALLOON CATHETER STAGE YIELDS
+  
+  [ Raw Latex ] ──&gt; Dipping &amp; Curing Stages 
+                          │
+                          ▼
+  [ Stage 9 ] Visual Inspection ────&gt; [8.1% Scrap Loss]
+                          │
+                          ▼
+  [ Stage 11 ] Valve Integrity ────&gt; [9.1% Hold &amp; Quarantine]
+                          │
+                          ▼
+  [ Final Quality Inspection ] ────&gt; [79.1% Cumulative RTY]</code></pre>
+<ol>
+<li><strong>Visual Inspection Stage (Stage 9) — 8.1% Scrap Rate:</strong></li>
+</ol>
+<ul>
+<li>This inspection point is the largest source of physical scrap.</li>
+<li><strong>Thin Spod:</strong> The latex coating thickness drops below the nominal limit during dipping. The thin membrane makes the catheter structurally weak, risking burst failures inside the patient.</li>
+<li><strong>Struck Balloon:</strong> Dipping mandrels are placed too close on the rack, or the latex compound viscosity is too high. Catheter balloons stick to each other and tear during mechanical stripping.</li>
+<li><strong>Bubble:</strong> Air pockets are trapped in the latex matrix during compounding, creating weak spots.</li>
+</ul>
+<ol>
+<li><strong>Valve Integrity Testing (Stage 11) — 9.1% Hold/Quarantine Rate:</strong></li>
+</ol>
+<ul>
+<li>Catheters fail the inflation/deflation test, where the balloon must hold water without leaking.</li>
+<li><strong>The Bottleneck:</strong> Catheters that fail are put on &quot;Hold&quot; and quarantined. </li>
+<li><strong>The Rework Loop:</strong> Quarantined catheters must be manually disassembled, re-aligned, and re-tested. This creates a labor-intensive bottleneck that slows down packaging.</li>
+</ul>
+<ol>
+<li><strong>Rolled Throughput Yield (RTY) Deficit — 79.1% Cumulative Yield:</strong></li>
+</ol>
+<ul>
+<li>Due to compounding yield losses across the 12 process stages, the factory has an RTY of only <strong>79.1%</strong>.</li>
+<li><strong>The Impact:</strong> <strong>20.9%</strong> of all raw compounding and processing inputs are lost as scrap or trapped in rework loops.</li>
+</ul>
+<hr>
+<h3>Layer D: Data Quality &amp; Spreadsheet Pathologies (The Excel File)</h3>
+<p>The spreadsheet files used by shift supervisors suffer from severe data issues:</p>
+<ol>
+<li><strong>Impossible Rejection Values (Negative Counts):</strong></li>
+</ol>
+<ul>
+<li><strong>The Pathology:</strong> Excel sheets contain records where rejections are entered as negative numbers (e.g., <code>Rejection = -2</code> or <code>Hold = -5</code>).</li>
+<li><strong>The Root Cause:</strong> Supervisors use negative numbers to &quot;balance&quot; inventory counts at the end of the month, overriding historical records to hide clerical errors.</li>
+</ul>
+<ol>
+<li><strong>Unjustified Rejection Spikes:</strong></li>
+</ol>
+<ul>
+<li><strong>The Pathology:</strong> Quality logs show extreme spikes in rejections (e.g., <strong>33.9% rejection on May 18</strong>, compared to the 12.56% monthly average) without any explanation.</li>
+<li><strong>The Root Cause:</strong> GMs cannot tell if this spike was a real process failure (e.g., compound temperature drop) or a clerical error where two days of data were combined.</li>
+</ul>
+<ol>
+<li><strong>Data Gaps (Missing Logs):</strong></li>
+</ol>
+<ul>
+<li><strong>The Pathology:</strong> Excel sheets have blank columns for critical steps like <code>Chlorination</code> or <code>Hot Leaching</code> on specific dates.</li>
+<li><strong>The Impact:</strong> Missing data skews the month-to-date averages, making it impossible to audit compliance or track process trends.</li>
+</ul>
+<hr>
+<h2>3. Reference Process Stage &amp; Diagnostic Code Directory</h2>
+<p>For developers building the diagnostic validation algorithms in the <strong>RAIS/MO!D</strong> application, the table below maps each process stage to its sequence order, cost weight, defect types, and data-validation rules:</p>
+<table><thead><tr><th>Stage Name</th><th>Seq</th><th>Cost Weight ($W_s$)</th><th>Expected Defect Types</th><th>Mandatory Validation Check</th></tr></thead><tbody><tr><td><strong>Former Assembly</strong></td><td>1</td><td>0.15</td><td>Mandrel damage, loose jig</td><td>Checked Qty &gt; 0</td></tr><tr><td><strong>Coagulant Dipping</strong></td><td>2</td><td>0.18</td><td>Low coagulant concentration, run-off</td><td>Checked Qty $\le$ Stage 1 Accepted Qty</td></tr><tr><td><strong>Latex Dipping</strong></td><td>3</td><td>0.22</td><td>Viscosity error, speed variation</td><td>Dipping Machine OEE log must exist</td></tr><tr><td><strong>Leaching</strong></td><td>4</td><td>0.25</td><td>Poor washing, high residue</td><td>Chlorination check date $\ge$ Leaching date</td></tr><tr><td><strong>Chlorination</strong></td><td>5</td><td>0.30</td><td>Acid concentration drop, staining</td><td>Concentration logs must not be blank</td></tr><tr><td><strong>Hanging &amp; Curing</strong></td><td>6</td><td>0.35</td><td>Over-curing, under-curing, deformation</td><td>Oven temperature log must link</td></tr><tr><td><strong>Gauge Inspection</strong></td><td>7</td><td>0.40</td><td>Thin Spod, outer diameter variance</td><td>Wall thickness measurement $\ge$ 0.8mm</td></tr><tr><td><strong>Trimming</strong></td><td>8</td><td>0.45</td><td>Ragged edge, short length</td><td>Trimmed waste mass-balance check</td></tr><tr><td><strong>Visual Inspection</strong></td><td>9</td><td>0.60</td><td>Thin Spod, Struck Balloon, Bubble, Crack</td><td>Rejected Qty $\le$ Checked Qty; Scrap cost calculated</td></tr><tr><td><strong>Balloon Fix / Test</strong></td><td>10</td><td>0.65</td><td>Sleeve tear, misalignment, Struck Balloon</td><td>Sleeve thickness correlation check</td></tr><tr><td><strong>Valvefixing / Assembly</strong></td><td>11</td><td>0.85</td><td>Valve leak, alignment error, block</td><td>Hold Qty $\le$ Checked Qty; Rework loop logged</td></tr><tr><td><strong>Final QA &amp; Pack</strong></td><td>12</td><td>1.00</td><td>Packaging tear, printing blur, label error</td><td>Accepted Qty = Packaged Qty; Audit hash generated</td></tr></tbody></table>
+<hr>
+<h2>4. Mathematical Baseline Definitions</h2>
+<p>To ensure data-consistency, all diagnostic calculations in the application must use these baseline equations:</p>
+<h3>First Pass Yield (FPY)</h3>
+<p>$$FPY_{s,d} = \frac{\text{Checked}_{s,d} - \text{Hold}_{s,d} - \text{Rejected}_{s,d}}{\text{Checked}_{s,d}}$$</p>
+<h3>Rolled Throughput Yield (RTY)</h3>
+<p>$$RTY_d = \prod_{s=1}^{12} FPY_{s,d}$$</p>
+<h3>Progressive Cost of Poor Quality (COPQ)</h3>
+<p>$$\text{Daily COPQ}_d = \sum_{s=1}^{12} \left[ \text{Rejected}_{s,d} \times (C_{\text{finished}} \times W_s) + \text{Hold}_{s,d} \times C_{\text{rework}} \right]$$</p>
+<p>*Where finished catheter cost ($C_{\text{finished}}$) = ₹20 and standard rework labor cost ($C_{\text{rework}}$) = ₹5.*</p>
+<h3>Mass Balance Delta ($\Delta_{\text{MB}}$)</h3>
+<p>$$\Delta_{\text{MB}} = \text{Accepted}_{s,d} - \text{Checked}_{s+1,d} + \text{Carryover}_{s,d}$$</p>
+<p>*A non-zero Mass Balance Delta ($\Delta_{\text{MB}} \neq 0$) flags a Data Integrity Warning.*</p>
+</div>
+</body>
+</html>
