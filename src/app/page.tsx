@@ -1,324 +1,217 @@
-// src/app/page.tsx
+// src/app/page.tsx — Dashboard cockpit (dashboard-first; no upload UI here).
+// Reads the canonical ledger via /api/events and the analytics engine.
+// Ingestion lives at /staging + /data-entry, reached from the header — never a gate.
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import UploadZone from "@/components/UploadZone";
-import ProcessingLoader from "@/components/ProcessingLoader";
-import SessionCard, { type SessionSummary } from "@/components/SessionCard";
-import Dashboard from "@/components/Dashboard";
-import EditorialHeader from "@/components/editorial/EditorialHeader";
 import Icon from "@/components/editorial/Icon";
-import StatusAlert from "@/components/StatusAlert";
-import { getDeviceId } from "@/lib/device-id";
-import type { DashboardConfig, RawSheet } from "@/types/dashboard";
-import type { MergePlan } from "@/types/analysis";
+import type { Event } from "@/lib/store/types";
+import {
+  rejectionRate, totalRejected, totalChecked, fpy, byStage, trend,
+  byDefect, type Scope, type SeriesPoint, type StageRow, type DefectRow,
+} from "@/lib/analytics";
 
 export default function Home() {
   const router = useRouter();
-  const [processing, setProcessing] = useState(false);
-  const [processingStep, setProcessingStep] = useState<number>(0);
-  const [sessions, setSessions] = useState<SessionSummary[]>([]);
-  const [loadingSessions, setLoadingSessions] = useState(true);
-  const [analysisData, setAnalysisData] = useState<DashboardConfig | null>(null);
-  const [dataSummary, setDataSummary] = useState<string>("");
-  const [rawSheets, setRawSheets] = useState<RawSheet[]>([]);
-  const [mergePlan, setMergePlan] = useState<MergePlan | undefined>(undefined);
-  const [errorState, setErrorState] = useState<string | null>(null);
-  const [narrativePending, setNarrativePending] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [events, setEvents] = useState<Event[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const deviceId = getDeviceId();
-    if (!deviceId) {
-      setLoadingSessions(false);
-      return;
-    }
-    fetch(`/api/sessions?deviceId=${encodeURIComponent(deviceId)}`)
+    fetch("/api/events")
       .then((r) => r.json())
-      .then((body) => {
-        const raw = body.sessions ?? [];
-        const mapped: SessionSummary[] = raw.map((s: any) => ({
-          id: s.id,
-          title: s.title,
-          createdAt: s.created_at,
-          fileNames: (s.files ?? []).map((f: any) => f.name ?? "file"),
-          slideCount: (s.insight_slides?.[0]?.count as number) ?? 0,
-          kpiPreview: (s.dashboard?.kpis ?? []).slice(0, 2).map((k: any) => ({
-            label: k.label,
-            value: k.value,
-          })),
-        }));
-        setSessions(mapped);
-      })
-      .catch(console.error)
-      .finally(() => setLoadingSessions(false));
+      .then((b) => setEvents(b.events ?? []))
+      .catch((e) => { setError(e?.message ?? "Failed to load"); setEvents([]); });
   }, []);
 
-  // Fire-and-forget: the slow AI prose fills into the already-rendered dashboard.
-  // Bounded by a client timeout so a hung provider eventually clears the skeleton.
-  const fetchNarrative = async (metrics: unknown, sid: string | null) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 90_000);
-    try {
-      const res = await fetch("/api/narrative", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ metrics, sessionId: sid }),
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        setNarrativePending(false);
-        return;
-      }
-      const prose = await res.json();
-      setAnalysisData((prev) =>
-        prev
-          ? {
-              ...prev,
-              dashboardTitle: prose.dashboardTitle ?? prev.dashboardTitle,
-              executiveSummary: prose.executiveSummary ?? "",
-              insights: prose.insights ?? [],
-              recommendations: prose.recommendations ?? [],
-              alerts: prose.alerts ?? [],
-            }
-          : prev,
-      );
-      setNarrativePending(false);
-    } catch {
-      setNarrativePending(false);
-    } finally {
-      clearTimeout(timer);
-    }
-  };
+  // Scope = full range present in the ledger, monthly grain.
+  const scope: Scope = useMemo(() => {
+    if (!events?.length) return { grain: "month" };
+    const dates = events.map((e) => e.occurredOn.start).sort();
+    return { grain: "month", dateFrom: dates[0], dateTo: dates[dates.length - 1] };
+  }, [events]);
 
-  const handleUploadComplete = async (files: File[]) => {
-    setProcessing(true);
-    setProcessingStep(1); // 1. Reading spreadsheets
-    setErrorState(null);
-    try {
-      const { parseExcelFilesWithRaw } = await import("@/lib/parser");
-      const { summaries, rawSheets: sheets } = await parseExcelFilesWithRaw(files);
-
-      setProcessingStep(2); // 2. Extracting data structures
-
-      const deviceId = getDeviceId();
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          summaries,
-          deviceId,
-          fileNames: files.map((f) => f.name),
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Analysis failed");
-      }
-
-      const body = await res.json();
-      setProcessingStep(3); // 3. Computing metrics
-
-      if (!body.dashboardTitle || !(body.kpis?.length)) {
-        throw new Error(body.error ?? "Analysis returned no usable data");
-      }
-
-      const sid: string | null = body.sessionId ?? null;
-      if (sid) {
-        try {
-          sessionStorage.setItem(`rais_raw_${sid}`, JSON.stringify(sheets));
-        } catch {
-          /* quota exceeded — silently skip */
-        }
-      }
-
-      // Render the dashboard NOW with real numbers; prose streams in next.
-      setRawSheets(sheets);
-      setDataSummary(JSON.stringify(summaries));
-      setMergePlan(body.mergePlan);
-      setSessionId(sid);
-      setNarrativePending(true);
-      setAnalysisData(body as DashboardConfig);
-      setProcessing(false);
-
-      // Kick off the narrative fill (does not block the dashboard).
-      void fetchNarrative(body.metrics, sid);
-    } catch (error: any) {
-      console.error("Analysis failed:", error);
-      setProcessing(false);
-      setProcessingStep(0);
-      setErrorState(error.message ?? "Analysis failed. Please check your spreadsheet structure.");
-    }
-  };
-
-  if (processing) {
-    return <ProcessingLoader activeStep={processingStep} />;
-  }
-
-  if (analysisData) {
-    return (
-      <Dashboard
-        data={analysisData}
-        dataSummary={dataSummary}
-        rawSheets={rawSheets}
-        mergePlan={mergePlan}
-        sessionId={sessionId ?? undefined}
-        narrativePending={narrativePending}
-        onReset={() => {
-          setAnalysisData(null);
-          setRawSheets([]);
-          setMergePlan(undefined);
-          setSessionId(null);
-          setNarrativePending(false);
-        }}
-      />
-    );
-  }
+  const m = useMemo(() => {
+    if (!events) return null;
+    return {
+      rate: rejectionRate(events, scope).value,
+      rejected: totalRejected(events, scope).value,
+      checked: totalChecked(events, scope).value,
+      fpy: fpy(events, scope).value,
+      stages: byStage(events, scope),
+      trend: trend(events, scope, "rejectionRate"),
+      defects: byDefect(events, scope),
+    };
+  }, [events, scope]);
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <EditorialHeader />
+    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
+      <Header onIngest={() => router.push("/ingest")} onEntry={() => router.push("/data-entry")} />
 
-      <div
-        className="shell"
-        style={{ paddingTop: 64, paddingBottom: 96, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}
-      >
-        <div style={{ maxWidth: 720, width: "100%", margin: "0 auto" }}>
-          {/* Error Feedback Banner */}
-          {errorState && (
-            <div style={{ marginBottom: 32 }} className="fade-up">
-              <StatusAlert
-                message={errorState}
-                type="danger"
-                onClose={() => setErrorState(null)}
-              />
+      <div className="shell" style={{ paddingTop: 28, paddingBottom: 80, maxWidth: 1280, margin: "0 auto" }}>
+        {events === null && <Loading />}
+        {events !== null && events.length === 0 && <EmptyCockpit onIngest={() => router.push("/ingest")} error={error} />}
+
+        {m && events && events.length > 0 && (
+          <>
+            {/* KPI strip */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 20 }}>
+              <Kpi primary label="Rejection Rate" value={pct(m.rate)} tone={m.rate > 0.1 ? "bad" : m.rate > 0.05 ? "warn" : "good"} spark={m.trend} />
+              <Kpi label="Total Rejections" value={m.rejected.toLocaleString()} sub={`${m.checked.toLocaleString()} checked`} />
+              <Kpi label="First Pass Yield" value={pct(m.fpy)} tone="good" />
+              <Kpi label="Stages Tracked" value={String(m.stages.length)} sub="rejection inspection stages" />
             </div>
-          )}
 
-          {/* Dashboard-first cockpit shell (ingestion is a workflow, not a gate) */}
-          <div style={{ textAlign: "center", marginBottom: 32 }} className="fade-up">
-            <div className="eyebrow accent" style={{ fontSize: 11, fontWeight: 700 }}>Quality Intelligence</div>
-            <h1
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: 38,
-                fontWeight: 800,
-                margin: "8px 0 10px",
-                letterSpacing: "-0.03em",
-                color: "var(--text)",
-              }}
-            >
-              Rejection cockpit
-            </h1>
-            <p className="muted" style={{ fontSize: 15, maxWidth: 560, margin: "0 auto", lineHeight: 1.6 }}>
-              What failed, where it came from, and what to do about it — every number traceable
-              to its source. Bring in rejection data to begin.
-            </p>
-          </div>
-
-          {/* Primary action → ingestion pipeline */}
-          <div className="fade-up" style={{ marginBottom: 48, display: "flex", justifyContent: "center", gap: 12 }}>
-            <button
-              onClick={() => router.push("/ingest")}
-              style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 12, padding: "14px 28px", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
-            >
-              <Icon name="upload" size={16} /> Ingest rejection data
-            </button>
-          </div>
-
-          {/* Recent sessions */}
-          {!loadingSessions && sessions.length > 0 && (
-            <div className="mt-8 fade-up">
-              <div
-                className="between mb-4"
-                style={{ alignItems: "flex-end" }}
-              >
-                <div>
-                  <div className="eyebrow accent" style={{ fontSize: 11, fontWeight: 700 }}>Archive</div>
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: 24,
-                      margin: "4px 0 0",
-                      fontWeight: 800,
-                      letterSpacing: "-0.02em",
-                      color: "var(--text)",
-                    }}
-                  >
-                    Recent diagnostics
-                  </h2>
-                </div>
-                <button
-                  className="btn ghost sm"
-                  style={{ border: "none", background: "transparent", cursor: "pointer" }}
-                >
-                  View all <Icon name="arrow-right" size={12} />
-                </button>
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                  gap: 16,
-                }}
-              >
-                {sessions.map((s) => (
-                  <SessionCard
-                    key={s.id}
-                    session={s}
-                    onClick={() => router.push(`/session/${s.id}`)}
-                  />
-                ))}
-              </div>
+            {/* Trend + stage breakdown */}
+            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginBottom: 20 }}>
+              <Card title="Rejection Trend (Monthly)">
+                {m.trend.length ? <LineChart points={m.trend} fmt={pct} /> : <Empty label="No periods in range" />}
+              </Card>
+              <Card title="Stage-wise Rejection">
+                {m.stages.length ? <StageBars rows={m.stages} /> : <Empty label="No stage data" />}
+              </Card>
             </div>
-          )}
 
-          {/* Empty state for sessions */}
-          {!loadingSessions && sessions.length === 0 && (
-            <div
-              className="fade-up"
-              style={{
-                marginTop: 48,
-                borderTop: "1px solid var(--border)",
-                paddingTop: 32,
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  display: "inline-flex",
-                  width: 44,
-                  height: 44,
-                  borderRadius: "50%",
-                  background: "var(--surface-2)",
-                  color: "var(--text-3)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: 12,
-                }}
-              >
-                <Icon name="file" size={20} />
-              </div>
-              <h3
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 16,
-                  fontWeight: 700,
-                  margin: "0 0 4px",
-                  color: "var(--text)",
-                }}
-              >
-                No recent diagnostics
-              </h3>
-              <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-                Previously run analysis briefs will appear here.
-              </p>
-            </div>
-          )}
-        </div>
+            {/* Defect Pareto */}
+            <Card title="Defect Pareto (All Stages)">
+              {m.defects.length ? <DefectTable rows={m.defects} /> :
+                <Empty label="No defect-level data yet — ingest the per-defect (Visual reason matrix / size-wise) files to populate this." />}
+            </Card>
+          </>
+        )}
       </div>
     </div>
   );
 }
+
+/* ── header (ingestion reachable, not a gate) ────────────────────────────── */
+function Header({ onIngest, onEntry }: { onIngest: () => void; onEntry: () => void }) {
+  return (
+    <div style={{ borderBottom: "1px solid var(--border)", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, background: "var(--bg)", zIndex: 10 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 20, letterSpacing: "-0.02em" }}>MO!D</span>
+        <span className="muted" style={{ fontSize: 12 }}>Rejection Intelligence Cockpit</span>
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button onClick={onEntry} style={ghostBtn}>Data Entry</button>
+        <button onClick={onIngest} style={primaryBtn}><Icon name="upload" size={14} /> Ingest data</button>
+      </div>
+    </div>
+  );
+}
+
+const primaryBtn: React.CSSProperties = { background: "var(--accent)", color: "#fff", border: "none", borderRadius: 9, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 };
+const ghostBtn: React.CSSProperties = { background: "transparent", color: "var(--text-2)", border: "1px solid var(--border)", borderRadius: 9, padding: "9px 16px", fontSize: 13, cursor: "pointer" };
+
+/* ── states ──────────────────────────────────────────────────────────────── */
+function Loading() {
+  return <div style={{ textAlign: "center", padding: "120px 0" }} className="muted">Loading the ledger…</div>;
+}
+function EmptyCockpit({ onIngest, error }: { onIngest: () => void; error: string | null }) {
+  return (
+    <div style={{ textAlign: "center", padding: "100px 20px" }}>
+      <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 800, marginBottom: 8 }}>No rejection data yet</div>
+      <p className="muted" style={{ maxWidth: 520, margin: "0 auto 24px", fontSize: 14, lineHeight: 1.6 }}>
+        The cockpit fills in the moment you bring in data. {error ? `(${error})` : ""}
+      </p>
+      <button onClick={onIngest} style={primaryBtn}><Icon name="upload" size={14} /> Ingest rejection data</button>
+    </div>
+  );
+}
+function Empty({ label }: { label: string }) {
+  return <div className="muted" style={{ padding: "32px 8px", fontSize: 13, textAlign: "center" }}>{label}</div>;
+}
+
+/* ── cards / kpis ────────────────────────────────────────────────────────── */
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 12, background: "var(--surface)", padding: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "var(--text)" }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+function Kpi({ label, value, sub, tone, primary, spark }: { label: string; value: string; sub?: string; tone?: "good" | "warn" | "bad"; primary?: boolean; spark?: SeriesPoint[] }) {
+  const color = tone === "bad" ? "var(--status-bad)" : tone === "warn" ? "var(--status-warn)" : tone === "good" ? "var(--status-good)" : "var(--text)";
+  return (
+    <div style={{ border: "1px solid var(--border)", borderTop: primary ? "3px solid var(--accent)" : "1px solid var(--border)", borderRadius: 12, background: "var(--surface)", padding: 16 }}>
+      <div className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>{label}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: primary ? 30 : 24, fontWeight: 700, color, margin: "6px 0 2px" }}>{value}</div>
+      {sub && <div className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>{sub}</div>}
+      {spark && spark.length > 1 && <div style={{ marginTop: 8 }}><Spark points={spark} /></div>}
+    </div>
+  );
+}
+
+/* ── inline SVG charts (placeholder until plan 06 shared lib) ─────────────── */
+function Spark({ points }: { points: SeriesPoint[] }) {
+  const vals = points.map((p) => p.value);
+  const max = Math.max(...vals, 0.0001), min = Math.min(...vals, 0);
+  const W = 120, H = 28;
+  const d = points.map((p, i) => `${(i / (points.length - 1)) * W},${H - ((p.value - min) / (max - min || 1)) * H}`).join(" ");
+  return <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}><polyline points={d} fill="none" stroke="var(--accent)" strokeWidth={1.5} /></svg>;
+}
+function LineChart({ points, fmt }: { points: SeriesPoint[]; fmt: (n: number) => string }) {
+  const W = 640, H = 200, pad = 32;
+  const vals = points.map((p) => p.value);
+  const max = Math.max(...vals, 0.0001), min = 0;
+  const x = (i: number) => pad + (i / Math.max(points.length - 1, 1)) * (W - pad * 2);
+  const y = (v: number) => H - pad - ((v - min) / (max - min || 1)) * (H - pad * 2);
+  const line = points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }}>
+      <line x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke="var(--border)" />
+      <polyline points={line} fill="none" stroke="var(--accent)" strokeWidth={2} />
+      {points.map((p, i) => (
+        <g key={i}>
+          <circle cx={x(i)} cy={y(p.value)} r={3} fill="var(--accent)" />
+          <text x={x(i)} y={H - pad + 14} fontSize={9} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-mono)">{p.label}</text>
+          <text x={x(i)} y={y(p.value) - 8} fontSize={9} textAnchor="middle" fill="var(--text-2)" fontFamily="var(--font-mono)">{fmt(p.value)}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+function StageBars({ rows }: { rows: StageRow[] }) {
+  const max = Math.max(...rows.map((r) => r.rejRate), 0.0001);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {rows.map((r) => (
+        <div key={r.stageId}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+            <span style={{ color: "var(--text)" }}>{r.label}</span>
+            <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-2)" }}>{pct(r.rejRate)}</span>
+          </div>
+          <div style={{ height: 8, background: "var(--surface-2)", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ width: `${(r.rejRate / max) * 100}%`, height: "100%", background: "var(--accent)" }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+function DefectTable({ rows }: { rows: DefectRow[] }) {
+  return (
+    <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+      <thead>
+        <tr style={{ color: "var(--text-3)", textAlign: "left" }}>
+          <th style={th}>Defect</th><th style={{ ...th, textAlign: "right" }}>Rejections</th><th style={{ ...th, textAlign: "right" }}>%</th><th style={{ ...th, textAlign: "right" }}>Cum %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.label} style={{ borderTop: "1px solid var(--border)" }}>
+            <td style={td}>{r.label}</td>
+            <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)" }}>{r.rejected.toLocaleString()}</td>
+            <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)" }}>{r.pct.toFixed(1)}</td>
+            <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-2)" }}>{r.cumPct.toFixed(1)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+const th: React.CSSProperties = { padding: "4px 6px", fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em" };
+const td: React.CSSProperties = { padding: "6px 6px", color: "var(--text)" };
+
+function pct(n: number): string { return `${(n * 100).toFixed(2)}%`; }
