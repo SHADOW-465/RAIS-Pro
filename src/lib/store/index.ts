@@ -26,15 +26,12 @@ export interface Stores {
 const g = globalThis as unknown as { __moidStores?: Stores };
 
 /**
- * Memory is the default — it always works (in-process singleton, no network),
- * which is what the demo and local dev need. Supabase is OPT-IN via
- * `MOID_STORE=supabase`, so merely having SUPABASE_* env vars present (e.g. for
- * other features) never silently routes the ledger at an unreachable project
- * and fails Save with "fetch failed". Requires the migration applied + the
- * project reachable.
+ * Durable by default: use Supabase whenever a project URL + a key are present.
+ * `MOID_STORE=memory` forces the in-RAM store (tests, throwaway dev). Setting
+ * `MOID_STORE=supabase` also works but is no longer required.
  */
-function shouldUseSupabase(): boolean {
-  if ((process.env.MOID_STORE || "").toLowerCase() !== "supabase") return false;
+export function shouldUseSupabase(): boolean {
+  if ((process.env.MOID_STORE || "").toLowerCase() === "memory") return false;
   return !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
     !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
