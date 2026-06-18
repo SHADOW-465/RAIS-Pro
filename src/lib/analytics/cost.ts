@@ -73,6 +73,17 @@ export function copq(events: Event[], scope: Scope): COPQResult | null {
   };
 }
 
+/**
+ * Annual savings opportunity (INR). Two components, whichever is larger:
+ *  1. Target-gap: when the rejection rate exceeds the configured target, the cost
+ *     of the excess rejections (the classic "get back to target" saving).
+ *  2. Continuous-improvement: even within target, CAPA typically recovers a share
+ *     of the current Cost of Poor Quality. We surface 25% of COPQ as the standing
+ *     improvement opportunity so a healthy plant still sees a real (non-zero)
+ *     target rather than ₹0. The fraction is a planning assumption, not source data.
+ */
+const IMPROVEMENT_RECOVERY_FRACTION = 0.25;
+
 export function savingsOpportunity(events: Event[], scope: Scope): number | null {
   const ev = scopeEvents(events, scope);
   if (ev.length === 0) return 0;
@@ -90,10 +101,14 @@ export function savingsOpportunity(events: Event[], scope: Scope): number | null
 
   const currentRate = totalChecked > 0 ? totalRejected / totalChecked : 0;
   const targetLimit = getTargetRejectionRate();
-  if (currentRate <= targetLimit) return 0;
 
-  const excessRejections = (currentRate - targetLimit) * totalChecked;
-  return excessRejections * getFinishedCost();
+  const targetGapSavings =
+    currentRate > targetLimit ? (currentRate - targetLimit) * totalChecked * getFinishedCost() : 0;
+
+  const copqValue = copq(events, scope)?.value ?? 0;
+  const improvementSavings = copqValue * IMPROVEMENT_RECOVERY_FRACTION;
+
+  return Math.max(targetGapSavings, improvementSavings);
 }
 
 export function copqTrend(events: Event[], scope: Scope): { period: string; label: string; value: number }[] {

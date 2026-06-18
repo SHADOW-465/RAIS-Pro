@@ -23,6 +23,8 @@ export default function StagingPage() {
   const [done, setDone] = useState<{ inserted: number; deduped: number } | null>(null);
   const [comments, setComments] = useState<Record<number, string>>({});
   const [editingCommentRow, setEditingCommentRow] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 45;
 
   const rows = useMemo(() => buildReviewRows(records), [records]);
   const summary = useMemo(() => reviewSummary(rows), [rows]);
@@ -124,7 +126,8 @@ export default function StagingPage() {
                     <th style={{ ...sth, textAlign: "center" }}>Comment</th>
                   </tr></thead>
                   <tbody>
-                    {rows.slice(0, 45).map((r, i) => {
+                    {rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r, idx) => {
+                      const i = page * PAGE_SIZE + idx;
                       const hasComment = !!comments[r.recordIndex]?.trim();
                       return (
                         <tr key={r.recordIndex} style={{ borderTop: "1px solid var(--border)", background: r.status === "invalid" ? "color-mix(in srgb, var(--status-bad) 8%, transparent)" : "transparent", color: r.status === "invalid" ? "var(--status-bad)" : "var(--text)" }}>
@@ -200,7 +203,26 @@ export default function StagingPage() {
                     />
                   </div>
                 )}
-                {rows.length > 45 && <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>Showing 45 of {rows.length} records.</div>}
+                {rows.length > PAGE_SIZE && (() => {
+                  const totalPages = Math.ceil(rows.length / PAGE_SIZE);
+                  const from = page * PAGE_SIZE + 1;
+                  const to = Math.min((page + 1) * PAGE_SIZE, rows.length);
+                  const pgBtn = (disabled: boolean): React.CSSProperties => ({
+                    padding: "4px 10px", borderRadius: "var(--radius-sm)", fontSize: 11.5, fontWeight: 600,
+                    border: "1px solid var(--border-strong)", background: "var(--bg)", color: "var(--text-2)",
+                    cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.4 : 1,
+                  });
+                  return (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+                      <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>Showing {from}–{to} of {rows.length.toLocaleString()} records</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <button disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} style={pgBtn(page === 0)}>‹ Prev</button>
+                        <span style={{ fontSize: 11.5, fontWeight: 700 }}>{page + 1} / {totalPages}</span>
+                        <button disabled={page >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} style={pgBtn(page >= totalPages - 1)}>Next ›</button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </>
             )}
           </Card>
