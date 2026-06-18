@@ -81,32 +81,48 @@ export class SupabaseEventStore implements EventStore {
   }
 
   async effective(filter: EventFilter = {}): Promise<Event[]> {
-    // Effective set = events not superseded by corrections
-    const { data: corrections, error: corrError } = await this.client
-      .from("events")
-      .select("payload")
-      .eq("event_type", "correction");
-      
-    if (corrError) throw corrError;
-    
-    const superseded = new Set<string>();
-    for (const c of corrections || []) {
-      const payload = c.payload as { supersedesEventId: string };
-      if (payload?.supersedesEventId) {
-        superseded.add(payload.supersedesEventId);
+    const PAGE = 1000;
+
+    // Page through ALL rows of a base query (PostgREST caps a single select at
+    // 1000 rows; without ranging we'd silently truncate the ledger).
+    const fetchAll = async (
+      build: () => any,
+    ): Promise<any[]> => {
+      const all: any[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await build().range(from, from + PAGE - 1);
+        if (error) throw error;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < PAGE) break;
       }
+      return all;
+    };
+
+    // Effective set = events not superseded by corrections.
+    const corrections = await fetchAll(() =>
+      this.client
+        .from("events")
+        .select("payload")
+        .eq("event_type", "correction")
+        .order("recorded_at", { ascending: true }),
+    );
+    const superseded = new Set<string>();
+    for (const c of corrections) {
+      const payload = c.payload as { supersedesEventId?: string };
+      if (payload?.supersedesEventId) superseded.add(payload.supersedesEventId);
     }
-    
-    let query = this.client.from("events").select("*");
-    
-    if (filter.eventType) query = query.eq("event_type", filter.eventType);
-    if (filter.ingestionId) query = query.eq("ingestion_id", filter.ingestionId);
-    
-    const { data: rows, error: fetchError } = await query;
-    if (fetchError) throw fetchError;
-    
-    const events: Event[] = (rows || []).map(mapRowToEvent);
-    
+
+    const rows = await fetchAll(() => {
+      let q = this.client.from("events").select("*");
+      if (filter.eventType) q = q.eq("event_type", filter.eventType);
+      if (filter.ingestionId) q = q.eq("ingestion_id", filter.ingestionId);
+      q = q.order("recorded_at", { ascending: true });
+      return q;
+    });
+
+    const events: Event[] = rows.map(mapRowToEvent);
+
     return events.filter((e) => {
       if (superseded.has(e.eventId)) return false;
       if (filter.stageId && stageOf(e) !== filter.stageId) return false;
