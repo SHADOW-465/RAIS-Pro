@@ -1,11 +1,11 @@
 import { reviewRow, buildReviewRows, reviewSummary, applyEdit } from "@/lib/ingest/review";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 
-function rec(over: Partial<StageDayRecord> & { checked?: number | null; rejected?: number | null; statedPct?: number | null } = {}): StageDayRecord {
-  const { checked = 10982, rejected = 1054, statedPct = 9.5975, ...rest } = over;
+function rec(opts: { checked?: number | null; rejected?: number | null; statedPct?: number | null; stageId?: string } = {}): StageDayRecord {
+  const { checked = 10982, rejected = 1054, statedPct = 9.5975, stageId = "visual" } = opts;
   return {
     occurredOn: { kind: "day", start: "2025-04-01", end: "2025-04-01" },
-    stageId: "visual",
+    stageId,
     source: { file: "f.xlsx", fileHash: "h", sheet: "VISUAL", tableId: "t1" },
     checked: checked == null ? null : { value: checked, cell: "VISUAL!B2", header: "QTY" },
     rejected: rejected == null ? null : { value: rejected, cell: "VISUAL!C2", header: "REJ" },
@@ -13,7 +13,6 @@ function rec(over: Partial<StageDayRecord> & { checked?: number | null; rejected
     statedPct: statedPct == null ? null : { value: statedPct, cell: "VISUAL!D2", formula: "=C2/B2*100" },
     extractedBy: "heuristic",
     ingestionId: "ing-1",
-    ...rest,
   };
 }
 
