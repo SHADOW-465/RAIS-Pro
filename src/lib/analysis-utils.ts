@@ -170,7 +170,7 @@ Write:
 - dashboardTitle: 8 words or fewer, no numbers.
 - executiveSummary: 2-3 sentences. Quote the exact figures above.
 - insights: 4-6 findings, each naming a real number, stage, or reason from above.
-- recommendations: 3-4 concrete actions, most-urgent first.
+- recommendations: 3-4 concrete actionable items, most-urgent first. These must be specifically tailored to address the worst-performing inspection stage and top defect reasons identified in the data above.
 - alerts: [] unless a figure is genuinely alarming (e.g. a stage rate far above the overall rate).
 
 NEVER invent a number that is not in the data above. The KPIs and charts are rendered separately — you only write prose.`;

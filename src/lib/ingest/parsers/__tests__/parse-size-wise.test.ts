@@ -18,7 +18,7 @@ describe("parseSizeWise", () => {
       const valve = records.filter(r => r.stageId === "valve-integrity");
       expect(balloon.length).toBeGreaterThan(0);
       expect(valve.length).toBeGreaterThan(0);
-      expect(records.every(r => r.occurredOn.start === "2026-04-01")).toBe(true);
+      expect(records.every(r => r.occurredOn.start.startsWith("2026-04-"))).toBe(true);
       expect(records.every(r => r.size != null)).toBe(true);
     });
   }
@@ -28,7 +28,7 @@ describe("parseSizeWise", () => {
       const records = parseSizeWise(readFileSync(VISUAL_FILE), VISUAL_FILE);
       expect(records.length).toBeGreaterThan(0);
       expect(records.every(r => r.stageId === "visual")).toBe(true);
-      expect(records.every(r => r.occurredOn.start === "2026-04-01")).toBe(true);
+      expect(records.every(r => r.occurredOn.start.startsWith("2026-04-"))).toBe(true);
       expect(records.every(r => r.size != null)).toBe(true);
     });
   }

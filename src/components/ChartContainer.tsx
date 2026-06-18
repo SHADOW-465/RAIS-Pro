@@ -7,6 +7,9 @@ import {
   VerticalBars,
   Donut,
 } from "@/components/editorial/EditorialCharts";
+import ParetoChart from "@/components/ParetoChart";
+import { calculatePareto } from "@/lib/dashboard-builder";
+import { getTargetRejectionRate } from "@/lib/analytics";
 
 type ChartType = "line" | "bar" | "horizontalBar" | "area" | "pie" | "doughnut" | "radar";
 
@@ -56,9 +59,16 @@ export default function ChartContainer({
 
   const renderChart = (): ReactNode => {
     if (type === "line" || type === "area") {
-      return <TrendLine cycles={labels} values={series} height={260} />;
+      const targetVal = isRate ? getTargetRejectionRate() * 100 : undefined;
+      return <TrendLine cycles={labels} values={series} height={260} target={targetVal} />;
     }
     if (type === "horizontalBar") {
+      const seriesPoints = labels.map((l, i) => ({ label: l, value: series[i] ?? 0 }));
+      const paretoAnalysis = calculatePareto(seriesPoints);
+      if (paretoAnalysis) {
+        return <ParetoChart analysis={paretoAnalysis} />;
+      }
+
       const rows = labels.map((l, i) => ({ label: l, value: series[i] ?? 0 }));
       const maxVal = Math.max(...series, 1);
       const totalVal = series.reduce((sum, val) => sum + val, 0) || 1;

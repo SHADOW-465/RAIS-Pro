@@ -15,84 +15,104 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
   const isVisual = fileLower.includes("visual") || fileLower.includes("vis");
 
   if (isValve) {
-    // Valve Integrity sheets have a COMMULATIVE sheet that has side-by-side Balloon & Valve Integrity data
-    const commSheetName = wb.SheetNames.find((s) => /c[ou]mm?ulative/i.test(s));
-    if (commSheetName) {
-      const ws = wb.Sheets[commSheetName];
+    // Valve Integrity workbook: loop through detailed size sheets, e.g. 6FR, 8FR, etc.
+    for (const sheetName of wb.SheetNames) {
+      const sizeMatch = sheetName.match(/^(\d+)FR$/i);
+      if (!sizeMatch) continue;
+      const size = `Fr${sizeMatch[1]}`;
+      const ws = wb.Sheets[sheetName];
       const rows: any[][] = xlsx.utils.sheet_to_json(ws, { header: 1, defval: null });
 
-      for (let r = 0; r < rows.length; r++) {
-        const row = rows[r];
-        if (!row || row.length < 5) continue;
+      let headerRowIdx = -1;
+      let headers: string[] = [];
+      for (let i = 0; i < Math.min(20, rows.length); i++) {
+        const row = rows[i];
+        if (Array.isArray(row) && row.some((v) => v != null && String(v).trim().toUpperCase() === "DATE")) {
+          headerRowIdx = i;
+          headers = row.map((v) => String(v || "").trim().toUpperCase());
+          break;
+        }
+      }
 
-        const sizeCell = String(row[0] || row[1] || "").trim().toUpperCase();
-        const sizeMatch = sizeCell.match(/^(\d+)FR$/);
-        if (!sizeMatch) continue;
-        const size = `Fr${sizeMatch[1]}`;
+      if (headerRowIdx === -1) continue;
 
-        const src = { file, fileHash: "local", sheet: commSheetName, tableId: "valve-comm" };
+      // Balloon columns: DATE (0), CHECKED QTY (3), ACCEPT QTY (4), REJ. QTY (6), defects: 8, 9, 10, 11
+      // Valve columns: DATE (0), CHECKED QTY (15), ACCEPT QTY (16), REJ. QTY (18), defects: 20, 21, 22, 23, 24
+      const bCheckedIdx = 3;
+      const bRejectedIdx = 6;
+      const bDefectStart = 8;
+      const bDefectLabels = ["STRUCK BALLOON", "BALLOON BURST", "LEAKAGE", "OTHERS"];
 
-        // Balloon: Checked (col 2), Rej (col 5), Defects (cols 7,8,9,10)
-        const bChecked = Number(row[2]);
-        const bRej = Number(row[5]);
+      const vCheckedIdx = 15;
+      const vRejectedIdx = 18;
+      const vDefectStart = 20;
+      const vDefectLabels = ["LEAKAGE", "90-10", "BUBBLE", "THIN SPOT", "OTHERS"];
+
+      for (let i = headerRowIdx + 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+        const iso = toLocalISODate(row[0]);
+        if (!iso) continue; // Skip non-date rows
+
+        // Balloon Balloon Inspection
+        const bChecked = Number(row[bCheckedIdx]);
+        const bRej = Number(row[bRejectedIdx]);
         if (!isNaN(bChecked) && bChecked > 0) {
           const defects = [];
-          const defLabels = ["STRUCK BALLOON", "BALLOON BURST", "LEAKAGE", "OTHERS"];
           for (let c = 0; c < 4; c++) {
-            const val = Number(row[7 + c]);
-            if (val > 0) {
+            const val = Number(row[bDefectStart + c]);
+            if (!isNaN(val) && val > 0) {
               defects.push({
-                raw: defLabels[c],
+                raw: bDefectLabels[c],
                 value: Math.round(val),
-                cell: `${commSheetName}!${String.fromCharCode(65 + 7 + c)}${r + 1}`,
+                cell: `${sheetName}!${String.fromCharCode(65 + bDefectStart + c)}${i + 1}`,
               });
             }
           }
           records.push({
-            occurredOn: { kind: "day", start: date, end: date },
+            occurredOn: { kind: "day", start: iso, end: iso },
             stageId: "balloon",
             size,
-            source: src,
-            checked: { value: Math.round(bChecked), cell: `${commSheetName}!C${r + 1}`, header: "CHECKED" },
+            source: { file, fileHash: "local", sheet: sheetName, tableId: "valve-balloon-row" },
+            checked: { value: Math.round(bChecked), cell: `${sheetName}!${String.fromCharCode(65 + bCheckedIdx)}${i + 1}`, header: "CHECKED QTY" },
             acceptedGood: null,
             rework: null,
-            rejected: { value: Math.round(bRej || 0), cell: `${commSheetName}!F${r + 1}`, header: "REJ" },
+            rejected: { value: Math.round(bRej || 0), cell: `${sheetName}!${String.fromCharCode(65 + bRejectedIdx)}${i + 1}`, header: "REJ. QTY" },
             defects,
             statedPct: null,
             extractedBy: "heuristic",
-            ingestionId: "init-seed-size-valve-balloon",
+            ingestionId: `init-seed-size-valve-balloon-${sheetName}-${iso}`,
           });
         }
 
-        // Valve: Checked (col 13), Rej (col 16), Defects (cols 18,19,20,21,22)
-        const vChecked = Number(row[13]);
-        const vRej = Number(row[16]);
+        // Valve Integrity
+        const vChecked = Number(row[vCheckedIdx]);
+        const vRej = Number(row[vRejectedIdx]);
         if (!isNaN(vChecked) && vChecked > 0) {
           const defects = [];
-          const defLabels = ["LEAKAGE", "90-10", "BUBBLE", "THIN SPOT", "OTHERS"];
           for (let c = 0; c < 5; c++) {
-            const val = Number(row[18 + c]);
-            if (val > 0) {
+            const val = Number(row[vDefectStart + c]);
+            if (!isNaN(val) && val > 0) {
               defects.push({
-                raw: defLabels[c],
+                raw: vDefectLabels[c],
                 value: Math.round(val),
-                cell: `${commSheetName}!${String.fromCharCode(65 + 18 + c)}${r + 1}`,
+                cell: `${sheetName}!${String.fromCharCode(65 + vDefectStart + c)}${i + 1}`,
               });
             }
           }
           records.push({
-            occurredOn: { kind: "day", start: date, end: date },
+            occurredOn: { kind: "day", start: iso, end: iso },
             stageId: "valve-integrity",
             size,
-            source: src,
-            checked: { value: Math.round(vChecked), cell: `${commSheetName}!N${r + 1}`, header: "CHECKED" },
+            source: { file, fileHash: "local", sheet: sheetName, tableId: "valve-integrity-row" },
+            checked: { value: Math.round(vChecked), cell: `${sheetName}!${String.fromCharCode(65 + vCheckedIdx)}${i + 1}`, header: "CHECKED QTY" },
             acceptedGood: null,
             rework: null,
-            rejected: { value: Math.round(vRej || 0), cell: `${commSheetName}!Q${r + 1}`, header: "REJ" },
+            rejected: { value: Math.round(vRej || 0), cell: `${sheetName}!${String.fromCharCode(65 + vRejectedIdx)}${i + 1}`, header: "REJ. QTY" },
             defects,
             statedPct: null,
             extractedBy: "heuristic",
-            ingestionId: "init-seed-size-valve",
+            ingestionId: `init-seed-size-valve-integrity-${sheetName}-${iso}`,
           });
         }
       }
@@ -105,10 +125,6 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
       const size = `Fr${sizeMatch[1]}`;
       const ws = wb.Sheets[sheetName];
       const rows: any[][] = xlsx.utils.sheet_to_json(ws, { header: 1, defval: null });
-
-      let totalChecked = 0;
-      let totalRejected = 0;
-      const defectSums = new Map<string, number>();
 
       let headerRowIdx = -1;
       let headers: string[] = [];
@@ -152,38 +168,34 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
 
         const chk = Number(row[checkedIdx]);
         const rej = Number(row[rejectedIdx]);
-        if (!isNaN(chk)) totalChecked += chk;
-        if (!isNaN(rej)) totalRejected += rej;
+        if (isNaN(chk) && isNaN(rej)) continue;
 
+        const defects = [];
         for (let c = startDefectIdx; c < row.length; c++) {
           const val = Number(row[c]);
           const label = headers[c];
           if (label && !isNaN(val) && val > 0) {
-            defectSums.set(label, (defectSums.get(label) || 0) + val);
+            defects.push({
+              raw: label,
+              value: Math.round(val),
+              cell: `${sheetName}!${String.fromCharCode(65 + c)}${i + 1}`,
+            });
           }
         }
-      }
-
-      if (totalChecked > 0 || totalRejected > 0) {
-        const defects = [...defectSums.entries()].map(([raw, value]) => ({
-          raw,
-          value: Math.round(value),
-          cell: `${sheetName}!aggregated`,
-        }));
 
         records.push({
-          occurredOn: { kind: "day", start: date, end: date },
+          occurredOn: { kind: "day", start: iso, end: iso },
           stageId: isVisual ? "visual" : "final",
           size,
-          source: { file, fileHash: "local", sheet: sheetName, tableId: "size-agg" },
-          checked: { value: Math.round(totalChecked), cell: `${sheetName}!REC`, header: "REC. QTY" },
+          source: { file, fileHash: "local", sheet: sheetName, tableId: "size-row" },
+          checked: !isNaN(chk) ? { value: Math.round(chk), cell: `${sheetName}!${String.fromCharCode(65 + checkedIdx)}${i + 1}`, header: headers[checkedIdx] } : null,
           acceptedGood: null,
           rework: null,
-          rejected: { value: Math.round(totalRejected), cell: `${sheetName}!REJ`, header: "REJ. QTY" },
+          rejected: !isNaN(rej) ? { value: Math.round(rej), cell: `${sheetName}!${String.fromCharCode(65 + rejectedIdx)}${i + 1}`, header: headers[rejectedIdx] } : null,
           defects,
           statedPct: null,
           extractedBy: "heuristic",
-          ingestionId: "init-seed-size-wise",
+          ingestionId: `init-seed-size-wise-${sheetName}-${iso}`,
         });
       }
     }

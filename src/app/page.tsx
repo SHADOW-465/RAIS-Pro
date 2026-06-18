@@ -24,6 +24,7 @@ import {
 import type { Event } from "@/lib/store/types";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import ParetoChart from "@/components/ParetoChart";
+import { safeBolden } from "@/components/Dashboard";
 import { calculatePareto } from "@/lib/dashboard-builder";
 import {
   rejectionRate, 
@@ -171,7 +172,7 @@ export default function Dashboard() {
     const tr = trend(events, trendScope, "rejectionRate");
     const st = stageTrend(events, trendScope);
     const dt = defectTrend(events, trendScope, 5);
-    const sizes = bySize(events, snapshotScope);
+    const sizes = bySize(events, scope);
     
     // Sort sizes numerically: Fr10, Fr12, Fr14, Fr16, Fr18
     const orderedSizes = [...sizes].sort((a, b) => {
@@ -188,6 +189,17 @@ export default function Dashboard() {
     const status = qualityStatus(events, snapshotScope);
     const szTrend = sizeTrend(events, trendScope, selectedSize);
     const cTrend = copqTrend(events, trendScope);
+
+    const worstSize = orderedSizes.length > 0 ? [...orderedSizes].sort((a,b) => b.rejRate - a.rejRate)[0] : null;
+    const sizeWiseInsight = worstSize
+      ? worstSize.rejRate > 0
+        ? `Catheter size ${worstSize.size} shows the highest quality deviation with a rejection rate of ${(worstSize.rejRate * 100).toFixed(2)}% YTD.`
+        : "All catheter sizes operate within control parameters with 0.00% rejection rate YTD."
+      : "No size-wise rejection data available for the active period.";
+
+    const sizeTrendInsight = szTrend.length > 0
+      ? `Quality levels for size ${selectedSize} over time.`
+      : `No trend data available for size ${selectedSize} in the active period.`;
 
     return {
       rate, 
@@ -208,6 +220,8 @@ export default function Dashboard() {
       status,
       sizeTrend: szTrend,
       copqTrend: cTrend,
+      sizeWiseInsight,
+      sizeTrendInsight,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
   }, [events, scope, t.grain, selectedSize]);
@@ -218,15 +232,16 @@ export default function Dashboard() {
     
     let rateDiff = "";
     if (m.tr && m.tr.length >= 2) {
-      const cur = m.tr[m.tr.length - 1];
-      const prev = m.tr[m.tr.length - 2];
-      const change = cur.value - prev.value;
-      rateDiff = ` (${change >= 0 ? "↑" : "↓"} ${(Math.abs(change) * 100).toFixed(2)}% vs ${prev.label})`;
+      const last = m.tr[m.tr.length - 1].value;
+      const prev = m.tr[m.tr.length - 2].value;
+      const diff = last - prev;
+      const dir = diff >= 0 ? "increase" : "reduction";
+      rateDiff = `, a ${Math.abs(diff * 100).toFixed(2)}% pt ${dir} vs ${m.tr[m.tr.length - 2].label}`;
     }
 
-    const topDefect = m.defects[0] ? `${m.defects[0].label} (${m.defects[0].pct.toFixed(1)}%)` : "N/A";
-    const secondDefect = m.defects[1] ? `${m.defects[1].label} (${m.defects[1].pct.toFixed(1)}%)` : "N/A";
-    const thirdDefect = m.defects[2] ? `${m.defects[2].label} (${m.defects[2].pct.toFixed(1)}%)` : "N/A";
+    const topDefect = m.defects[0]?.label ?? "Unknown";
+    const secondDefect = m.defects[1]?.label ?? "Unknown";
+    const thirdDefect = m.defects[2]?.label ?? "Unknown";
 
     return [
       `Overall rejection rate is ${pct(m.rate)}${rateDiff}.`,
@@ -258,7 +273,7 @@ export default function Dashboard() {
 
     // Check sizes
     const badSize = [...m.sizes].sort((a, b) => b.rejRate - a.rejRate)[0];
-    if (badSize && badSize.rejRate > targetRej) {
+    if (badSize && badSize.rejRate > 0) {
       list.push(`Review material batch consistency and tensile strength for size ${badSize.size} (rejection rate: ${(badSize.rejRate * 100).toFixed(1)}%).`);
     }
 
@@ -299,13 +314,26 @@ export default function Dashboard() {
     const fpyDiffSign = fpyChange >= 0 ? "↑" : "↓";
     const fpyDiffText = `${fpyDiffSign} ${(Math.abs(fpyChange) * 100).toFixed(2)}% vs ${prev.label}`;
 
+    let copqDiffText = `vs ${prev.label}`;
+    if (m.copqTrend.length >= 2) {
+      const lastVal = m.copqTrend[m.copqTrend.length - 1].value;
+      const prevVal = m.copqTrend[m.copqTrend.length - 2].value;
+      if (prevVal > 0) {
+        const diff = ((lastVal - prevVal) / prevVal) * 100;
+        const dir = diff >= 0 ? "↑" : "↓";
+        copqDiffText = `${dir} ${Math.abs(diff).toFixed(1)}% vs ${prev.label}`;
+      }
+    }
+
     return {
       rateDiff: rateDiffText,
       rejDiff: rejDiffText,
       fpyDiff: fpyDiffText,
-      copqDiff: `vs ${prev.label}`,
+      copqDiff: copqDiffText,
     };
   }, [m]);
+
+  const worstStageByRejs = m ? [...m.stages].sort((a, b) => b.rejected - a.rejected)[0]?.label ?? "Visual Inspection" : "Visual Inspection";
 
   return (
     <AppShell active="dashboard" trustScore={m?.trust.pct ?? 98.4} statusCounts={{ anomalies: 5, alerts: 3, capa: 7, overdue: 2 }} dateRange={m?.latestPeriodLabel}>
@@ -337,42 +365,41 @@ export default function Dashboard() {
                         borderRadius: "50%", 
                         background: colors[i % colors.length] 
                       }} />
-                      {bullet}
+                      {safeBolden(bullet)}
                     </li>
                   );
                 })}
               </ul>
             </Card>
 
-            <Card title="Recommended Actions">
-              <ol style={{ margin: 0, paddingLeft: 16, fontSize: 13, lineHeight: 1.75 }}>
+            <Card title="Recommended Actions (AI)">
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.75 }}>
                 {recommendations.map((rec, i) => (
-                  <li key={i} style={{ marginBottom: 6 }}>{rec}</li>
+                  <li key={i} style={{ marginBottom: 6 }}>
+                    {safeBolden(rec)}
+                  </li>
                 ))}
-              </ol>
-              <div style={{ marginTop: 12, fontSize: 12, fontWeight: 700 }}>
-                <a href="/capa" style={{ color: "var(--accent)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  View All Actions <span style={{ fontSize: 10 }}>→</span>
-                </a>
-              </div>
+              </ul>
             </Card>
 
-            <Card title={`${grainLabel} COPQ Impact`} onClick={() => openModal(`${grainLabel} COPQ Impact`, `COPQ reaches ${rupee(m.copq)} this period. Material waste and tooling downtime are major drivers.`, <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={Math.min(m.copq / 100000, 10)} label={rupee(m.copq)} subtext={stats.copqDiff} /></div>)}>
+            <Card title={`${grainLabel} COPQ Impact`} onClick={() => openModal(`${grainLabel} COPQ Impact`, `COPQ reaches ${rupee(m.copq)} this period. ${stats.copqDiff}. Material waste and tooling downtime are major drivers.`, <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={Math.min(m.copq / 100000, 10)} label={rupee(m.copq)} subtext={stats.copqDiff} /></div>)}>
               <GaugeChart value={Math.min(m.copq / 100000, 10)} label={rupee(m.copq)} subtext={stats.copqDiff} />
             </Card>
 
             <Card title="Quality Status" onClick={() => openModal("Quality Status", `Overall production status is flagged as ${m.status.state.toUpperCase()} due to current rejection rates.`, <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0" }}><div style={{ width: 54, height: 54, borderRadius: "50%", background: m.status.state === "ok" ? "var(--positive-weak)" : "var(--warning-weak)", display: "grid", placeItems: "center", color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)", marginBottom: 12 }}><Icon name={m.status.state === "ok" ? "check" : "alert"} size={30} stroke={2} /></div><div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)" }}>{m.status.state.toUpperCase()}</div><p className="muted" style={{ fontSize: 13, textAlign: "center", marginTop: 6 }}>{m.status.reason}</p></div>)}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0", height: "100%" }}>
-                <div style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "50%",
-                  background: m.status.state === "ok" ? "var(--positive-weak)" : "var(--warning-weak)",
-                  display: "grid",
-                  placeItems: "center",
-                  color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)",
-                  marginBottom: 10
-                }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: "12px 0" }}>
+                <div 
+                  style={{ 
+                    width: 44, 
+                    height: 44, 
+                    borderRadius: "50%", 
+                    background: m.status.state === "ok" ? "var(--positive-weak)" : "var(--warning-weak)", 
+                    display: "grid", 
+                    placeItems: "center", 
+                    color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)", 
+                    marginBottom: 8 
+                  }}
+                >
                   <Icon name={m.status.state === "ok" ? "check" : "alert"} size={24} stroke={2} />
                 </div>
                 <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)" }}>
@@ -393,9 +420,9 @@ export default function Dashboard() {
           {/* Row 2: KPI Strip */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
             <Kpi primary label="Rejection Rate" value={pct(m.rate)} sub={stats.rateDiff} tone={m.rate > targetRej ? "bad" : "good"} spark={m.tr} onClick={() => openModal(`${grainLabel} Rejection Rate Trend`, `The rejection rate stands at ${pct(m.rate)}, compared to the target of ${pct(targetRej)}.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>)} />
-            <Kpi label="Total Rejections" value={num(m.rejected)} sub={stats.rejDiff} tone="bad" spark={m.tr} onClick={() => openModal(`${grainLabel} Total Rejections Trend`, `Total rejections in this period. Visual Inspection represents the highest contributing volume.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} fmt={num} /></div>)} />
+            <Kpi label="Total Rejections" value={num(m.rejected)} sub={stats.rejDiff} tone="bad" spark={m.tr} onClick={() => openModal(`${grainLabel} Total Rejections Trend`, `Total rejections stand at ${num(m.rejected)} this period. ${worstStageByRejs} represents the highest contributing volume.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} fmt={num} /></div>)} />
             <Kpi label="First Pass Yield (FPY)" value={pct(m.fpy)} sub={stats.fpyDiff} tone={m.fpy >= (1 - targetRej) ? "good" : "bad"} spark={m.tr} onClick={() => openModal(`${grainLabel} FPY Trend`, `First Pass Yield stands at ${pct(m.fpy)} for the latest period.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: 1 - p.value }))} fmt={pct} /></div>)} />
-            <Kpi label="COPQ (This Period)" value={rupee(m.copq)} sub={stats.copqDiff} tone="warn" spark={m.tr} onClick={() => openModal(`${grainLabel} Cost of Poor Quality (COPQ) Trend`, `COPQ remains at ${rupee(m.copq)}. Focus on minimizing raw material scrap.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>)} />
+            <Kpi label="COPQ (This Period)" value={rupee(m.copq)} sub={stats.copqDiff} tone="warn" spark={m.tr} onClick={() => openModal(`${grainLabel} Cost of Poor Quality (COPQ) Trend`, `COPQ stands at ${rupee(m.copq)} for this period (${stats.copqDiff}).`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>)} />
             <Kpi label="Savings Opportunity" value={rupee(m.savings)} sub="◆ Annual Potential" tone="good" spark={m.tr} onClick={() => openModal("Savings Opportunity Projections", `Achieving target quality limits offers up to ${rupee(m.savings)} in annual recoverable opportunity.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} fmt={pct} /></div>)} />
           </div>
 
@@ -432,7 +459,7 @@ export default function Dashboard() {
 
           {/* Row 5: Size-wise & Audit */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1.2fr", gap: 16 }}>
-            <Card title="Size-wise Rejection (YTD)" onClick={() => openModal("Size-wise Rejection (YTD)", "Total rejection rate by catheter size.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>)}>
+            <Card title="Size-wise Rejection (YTD)" onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>)}>
               {m.sizes.length > 0 ? (
                 <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} />
               ) : (
@@ -440,7 +467,7 @@ export default function Dashboard() {
               )}
             </Card>
             
-            <Card title={`Size-wise Trend (${selectedSize})`} onClick={() => openModal(`Size-wise Trend (${selectedSize})`, `Quality levels for size ${selectedSize} over time.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>)}>
+            <Card title={`Size-wise Trend (${selectedSize})`} onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>)}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
                 <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Size:</span>
                 <select

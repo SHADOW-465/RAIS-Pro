@@ -114,31 +114,27 @@ export async function POST(req: NextRequest) {
           createdAt: new Date().toISOString(),
         },
       });
-    } catch (err) {
-      // The model couldn't fit the answer into the slide schema — fall back to a
-      // plain prose answer rather than failing the chat. The UI renders this as a
-      // normal message (result.text).
-      if (err instanceof NoObjectGeneratedError) {
-        try {
-          const { text } = await tryModels((model) =>
-            generateText({
-              model,
-              system: SYSTEM_PROMPT,
-              prompt:
-                prompt +
-                "\n\nAnswer the question directly in 2–4 concise sentences using only the verified figures above. Plain text, no JSON.",
-              temperature: 0.2,
-            }),
-          );
-          return NextResponse.json({ type: "text", text: text.trim() || "I couldn't find that in the verified figures." });
-        } catch {
-          return NextResponse.json(
-            { error: "The model is unavailable right now. Please try again." },
-            { status: 502 },
-          );
-        }
+    } catch (slideErr) {
+      console.warn("[chat] slide generation failed, trying text fallback...", slideErr);
+      try {
+        const { text } = await tryModels((model) =>
+          generateText({
+            model,
+            system: SYSTEM_PROMPT,
+            prompt:
+              prompt +
+              "\n\nAnswer the question directly in 2–4 concise sentences using only the verified figures above. Plain text, no JSON.",
+            temperature: 0.2,
+          }),
+        );
+        return NextResponse.json({ type: "text", text: text.trim() || "I couldn't find that in the verified figures." });
+      } catch (textErr) {
+        console.error("[chat] text fallback failed:", textErr);
+        // High-reliability rule-based fallback using verified cockpit KPIs
+        const kpiText = (cfg.kpis ?? []).map(k => `- ${k.label}: ${k.value}${k.unit ? " " + k.unit : ""}`).join("\n");
+        const fallbackText = `The AI service is currently rate-limited. Here are the verified cockpit metrics for your reference:\n\n${kpiText}`;
+        return NextResponse.json({ type: "text", text: fallbackText });
       }
-      throw err;
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

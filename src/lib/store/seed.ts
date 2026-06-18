@@ -23,7 +23,7 @@ export function recordsFromBuffer(buf: Buffer, file: string): PrecededRecord[] {
   if (family === "rejection-analysis") {
     return parseRejectionAnalysis(buf, name);
   }
-  if (family === "size-wise") {
+  if (family === "size-wise" || family === "stage-report") {
     return parseSizeWise(buf, file).map((record) => ({ record, family }));
   }
   return [];

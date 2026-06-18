@@ -58,47 +58,150 @@ export default function ReportsPage() {
   const handleExportCSV = () => {
     if (events.length === 0) return;
 
+    // 1. Map event comments
+    const commentsMap = new Map<string, string[]>();
+    events.forEach((e) => {
+      if (e.eventType === "annotation") {
+        const ann = e as any;
+        if (ann.targetEventIds) {
+          ann.targetEventIds.forEach((tid: string) => {
+            const arr = commentsMap.get(tid) ?? [];
+            if (ann.text) {
+              arr.push(ann.text);
+            }
+            commentsMap.set(tid, arr);
+          });
+        }
+      }
+    });
+
+    // 2. Group events by Date, Stage, Size
+    interface GroupData {
+      date: string;
+      stageId: string;
+      size: string;
+      checked: number;
+      rejected: number;
+      accepted: number;
+      defects: Record<string, number>;
+      comments: Set<string>;
+    }
+
+    const groups: Record<string, GroupData> = {};
+
+    events.forEach((e) => {
+      if (e.eventType === "annotation" || e.eventType === "correction") {
+        return;
+      }
+
+      const date = e.occurredOn?.start ? e.occurredOn.start.slice(0, 10) : e.recordedAt.slice(0, 10);
+      const stageId = (e as any).stageId || "general";
+      const size = (e as any).size || "N/A";
+
+      const key = `${date}_${stageId}_${size}`;
+      if (!groups[key]) {
+        groups[key] = {
+          date,
+          stageId,
+          size,
+          checked: 0,
+          rejected: 0,
+          accepted: 0,
+          defects: {},
+          comments: new Set<string>(),
+        };
+      }
+
+      const g = groups[key];
+
+      if (e.eventType === "production") {
+        g.checked += e.quantity;
+      } else if (e.eventType === "inspection") {
+        if ((e as any).disposition === "accepted") {
+          g.accepted += e.quantity;
+        } else if ((e as any).disposition === "rejected") {
+          g.rejected += e.quantity;
+        }
+      } else if (e.eventType === "rejection") {
+        const defectLabel = (e as any).defectCodeRaw || (e as any).defectCode || "Unknown";
+        g.defects[defectLabel] = (g.defects[defectLabel] || 0) + e.quantity;
+      }
+
+      // Add comments associated with this event
+      const annTexts = commentsMap.get(e.eventId) ?? [];
+      annTexts.forEach((text) => g.comments.add(text));
+    });
+
+    // 3. Convert groups to rows
     const headers = [
-      "Event ID",
-      "Ingestion ID",
-      "Timestamp",
-      "Date Occurred",
-      "Event Type",
-      "Stage ID",
-      "Quantity",
-      "Unit",
+      "Date",
+      "Stage",
       "Size",
-      "Cell Provenance",
-      "Source File Name",
-      "File Hash"
+      "Checked Qty",
+      "Rejected Qty",
+      "Accepted Qty",
+      "Rejection %",
+      "Defect Breakdown",
+      "Comments",
     ];
 
-    const rows = events.map((e) => [
-      e.eventId,
-      e.ingestionId,
-      e.recordedAt,
-      e.occurredOn?.start,
-      e.eventType,
-      (e as any).stageId || "",
-      (e as any).quantity ?? (e as any).statedValue ?? "",
-      (e as any).unit || "",
-      (e as any).size || "",
-      e.provenance?.cells?.[0] || "",
-      e.provenance?.file || "",
-      e.provenance?.fileHash || ""
-    ]);
+    const getStageName = (stageId: string) => {
+      switch (stageId.toLowerCase()) {
+        case "visual":
+          return "Visual Inspection";
+        case "eye-punching":
+          return "Eye Punching";
+        case "balloon":
+          return "Balloon Sealing";
+        case "valve-integrity":
+          return "Valve Integrity";
+        case "final-assembly":
+        case "final":
+          return "Final Assembly";
+        default:
+          return stageId;
+      }
+    };
 
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((r) => r.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(","))].join("\n");
+    const rows = Object.values(groups).map((g) => {
+      const defectTotal = Object.values(g.defects).reduce((sum, val) => sum + val, 0);
+      const finalRejected = g.rejected || defectTotal;
+      const finalChecked = g.checked || (g.accepted + finalRejected);
+      const rejRate = finalChecked > 0 ? (finalRejected / finalChecked) * 100 : 0;
 
-    const encodedUri = encodeURI(csvContent);
+      const defectBreakdown = Object.entries(g.defects)
+        .map(([lbl, val]) => `${lbl} (${val})`)
+        .join("; ");
+
+      const commentsStr = Array.from(g.comments).join(" | ");
+
+      return [
+        g.date,
+        getStageName(g.stageId),
+        g.size,
+        finalChecked,
+        finalRejected,
+        g.accepted,
+        `${rejRate.toFixed(2)}%`,
+        defectBreakdown,
+        commentsStr,
+      ];
+    });
+
+    const csvString = [
+      headers.join(","),
+      ...rows.map((r) => r.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `rais-pro-audit-trail-${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `rais-pro-compliance-audit-${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (

@@ -18,7 +18,8 @@ import {
   periodsIn,
   periodKey,
   periodLabel,
-  type Scope
+  type Scope,
+  copqTrend
 } from "@/lib/analytics";
 
 export default function CopqPage() {
@@ -43,11 +44,35 @@ export default function CopqPage() {
       .catch(() => setEvents([]));
   }, []);
 
-  const scope = useMemo(() => {
-    if (!events?.length) return { grain: t.grain };
-    const d = events.map((e) => e.occurredOn.start).sort();
-    return { grain: t.grain, dateFrom: d[0], dateTo: d[d.length - 1] };
-  }, [events, t.grain]);
+  const scope: Scope = useMemo(() => {
+    let from = t.dateFrom;
+    let to = t.dateTo;
+    
+    if (t.datePreset === "all" || (!from && !to)) {
+      if (events?.length) {
+        const d = events.map((e) => e.occurredOn.start).sort();
+        from = d[0];
+        to = d[d.length - 1];
+      }
+    } else if (t.datePreset === "last-90-days") {
+      const today = new Date(2026, 5, 18);
+      const prior = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      from = `${prior.getFullYear()}-${pad(prior.getMonth() + 1)}-${pad(prior.getDate())}`;
+      to = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    } else if (t.datePreset === "last-12-months") {
+      const today = new Date(2026, 5, 18);
+      const prior = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+      const pad = (n: number) => String(n).padStart(2, "0");
+      from = `${prior.getFullYear()}-${pad(prior.getMonth() + 1)}-${pad(prior.getDate())}`;
+      to = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    } else if (t.datePreset === "this-fy") {
+      from = "2026-04-01";
+      to = "2027-03-31";
+    }
+
+    return { grain: t.grain, dateFrom: from || undefined, dateTo: to || undefined };
+  }, [events, t.grain, t.datePreset, t.dateFrom, t.dateTo]);
 
   const m = useMemo(() => {
     if (!events || events.length === 0) return null;
@@ -93,15 +118,30 @@ export default function CopqPage() {
 
     const copqRes = copq(events, snapshotScope);
     const savings = savingsOpportunity(events, snapshotScope);
-    const tr = trend(events, trendScope, "rejectionRate");
+    const cTrend = copqTrend(events, trendScope);
+
+    // Dynamic Period-over-Period Delta
+    let copqDiff = "vs Prior Period";
+    if (cTrend.length >= 2) {
+      const lastVal = cTrend[cTrend.length - 1].value;
+      const prevVal = cTrend[cTrend.length - 2].value;
+      if (prevVal > 0) {
+        const diff = ((lastVal - prevVal) / prevVal) * 100;
+        const dir = diff >= 0 ? "↑" : "↓";
+        copqDiff = `vs ${cTrend[cTrend.length - 2].label}: ${dir} ${Math.abs(diff).toFixed(1)}%`;
+      }
+    }
 
     return {
       copq: copqRes?.value ?? 324000,
       savings: savings ?? 1245000,
-      tr,
+      copqTrend: cTrend,
+      copqDiff,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
   }, [events, scope, t.grain]);
+
+  const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
 
   return (
     <AppShell active="copq" dateRange={m?.latestPeriodLabel}>
@@ -124,8 +164,8 @@ export default function CopqPage() {
         {m && (
           <div style={{ display: "grid", gridTemplateColumns: "1.25fr 1.75fr", gap: 20 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <Card title="Monthly COPQ Impact" onClick={() => openModal("Monthly COPQ Impact", "COPQ reaches ₹55.07 Lakhs this month, showing a 8.7% increase compared to Feb-26. Material waste and tooling downtime are major drivers.", <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext="vs Feb-26: ↑ 8.7%" /></div>)}>
-                <GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext="vs Feb-26: ↑ 8.7%" />
+              <Card title={`${grainLabel} COPQ Impact`} onClick={() => openModal(`${grainLabel} COPQ Impact`, `COPQ reaches ${rupee(m.copq)} this period. ${m.copqDiff}. Material waste and tooling downtime are major drivers.`, <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} /></div>)}>
+                <GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} />
               </Card>
 
               <Card title="Savings Opportunity Summary">
@@ -143,8 +183,8 @@ export default function CopqPage() {
               </Card>
             </div>
 
-            <Card title="COPQ Trend (Monthly)" onClick={() => openModal("COPQ Trend (Monthly)", "COPQ trends upwards in tandem with rejection rate, costing up to ₹55.07 Lakhs.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: p.value * m.copq * 6 }))} fmt={rupee} /></div>)}>
-              <LineChart points={m.tr.map(p => ({ ...p, value: p.value * m.copq * 6 }))} fmt={rupee} />
+            <Card title={`COPQ Trend (${grainLabel})`} onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>)}>
+              <LineChart points={m.copqTrend} fmt={rupee} />
             </Card>
           </div>
         )}

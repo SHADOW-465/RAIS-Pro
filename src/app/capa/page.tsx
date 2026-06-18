@@ -114,13 +114,13 @@ export default function CapaPage() {
   // Add Action
   const handleAddAction = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newText.trim() || !newOwner.trim()) return;
+    if (!newText.trim() || !newOwner.trim() || !newDue.trim()) return;
 
     const newAction: CapaAction = {
       id: `capa-${Date.now()}`,
       text: newText.trim(),
       owner: newOwner.trim(),
-      dueDate: newDue || new Date().toISOString().slice(0, 10),
+      dueDate: newDue.trim(),
       priority: newPriority,
       status: "Open",
       stage: newStage
@@ -233,15 +233,18 @@ export default function CapaPage() {
                           }}
                         >
                           {a.status === "Completed" ? (
-                            <Icon name="check" size={18} stroke={2.5} />
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                              <polyline points="22 4 12 14.01 9 11.01" />
+                            </svg>
                           ) : a.status === "In Progress" ? (
-                            <svg width="18" height="18" viewBox="0 0 18 18" style={{ color: "var(--warning)" }}>
-                              <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
-                              <path d="M 9,2 A 7,7 0 0,1 9,16 Z" fill="currentColor" />
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <circle cx="12" cy="12" r="10" />
+                              <polyline points="12 6 12 12 16 14" />
                             </svg>
                           ) : (
-                            <svg width="18" height="18" viewBox="0 0 18 18" style={{ color: "var(--text-3)" }}>
-                              <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2" style={{ flexShrink: 0 }}>
+                              <circle cx="12" cy="12" r="10" />
                             </svg>
                           )}
                         </button>
@@ -287,7 +290,7 @@ export default function CapaPage() {
             <Card title="Initiate CAPA Action" sub="Create a new shopfloor corrective instruction">
               <form onSubmit={handleAddAction} style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 6 }}>
                 <label style={fieldLabel}>
-                  <span className="muted" style={{ fontSize: "11.5px", fontWeight: 600 }}>Action Description</span>
+                  <span className="muted" style={{ fontSize: "11.5px", fontWeight: 600 }}>Action Description <span style={{ color: "var(--critical)" }}>*</span></span>
                   <input
                     type="text"
                     required
@@ -300,7 +303,7 @@ export default function CapaPage() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <label style={fieldLabel}>
-                    <span className="muted" style={{ fontSize: "11.5px", fontWeight: 600 }}>Owner / Assignee</span>
+                    <span className="muted" style={{ fontSize: "11.5px", fontWeight: 600 }}>Owner / Assignee <span style={{ color: "var(--critical)" }}>*</span></span>
                     <input
                       type="text"
                       required
@@ -311,7 +314,7 @@ export default function CapaPage() {
                     />
                   </label>
                   <label style={fieldLabel}>
-                    <span className="muted" style={{ fontSize: "11.5px", fontWeight: 600 }}>Target Due Date</span>
+                    <span className="muted" style={{ fontSize: "11.5px", fontWeight: 600 }}>Target Due Date <span style={{ color: "var(--critical)" }}>*</span></span>
                     <input
                       type="date"
                       required
