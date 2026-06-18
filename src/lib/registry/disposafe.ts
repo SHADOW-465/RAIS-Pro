@@ -16,10 +16,11 @@ export const DISPOSAFE_REGISTRY: Registry = {
   registryVersion: "1.0.0",
   fiscalYearStartMonth: 4, // April–March fiscal year
   stages: [
-    { stageId: "visual",          label: "Visual Inspection (P17)",        effectiveFrom: null, effectiveTo: null, upstream: [] },
-    { stageId: "balloon",         label: "Balloon Inspection (P18)",       effectiveFrom: null, effectiveTo: null, upstream: ["visual"] },
-    { stageId: "valve-integrity", label: "Valve Integrity (P20)",          effectiveFrom: null, effectiveTo: null, upstream: ["balloon"] },
-    { stageId: "final",           label: "Final Inspection (P24)",         effectiveFrom: null, effectiveTo: null, upstream: ["valve-integrity"] },
+    { stageId: "visual",          label: "Visual Inspection",   effectiveFrom: null,         effectiveTo: null, upstream: [] },
+    { stageId: "eye-punching",    label: "Eye Punching",        effectiveFrom: "2025-11-01", effectiveTo: null, upstream: ["visual"] },
+    { stageId: "balloon",         label: "Balloon Testing",     effectiveFrom: null,         effectiveTo: null, upstream: ["eye-punching"] },
+    { stageId: "valve-integrity", label: "Valve Integrity",     effectiveFrom: null,         effectiveTo: null, upstream: ["balloon"] },
+    { stageId: "final",           label: "Final Inspection",    effectiveFrom: null,         effectiveTo: null, upstream: ["valve-integrity"] },
   ],
   defects: [
     { defectCode: "THSP", label: "Thin Spot",       aliases: ["THIN SPOD", "THIN SPOT", "THSP", "TT"],            stages: ["visual"] },

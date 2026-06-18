@@ -8,6 +8,8 @@ function rec(opts: { checked?: number | null; rejected?: number | null; statedPc
     stageId,
     source: { file: "f.xlsx", fileHash: "h", sheet: "VISUAL", tableId: "t1" },
     checked: checked == null ? null : { value: checked, cell: "VISUAL!B2", header: "QTY" },
+    acceptedGood: null,
+    rework: null,
     rejected: rejected == null ? null : { value: rejected, cell: "VISUAL!C2", header: "REJ" },
     defects: [],
     statedPct: statedPct == null ? null : { value: statedPct, cell: "VISUAL!D2", formula: "=C2/B2*100" },

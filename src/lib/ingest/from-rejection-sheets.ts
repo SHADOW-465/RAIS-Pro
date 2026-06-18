@@ -126,6 +126,8 @@ export function classifyRejectionSheets(
           stageId: stage.stageId,
           source,
           checked: checked != null && checked >= 0 ? { value: Math.round(checked), cell: `${sheet.name}!${checkedColumn}${r}`, header: checkedColumn! } : null,
+          acceptedGood: null,
+          rework: null,
           rejected: rejected != null && rejected >= 0 ? { value: Math.round(rejected), cell: `${sheet.name}!${rejectedColumn}${r}`, header: rejectedColumn! } : null,
           defects: [],
           statedPct: pctVal != null && pctColumn ? { value: pctVal, cell: `${sheet.name}!${pctColumn}${r}`, formula: null } : null,

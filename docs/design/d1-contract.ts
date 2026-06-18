@@ -138,7 +138,7 @@ export const DISPOSAFE_STAGE_IDS = [
 /* Canonical events                                                     */
 /* ------------------------------------------------------------------ */
 
-export const Disposition = z.enum(["accepted", "rejected", "hold", "downgrade"]);
+export const Disposition = z.enum(["accepted", "rejected", "rework", "hold", "downgrade"]);
 export const Unit = z.enum(["pcs", "trolleys"]);
 
 export const ProductionEvent = z.object({

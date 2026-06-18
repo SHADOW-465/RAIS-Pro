@@ -10,6 +10,8 @@ function rec(over: Partial<StageDayRecord> = {}): StageDayRecord {
     stageId: "visual",
     source: SRC,
     checked: { value: 10982, cell: "B6", header: "VISUAL QTY" },
+    acceptedGood: null,
+    rework: null,
     rejected: { value: 1054, cell: "D6", header: "REJ QTY" },
     defects: [],
     statedPct: null,

@@ -41,7 +41,9 @@ export interface StageDayRecord {
   occurredOn: z.infer<typeof Period>;
   stageId: string;
   source: { file: string; fileHash: string; sheet: string; tableId: string };
-  checked: SourcedValue | null;
+  checked: SourcedValue | null;        // Input qty (denominator)
+  acceptedGood: SourcedValue | null;   // Accepted — Good
+  rework: SourcedValue | null;         // Accepted — Rework
   rejected: SourcedValue | null;
   defects: DefectValue[];
   statedPct: { value: number | string; cell: string; formula: string | null } | null;
@@ -97,12 +99,16 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
     out.push(ProductionEvent.parse({ eventId, eventType: "production", ...env, ...payload }));
   }
 
-  if (rec.rejected && Number.isInteger(rec.rejected.value) && rec.rejected.value >= 0) {
-    const payload = { stageId: rec.stageId, disposition: "rejected" as const, quantity: rec.rejected.value, unit: "pcs" as const, batchNo: null, size: null };
-    const env = envelope(rec, [rec.rejected.cell], rec.rejected.header, null, null);
+  const inspection = (sv: SourcedValue | null, disposition: "rejected" | "accepted" | "rework") => {
+    if (!sv || !Number.isInteger(sv.value) || sv.value < 0) return;
+    const payload = { stageId: rec.stageId, disposition, quantity: sv.value, unit: "pcs" as const, batchNo: null, size: null };
+    const env = envelope(rec, [sv.cell], sv.header, null, null);
     const eventId = hashEvent({ eventType: "inspection", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
     out.push(InspectionEvent.parse({ eventId, eventType: "inspection", ...env, ...payload }));
-  }
+  };
+  inspection(rec.rejected, "rejected");
+  inspection(rec.acceptedGood, "accepted");
+  inspection(rec.rework, "rework");
 
   for (const d of rec.defects) {
     if (!Number.isInteger(d.value) || d.value < 0) continue;

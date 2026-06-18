@@ -199,9 +199,9 @@ describe("MemoryEventStore", () => {
 
 // ── Registry ─────────────────────────────────────────────────────────────
 describe("Disposafe registry (rejection-only)", () => {
-  test("has exactly the 4 rejection stages", () => {
+  test("has the 5 rejection stages in flow order", () => {
     expect(DISPOSAFE_REGISTRY.stages.map((s) => s.stageId)).toEqual([
-      "visual", "balloon", "valve-integrity", "final",
+      "visual", "eye-punching", "balloon", "valve-integrity", "final",
     ]);
   });
 
