@@ -11,6 +11,11 @@ export default function AuditPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
+
+  // Reset to first page whenever a filter/search changes.
+  useEffect(() => { setPage(0); }, [searchQuery, typeFilter, stageFilter]);
 
   useEffect(() => {
     fetch("/api/events")
@@ -241,7 +246,7 @@ export default function AuditPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEvents.slice(0, 100).map((e, idx) => {
+                  {filteredEvents.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((e, idx) => {
                     const inlineComments = commentsMap.get(e.eventId) ?? [];
                     const rowQty = e.quantity ?? e.statedValue ?? "—";
                     return (
@@ -288,11 +293,30 @@ export default function AuditPage() {
                   })}
                 </tbody>
               </table>
-              {filteredEvents.length > 100 && (
-                <div className="muted" style={{ fontSize: 11, marginTop: 12, textAlign: "center" }}>
-                  Showing first 100 logs. Refine filters to search deeper history.
-                </div>
-              )}
+              {filteredEvents.length > PAGE_SIZE && (() => {
+                const totalPages = Math.ceil(filteredEvents.length / PAGE_SIZE);
+                const from = page * PAGE_SIZE + 1;
+                const to = Math.min((page + 1) * PAGE_SIZE, filteredEvents.length);
+                const pgBtn = (disabled: boolean): React.CSSProperties => ({
+                  padding: "5px 12px", borderRadius: "var(--radius-sm)", fontSize: 12, fontWeight: 600,
+                  border: "1px solid var(--border-strong)", background: "var(--bg)", color: "var(--text-2)",
+                  cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.4 : 1,
+                });
+                return (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                    <span className="muted" style={{ fontSize: 11.5, fontFamily: "var(--font-mono)" }}>
+                      Showing {from}–{to} of {filteredEvents.length.toLocaleString()} records
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <button disabled={page === 0} onClick={() => setPage(0)} style={pgBtn(page === 0)}>« First</button>
+                      <button disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} style={pgBtn(page === 0)}>‹ Prev</button>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: "0 4px" }}>Page {page + 1} / {totalPages}</span>
+                      <button disabled={page >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} style={pgBtn(page >= totalPages - 1)}>Next ›</button>
+                      <button disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} style={pgBtn(page >= totalPages - 1)}>Last »</button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </Card>

@@ -80,9 +80,31 @@ export default function DataEntryPage() {
     ] as { label: string; state: "Passed" | "Warning" | "Failed" }[];
   }, [rows, stageIds, date, hdr.shift]);
 
-  const dqBad = dq.some((d) => d.state === "Failed");
+  // Concrete blocking errors (with location) — wrong arithmetic + required fields
+  // must be fixed before Submit. This is what makes invalid data un-submittable.
+  const blockingErrors = useMemo(() => {
+    const errs: string[] = [];
+    if (!hdr.operator.trim()) errs.push("Operator name is required.");
+    for (const id of stageIds) {
+      const r = row(id);
+      const input = num(r.input), good = num(r.good), rework = num(r.rework), rej = num(r.rejected);
+      const name = label(id);
+      if (rej != null && input != null && rej > input) errs.push(`${name}: Rejected (${rej}) cannot exceed Input (${input}).`);
+      if (good != null && input != null && good > input) errs.push(`${name}: Good (${good}) cannot exceed Input (${input}).`);
+      // Full balance: when good is recorded, Input must equal Good + Rework + Rejected.
+      if (input != null && good != null && (good + (rework ?? 0) + (rej ?? 0)) !== input)
+        errs.push(`${name}: Good + Rework + Rejected (${good + (rework ?? 0) + (rej ?? 0)}) must equal Input (${input}).`);
+      // A stage with Input must record an outcome.
+      if (input != null && good == null && rej == null)
+        errs.push(`${name}: enter Good and/or Rejected for the ${input} units checked.`);
+    }
+    return errs;
+  }, [rows, stageIds, hdr.operator]);
+
+  const dqBad = dq.some((d) => d.state === "Failed") || blockingErrors.length > 0;
 
   async function submit() {
+    if (blockingErrors.length > 0) { setError(blockingErrors[0]); return; }
     setBusy(true); setError(null);
     const ingestionId = globalThis.crypto?.randomUUID?.() ?? `entry-${Date.now()}`;
     const records = buildRecords(ingestionId);
@@ -115,7 +137,7 @@ export default function DataEntryPage() {
           {/* header fields */}
           <Section title="Data Entry Form">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-              <Field label="Operator"><input style={inp} value={hdr.operator} onChange={(e) => setHdr({ ...hdr, operator: e.target.value })} placeholder="Name" /></Field>
+              <Field label="Operator *"><input style={{ ...inp, borderColor: hdr.operator.trim() ? "var(--border)" : "var(--status-bad)" }} value={hdr.operator} onChange={(e) => setHdr({ ...hdr, operator: e.target.value })} placeholder="Required" /></Field>
               <Field label="Supervisor"><input style={inp} value={hdr.supervisor} onChange={(e) => setHdr({ ...hdr, supervisor: e.target.value })} placeholder="Name" /></Field>
               <Field label="Product"><input style={inp} value={hdr.product} onChange={(e) => setHdr({ ...hdr, product: e.target.value })} /></Field>
               <Field label="Size (French)"><input style={inp} value={hdr.size} onChange={(e) => setHdr({ ...hdr, size: e.target.value })} /></Field>
@@ -201,6 +223,19 @@ export default function DataEntryPage() {
               <span style={{ fontWeight: 700 }}>Overall Status</span>
               <span style={{ color: dqBad ? "var(--status-bad)" : "var(--status-good)", fontWeight: 700 }}>{dqBad ? "Needs fix" : "All Good"}</span>
             </div>
+            {blockingErrors.length > 0 && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--status-bad)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Fix before submitting
+                </span>
+                {blockingErrors.map((e, i) => (
+                  <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: 11.5, color: "var(--text-2)" }}>
+                    <span style={{ color: "var(--status-bad)", flexShrink: 0 }}>•</span>
+                    <span>{e}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
         </div>
       </div>

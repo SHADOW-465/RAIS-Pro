@@ -51,10 +51,47 @@ export default function AppShell({
   const [mounted, setMounted] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [analyticsExpanded] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Export the canonical ledger as a CSV (ALCOA+ audit extract). Pulls the live
+  // event ledger and streams a download — no server round-trip needed.
+  async function handleExport() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const res = await fetch("/api/events");
+      const body = await res.json();
+      const events: any[] = body.events ?? [];
+      const cols = ["eventId", "eventType", "date", "stageId", "size", "defectCodeRaw", "quantity", "disposition", "file", "cell", "extractedBy", "recordedAt"];
+      const esc = (v: any) => {
+        const s = v == null ? "" : String(v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const rows = events.map((e) => [
+        e.eventId, e.eventType, e.occurredOn?.start, e.stageId ?? "", e.size ?? "",
+        e.defectCodeRaw ?? "", e.quantity ?? e.statedValue ?? "", e.disposition ?? "",
+        e.provenance?.file ?? "", e.provenance?.cells?.[0] ?? "", e.extractedBy ?? "", e.recordedAt ?? "",
+      ].map(esc).join(","));
+      const csv = [cols.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `moid-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.print(); // fallback: print the current view to PDF
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     if (!showPicker) return;
@@ -521,8 +558,8 @@ export default function AppShell({
           </div>
 
           {/* Export Action */}
-          <button style={{ 
-            background: "var(--accent)", 
+          <button onClick={handleExport} disabled={exporting} style={{
+            background: "var(--accent)",
             color: "var(--text-invert)", 
             border: "none", 
             borderRadius: "var(--radius-md)", 
@@ -536,7 +573,7 @@ export default function AppShell({
             boxShadow: "var(--shadow-1)",
             minHeight: 36
           }}>
-            <Icon name="print" size={13} /> Export <Icon name="arrow-right" size={10} style={{ transform: "rotate(90deg)" }} />
+            <Icon name="print" size={13} /> {exporting ? "Exporting…" : "Export"} <Icon name="arrow-right" size={10} style={{ transform: "rotate(90deg)" }} />
           </button>
         </div>
       </header>

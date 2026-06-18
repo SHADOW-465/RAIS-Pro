@@ -1,6 +1,6 @@
 // src/app/api/chat/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { generateObject, NoObjectGeneratedError } from "ai";
+import { generateObject, generateText, NoObjectGeneratedError } from "ai";
 import { tryModels } from "@/lib/ai";
 import { InsightSlideAnswerSchema } from "@/lib/schemas";
 import type { DashboardConfig, KPI, Chart } from "@/types/dashboard";
@@ -115,11 +115,28 @@ export async function POST(req: NextRequest) {
         },
       });
     } catch (err) {
+      // The model couldn't fit the answer into the slide schema — fall back to a
+      // plain prose answer rather than failing the chat. The UI renders this as a
+      // normal message (result.text).
       if (err instanceof NoObjectGeneratedError) {
-        return NextResponse.json(
-          { error: "Model could not produce a valid slide. Rephrase the question and try again." },
-          { status: 502 },
-        );
+        try {
+          const { text } = await tryModels((model) =>
+            generateText({
+              model,
+              system: SYSTEM_PROMPT,
+              prompt:
+                prompt +
+                "\n\nAnswer the question directly in 2–4 concise sentences using only the verified figures above. Plain text, no JSON.",
+              temperature: 0.2,
+            }),
+          );
+          return NextResponse.json({ type: "text", text: text.trim() || "I couldn't find that in the verified figures." });
+        } catch {
+          return NextResponse.json(
+            { error: "The model is unavailable right now. Please try again." },
+            { status: 502 },
+          );
+        }
       }
       throw err;
     }
