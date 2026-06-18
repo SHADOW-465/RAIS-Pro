@@ -47,12 +47,14 @@ export function getStores(): Stores {
       SupabaseFindingStore,
     } = require("./supabase") as typeof import("./supabase");
     const rulebook = new SupabaseRulebookStore();
+    const events = new SupabaseEventStore();
     g.__moidStores = {
-      events: new SupabaseEventStore(),
+      events,
       rulebook,
       findings: new SupabaseFindingStore(rulebook),
       backend: "supabase",
     };
+    seedStore(events);
   } else {
     const rulebook = new MemoryRulebookStore();
     const events = new MemoryEventStore();
@@ -67,7 +69,7 @@ export function getStores(): Stores {
   return g.__moidStores;
 }
 
-function seedStore(eventsStore: MemoryEventStore) {
+function seedStore(eventsStore: EventStore) {
   if (typeof window !== "undefined") return;
   try {
     const fs = require("fs");
