@@ -96,3 +96,19 @@ schemas (and the tests) in lockstep.
   has genuinely reusable visual logic.
 - Sticky positioning on the dashboard masthead and verify-panel headers must
   remain — both screens are scroll-heavy.
+
+## Session History (June 18, 2026)
+
+In this session, the following updates were made:
+- **Design System & Typography**: Re-aligned colors and loaded **Fraunces** display serif and **Inter Tight** UI fonts via Google Fonts. Resolved offline build failures from standard google-font pre-fetching by loading fonts via `@import` in `globals.css` and mapping `--font-display`, `--font-sans`, and `--font-mono` directly in the global `:root`.
+- **Factory Staging Grid**: Revamped `/staging` (in `src/app/staging/page.tsx`) to support editable input cells for Checked and Rejected quantities, and a row-level comment log drawer.
+- **Ledger Ingestion & Audit trail**: Wired discrepancy/override comments from the manual entry grid to `/api/ingest`. They are mapped to `StageDayRecord` records and emitted as canonical `AnnotationEvent`s in the append-only events store.
+- **React Compiler Memoization Fixes**: Removed manual `useMemo` for the `resolved` column match in `VerifyPanel.tsx` to solve `react-hooks/preserve-manual-memoization` compiler blockages.
+- **CSR Bailout & Suspense Fixes**: Wrapped the `/chat` page (Ask RAIS) in a React `<Suspense>` boundary to allow build-time prerendering without bailing on Client-Side Rendering hooks (`useSearchParams`).
+- **Reports Page Type Fixes**: Resolved a TypeScript compilation error in `src/app/reports/page.tsx` by correctly referencing the `rejected` field on `DefectRow`.
+- **Codebase Sanitization**: Cleaned up multiple unused imports, variables, and parameters in `Dashboard.tsx`, `ProcessingLoader.tsx`, `AppShell.tsx`, `rejection.ts`, and corresponding unit tests.
+- **D/W/M/FY Grain Architecture**: Wired up the segmented control in the topbar header to dynamically aggregate quality snapshot metrics by the active period (most recent day, week, month, or FY), while trend charts render pruned, clean historical trends (last 15 days, 12 weeks, 12 months, or all FYs) without label clutter.
+- **Dynamic SPC Control Limits**: Custom-rendered a dynamic X-bar control chart showing LCL, Mean, and UCL calculated on-the-fly from active trend points, flagging out-of-spec events and counting Western Electric rules violations in real time.
+- **Layout Scaling & Legibility**: Removed hardcoded `maxWidth` constraints on reports and settings page outer containers to utilize full screen space. Enhanced font readability and color contrast by adjusting muted (`--text-3`) and secondary (`--text-2`) text variables in both light and dark modes.
+- **Verification**: Ensured that the application builds successfully and passes all **130 unit tests** successfully.
+

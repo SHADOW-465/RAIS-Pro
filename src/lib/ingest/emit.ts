@@ -16,6 +16,7 @@ import {
   InspectionEvent,
   RejectionEvent,
   AggregateClaimEvent,
+  AnnotationEvent,
   Period,
 } from "@/lib/contract/d1";
 import { hashEvent } from "@/lib/contract/hash";
@@ -40,6 +41,7 @@ export interface DefectValue {
 export interface StageDayRecord {
   occurredOn: z.infer<typeof Period>;
   stageId: string;
+  size?: string | null;                // Added size field
   source: { file: string; fileHash: string; sheet: string; tableId: string };
   checked: SourcedValue | null;        // Input qty (denominator)
   acceptedGood: SourcedValue | null;   // Accepted — Good
@@ -49,6 +51,7 @@ export interface StageDayRecord {
   statedPct: { value: number | string; cell: string; formula: string | null } | null;
   extractedBy: string;       // "heuristic" | "llm:<model>" | "direct-entry"
   ingestionId: string;
+  comment?: string | null;
 }
 
 const SCHEMA_VERSION = "1.0.0";
@@ -93,7 +96,7 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
   const out: Event[] = [];
 
   if (rec.checked && Number.isInteger(rec.checked.value) && rec.checked.value >= 0) {
-    const payload = { stageId: rec.stageId, quantity: rec.checked.value, unit: "pcs" as const, batchNo: null, size: null };
+    const payload = { stageId: rec.stageId, quantity: rec.checked.value, unit: "pcs" as const, batchNo: null, size: rec.size ?? null };
     const env = envelope(rec, [rec.checked.cell], rec.checked.header, null, null);
     const eventId = hashEvent({ eventType: "production", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
     out.push(ProductionEvent.parse({ eventId, eventType: "production", ...env, ...payload }));
@@ -101,7 +104,7 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
 
   const inspection = (sv: SourcedValue | null, disposition: "rejected" | "accepted" | "rework") => {
     if (!sv || !Number.isInteger(sv.value) || sv.value < 0) return;
-    const payload = { stageId: rec.stageId, disposition, quantity: sv.value, unit: "pcs" as const, batchNo: null, size: null };
+    const payload = { stageId: rec.stageId, disposition, quantity: sv.value, unit: "pcs" as const, batchNo: null, size: rec.size ?? null };
     const env = envelope(rec, [sv.cell], sv.header, null, null);
     const eventId = hashEvent({ eventType: "inspection", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
     out.push(InspectionEvent.parse({ eventId, eventType: "inspection", ...env, ...payload }));
@@ -119,7 +122,7 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
       quantity: d.value,
       unit: "pcs" as const,
       batchNo: null,
-      size: null,
+      size: rec.size ?? null,
     };
     const env = envelope(rec, [d.cell], d.raw, null, null);
     const eventId = hashEvent({ eventType: "rejection", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
@@ -137,6 +140,27 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
     const env = envelope(rec, [rec.statedPct.cell], "REJ %", rec.statedPct.formula, rec.statedPct.value);
     const eventId = hashEvent({ eventType: "aggregate-claim", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
     out.push(AggregateClaimEvent.parse({ eventId, eventType: "aggregate-claim", ...env, ...payload }));
+  }
+
+  if (rec.comment && rec.comment.trim()) {
+    const targetEventIds = out.map(e => e.eventId);
+    const targetCells = [
+      rec.checked?.cell,
+      rec.rejected?.cell,
+      rec.statedPct?.cell
+    ].filter((c): c is string => !!c);
+
+    const env = envelope(rec, targetCells, "User Comment", null, null);
+    const payload = {
+      targetEventIds,
+      targetCells,
+      text: rec.comment.trim(),
+      author: "steward" as const,
+      findingId: null,
+      verdict: null,
+    };
+    const eventId = hashEvent({ eventType: "annotation", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
+    out.push(AnnotationEvent.parse({ eventId, eventType: "annotation", ...env, ...payload }));
   }
 
   return out;

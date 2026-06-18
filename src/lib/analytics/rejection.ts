@@ -3,7 +3,7 @@
 
 import type { Event } from "@/lib/store/types";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
-import { type Scope, type Grain, scopeEvents, periodKey, periodLabel, periodsIn } from "./scope";
+import { type Scope, scopeEvents, periodKey, periodLabel, periodsIn } from "./scope";
 
 type Registry = typeof DISPOSAFE_REGISTRY;
 

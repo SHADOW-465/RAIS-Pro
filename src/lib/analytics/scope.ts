@@ -68,10 +68,15 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 /** Human label for a period key (e.g. "2025-04" → "Apr-25"). */
 export function periodLabel(key: string): string {
+  const d = key.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (d) return `${d[3]} ${MONTHS[Number(d[2]) - 1]}`;
   const m = key.match(/^(\d{4})-(\d{2})$/);
   if (m) return `${MONTHS[Number(m[2]) - 1]}-${m[1].slice(2)}`;
   const w = key.match(/^(\d{4})-(\d{2})-W(\d)$/);
-  if (w) return `W${w[3]}`;
+  if (w) return `W${w[3]} (${MONTHS[Number(w[2]) - 1]})`;
+  if (key.startsWith("FY")) {
+    return key.replace("FY20", "FY");
+  }
   return key;
 }
 
@@ -79,7 +84,11 @@ export function periodLabel(key: string): string {
 export function periodsIn(events: Event[], grain: Grain): string[] {
   const keys = new Set<string>();
   for (const e of events) keys.add(periodKey(e.occurredOn.start, grain));
-  return [...keys].sort();
+  const sorted = [...keys].sort();
+  if (grain === "day") return sorted.slice(-15);
+  if (grain === "week") return sorted.slice(-12);
+  if (grain === "month") return sorted.slice(-12);
+  return sorted;
 }
 
 /** The immediately-prior equal-length window, for "vs previous period" deltas. */

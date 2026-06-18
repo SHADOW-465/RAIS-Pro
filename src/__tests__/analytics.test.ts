@@ -6,7 +6,7 @@ import {
   rejectionRate, totalRejected, totalChecked, fpy, byStage, trend, stageTrend,
 } from "@/lib/analytics/rejection";
 import { byDefect, bySize } from "@/lib/analytics/defect";
-import { scopeEvents, prevWindow, periodKey, type Scope } from "@/lib/analytics/scope";
+import { prevWindow, periodKey, type Scope } from "@/lib/analytics/scope";
 
 // Real April-2025 numbers from the GM's REJECTION ANALYSIS file.
 function visualSheet(): RawSheet {

@@ -28,20 +28,20 @@ describe("buildPrompt", () => {
   };
 
   it("includes the data section with grand totals", () => {
-    const prompt = buildPrompt(minimalMergedResult, []);
+    const prompt = buildPrompt(minimalMergedResult);
     expect(prompt).toContain("GRAND TOTALS");
     expect(prompt).toContain("Rejections");
   });
 
   it("does not contain hardcoded manufacturing field names", () => {
-    const prompt = buildPrompt(minimalMergedResult, []);
+    const prompt = buildPrompt(minimalMergedResult);
     expect(prompt).not.toContain("rejectionRate");
     expect(prompt).not.toContain("totalOutput");
     expect(prompt).not.toContain("qualityScore");
   });
 
   it("instructs the model to populate history when a time series exists", () => {
-    const prompt = buildPrompt(minimalMergedResult, []);
+    const prompt = buildPrompt(minimalMergedResult);
     expect(prompt).toContain("history");
   });
 });

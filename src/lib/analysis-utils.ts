@@ -50,7 +50,6 @@ const DATA_CHAR_BUDGET = 20_000;
 
 export function buildPrompt(
   mergedResult: MergedResult,
-  _rawSummaries: SheetSummary[],
 ): string {
   const hasMultipleGroups = mergedResult.groups.length > 1;
   const groupNames = mergedResult.groups.map((g) => `"${g.label}"`).join(", ");

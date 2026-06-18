@@ -29,6 +29,7 @@ interface ChartContainerProps {
   kicker?: string;
   /** Optional bottom note in italic */
   note?: string;
+  onClick?: () => void;
 }
 
 export default function ChartContainer({
@@ -39,6 +40,7 @@ export default function ChartContainer({
   figNum,
   kicker,
   note,
+  onClick,
 }: ChartContainerProps) {
   const labels = data?.labels ?? [];
   const series = data?.datasets?.[0]?.data ?? [];
@@ -123,7 +125,11 @@ export default function ChartContainer({
   const sub = description ?? note;
 
   return (
-    <div className="card card-hover" style={{ overflow: "hidden" }}>
+    <div 
+      onClick={onClick}
+      className={`card ${onClick ? "card-hover" : ""}`} 
+      style={{ overflow: "hidden", cursor: onClick ? "pointer" : "default" }}
+    >
       <div style={{ paddingBottom: 16 }}>
         <div className="between" style={{ alignItems: "flex-start", gap: 16 }}>
           <div>

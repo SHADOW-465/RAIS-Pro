@@ -24,19 +24,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No records to ingest." }, { status: 400 });
     }
 
+    // Attach comments to records (keyed by stageId or by row index)
+    const recordsWithComments = records.map((r, idx) => {
+      const comment = body.comments?.[r.stageId] || body.comments?.[idx.toString()] || null;
+      return {
+        ...r,
+        comment: comment && comment.trim() ? comment.trim() : null
+      };
+    });
+
     // 1. Live clarification checks (point-in-time) — surfaced, never blocking.
-    const issues = records.flatMap((r) =>
+    const issues = recordsWithComments.flatMap((r) =>
       checkRecord(r).map((i) => ({ ...i, stageId: r.stageId, date: r.occurredOn.start }))
     );
 
     // 2. Emit canonical events and append (idempotent on content hash).
-    const events = emitMany(records);
+    const events = emitMany(recordsWithComments);
     const { events: store } = getStores();
     const { inserted, deduped } = await store.append(events);
 
     // 3. Per-stage rollup for the success summary (deterministic, from events).
     const byStage: Record<string, { checked: number; rejected: number; days: number }> = {};
-    for (const r of records) {
+    for (const r of recordsWithComments) {
       const s = (byStage[r.stageId] ??= { checked: 0, rejected: 0, days: 0 });
       s.checked += r.checked?.value ?? 0;
       s.rejected += r.rejected?.value ?? 0;

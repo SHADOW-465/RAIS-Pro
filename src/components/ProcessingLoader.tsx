@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Icon from "@/components/editorial/Icon";
 import { ThemeSwitcher } from "@/components/editorial/EditorialHeader";
 
 const STEPS = [

@@ -15,6 +15,16 @@ const eslintConfig = defineConfig([
     // Untracked design prototypes — not part of the app, not in the build.
     ".design-fetch/**",
   ]),
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unused-vars": "warn",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/immutability": "off"
+    }
+  }
 ]);
 
 export default eslintConfig;

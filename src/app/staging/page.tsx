@@ -21,6 +21,8 @@ export default function StagingPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ inserted: number; deduped: number } | null>(null);
+  const [comments, setComments] = useState<Record<number, string>>({});
+  const [editingCommentRow, setEditingCommentRow] = useState<number | null>(null);
 
   const rows = useMemo(() => buildReviewRows(records), [records]);
   const summary = useMemo(() => reviewSummary(rows), [rows]);
@@ -30,7 +32,7 @@ export default function StagingPage() {
   }, [rows]);
 
   async function handleUpload(files: File[]) {
-    setError(null); setDone(null);
+    setError(null); setDone(null); setComments({}); setEditingCommentRow(null);
     try {
       const { parseExcelFilesWithRaw } = await import("@/lib/parser");
       const { rawSheets } = await parseExcelFilesWithRaw(files);
@@ -39,10 +41,20 @@ export default function StagingPage() {
     } catch (e: any) { setError(e?.message ?? "Could not read the file."); }
   }
 
+  const handleCellChange = (recordIndex: number, field: "checked" | "rejected", valString: string) => {
+    const val = valString === "" ? 0 : Number(valString);
+    if (isNaN(val) || val < 0) return;
+    setRecords((prev) => applyEdit(prev, recordIndex, field, val));
+  };
+
   async function publish() {
     setBusy(true); setError(null);
     try {
-      const res = await fetch("/api/ingest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ingestionId, fileName, records, comments: {} }) });
+      const res = await fetch("/api/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ingestionId, fileName, records, comments })
+      });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Publish failed");
       const r = await res.json();
       setDone({ inserted: r.inserted, deduped: r.deduped });
@@ -55,6 +67,19 @@ export default function StagingPage() {
     { label: "Formula Check", state: summary.corrected > 0 ? "Warning" : "Passed" },
     { label: "Outlier Detection", state: "Passed" },
   ] as { label: string; state: "Passed" | "Warning" | "Failed" }[];
+
+  const gridInputStyle: React.CSSProperties = {
+    width: "90px",
+    textAlign: "right",
+    border: "1px solid var(--border-strong)",
+    borderRadius: "var(--radius-sm)",
+    padding: "4px 8px",
+    fontFamily: "var(--font-mono)",
+    fontSize: "12px",
+    background: "var(--bg)",
+    color: "var(--text)",
+    outline: "none"
+  };
 
   return (
     <AppShell active="staging" statusCounts={{ anomalies: summary.invalid + summary.corrected }}>
@@ -78,21 +103,93 @@ export default function StagingPage() {
               <>
                 <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
                   <thead><tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10, textTransform: "uppercase" }}>
-                    <th style={sth}>#</th><th style={sth}>Date</th><th style={sth}>Stage</th><th style={{ ...sth, textAlign: "right" }}>Input</th><th style={{ ...sth, textAlign: "right" }}>Rejected</th><th style={{ ...sth, textAlign: "right" }}>Rej %</th><th style={sth}>Status</th>
+                    <th style={sth}>#</th>
+                    <th style={sth}>Date</th>
+                    <th style={sth}>Stage</th>
+                    <th style={{ ...sth, textAlign: "right" }}>Input</th>
+                    <th style={{ ...sth, textAlign: "right" }}>Rejected</th>
+                    <th style={{ ...sth, textAlign: "right" }}>Rej %</th>
+                    <th style={sth}>Status</th>
+                    <th style={{ ...sth, textAlign: "center" }}>Comment</th>
                   </tr></thead>
                   <tbody>
-                    {rows.slice(0, 40).map((r, i) => (
-                      <tr key={r.recordIndex} style={{ borderTop: "1px solid var(--border)", background: r.status === "invalid" ? "color-mix(in srgb, var(--status-bad) 8%, transparent)" : "transparent", color: r.status === "invalid" ? "var(--status-bad)" : "var(--text)" }}>
-                        <td style={std}>{i + 1}</td><td style={{ ...std, fontFamily: "var(--font-mono)" }}>{r.date}</td><td style={std}>{r.stageLabel}</td>
-                        <td style={{ ...std, textAlign: "right", fontFamily: "var(--font-mono)" }}>{r.checked?.toLocaleString() ?? "—"}</td>
-                        <td style={{ ...std, textAlign: "right", fontFamily: "var(--font-mono)" }}>{r.rejected?.toLocaleString() ?? "—"}</td>
-                        <td style={{ ...std, textAlign: "right", fontFamily: "var(--font-mono)" }}>{r.correctedPct != null ? r.correctedPct.toFixed(2) : "—"}</td>
-                        <td style={{ ...std, fontWeight: 600, color: r.status === "invalid" ? "var(--status-bad)" : r.status === "corrected" ? "var(--status-warn)" : "var(--status-good)" }}>{r.status === "invalid" ? "Invalid" : r.status === "corrected" ? "Corrected" : "Valid"}</td>
-                      </tr>
-                    ))}
+                    {rows.slice(0, 45).map((r, i) => {
+                      const hasComment = !!comments[r.recordIndex]?.trim();
+                      return (
+                        <tr key={r.recordIndex} style={{ borderTop: "1px solid var(--border)", background: r.status === "invalid" ? "color-mix(in srgb, var(--status-bad) 8%, transparent)" : "transparent", color: r.status === "invalid" ? "var(--status-bad)" : "var(--text)" }}>
+                          <td style={std}>{i + 1}</td>
+                          <td style={{ ...std, fontFamily: "var(--font-mono)" }}>{r.date}</td>
+                          <td style={std}>{r.stageLabel}</td>
+                          <td style={{ ...std, textAlign: "right" }}>
+                            <input
+                              type="number"
+                              value={r.checked ?? ""}
+                              onChange={(e) => handleCellChange(r.recordIndex, "checked", e.target.value)}
+                              style={gridInputStyle}
+                            />
+                          </td>
+                          <td style={{ ...std, textAlign: "right" }}>
+                            <input
+                              type="number"
+                              value={r.rejected ?? ""}
+                              onChange={(e) => handleCellChange(r.recordIndex, "rejected", e.target.value)}
+                              style={gridInputStyle}
+                            />
+                          </td>
+                          <td style={{ ...std, textAlign: "right", fontFamily: "var(--font-mono)", paddingRight: "12px" }}>
+                            {r.correctedPct != null ? `${r.correctedPct.toFixed(2)}%` : "—"}
+                          </td>
+                          <td style={{ ...std, fontWeight: 600, color: r.status === "invalid" ? "var(--status-bad)" : r.status === "corrected" ? "var(--status-warn)" : "var(--status-good)" }}>
+                            {r.status === "invalid" ? "Invalid" : r.status === "corrected" ? "Corrected" : "Valid"}
+                          </td>
+                          <td style={{ ...std, textAlign: "center" }}>
+                            <button
+                              onClick={() => setEditingCommentRow(editingCommentRow === r.recordIndex ? null : r.recordIndex)}
+                              style={{
+                                background: hasComment ? "var(--accent)" : "var(--surface-2)",
+                                color: hasComment ? "#fff" : "var(--text-2)",
+                                border: "none",
+                                borderRadius: 7,
+                                width: 28,
+                                height: 28,
+                                cursor: "pointer"
+                              }}
+                            >
+                              <Icon name="comment" size={13} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
-                {rows.length > 40 && <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>Showing 40 of {rows.length} records.</div>}
+                {editingCommentRow !== null && (
+                  <div style={{ marginTop: 16, padding: 12, border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface-2)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13, fontWeight: 700 }}>
+                      <span>Add Operator Comment</span>
+                      <button onClick={() => setEditingCommentRow(null)} style={{ fontSize: 11, color: "var(--accent)", cursor: "pointer" }}>Close</button>
+                    </div>
+                    <textarea
+                      autoFocus
+                      placeholder={`Enter discrepancy / correction explanation for row #${rows.findIndex(r => r.recordIndex === editingCommentRow) + 1}...`}
+                      value={comments[editingCommentRow] ?? ""}
+                      onChange={(e) => setComments(c => ({ ...c, [editingCommentRow]: e.target.value }))}
+                      style={{
+                        width: "100%",
+                        minHeight: 56,
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        border: "1px solid var(--border)",
+                        background: "var(--surface)",
+                        color: "var(--text)",
+                        fontSize: 13,
+                        fontFamily: "inherit",
+                        outline: "none"
+                      }}
+                    />
+                  </div>
+                )}
+                {rows.length > 45 && <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>Showing 45 of {rows.length} records.</div>}
               </>
             )}
           </Card>
