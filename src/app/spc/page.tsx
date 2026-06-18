@@ -209,49 +209,93 @@ export default function SpcPage() {
           </div>
         )}
 
-        {m && (
-          <div style={{ display: "grid", gridTemplateColumns: "2.2fr 0.8fr", gap: 20 }}>
-            <Card title={`X-Bar Control Chart (${t.grain.toUpperCase()} Rejection Rate)`} onClick={() => openModal("Control Chart", `Rejection rates are within the statistical Upper Control Limit (UCL: ${(m.ucl * 100).toFixed(2)}%) and Lower Control Limit (LCL: ${(m.lcl * 100).toFixed(2)}%).`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} /></div>)}>
-              <XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} />
-            </Card>
+        {m && (() => {
+          const outOfControl = m.r1 > 0 || m.r2 > 0 || m.r3 > 0;
+          const modalText = outOfControl
+            ? `Process instability detected! Violations: Rule 1 (Outside UCL/LCL): ${m.r1}, Rule 2 (9 points same side of mean): ${m.r2}, Rule 3 (6 points trend): ${m.r3}. Immediate engineering audit recommended.`
+            : `Process is in statistical control. UCL: ${(m.ucl * 100).toFixed(2)}%, Mean: ${(m.mean * 100).toFixed(2)}%, LCL: ${(m.lcl * 100).toFixed(2)}%.`;
 
+          return (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <Card title="SPC Control Limits">
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "10px 0" }}>
-                  <div className="between">
-                    <span className="muted" style={{ fontSize: 12 }}>Upper Control Limit (UCL)</span>
-                    <strong className="num" style={{ color: "var(--critical)" }}>{(m.ucl * 100).toFixed(2)}%</strong>
-                  </div>
-                  <div className="between">
-                    <span className="muted" style={{ fontSize: 12 }}>Center Line (Mean)</span>
-                    <strong className="num" style={{ color: "var(--warning)" }}>{(m.mean * 100).toFixed(2)}%</strong>
-                  </div>
-                  <div className="between">
-                    <span className="muted" style={{ fontSize: 12 }}>Lower Control Limit (LCL)</span>
-                    <strong className="num" style={{ color: "var(--positive)" }}>{(m.lcl * 100).toFixed(2)}%</strong>
-                  </div>
-                </div>
-              </Card>
+              <div style={{ display: "grid", gridTemplateColumns: "2.2fr 0.8fr", gap: 20 }}>
+                <Card title={`X-Bar Control Chart (${t.grain.toUpperCase()} Rejection Rate)`} onClick={() => openModal("Control Chart", modalText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} /></div>)}>
+                  <XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} />
+                </Card>
 
-              <Card title="Western Electric Rules">
-                <div style={{ fontSize: 12, lineHeight: 1.5, display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: m.r1 > 0 ? "var(--critical)" : "var(--positive)" }} />
-                    <span>Rule 1: Outside 3-sigma ({m.r1} violated)</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: m.r2 > 0 ? "var(--warning)" : "var(--positive)" }} />
-                    <span>Rule 2: 9 points on one side ({m.r2} violated)</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: m.r3 > 0 ? "var(--warning)" : "var(--positive)" }} />
-                    <span>Rule 3: 6 points increasing/decreasing ({m.r3} violated)</span>
-                  </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  <Card title="SPC Control Limits">
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "10px 0" }}>
+                      <div className="between">
+                        <span className="muted" style={{ fontSize: 12 }}>Upper Control Limit (UCL)</span>
+                        <strong className="num" style={{ color: "var(--critical)" }}>{(m.ucl * 100).toFixed(2)}%</strong>
+                      </div>
+                      <div className="between">
+                        <span className="muted" style={{ fontSize: 12 }}>Center Line (Mean)</span>
+                        <strong className="num" style={{ color: "var(--warning)" }}>{(m.mean * 100).toFixed(2)}%</strong>
+                      </div>
+                      <div className="between">
+                        <span className="muted" style={{ fontSize: 12 }}>Lower Control Limit (LCL)</span>
+                        <strong className="num" style={{ color: "var(--positive)" }}>{(m.lcl * 100).toFixed(2)}%</strong>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card title="Western Electric Rules">
+                    <div style={{ fontSize: 12, lineHeight: 1.5, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: m.r1 > 0 ? "var(--critical)" : "var(--positive)" }} />
+                        <span>Rule 1: Outside 3-sigma ({m.r1} violated)</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: m.r2 > 0 ? "var(--warning)" : "var(--positive)" }} />
+                        <span>Rule 2: 9 points on one side ({m.r2} violated)</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: m.r3 > 0 ? "var(--warning)" : "var(--positive)" }} />
+                        <span>Rule 3: 6 points increasing/decreasing ({m.r3} violated)</span>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+
+              <Card title="SPC Interpretation & Recommended Actions">
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13, lineHeight: 1.6 }}>
+                  {outOfControl ? (
+                    <>
+                      <div style={{ borderLeft: "3px solid var(--critical)", paddingLeft: 12, background: "var(--accent-weak)", padding: 12, borderRadius: "var(--radius-sm)" }}>
+                        <strong style={{ color: "var(--critical)", display: "block", marginBottom: 4 }}>⚠️ PROCESS OUT OF STATISTICAL CONTROL</strong>
+                        Special-cause variation detected. The quality metrics oscillate heavily and show non-random patterns violating Western Electric control rules.
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+                        {m.r1 > 0 && (
+                          <li>
+                            <strong>Rule 1 Violation (Outside Limits):</strong> {m.r1} period(s) fell outside the 3-sigma limits (UCL/LCL). This suggests sudden shifts or extreme outliers in production quality. <em>Recommended Action:</em> Perform immediate machine calibration checks and material QC audits.
+                          </li>
+                        )}
+                        {m.r2 > 0 && (
+                          <li>
+                            <strong>Rule 2 Violation (Process Shift):</strong> {m.r2} run(s) of 9 consecutive points on one side of the mean. This indicates a sustained process average shift. <em>Recommended Action:</em> Inspect batch tooling adjustments, operator consistency, or setup parameter shifts.
+                          </li>
+                        )}
+                        {m.r3 > 0 && (
+                          <li>
+                            <strong>Rule 3 Violation (Trending Deviation):</strong> {m.r3} run(s) of 6 consecutive points steadily increasing or decreasing. This suggests gradual tool wear or calibration decay. <em>Recommended Action:</em> Schedule preventive maintenance and check guide pins/temperature controls.
+                          </li>
+                        )}
+                      </ul>
+                    </>
+                  ) : (
+                    <div style={{ borderLeft: "3px solid var(--positive)", paddingLeft: 12, background: "var(--positive-weak)", padding: 12, borderRadius: "var(--radius-sm)" }}>
+                      <strong style={{ color: "var(--positive)", display: "block", marginBottom: 4 }}>✓ PROCESS IN STATISTICAL CONTROL</strong>
+                      Rejection rates exhibit only common-cause (random) variation. All periods fall within the 3-sigma control limits and conform to normal distribution criteria. Continue standard monitoring.
+                    </div>
+                  )}
                 </div>
               </Card>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       <FloatingDetailModal

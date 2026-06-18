@@ -150,6 +150,9 @@ export function GaugeChart({ value, label, subtext }: { value: number; label: st
 }
 
 export function LineChart({ points, target, fmt }: { points: SeriesPoint[]; target?: number; fmt: (n: number) => string }) {
+  if (!points || points.length === 0) {
+    return <Empty label="No trend points available for the selected range." />;
+  }
   const W = 640, H = 200, pad = 34;
   const v = points.map((p) => p.value); 
   const max = Math.max(...v, target ?? 0, 1e-6);
@@ -168,7 +171,9 @@ export function LineChart({ points, target, fmt }: { points: SeriesPoint[]; targ
       {target != null && (
         <g>
           <line x1={pad} y1={y(target)} x2={W - pad} y2={y(target)} stroke="var(--critical)" strokeDasharray="5,4" strokeWidth={1.2} />
-          <text x={W - pad - 6} y={y(target) - 6} fontSize={8.5} fill="var(--critical)" fontWeight={700} textAnchor="end">TARGET (10%)</text>
+          <text x={W - pad - 6} y={y(target) - 6} fontSize={8.5} fill="var(--critical)" fontWeight={700} textAnchor="end">
+            TARGET ({(target * 100).toFixed(0)}%)
+          </text>
         </g>
       )}
       
@@ -178,15 +183,27 @@ export function LineChart({ points, target, fmt }: { points: SeriesPoint[]; targ
       )}
       
       {/* Line & Nodes */}
-      <polyline points={points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} fill="none" stroke="var(--accent)" strokeWidth={2.2} />
+      {points.length > 1 && (
+        <polyline points={points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} fill="none" stroke="var(--accent)" strokeWidth={2.2} />
+      )}
       
-      {points.map((p, i) => (
-        <g key={i}>
-          <circle cx={x(i)} cy={y(p.value)} r={4} fill="var(--surface)" stroke="var(--accent)" strokeWidth={2} />
-          <text x={x(i)} y={H - pad + 14} fontSize={9} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">{p.label.substring(0, 3)}</text>
-          <text x={x(i)} y={y(p.value) - 8} fontSize={9} textAnchor="middle" fill="var(--text-2)" fontFamily="var(--font-mono)" fontWeight={600}>{fmt(p.value)}</text>
-        </g>
-      ))}
+      {points.map((p, i) => {
+        const showLabel = points.length <= 10 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length / 8) === 0;
+        const showValue = points.length <= 15 || i === points.length - 1;
+        return (
+          <g key={i}>
+            <circle cx={x(i)} cy={y(p.value)} r={points.length > 25 ? 2.5 : 4} fill="var(--surface)" stroke="var(--accent)" strokeWidth={points.length > 25 ? 1 : 2} />
+            {showLabel && (
+              <text x={x(i)} y={H - pad + 14} fontSize={9} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">
+                {p.label.length > 8 ? p.label.substring(0, 7) + "…" : p.label}
+              </text>
+            )}
+            {showValue && (
+              <text x={x(i)} y={y(p.value) - 8} fontSize={9} textAnchor="middle" fill="var(--text-2)" fontFamily="var(--font-mono)" fontWeight={600}>{fmt(p.value)}</text>
+            )}
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -194,6 +211,9 @@ export function LineChart({ points, target, fmt }: { points: SeriesPoint[]; targ
 const SERIES_COLORS = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#7C3AED", "#65A30D"];
 
 export function MultiLine({ data, stages }: { data: StageTrendPoint[]; stages: { stageId: string; label: string }[] }) {
+  if (!data || data.length === 0) {
+    return <Empty label="No trend data available for the selected range." />;
+  }
   const W = 640, H = 200, pad = 34;
   let max = 1e-6; 
   for (const d of data) {
@@ -217,11 +237,14 @@ export function MultiLine({ data, stages }: { data: StageTrendPoint[]; stages: {
           points={data.map((d, i) => `${x(i)},${y(d.perStage[s.stageId] ?? 0)}`).join(" ")} />
       ))}
 
-      {data.map((d, i) => (
-        <text key={i} x={x(i)} y={H - pad + 14} fontSize={9} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">
-          {d.label.substring(0, 3)}
-        </text>
-      ))}
+      {data.map((d, i) => {
+        const showLabel = data.length <= 10 || i === 0 || i === data.length - 1 || i % Math.ceil(data.length / 8) === 0;
+        return showLabel ? (
+          <text key={i} x={x(i)} y={H - pad + 14} fontSize={9} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">
+            {d.label.length > 8 ? d.label.substring(0, 7) + "…" : d.label}
+          </text>
+        ) : null;
+      })}
 
       {/* Legend */}
       {stages.map((s, si) => (
@@ -235,6 +258,9 @@ export function MultiLine({ data, stages }: { data: StageTrendPoint[]; stages: {
 }
 
 export function BarsH({ rows, fmt }: { rows: { label: string; value: number; sub?: string }[]; fmt: (n: number) => string }) {
+  if (!rows || rows.length === 0) {
+    return <Empty label="No distribution records available." />;
+  }
   const max = Math.max(...rows.map((r) => r.value), 1e-6);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

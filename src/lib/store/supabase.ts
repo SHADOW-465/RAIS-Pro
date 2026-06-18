@@ -73,7 +73,7 @@ export class SupabaseEventStore implements EventStore {
     // (one large insert → "fetch failed").
     const INSERT_BATCH = 500;
     for (const rowsBatch of chunk(rows, INSERT_BATCH)) {
-      const { error: insertError } = await this.client.from("events").insert(rowsBatch);
+      const { error: insertError } = await this.client.from("events").upsert(rowsBatch, { onConflict: "event_id" });
       if (insertError) throw insertError;
     }
 

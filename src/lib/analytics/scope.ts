@@ -85,9 +85,6 @@ export function periodsIn(events: Event[], grain: Grain): string[] {
   const keys = new Set<string>();
   for (const e of events) keys.add(periodKey(e.occurredOn.start, grain));
   const sorted = [...keys].sort();
-  if (grain === "day") return sorted.slice(-15);
-  if (grain === "week") return sorted.slice(-12);
-  if (grain === "month") return sorted.slice(-12);
   return sorted;
 }
 

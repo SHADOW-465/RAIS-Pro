@@ -49,13 +49,24 @@ export default function AppShell({
   const router = useRouter();
   const { t, setTweak } = useTweaks();
   const [mounted, setMounted] = useState(false);
-
-
+  const [showPicker, setShowPicker] = useState(false);
   const [analyticsExpanded] = useState(true);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!showPicker) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".date-picker-container")) {
+        setShowPicker(false);
+      }
+    };
+    window.addEventListener("click", handler);
+    return () => window.removeEventListener("click", handler);
+  }, [showPicker]);
 
   const isDark = t.theme === "dark";
   const toggleTheme = () => {
@@ -297,13 +308,147 @@ export default function AppShell({
             </div>
           </div>
 
-          <Selector label="Date Range" value={
-            dateRange || (
-              t.grain === "day" ? "14 Jun 2026" :
-              t.grain === "week" ? "Week 24 (Jun 2026)" :
-              t.grain === "month" ? "May 2025" : "Apr 25 – Jan 26"
-            )
-          } icon="calendar" />
+          {/* Interactive Date Range Selector */}
+          <div className="date-picker-container" style={{ display: "flex", flexDirection: "column", textAlign: "left", position: "relative" }}>
+            <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
+              Date Range
+            </span>
+            <div 
+              onClick={(e) => { e.stopPropagation(); setShowPicker(!showPicker); }}
+              style={{ 
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12.5, 
+                fontWeight: 600, 
+                border: "1px solid var(--border-strong)", 
+                borderRadius: "var(--radius-sm)", 
+                padding: "4px 10px", 
+                background: "var(--surface-2)",
+                cursor: "pointer"
+              }}
+            >
+              <Icon name="file" size={12} style={{ color: "var(--text-3)" }} />
+              <span>
+                {t.datePreset === "all" && "All Data"}
+                {t.datePreset === "last-90-days" && "Last 90 Days"}
+                {t.datePreset === "last-12-months" && "Last 12 Months"}
+                {t.datePreset === "this-fy" && "This FY"}
+                {t.datePreset === "custom" && (t.dateFrom && t.dateTo ? `${t.dateFrom} to ${t.dateTo}` : "Custom Range")}
+              </span>
+              <Icon name="arrow-right" size={10} style={{ transform: "rotate(90deg)", color: "var(--text-3)" }} />
+            </div>
+
+            {showPicker && (
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  marginTop: 6,
+                  background: "var(--surface)",
+                  border: "1px solid var(--border-strong)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "var(--shadow-lg)",
+                  padding: 12,
+                  zIndex: 200,
+                  width: 240,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-3)", marginBottom: 4 }}>
+                  Select Range
+                </div>
+                {(["all", "last-90-days", "last-12-months", "this-fy", "custom"] as const).map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => {
+                      setTweak("datePreset", preset);
+                      if (preset !== "custom") {
+                        setShowPicker(false);
+                      }
+                    }}
+                    style={{
+                      padding: "6px 8px",
+                      fontSize: 12,
+                      fontWeight: t.datePreset === preset ? 700 : 500,
+                      background: t.datePreset === preset ? "var(--accent-weak)" : "transparent",
+                      color: t.datePreset === preset ? "var(--accent)" : "var(--text)",
+                      border: "none",
+                      borderRadius: "var(--radius-sm)",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      width: "100%"
+                    }}
+                  >
+                    {preset === "all" && "All Data"}
+                    {preset === "last-90-days" && "Last 90 Days"}
+                    {preset === "last-12-months" && "Last 12 Months"}
+                    {preset === "this-fy" && "This FY"}
+                    {preset === "custom" && "Custom Range..."}
+                  </button>
+                ))}
+
+                {t.datePreset === "custom" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <span style={{ fontSize: 10, color: "var(--text-3)", width: 30 }}>From</span>
+                      <input 
+                        type="date"
+                        value={t.dateFrom}
+                        onChange={(e) => setTweak("dateFrom", e.target.value)}
+                        style={{
+                          flex: 1,
+                          fontSize: 11,
+                          padding: "2px 4px",
+                          border: "1px solid var(--border-strong)",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--surface)",
+                          color: "var(--text)"
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <span style={{ fontSize: 10, color: "var(--text-3)", width: 30 }}>To</span>
+                      <input 
+                        type="date"
+                        value={t.dateTo}
+                        onChange={(e) => setTweak("dateTo", e.target.value)}
+                        style={{
+                          flex: 1,
+                          fontSize: 11,
+                          padding: "2px 4px",
+                          border: "1px solid var(--border-strong)",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--surface)",
+                          color: "var(--text)"
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={() => setShowPicker(false)}
+                      style={{
+                        marginTop: 4,
+                        padding: "4px 8px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        background: "var(--accent)",
+                        color: "var(--text-invert)",
+                        border: "none",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* right profile / actions */}

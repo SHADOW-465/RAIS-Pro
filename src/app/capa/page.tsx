@@ -234,14 +234,15 @@ export default function CapaPage() {
                         >
                           {a.status === "Completed" ? (
                             <Icon name="check" size={18} stroke={2.5} />
+                          ) : a.status === "In Progress" ? (
+                            <svg width="18" height="18" viewBox="0 0 18 18" style={{ color: "var(--warning)" }}>
+                              <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                              <path d="M 9,2 A 7,7 0 0,1 9,16 Z" fill="currentColor" />
+                            </svg>
                           ) : (
-                            <div style={{
-                              width: 14,
-                              height: 14,
-                              borderRadius: "50%",
-                              border: "2px solid var(--text-3)",
-                              margin: "2px"
-                            }} />
+                            <svg width="18" height="18" viewBox="0 0 18 18" style={{ color: "var(--text-3)" }}>
+                              <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                            </svg>
                           )}
                         </button>
                         <div style={{ flex: 1 }}>
@@ -313,6 +314,7 @@ export default function CapaPage() {
                     <span className="muted" style={{ fontSize: "11.5px", fontWeight: 600 }}>Target Due Date</span>
                     <input
                       type="date"
+                      required
                       value={newDue}
                       onChange={(e) => setNewDue(e.target.value)}
                       style={{ ...inpStyle, fontFamily: "var(--font-mono)" }}

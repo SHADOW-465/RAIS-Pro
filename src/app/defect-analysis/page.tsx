@@ -6,10 +6,11 @@ import FloatingDetailModal from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
   Card, 
-  MultiLine, 
-  DefectParetoTable
+  MultiLine 
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
+import ParetoChart from "@/components/ParetoChart";
+import { calculatePareto } from "@/lib/dashboard-builder";
 import {
   byDefect,
   defectTrend,
@@ -99,6 +100,8 @@ export default function DefectAnalysisPage() {
     };
   }, [events, scope, t.grain]);
 
+  const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
+
   return (
     <AppShell active="defect" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -117,20 +120,25 @@ export default function DefectAnalysisPage() {
           </div>
         )}
 
-        {m && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: 20 }}>
-            <Card title="Defect Pareto (All Stages)" onClick={() => openModal("Defect Pareto (All Stages)", "Thin Spot (34.2%) and Leakage (23.6%) are the critical vital few defect categories, responsible for over 57% of all rejections.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><DefectParetoTable rows={m.defects} /></div>)}>
-              <DefectParetoTable rows={m.defects} />
-            </Card>
+        {m && (() => {
+          const paretoAnalysis = calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected })));
+          const paretoText = paretoAnalysis ? paretoAnalysis.criticalAreaText : "Pareto analysis of defect categories.";
+          const chartData = paretoAnalysis || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." };
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: 20 }}>
+              <Card title={`Defect Pareto (${grainLabel})`} onClick={() => openModal(`Defect Pareto (${grainLabel})`, paretoText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={chartData} /></div>)}>
+                <ParetoChart analysis={chartData} />
+              </Card>
 
-            <Card title="Defect Trend (Top 5)" onClick={() => openModal("Defect Trend (Top 5)", "Thin Spot defects surged in late Q3, indicating possible machine wear in the balloon forming stage.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>)}>
-              <MultiLine 
-                data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} 
-                stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} 
-              />
-            </Card>
-          </div>
-        )}
+              <Card title={`Defect Trend (Top 5) (${grainLabel})`} onClick={() => openModal(`Defect Trend (Top 5) (${grainLabel})`, `Historical trends for the top 5 defect categories showing performance changes across periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>)}>
+                <MultiLine 
+                  data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} 
+                  stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} 
+                />
+              </Card>
+            </div>
+          );
+        })()}
       </div>
 
       <FloatingDetailModal

@@ -1,4 +1,4 @@
-import { type Scope, scopeEvents } from "./scope";
+import { type Scope, scopeEvents, periodsIn, periodKey, periodLabel } from "./scope";
 import { byStage } from "./rejection";
 import type { Event } from "@/lib/store/types";
 
@@ -16,7 +16,7 @@ const STAGE_WEIGHTS: Record<string, number> = {
   "final": 1.0,
 };
 
-function getFinishedCost(): number {
+export function getFinishedCost(): number {
   if (typeof window !== "undefined") {
     const val = localStorage.getItem("rais_settings_finished_cost");
     if (val) {
@@ -27,7 +27,7 @@ function getFinishedCost(): number {
   return 20.0;
 }
 
-function getTargetRejectionRate(): number {
+export function getTargetRejectionRate(): number {
   if (typeof window !== "undefined") {
     const val = localStorage.getItem("rais_settings_target_rejection");
     if (val) {
@@ -94,4 +94,18 @@ export function savingsOpportunity(events: Event[], scope: Scope): number | null
 
   const excessRejections = (currentRate - targetLimit) * totalChecked;
   return excessRejections * getFinishedCost();
+}
+
+export function copqTrend(events: Event[], scope: Scope): { period: string; label: string; value: number }[] {
+  const ev = scopeEvents(events, scope);
+  const periods = periodsIn(ev, scope.grain);
+  return periods.map((p) => {
+    const bucket = ev.filter((e) => periodKey(e.occurredOn.start, scope.grain) === p);
+    const costResult = copq(bucket, { grain: scope.grain });
+    return {
+      period: p,
+      label: periodLabel(p),
+      value: costResult?.value ?? 0,
+    };
+  });
 }

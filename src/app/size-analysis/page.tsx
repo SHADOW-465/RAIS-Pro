@@ -8,6 +8,7 @@ import {
   Card, 
   LineChart, 
   BarsH, 
+  Empty,
   pct
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
@@ -107,6 +108,8 @@ export default function SizeAnalysisPage() {
     };
   }, [events, scope, selectedSize, t.grain]);
 
+  const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
+
   return (
     <AppShell active="size" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -115,7 +118,7 @@ export default function SizeAnalysisPage() {
             Size Analysis
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
-            Inspect quality variation and rejection patterns across catheter sizes Fr10 through Fr18.
+            Inspect quality variation and rejection patterns across catheter sizes Fr10 through Fr24.
           </p>
         </div>
 
@@ -125,44 +128,61 @@ export default function SizeAnalysisPage() {
           </div>
         )}
 
-        {m && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: 20 }}>
-            <Card title="Size-wise Rejection (YTD)" onClick={() => openModal("Size-wise Rejection (YTD)", "Fr16 and Fr18 sizes represent the highest quality losses, suggesting larger diameter catheters undergo higher stress.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>)}>
-              <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} />
-            </Card>
+        {m && (() => {
+          const worstSize = m.sizes.length > 0 ? [...m.sizes].sort((a,b) => b.rejRate - a.rejRate)[0] : null;
+          const ytdModalInsight = worstSize 
+            ? `Size ${worstSize.size} represents the highest quality loss with a rejection rate of ${(worstSize.rejRate * 100).toFixed(2)}%.` 
+            : "No size-wise data available for this range.";
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>Filter Size Trend:</span>
-                <select
-                  value={selectedSize}
-                  onChange={(e) => setSelectedSize(e.target.value)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border-strong)",
-                    background: "var(--surface)",
-                    color: "var(--text)",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    outline: "none",
-                    cursor: "pointer"
-                  }}
-                >
-                  <option value="Fr10">Fr10 Catheter</option>
-                  <option value="Fr12">Fr12 Catheter</option>
-                  <option value="Fr14">Fr14 Catheter</option>
-                  <option value="Fr16">Fr16 Catheter</option>
-                  <option value="Fr18">Fr18 Catheter</option>
-                </select>
-              </div>
+          const trendModalInsight = m.sizeTrend.length > 0
+            ? `Quality level trends for catheter size ${selectedSize} across historical periods.`
+            : `No trend data available for size ${selectedSize}.`;
 
-              <Card title={`Size-wise Rejection Trend (${selectedSize})`} onClick={() => openModal(`Size-wise Rejection Trend (${selectedSize})`, `${selectedSize} quality levels show minor fluctuations across periods. Ensure material batch consistency.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>)}>
-                <LineChart points={m.sizeTrend} fmt={pct} />
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: 20 }}>
+              <Card title={`Size-wise Rejection (YTD) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection (YTD) (${grainLabel})`, ytdModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>)}>
+                {m.sizes.length > 0 ? (
+                  <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} />
+                ) : (
+                  <Empty label="No size-wise YTD data available for the selected period." />
+                )}
               </Card>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>Filter Size Trend:</span>
+                  <select
+                    value={selectedSize}
+                    onChange={(e) => setSelectedSize(e.target.value)}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--border-strong)",
+                      background: "var(--surface)",
+                      color: "var(--text)",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      outline: "none",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"].map((sz) => (
+                      <option key={sz} value={sz}>{sz} Catheter</option>
+                    ))}
+                  </select>
+                </div>
+
+                <Card title={`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`, trendModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>)}>
+                  {m.sizeTrend.length > 0 ? (
+                    <LineChart points={m.sizeTrend} fmt={pct} />
+                  ) : (
+                    <Empty label={`No trend data available for size ${selectedSize}.`} />
+                  )}
+                </Card>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       <FloatingDetailModal

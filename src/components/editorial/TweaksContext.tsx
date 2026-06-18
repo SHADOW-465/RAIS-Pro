@@ -16,12 +16,18 @@ export interface Tweaks {
   theme: Theme;
   showBeams: boolean;
   grain: "day" | "week" | "month" | "fy";
+  datePreset: "all" | "last-90-days" | "last-12-months" | "this-fy" | "custom";
+  dateFrom: string;
+  dateTo: string;
 }
 
 export const TWEAK_DEFAULTS: Tweaks = {
   theme: "light",
   showBeams: true,
   grain: "month",
+  datePreset: "all",
+  dateFrom: "",
+  dateTo: "",
 };
 
 interface Ctx {

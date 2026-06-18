@@ -20,6 +20,9 @@ describe("dateFromFilename", () => {
   it("reads 'NN ... MONTH YYYY' style (rejection analysis)", () => {
     expect(dateFromFilename("01 REJECTION ANALYSIS-APRIL 2025.xlsx")).toBe("2025-04-01");
   });
+  it("reads 'NN MONTH YY' style with two numbers (size-wise files)", () => {
+    expect(dateFromFilename("10 JANUARY 27.xlsx")).toBe("2027-01-10");
+  });
   it("returns null when no month/day is present", () => {
     expect(dateFromFilename("YEARLY ANALYSIS.xlsx")).toBeNull();
   });

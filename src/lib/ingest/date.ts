@@ -8,7 +8,10 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export function toLocalISODate(v: unknown): string | null {
   if (v == null || v === "") return null;
   if (v instanceof Date && !isNaN(v.getTime())) {
-    return `${v.getFullYear()}-${pad(v.getMonth() + 1)}-${pad(v.getDate())}`;
+    // Excel date parsing can result in times slightly before midnight (e.g., 23:59:50).
+    // Adding 12 hours shifts it to the correct calendar day.
+    const adjusted = new Date(v.getTime() + 12 * 60 * 60 * 1000);
+    return `${adjusted.getFullYear()}-${pad(adjusted.getMonth() + 1)}-${pad(adjusted.getDate())}`;
   }
   if (typeof v === "number") {
     if (v > 20000 && v < 80000) {
@@ -32,7 +35,7 @@ export function dateFromFilename(name: string): string | null {
   const monthMatch = base.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/i);
   if (!monthMatch) return null;
   const month = MONTHS[monthMatch[1].toLowerCase()];
-  const yearMatch = base.match(/\b(20\d{2})\b/) || base.match(/\b(\d{2})\b(?!.*\b\d{4}\b)/);
+  const yearMatch = base.match(/\b(20\d{2})\b(?=[^0-9]*$)/) || base.match(/\b(\d{2})\b(?=[^0-9]*$)/);
   if (!yearMatch) return null;
   const y = Number(yearMatch[1]);
   const year = y < 100 ? 2000 + y : y;
