@@ -89,3 +89,7 @@ audit-*.png
 # stray graphify cache written under src/ during --update
 src/graphify-out/
 .playwright-mcp/
+
+.playwright-mcp/
+phase1-*.jpeg
+phase2-*.jpeg
