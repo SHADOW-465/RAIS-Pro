@@ -29,6 +29,15 @@ export default function DataEntryPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Dynamic, user-defined fields (#8). Each can be flagged required.
+  interface CustomField { id: string; label: string; value: string; required: boolean }
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const addField = () =>
+    setCustomFields((f) => [...f, { id: globalThis.crypto?.randomUUID?.() ?? `cf-${Date.now()}-${f.length}`, label: "", value: "", required: false }]);
+  const updateField = (id: string, patch: Partial<CustomField>) =>
+    setCustomFields((f) => f.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const removeField = (id: string) => setCustomFields((f) => f.filter((x) => x.id !== id));
+
   const stageIds = useMemo(() => activeStageIds(date), [date]);
   const row = (id: string) => rows[id] ?? blank;
   const setCell = (id: string, k: keyof RowState, v: string) =>
@@ -98,8 +107,12 @@ export default function DataEntryPage() {
       if (input != null && good == null && rej == null)
         errs.push(`${name}: enter Good and/or Rejected for the ${input} units checked.`);
     }
+    for (const cf of customFields) {
+      if (cf.required && !cf.value.trim())
+        errs.push(`Required field "${cf.label.trim() || "(unnamed)"}" is empty.`);
+    }
     return errs;
-  }, [rows, stageIds, hdr.operator]);
+  }, [rows, stageIds, hdr.operator, customFields]);
 
   const dqBad = dq.some((d) => d.state === "Failed") || blockingErrors.length > 0;
 
@@ -109,10 +122,21 @@ export default function DataEntryPage() {
     const ingestionId = globalThis.crypto?.randomUUID?.() ?? `entry-${Date.now()}`;
     const records = buildRecords(ingestionId);
     if (records.length === 0) { setError("Enter at least one stage's quantities."); setBusy(false); return; }
+    // Fold entry-wide notes + custom fields into a provenance annotation on the
+    // first stage record so they are captured in the audit ledger.
+    const customSummary = customFields
+      .filter((c) => c.label.trim() || c.value.trim())
+      .map((c) => `${c.label.trim() || "Field"}: ${c.value.trim()}`)
+      .join("; ");
+    const meta = [notes.trim(), customSummary].filter(Boolean).join(" | ");
+    const commentsToSend: Record<string, string> = { ...remarks };
+    if (meta && records[0]) {
+      commentsToSend[records[0].stageId] = [commentsToSend[records[0].stageId], meta].filter(Boolean).join(" — ");
+    }
     try {
       const res = await fetch("/api/ingest", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingestionId, fileName: `Manual Entry ${date} ${hdr.shift}`, records, comments: remarks }),
+        body: JSON.stringify({ ingestionId, fileName: `Manual Entry ${date} ${hdr.shift}`, records, comments: commentsToSend }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Submit failed");
       await res.json();
@@ -189,6 +213,27 @@ export default function DataEntryPage() {
               <textarea autoFocus value={remarks[openRemark] ?? ""} onChange={(e) => setRemarks((c) => ({ ...c, [openRemark]: e.target.value }))}
                 placeholder={`Remark for ${label(openRemark)}…`} style={{ width: "100%", marginTop: 10, minHeight: 56, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13, fontFamily: "inherit" }} />
             )}
+          </Section>
+
+          <Section title="Custom Fields">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {customFields.length === 0 && (
+                <span className="muted" style={{ fontSize: 12 }}>Add plant-specific fields (e.g. Mould No., Ambient Temp) as needed.</span>
+              )}
+              {customFields.map((cf) => (
+                <div key={cf.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto auto", gap: 8, alignItems: "center" }}>
+                  <input style={inp} value={cf.label} onChange={(e) => updateField(cf.id, { label: e.target.value })} placeholder="Field name" />
+                  <input style={{ ...inp, borderColor: cf.required && !cf.value.trim() ? "var(--status-bad)" : "var(--border)" }} value={cf.value} onChange={(e) => updateField(cf.id, { value: e.target.value })} placeholder={cf.required ? "Required value" : "Value"} />
+                  <label className="muted" style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+                    <input type="checkbox" checked={cf.required} onChange={(e) => updateField(cf.id, { required: e.target.checked })} /> Required
+                  </label>
+                  <button onClick={() => removeField(cf.id)} style={{ background: "transparent", border: "none", color: "var(--status-bad)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 4px" }} title="Remove field">×</button>
+                </div>
+              ))}
+              <button onClick={addField} style={{ ...ghost, alignSelf: "flex-start", padding: "6px 14px", fontSize: 12, marginTop: 4 }}>
+                <Icon name="plus" size={11} /> Add Field
+              </button>
+            </div>
           </Section>
 
           <Section title="Additional Information">

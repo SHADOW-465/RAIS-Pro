@@ -20,6 +20,12 @@ export default function SettingsPage() {
 
   const [saved, setSaved] = useState(false);
 
+  // Editable custom defect mappings (the base registry is read-only; these are
+  // user additions persisted locally and merged into the displayed registry).
+  interface CustomDefect { code: string; label: string; aliases: string }
+  const [customDefects, setCustomDefects] = useState<CustomDefect[]>([]);
+  const [draft, setDraft] = useState<CustomDefect>({ code: "", label: "", aliases: "" });
+
   // Load from localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -29,6 +35,10 @@ export default function SettingsPage() {
       if (tr) setTargetRej(tr);
       if (wr) setWatchRej(wr);
       if (uc) setUnitCost(uc);
+      try {
+        const cd = localStorage.getItem("rais_custom_defects");
+        if (cd) setCustomDefects(JSON.parse(cd));
+      } catch { /* ignore malformed */ }
 
       const weights: Record<string, string> = {};
       DISPOSAFE_REGISTRY.stages.forEach(s => {
@@ -56,10 +66,24 @@ export default function SettingsPage() {
         localStorage.setItem(`rais_settings_weight_${id}`, val);
       });
 
+      localStorage.setItem("rais_custom_defects", JSON.stringify(customDefects));
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     }
   };
+
+  const addCustomDefect = () => {
+    const code = draft.code.trim().toUpperCase();
+    if (!code || !draft.label.trim()) return;
+    setCustomDefects((prev) => [
+      ...prev.filter((d) => d.code !== code),
+      { code, label: draft.label.trim(), aliases: draft.aliases.trim() },
+    ]);
+    setDraft({ code: "", label: "", aliases: "" });
+  };
+  const removeCustomDefect = (code: string) =>
+    setCustomDefects((prev) => prev.filter((d) => d.code !== code));
 
   const handleReset = () => {
     setTargetRej("10.00");
@@ -220,6 +244,54 @@ export default function SettingsPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </Card>
+
+          {/* Editable Custom Defect Mappings */}
+          <Card title="Custom Defect Mappings (Editable)" sub="Add plant-specific defect codes & aliases — merged into parsing on save">
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {customDefects.length > 0 && (
+                <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10, textTransform: "uppercase" }}>
+                      <th style={thStyle}>Code</th>
+                      <th style={thStyle}>Label</th>
+                      <th style={thStyle}>Aliases</th>
+                      <th style={thStyle}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customDefects.map((d) => (
+                      <tr key={d.code} style={{ borderTop: "1px solid var(--border)" }}>
+                        <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{d.code}</td>
+                        <td style={tdStyle}>{d.label}</td>
+                        <td style={tdStyle}>{d.aliases || "—"}</td>
+                        <td style={{ ...tdStyle, textAlign: "right" }}>
+                          <button onClick={() => removeCustomDefect(d.code)} style={{ background: "transparent", border: "none", color: "var(--status-bad)", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>Remove</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 1.4fr auto", gap: 8, alignItems: "end" }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span className="muted" style={{ fontSize: 10.5, fontWeight: 600 }}>Code</span>
+                  <input value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} placeholder="e.g. KINK" style={{ ...inpStyle, fontFamily: "var(--font-mono)" }} />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span className="muted" style={{ fontSize: 10.5, fontWeight: 600 }}>Official Label</span>
+                  <input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} placeholder="e.g. Kinked Shaft" style={inpStyle} />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span className="muted" style={{ fontSize: 10.5, fontWeight: 600 }}>Aliases (comma-separated)</span>
+                  <input value={draft.aliases} onChange={(e) => setDraft({ ...draft, aliases: e.target.value })} placeholder="KINK, KNK, BENT" style={inpStyle} />
+                </label>
+                <button onClick={addCustomDefect} disabled={!draft.code.trim() || !draft.label.trim()} style={{ ...btnPrimary, padding: "8px 16px", opacity: !draft.code.trim() || !draft.label.trim() ? 0.5 : 1 }}>
+                  + Add
+                </button>
+              </div>
+              <span className="muted" style={{ fontSize: 10.5 }}>Click <strong>Save Configurations</strong> below to persist. Base registry codes (above) are managed in code and remain read-only.</span>
             </div>
           </Card>
 
