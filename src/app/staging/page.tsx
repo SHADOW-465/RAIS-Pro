@@ -38,7 +38,18 @@ export default function StagingPage() {
       const { rawSheets } = await parseExcelFilesWithRaw(files);
       const { records } = classifyRejectionSheets(rawSheets, ingestionId);
       setRecords(records); setFileName(files.map((f) => f.name).join(", "));
-    } catch (e: any) { setError(e?.message ?? "Could not read the file."); }
+    } catch (e: any) {
+      console.error("File upload reading error:", e);
+      let errMsg = e?.message ?? "Could not read the file.";
+      if (
+        e?.name === "NotReadableError" ||
+        errMsg.toLowerCase().includes("permission") ||
+        errMsg.toLowerCase().includes("could not be read")
+      ) {
+        errMsg = "Locked File / Permission Error: The file could not be read. If this Excel file is currently open in Microsoft Excel or another program, please close the file in Excel, save your changes, and try uploading it again.";
+      }
+      setError(errMsg);
+    }
   }
 
   const handleCellChange = (recordIndex: number, field: "checked" | "rejected", valString: string) => {
