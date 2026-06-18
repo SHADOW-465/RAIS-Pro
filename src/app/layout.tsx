@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import {
   Plus_Jakarta_Sans,
   Inter,
@@ -35,8 +36,13 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
+      <body
+        className={`${plusJakartaSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+        style={{ fontFamily: "var(--font-sans)" }}
+      >
+        <Script
+          id="theme-initializer"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               try {
@@ -46,11 +52,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body
-        className={`${plusJakartaSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
-        style={{ fontFamily: "var(--font-sans)" }}
-      >
         <TweaksProvider>
           {children}
         </TweaksProvider>

@@ -6,6 +6,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
 import { DISPOSAFE_REGISTRY, activeStageIds } from "@/lib/registry/disposafe";
 import { checkRecord } from "@/lib/entry/validate-entry";
@@ -99,10 +100,12 @@ export default function DataEntryPage() {
   const reset = () => { setRows({}); setRemarks({}); setNotes(""); setError(null); };
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
-      <Topbar onBack={() => router.push("/")} date={date} setDate={setDate} shift={hdr.shift} setShift={(v) => setHdr({ ...hdr, shift: v })} />
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, maxWidth: 1320, margin: "0 auto", padding: "24px 28px 80px" }}>
+    <AppShell active="data-entry">
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-end", marginBottom: 16 }}>
+        <label className="muted" style={{ fontSize: 11 }}>Report Date<input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inp, width: 160 }} /></label>
+        <label className="muted" style={{ fontSize: 11 }}>Shift<select value={hdr.shift} onChange={(e) => setHdr({ ...hdr, shift: e.target.value })} style={{ ...inp, width: 140 }}><option>Day Shift</option><option>Night Shift</option></select></label>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20 }}>
         <div>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, margin: "0 0 2px" }}>Data Entry</h1>
           <p className="muted" style={{ fontSize: 13, margin: "0 0 20px" }}>Enter daily production, rejection and inspection data for each stage.</p>
@@ -201,25 +204,11 @@ export default function DataEntryPage() {
           </Section>
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }
 
 /* ── bits ───────────────────────────────────────────────────────────────── */
-function Topbar({ onBack, date, setDate, shift, setShift }: { onBack: () => void; date: string; setDate: (v: string) => void; shift: string; setShift: (v: string) => void }) {
-  return (
-    <div style={{ borderBottom: "1px solid var(--border)", padding: "12px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, background: "var(--bg)", zIndex: 10 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 20 }}>MO!D</span>
-        <button onClick={onBack} className="muted" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12 }}>← Dashboard</button>
-      </div>
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        <label className="muted" style={{ fontSize: 12 }}>Date <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inp, width: 150 }} /></label>
-        <select value={shift} onChange={(e) => setShift(e.target.value)} style={{ ...inp, width: 130 }}><option>Day Shift</option><option>Night Shift</option></select>
-      </div>
-    </div>
-  );
-}
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, background: "var(--surface)", padding: 16, marginBottom: 16 }}>
