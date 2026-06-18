@@ -18,6 +18,7 @@ import type {
   RulebookRuleStatusT,
 } from "./types";
 import { getPayload, mapRowToEvent, mapRowToFinding, mapRowToRule } from "./supabase-mappers";
+import { chunk } from "./batch";
 
 function stageOf(e: Event): string | null {
   return "stageId" in e ? (e.stageId as string) : null;
@@ -34,23 +35,26 @@ export class SupabaseEventStore implements EventStore {
 
   async append(events: Event[]): Promise<{ inserted: number; deduped: number }> {
     if (events.length === 0) return { inserted: 0, deduped: 0 };
-    
-    // Idempotence: skip events that already exist
+
+    // Idempotence: find which ids already exist. Chunk the .in() filter so the
+    // query string stays under PostgREST's URL limit (large .in() → Bad Request).
+    const SELECT_BATCH = 200;
     const eventIds = events.map((e) => e.eventId);
-    const { data: existing, error: fetchError } = await this.client
-      .from("events")
-      .select("event_id")
-      .in("event_id", eventIds);
-      
-    if (fetchError) throw fetchError;
-    
-    const existingSet = new Set((existing || []).map((x) => x.event_id));
+    const existingSet = new Set<string>();
+    for (const idsBatch of chunk(eventIds, SELECT_BATCH)) {
+      const { data: existing, error: fetchError } = await this.client
+        .from("events")
+        .select("event_id")
+        .in("event_id", idsBatch);
+      if (fetchError) throw fetchError;
+      for (const x of existing || []) existingSet.add(x.event_id);
+    }
+
     const toInsert = events.filter((e) => !existingSet.has(e.eventId));
-    
     if (toInsert.length === 0) {
       return { inserted: 0, deduped: events.length };
     }
-    
+
     const rows = toInsert.map((e) => ({
       event_id: e.eventId,
       schema_version: e.schemaVersion,
@@ -64,10 +68,15 @@ export class SupabaseEventStore implements EventStore {
       superseded_by: e.supersededBy,
       payload: getPayload(e),
     }));
-    
-    const { error: insertError } = await this.client.from("events").insert(rows);
-    if (insertError) throw insertError;
-    
+
+    // Chunk inserts so the request body stays under the size limit
+    // (one large insert → "fetch failed").
+    const INSERT_BATCH = 500;
+    for (const rowsBatch of chunk(rows, INSERT_BATCH)) {
+      const { error: insertError } = await this.client.from("events").insert(rowsBatch);
+      if (insertError) throw insertError;
+    }
+
     return { inserted: toInsert.length, deduped: events.length - toInsert.length };
   }
 
