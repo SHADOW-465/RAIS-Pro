@@ -1,5 +1,5 @@
 // src/lib/ingest/parsers/parse-assembly-daily.ts
-import xlsx from "xlsx";
+import * as xlsx from "xlsx";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { toLocalISODate } from "@/lib/ingest/date";
 
