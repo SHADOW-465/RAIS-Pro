@@ -38,7 +38,7 @@ export class SupabaseEventStore implements EventStore {
 
     // Idempotence: find which ids already exist. Chunk the .in() filter so the
     // query string stays under PostgREST's URL limit (large .in() → Bad Request).
-    const SELECT_BATCH = 200;
+    const SELECT_BATCH = 100;
     const eventIds = events.map((e) => e.eventId);
     const existingSet = new Set<string>();
     for (const idsBatch of chunk(eventIds, SELECT_BATCH)) {
@@ -119,9 +119,16 @@ export class SupabaseEventStore implements EventStore {
 
   async byIds(ids: string[]): Promise<Event[]> {
     if (ids.length === 0) return [];
-    const { data: rows, error } = await this.client.from("events").select("*").in("event_id", ids);
-    if (error) throw error;
-    return (rows || []).map(mapRowToEvent);
+    const out: Event[] = [];
+    for (const idsBatch of chunk(ids, 100)) {
+      const { data: rows, error } = await this.client
+        .from("events")
+        .select("*")
+        .in("event_id", idsBatch);
+      if (error) throw error;
+      out.push(...(rows || []).map(mapRowToEvent));
+    }
+    return out;
   }
 }
 
@@ -136,14 +143,17 @@ export class SupabaseFindingStore implements FindingStore {
     if (findings.length === 0) return;
     
     const findingIds = findings.map((f) => f.findingId);
-    const { data: existing, error: fetchError } = await this.client
-      .from("findings")
-      .select("finding_id")
-      .in("finding_id", findingIds);
-      
-    if (fetchError) throw fetchError;
+    const existingSet = new Set<string>();
+    for (const idsBatch of chunk(findingIds, 100)) {
+      const { data: existing, error: fetchError } = await this.client
+        .from("findings")
+        .select("finding_id")
+        .in("finding_id", idsBatch);
+        
+      if (fetchError) throw fetchError;
+      for (const x of existing || []) existingSet.add(x.finding_id);
+    }
     
-    const existingSet = new Set((existing || []).map((x) => x.finding_id));
     const toInsert = findings.filter((f) => !existingSet.has(f.findingId));
     
     if (toInsert.length === 0) return;
@@ -164,8 +174,11 @@ export class SupabaseFindingStore implements FindingStore {
       recorded_at: f.recordedAt,
     }));
     
-    const { error: insertError } = await this.client.from("findings").insert(rows);
-    if (insertError) throw insertError;
+    const INSERT_BATCH = 500;
+    for (const rowsBatch of chunk(rows, INSERT_BATCH)) {
+      const { error: insertError } = await this.client.from("findings").insert(rowsBatch);
+      if (insertError) throw insertError;
+    }
   }
 
   async adjudicate(a: AdjudicationT): Promise<void> {
