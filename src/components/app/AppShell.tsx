@@ -7,7 +7,7 @@ import { useTweaks } from "@/components/editorial/TweaksContext";
 
 export type NavKey =
   | "dashboard" | "data-entry" | "staging" | "stage" | "size" | "defect"
-  | "spc" | "process-flow" | "copq" | "reports" | "capa" | "ask" | "audit" | "settings";
+  | "spc" | "process-flow" | "copq" | "reports" | "capa" | "ask" | "audit" | "settings" | "clear-data";
 
 interface NavItem { 
   key: NavKey; 
@@ -35,6 +35,7 @@ const NAV: NavItem[] = [
   { key: "ask", label: "Ask RAIS", icon: "comment", href: "/chat", aiBadge: true },
   { key: "audit", label: "Audit Trail", icon: "search", href: "/audit" },
   { key: "settings", label: "Settings", icon: "external", href: "/settings" },
+  { key: "clear-data", label: "Clear Data", icon: "x", href: "/clear-data" },
 ];
 
 export default function AppShell({

@@ -18,6 +18,7 @@ import {
   AggregateClaimEvent,
   AnnotationEvent,
   Period,
+  ClientRegistry,
 } from "@/lib/contract/d1";
 import { hashEvent } from "@/lib/contract/hash";
 import { resolveDefect } from "@/lib/registry/disposafe";
@@ -92,7 +93,7 @@ function envelope(rec: StageDayRecord, cells: string[], header: string, formulaT
 }
 
 /** Emit all canonical events for one stage-day record. Pure (modulo recordedAt). */
-export function emitStageDay(rec: StageDayRecord): Event[] {
+export function emitStageDay(rec: StageDayRecord, reg?: z.infer<typeof ClientRegistry>): Event[] {
   const out: Event[] = [];
 
   if (rec.checked && Number.isInteger(rec.checked.value) && rec.checked.value >= 0) {
@@ -117,7 +118,7 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
     if (!Number.isInteger(d.value) || d.value < 0) continue;
     const payload = {
       stageId: rec.stageId,
-      defectCode: resolveDefect(d.raw), // null when unknown → V-007 finding downstream
+      defectCode: resolveDefect(d.raw, reg), // null when unknown → V-007 finding downstream
       defectCodeRaw: d.raw,
       quantity: d.value,
       unit: "pcs" as const,
@@ -166,6 +167,6 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
   return out;
 }
 
-export function emitMany(records: StageDayRecord[]): Event[] {
-  return records.flatMap(emitStageDay);
+export function emitMany(records: StageDayRecord[], reg?: z.infer<typeof ClientRegistry>): Event[] {
+  return records.flatMap(r => emitStageDay(r, reg));
 }

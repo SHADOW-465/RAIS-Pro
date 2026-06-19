@@ -4,18 +4,17 @@
 // Rework / Rejected → recomputed Rejection % → emit canonical events on
 // Submit & Lock → dashboard. Live Quick Stats + Data Quality Check.
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
-import { DISPOSAFE_REGISTRY, activeStageIds } from "@/lib/registry/disposafe";
+import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import { checkRecord } from "@/lib/entry/validate-entry";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 
 interface RowState { input: string; good: string; rework: string; rejected: string; by: string }
 const blank: RowState = { input: "", good: "", rework: "", rejected: "", by: "" };
 const num = (s: string) => { const n = Number(s); return s.trim() !== "" && Number.isFinite(n) ? n : null; };
-const label = (id: string) => DISPOSAFE_REGISTRY.stages.find((s) => s.stageId === id)?.label ?? id;
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function DataEntryPage() {
@@ -23,12 +22,30 @@ export default function DataEntryPage() {
   const [date, setDate] = useState(today());
   const [hdr, setHdr] = useState({ shift: "Day Shift", operator: "", supervisor: "", product: "FBC", size: "All", machine: "All Machines", batch: "" });
   const [rows, setRows] = useState<Record<string, RowState>>({});
+  const [defectCounts, setDefectCounts] = useState<Record<string, Record<string, string>>>({});
+  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
   const [remarks, setRemarks] = useState<Record<string, string>>({});
   const [openRemark, setOpenRemark] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+  
+  // Dynamic registry state
+  const [registry, setRegistry] = useState<any | null>(null);
+
+  useEffect(() => {
+    fetch("/api/schema")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.registry) {
+          setRegistry(data.registry);
+        }
+      })
+      .catch((err) => console.error("Error loading registry:", err));
+  }, []);
+
+  const activeRegistry = registry || DISPOSAFE_REGISTRY;
 
   // Dynamic, user-defined fields (#8). Each can be flagged required.
   interface CustomField { id: string; label: string; value: string; required: boolean }
@@ -39,7 +56,15 @@ export default function DataEntryPage() {
     setCustomFields((f) => f.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   const removeField = (id: string) => setCustomFields((f) => f.filter((x) => x.id !== id));
 
-  const stageIds = useMemo(() => activeStageIds(date), [date]);
+  const label = (id: string) => activeRegistry.stages.find((s: any) => s.stageId === id)?.label ?? id;
+
+  const stageIds = useMemo(() => {
+    return activeRegistry.stages
+      .filter((s: any) => (s.effectiveFrom == null || s.effectiveFrom <= date) &&
+                     (s.effectiveTo == null || date <= s.effectiveTo))
+      .map((s: any) => s.stageId);
+  }, [activeRegistry, date]);
+
   const row = (id: string) => rows[id] ?? blank;
   const setCell = (id: string, k: keyof RowState, v: string) =>
     setRows((r) => ({ ...r, [id]: { ...(r[id] ?? blank), [k]: v } }));
@@ -49,34 +74,78 @@ export default function DataEntryPage() {
     let input = 0, good = 0, rework = 0, rejected = 0;
     for (const id of stageIds) {
       const r = row(id);
-      input += num(r.input) ?? 0; good += num(r.good) ?? 0; rework += num(r.rework) ?? 0; rejected += num(r.rejected) ?? 0;
+      const stageDefects = activeRegistry.defects.filter((d: any) => d.stages.includes(id));
+      
+      let rejVal = 0;
+      if (stageDefects.length > 0) {
+        const stageDefectVals = defectCounts[id] ?? {};
+        rejVal = Object.values(stageDefectVals).reduce((sum, val) => sum + (Number(val) || 0), 0);
+      } else {
+        rejVal = num(r.rejected) ?? 0;
+      }
+
+      input += num(r.input) ?? 0;
+      good += num(r.good) ?? 0;
+      rework += num(r.rework) ?? 0;
+      rejected += rejVal;
     }
     return { input, good, rework, rejected, rejPct: input ? (rejected / input) * 100 : 0, fpy: input ? (good / input) * 100 : 0, netGood: good };
-  }, [rows, stageIds]);
+  }, [rows, stageIds, defectCounts, activeRegistry]);
 
   // build records (one per stage with any input)
-  const buildRecords = (ingestionId: string): StageDayRecord[] =>
-    stageIds.map((id) => ({ id, r: row(id) }))
-      .filter(({ r }) => num(r.input) != null || num(r.rejected) != null)
-      .map(({ id, r }) => ({
+  const buildRecords = (ingestionId: string): StageDayRecord[] => {
+    return stageIds.map((id: string) => {
+      const r = row(id);
+      const stageDefects = activeRegistry.defects.filter((d: any) => d.stages.includes(id));
+      
+      const parsedDefects = stageDefects.map((d: any) => {
+        const valStr = defectCounts[id]?.[d.defectCode] ?? "";
+        const val = num(valStr);
+        return {
+          raw: d.label,
+          value: val ?? 0,
+          cell: `ENTRY!${id}.${d.defectCode}`
+        };
+      }).filter((d: any) => d.value > 0);
+
+      // If defects exist, rejected is the sum of defects
+      let rejectedVal = num(r.rejected);
+      if (stageDefects.length > 0) {
+        rejectedVal = parsedDefects.reduce((sum: number, d: any) => sum + d.value, 0);
+      }
+
+      return {
         occurredOn: { kind: "day" as const, start: date, end: date },
         stageId: id,
         source: { file: "Manual Entry", fileHash: `manual-${date}-${hdr.shift}`, sheet: hdr.shift, tableId: "entry" },
         checked: num(r.input) != null ? { value: num(r.input)!, cell: `ENTRY!${id}.input`, header: "Input Qty" } : null,
         acceptedGood: num(r.good) != null ? { value: num(r.good)!, cell: `ENTRY!${id}.good`, header: "Good" } : null,
         rework: num(r.rework) != null ? { value: num(r.rework)!, cell: `ENTRY!${id}.rework`, header: "Rework" } : null,
-        rejected: num(r.rejected) != null ? { value: num(r.rejected)!, cell: `ENTRY!${id}.rejected`, header: "Rejected" } : null,
-        defects: [],
+        rejected: rejectedVal != null ? { value: rejectedVal, cell: `ENTRY!${id}.rejected`, header: "Rejected" } : null,
+        defects: parsedDefects,
         statedPct: null,
         extractedBy: "direct-entry",
         ingestionId,
-      }));
+      };
+    }).filter((r: StageDayRecord) => r.checked?.value != null || r.rejected?.value != null);
+  };
 
   // data-quality checks (live)
   const dq = useMemo(() => {
     const recs = buildRecords("dq");
     const issues = recs.flatMap(checkRecord);
-    const missing = stageIds.some((id) => { const r = row(id); return num(r.input) != null && (num(r.good) == null && num(r.rejected) == null); });
+    const missing = stageIds.some((id: string) => {
+      const r = row(id);
+      const stageDefects = activeRegistry.defects.filter((d: any) => d.stages.includes(id));
+      let hasRej = false;
+      if (stageDefects.length > 0) {
+        const stageDefectVals = defectCounts[id] ?? {};
+        hasRej = Object.values(stageDefectVals).some(v => v.trim() !== "");
+      } else {
+        hasRej = num(r.rejected) != null;
+      }
+      return num(r.input) != null && (num(r.good) == null && !hasRej);
+    });
     const balanceOff = recs.some((r) => {
       const i = r.checked?.value, g = r.acceptedGood?.value, w = r.rework?.value, j = r.rejected?.value;
       return i != null && (g != null || w != null || j != null) && i !== (g ?? 0) + (w ?? 0) + (j ?? 0);
@@ -88,7 +157,7 @@ export default function DataEntryPage() {
       { label: "Formula Check", state: balanceOff ? "Warning" : "Passed" },
       { label: "Outlier Detection", state: "Passed" },
     ] as { label: string; state: "Passed" | "Warning" | "Failed" }[];
-  }, [rows, stageIds, date, hdr.shift]);
+  }, [rows, stageIds, date, hdr.shift, defectCounts, activeRegistry]);
 
   // Concrete blocking errors (with location) — wrong arithmetic + required fields
   // must be fixed before Submit. This is what makes invalid data un-submittable.
@@ -97,23 +166,38 @@ export default function DataEntryPage() {
     if (!hdr.operator.trim()) errs.push("Operator name is required.");
     for (const id of stageIds) {
       const r = row(id);
-      const input = num(r.input), good = num(r.good), rework = num(r.rework), rej = num(r.rejected);
+      const stageDefects = activeRegistry.defects.filter((d: any) => d.stages.includes(id));
+      
+      const input = num(r.input), good = num(r.good), rework = num(r.rework);
+      let rej = 0;
+      if (stageDefects.length > 0) {
+        const stageDefectVals = defectCounts[id] ?? {};
+        rej = Object.values(stageDefectVals).reduce((sum, val) => sum + (Number(val) || 0), 0);
+      } else {
+        rej = num(r.rejected) ?? 0;
+      }
+
       const name = label(id);
-      if (rej != null && input != null && rej > input) errs.push(`${name}: Rejected (${rej}) cannot exceed Input (${input}).`);
+      if (rej > 0 && input != null && rej > input) errs.push(`${name}: Rejected (${rej}) cannot exceed Input (${input}).`);
       if (good != null && input != null && good > input) errs.push(`${name}: Good (${good}) cannot exceed Input (${input}).`);
       // Full balance: when good is recorded, Input must equal Good + Rework + Rejected.
-      if (input != null && good != null && (good + (rework ?? 0) + (rej ?? 0)) !== input)
-        errs.push(`${name}: Good + Rework + Rejected (${good + (rework ?? 0) + (rej ?? 0)}) must equal Input (${input}).`);
+      if (input != null && good != null && (good + (rework ?? 0) + rej) !== input)
+        errs.push(`${name}: Good + Rework + Rejected (${good + (rework ?? 0) + rej}) must equal Input (${input}).`);
       // A stage with Input must record an outcome.
-      if (input != null && good == null && rej == null)
-        errs.push(`${name}: enter Good and/or Rejected for the ${input} units checked.`);
+      if (input != null && good == null && rej === 0) {
+        if (stageDefects.length === 0 && num(r.rejected) == null) {
+          errs.push(`${name}: enter Good and/or Rejected for the ${input} units checked.`);
+        } else if (stageDefects.length > 0) {
+          errs.push(`${name}: enter Good and/or Defect counts for the ${input} units checked.`);
+        }
+      }
     }
     for (const cf of customFields) {
       if (cf.required && !cf.value.trim())
         errs.push(`Required field "${cf.label.trim() || "(unnamed)"}" is empty.`);
     }
     return errs;
-  }, [rows, stageIds, hdr.operator, customFields]);
+  }, [rows, stageIds, hdr.operator, customFields, defectCounts, activeRegistry]);
 
   const dqBad = dq.some((d) => d.state === "Failed") || blockingErrors.length > 0;
 
@@ -145,7 +229,8 @@ export default function DataEntryPage() {
       router.push("/");
     } catch (e: any) { setError(e?.message ?? "Submit failed"); setBusy(false); }
   }
-  const reset = () => { setRows({}); setRemarks({}); setNotes(""); setError(null); };
+
+  const reset = () => { setRows({}); setDefectCounts({}); setRemarks({}); setNotes(""); setError(null); };
 
   return (
     <AppShell active="data-entry">
@@ -162,7 +247,7 @@ export default function DataEntryPage() {
 
           {/* header fields */}
           <Section title="Data Entry Form">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
               <Field label="Operator *"><input style={{ ...inp, borderColor: attemptedSubmit && !hdr.operator.trim() ? "var(--status-bad)" : "var(--border)" }} value={hdr.operator} onChange={(e) => setHdr({ ...hdr, operator: e.target.value })} placeholder="Required" /></Field>
               <Field label="Supervisor"><input style={inp} value={hdr.supervisor} onChange={(e) => setHdr({ ...hdr, supervisor: e.target.value })} placeholder="Name" /></Field>
               <Field label="Product"><input style={inp} value={hdr.product} onChange={(e) => setHdr({ ...hdr, product: e.target.value })} /></Field>
@@ -181,23 +266,90 @@ export default function DataEntryPage() {
                 </tr>
               </thead>
               <tbody>
-                {stageIds.map((id, i) => {
-                  const r = row(id); const input = num(r.input), rej = num(r.rejected);
+                {stageIds.map((id: string, i: number) => {
+                  const r = row(id);
+                  const stageDefects = activeRegistry.defects.filter((d: any) => d.stages.includes(id));
+                  const hasDefects = stageDefects.length > 0;
+                  const isExpanded = !!expandedStages[id];
+                  
+                  const stageDefectVals = defectCounts[id] ?? {};
+                  const sumOfDefects = Object.values(stageDefectVals).reduce((sum, val) => sum + (Number(val) || 0), 0);
+                  const rejectedStr = hasDefects ? (sumOfDefects > 0 ? sumOfDefects.toString() : "") : r.rejected;
+                  
+                  const input = num(r.input);
+                  const rej = num(rejectedStr);
                   const pct = input && rej != null ? (rej / input) * 100 : null;
                   const bad = input != null && rej != null && rej > input;
                   return (
-                    <tr key={id} style={{ borderTop: "1px solid var(--border)" }}>
-                      <td style={etd}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><Dot n={i + 1} /> {label(id)}</span></td>
-                      <td style={etd}><NumCell v={r.input} onChange={(v) => setCell(id, "input", v)} /></td>
-                      <td style={etd}><NumCell v={r.good} onChange={(v) => setCell(id, "good", v)} /></td>
-                      <td style={etd}><NumCell v={r.rework} onChange={(v) => setCell(id, "rework", v)} /></td>
-                      <td style={etd}><NumCell v={r.rejected} onChange={(v) => setCell(id, "rejected", v)} /></td>
-                      <td style={{ ...etd, fontFamily: "var(--font-mono)", color: bad ? "var(--status-bad)" : pct != null && pct > 5 ? "var(--status-warn)" : "var(--text)" }}>{pct != null ? `${pct.toFixed(2)}%` : "—"}</td>
-                      <td style={etd}><input style={{ ...inp, width: 110 }} value={r.by} onChange={(e) => setCell(id, "by", e.target.value)} placeholder="Initials" /></td>
-                      <td style={etd}>
-                        <button onClick={() => setOpenRemark(openRemark === id ? null : id)} style={{ background: remarks[id]?.trim() ? "var(--accent)" : "var(--surface-2)", color: remarks[id]?.trim() ? "#fff" : "var(--text-2)", border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer" }}><Icon name="comment" size={13} /></button>
-                      </td>
-                    </tr>
+                    <React.Fragment key={id}>
+                      <tr style={{ borderTop: "1px solid var(--border)" }}>
+                        <td style={etd}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, textAlign: "left" }}>
+                            <Dot n={i + 1} />
+                            <button
+                              onClick={() => hasDefects && setExpandedStages(prev => ({ ...prev, [id]: !prev[id] }))}
+                              style={{ background: "transparent", border: "none", cursor: hasDefects ? "pointer" : "default", display: "flex", alignItems: "center", gap: 6, padding: 0, color: "var(--text)", fontWeight: 700, fontFamily: "var(--font-sans)", outline: "none" }}
+                            >
+                              <span>{label(id)}</span>
+                              {hasDefects && (
+                                <span style={{ fontSize: 9, color: "var(--text-3)", transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s ease", display: "inline-block" }}>▶</span>
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                        <td style={etd}><NumCell v={r.input} onChange={(v) => setCell(id, "input", v)} /></td>
+                        <td style={etd}><NumCell v={r.good} onChange={(v) => setCell(id, "good", v)} /></td>
+                        <td style={etd}><NumCell v={r.rework} onChange={(v) => setCell(id, "rework", v)} /></td>
+                        <td style={etd}>
+                          {hasDefects ? (
+                            <input
+                              type="text"
+                              readOnly
+                              value={rejectedStr}
+                              placeholder="auto"
+                              style={{ ...inp, width: 90, fontFamily: "var(--font-mono)", textAlign: "center", background: "var(--surface-2)", color: "var(--text-2)", cursor: "not-allowed", outline: "none" }}
+                            />
+                          ) : (
+                            <NumCell v={r.rejected} onChange={(v) => setCell(id, "rejected", v)} />
+                          )}
+                        </td>
+                        <td style={{ ...etd, fontFamily: "var(--font-mono)", color: bad ? "var(--status-bad)" : pct != null && pct > 5 ? "var(--status-warn)" : "var(--text)" }}>{pct != null ? `${pct.toFixed(2)}%` : "—"}</td>
+                        <td style={etd}><input style={{ ...inp, width: 110 }} value={r.by} onChange={(e) => setCell(id, "by", e.target.value)} placeholder="Initials" /></td>
+                        <td style={etd}>
+                          <button onClick={() => setOpenRemark(openRemark === id ? null : id)} style={{ background: remarks[id]?.trim() ? "var(--accent)" : "var(--surface-2)", color: remarks[id]?.trim() ? "#fff" : "var(--text-2)", border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer" }}><Icon name="comment" size={13} /></button>
+                        </td>
+                      </tr>
+                      {hasDefects && isExpanded && (
+                        <tr style={{ background: "var(--surface-2)" }}>
+                          <td colSpan={8} style={{ padding: "12px 16px", borderBottom: "1.5px solid var(--border)", textAlign: "left" }}>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                              {stageDefects.map((df: any) => (
+                                <label key={df.defectCode} style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 120 }}>
+                                  <span style={{ fontSize: 10, color: "var(--text-2)", fontWeight: 700 }}>{df.label}</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={defectCounts[id]?.[df.defectCode] ?? ""}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setDefectCounts(prev => ({
+                                        ...prev,
+                                        [id]: {
+                                          ...(prev[id] ?? {}),
+                                          [df.defectCode]: val
+                                        }
+                                      }));
+                                    }}
+                                    style={{ ...inp, padding: "5px 8px", fontSize: 12, fontFamily: "var(--font-mono)" }}
+                                    placeholder="0"
+                                  />
+                                </label>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
                 <tr style={{ borderTop: "2px solid var(--border)", fontWeight: 700 }}>
@@ -244,7 +396,7 @@ export default function DataEntryPage() {
 
           <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 24 }}>
             <button onClick={reset} style={ghost}>Reset</button>
-            <button onClick={() => { try { localStorage.setItem(`moid_draft_${date}`, JSON.stringify({ hdr, rows, remarks })); } catch {} }} style={{ ...ghost, color: "var(--accent)", borderColor: "var(--accent)" }}>Save as Draft</button>
+            <button onClick={() => { try { localStorage.setItem(`moid_draft_${date}`, JSON.stringify({ hdr, rows, defectCounts, remarks })); } catch {} }} style={{ ...ghost, color: "var(--accent)", borderColor: "var(--accent)" }}>Save as Draft</button>
             <button onClick={submit} disabled={busy} style={{ ...primary, opacity: busy || (attemptedSubmit && dqBad) ? 0.5 : 1, cursor: busy ? "not-allowed" : "pointer" }} title={attemptedSubmit && dqBad ? "Fix logical errors first" : ""}>{busy ? "Saving…" : "Submit & Lock"}</button>
           </div>
         </div>

@@ -26,6 +26,7 @@ export interface RawSheet {
   fileName: string;
   columns: string[];
   rows: Record<string, unknown>[];
+  colLetters?: Record<string, string>;
 }
 
 export interface ChartDataset {

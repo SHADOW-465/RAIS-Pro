@@ -21,6 +21,8 @@ export default function StagingPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ inserted: number; deduped: number } | null>(null);
+  const [extractedSchema, setExtractedSchema] = useState<any | null>(null);
+  const [showSchemaModal, setShowSchemaModal] = useState(false);
   const [comments, setComments] = useState<Record<number, string>>({});
   const [editingCommentRow, setEditingCommentRow] = useState<number | null>(null);
   const [page, setPage] = useState(0);
@@ -34,12 +36,37 @@ export default function StagingPage() {
   }, [rows]);
 
   async function handleUpload(files: File[]) {
-    setError(null); setDone(null); setComments({}); setEditingCommentRow(null);
+    setError(null); setDone(null); setComments({}); setEditingCommentRow(null); setExtractedSchema(null);
     try {
+      const file = files[0];
+      const arrayBuffer = await file.arrayBuffer();
+      const xlsx = await import("xlsx");
+      const wb = xlsx.read(arrayBuffer, { type: "array" });
+
+      const { extractSchemaFromWorkbook, classifyWithSchema } = await import("@/lib/ingest/schema-extractor");
+      const schema = extractSchemaFromWorkbook(wb, file.name);
+      setExtractedSchema(schema);
+
       const { parseExcelFilesWithRaw } = await import("@/lib/parser");
       const { rawSheets } = await parseExcelFilesWithRaw(files);
-      const { records } = classifyRejectionSheets(rawSheets, ingestionId);
-      setRecords(records); setFileName(files.map((f) => f.name).join(", "));
+
+      let records = classifyWithSchema(rawSheets, schema, ingestionId);
+      if (records.length === 0) {
+        const { classifyRejectionSheets } = await import("@/lib/ingest/from-rejection-sheets");
+        const res = classifyRejectionSheets(rawSheets, ingestionId);
+        records = res.records;
+      }
+      setRecords(records);
+      setFileName(file.name);
+
+      // Auto-save active schema to registry database if valid stages exist
+      if (schema && schema.stages.length > 0) {
+        await fetch("/api/schema", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ schema })
+        }).catch(err => console.warn("Failed to auto-save schema registry:", err));
+      }
     } catch (e: any) {
       console.error("File upload reading error:", e);
       let errMsg = e?.message ?? "Could not read the file.";
@@ -63,6 +90,13 @@ export default function StagingPage() {
   async function publish() {
     setBusy(true); setError(null);
     try {
+      if (extractedSchema) {
+        await fetch("/api/schema", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ schema: extractedSchema })
+        });
+      }
       const res = await fetch("/api/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -249,6 +283,12 @@ export default function StagingPage() {
             </div>
           </Card>
           <Card title="Actions">
+            {extractedSchema && (
+              <button onClick={() => setShowSchemaModal(true)}
+                style={{ width: "100%", background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border-strong)", borderRadius: 9, padding: "10px", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <Icon name="table" size={14} /> View Extracted Schema
+              </button>
+            )}
             <button onClick={publish} disabled={rows.length === 0 || summary.invalid > 0 || busy}
               style={{ width: "100%", background: "var(--status-good)", color: "#fff", border: "none", borderRadius: 9, padding: "11px", fontSize: 14, fontWeight: 700, cursor: rows.length && !summary.invalid && !busy ? "pointer" : "not-allowed", opacity: rows.length && !summary.invalid && !busy ? 1 : 0.5 }}>
               <Icon name="check" size={14} /> {busy ? "Publishing…" : "Publish to Analytics"}
@@ -257,6 +297,190 @@ export default function StagingPage() {
           </Card>
         </div>
       </div>
+
+      {showSchemaModal && extractedSchema && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "900px", maxHeight: "85vh", display: "flex", flexDirection: "column", color: "var(--ink)", overflow: "hidden" }}>
+            {/* Header */}
+            <div style={{ padding: "20px 24px", borderBottom: "2px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <h2 style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: 0 }}>Extracted Plant-Wide Schema</h2>
+                <p className="muted" style={{ fontSize: 12, margin: "4px 0 0" }}>Source: {extractedSchema.fileName}</p>
+              </div>
+              <button onClick={() => setShowSchemaModal(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--text-2)", fontWeight: 300, lineHeight: 1 }}>&times;</button>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: 24, overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 24 }}>
+              {/* Stage Relationship Flowchart */}
+              <div>
+                <h3 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)", margin: "0 0 14px", fontWeight: 700 }}>Manufacturing Process Flow</h3>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
+                  {extractedSchema.stages.map((stage: any, idx: number) => (
+                    <div key={stage.stageId} style={{ display: "flex", alignItems: "center" }}>
+                      <div style={{ background: "var(--surface)", border: "1.5px solid var(--ink)", borderRadius: "var(--radius-md)", padding: "10px 16px", boxShadow: "3px 3px 0 var(--ink)", display: "flex", flexDirection: "column", gap: 2 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: "var(--accent)" }}>Stage {idx + 1}</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--font-display)" }}>{stage.label}</span>
+                        <span style={{ fontSize: 10, color: "var(--text-3)" }}>{stage.rowCount} records found</span>
+                      </div>
+                      {idx < extractedSchema.stages.length - 1 && (
+                        <div style={{ display: "flex", alignItems: "center", padding: "0 8px" }}>
+                          <svg width="24" height="12" viewBox="0 0 24 12" fill="none">
+                            <path d="M0 6H20M20 6L15 1M20 6L15 11" stroke="var(--ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Detailed Column mapping per Stage */}
+              <div>
+                <h3 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)", margin: "0 0 14px", fontWeight: 700 }}>Extracted Schema Details</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {extractedSchema.stages.map((stage: any) => {
+                    const checked = stage.fields.find((f: any) => f.role === "checked");
+                    const good = stage.fields.find((f: any) => f.role === "good");
+                    const rework = stage.fields.find((f: any) => f.role === "rework");
+                    const rejected = stage.fields.find((f: any) => f.role === "rejected");
+                    const defects = stage.fields.filter((f: any) => f.role === "defect");
+                    const formulas = stage.fields.filter((f: any) => f.role === "formula");
+
+                    return (
+                      <div key={stage.stageId} style={{ border: "1.5px solid var(--ink)", borderRadius: "var(--radius-md)", background: "var(--surface)", overflow: "hidden", boxShadow: "3px 3px 0 var(--ink)" }}>
+                        <div style={{ background: "var(--surface-2)", padding: "10px 16px", borderBottom: "1.5px solid var(--ink)", fontWeight: 700, fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontFamily: "var(--font-display)", fontSize: 14 }}>{stage.label}</span>
+                          <code style={{ fontSize: 10, color: "var(--text-3)" }}>id: {stage.stageId}</code>
+                        </div>
+                        <div style={{ padding: 16 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 50px 1fr", gap: 16, alignItems: "stretch" }}>
+                            {/* Left: Operators Fields */}
+                            <div style={{ border: "1.5px solid var(--border)", borderRadius: "var(--radius-md)", padding: 14, background: "var(--surface-2)" }}>
+                              <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "var(--text-3)", display: "block", marginBottom: 10, letterSpacing: "0.05em" }}>
+                                Operator Entry Fields
+                              </span>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed var(--border)", paddingBottom: 6 }}>
+                                  <span className="muted">Total Checked:</span>
+                                  <span style={{ fontWeight: 700, color: "var(--text)" }}>
+                                    {checked ? `${checked.name} (${checked.colLetter})` : "—"}
+                                  </span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed var(--border)", paddingBottom: 6 }}>
+                                  <span className="muted">Accepted Good:</span>
+                                  <span style={{ fontWeight: 700, color: "var(--status-good)" }}>
+                                    {good ? `${good.name} (${good.colLetter})` : "—"}
+                                  </span>
+                                </div>
+                                {rework && (
+                                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed var(--border)", paddingBottom: 6 }}>
+                                    <span className="muted">Rework Quantity:</span>
+                                    <span style={{ fontWeight: 700, color: "var(--status-warn)" }}>
+                                      {rework.name} ({rework.colLetter})
+                                    </span>
+                                  </div>
+                                )}
+                                {!rejected && defects.length === 0 && (
+                                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed var(--border)", paddingBottom: 6 }}>
+                                    <span className="muted">Stated Rejection:</span>
+                                    <span style={{ fontWeight: 700, color: "var(--status-bad)" }}>
+                                      (Manual Entry)
+                                    </span>
+                                  </div>
+                                )}
+
+                                {defects.length > 0 && (
+                                  <div style={{ marginTop: 6 }}>
+                                    <span className="muted" style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>
+                                      Defect Reason Fields ({defects.length})
+                                    </span>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, maxHeight: 110, overflowY: "auto", paddingRight: 4 }}>
+                                      {defects.map((d: any) => (
+                                        <span key={d.name} style={{ background: "var(--surface-2)", border: "1px solid var(--border-strong)", borderRadius: 5, padding: "3px 6px", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                          <span style={{ fontWeight: 800, color: "var(--accent)", fontFamily: "var(--font-mono)", fontSize: 10 }}>{d.colLetter}</span>
+                                          <span style={{ color: "var(--text)" }}>{d.name}</span>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Middle Arrow Connector */}
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 120 }}>
+                              <div style={{ border: "1.5px solid var(--border-strong)", height: 30, width: 0, borderStyle: "dashed" }}></div>
+                              <div style={{ background: "var(--accent-weak)", color: "var(--accent)", border: "1.5px solid var(--accent)", borderRadius: "50%", width: 26, height: 26, display: "grid", placeItems: "center", margin: "6px 0" }}>
+                                <Icon name="arrow-right" size={12} stroke={2.5} />
+                              </div>
+                              <div style={{ border: "1.5px solid var(--border-strong)", height: 30, width: 0, borderStyle: "dashed" }}></div>
+                            </div>
+
+                            {/* Right: System Math & Verification */}
+                            <div style={{ border: "1px solid var(--accent)", borderRadius: "var(--radius-md)", padding: 14, background: "var(--accent-weak)", height: "100%" }}>
+                              <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "var(--accent)", display: "block", marginBottom: 10, letterSpacing: "0.05em" }}>
+                                System Computed Math (Formulas)
+                              </span>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12 }}>
+                                <div>
+                                  <span className="muted" style={{ display: "block", fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
+                                    1. Total Rejected Qty
+                                  </span>
+                                  <div style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "5px 8px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <code style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text)" }}>
+                                      {defects.length > 0 ? "Σ (Defect Counts)" : rejected ? `${rejected.name} (${rejected.colLetter})` : "Stated Rejection"}
+                                    </code>
+                                    <span style={{ fontSize: 10, color: "var(--status-good)", fontWeight: 700 }}>✓ Auto-calculated</span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="muted" style={{ display: "block", fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
+                                    2. Audit Balance Equation
+                                  </span>
+                                  <div style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "5px 8px", borderRadius: 6, display: "flex", flexDirection: "column", gap: 3 }}>
+                                    <code style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--accent)", fontWeight: 700 }}>
+                                      Checked = Good {rework ? "+ Rework " : ""}+ Rejected
+                                    </code>
+                                    <span style={{ fontSize: 9.5, color: "var(--text-3)" }}>
+                                      Ensures shopfloor data adds up correctly before locking.
+                                    </span>
+                                  </div>
+                                </div>
+                                {formulas.map((f: any) => (
+                                  <div key={f.name}>
+                                    <span className="muted" style={{ display: "block", fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
+                                      3. Derived Rate Metric: {f.name}
+                                    </span>
+                                    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "5px 8px", borderRadius: 6 }}>
+                                      <code style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-2)", wordBreak: "break-all" }}>
+                                        {f.formula || "([Rejected] / [Checked]) * 100"}
+                                      </code>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: "14px 20px", borderTop: "1.5px solid var(--border)", background: "var(--surface-2)", display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={() => setShowSchemaModal(false)}
+                style={{ background: "var(--accent)", color: "#fff", border: "1.5px solid var(--ink)", borderRadius: 8, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "2px 2px 0 var(--ink)" }}>
+                Close Schema Viewer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

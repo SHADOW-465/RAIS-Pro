@@ -23,7 +23,10 @@ export interface ReviewRow {
 
 const PCT_EPS = 0.01;
 
-function stageLabel(stageId: string): string {
+function stageLabel(stageId: string, rec?: StageDayRecord): string {
+  if (rec?.source?.sheet && rec.source.sheet !== "Data Entry") {
+    return rec.source.sheet;
+  }
   return DISPOSAFE_REGISTRY.stages.find((s) => s.stageId === stageId)?.label ?? stageId;
 }
 
@@ -48,7 +51,7 @@ export function reviewRow(rec: StageDayRecord, recordIndex: number): ReviewRow {
   }
 
   return {
-    recordIndex, date: rec.occurredOn.start, stageId: rec.stageId, stageLabel: stageLabel(rec.stageId),
+    recordIndex, date: rec.occurredOn.start, stageId: rec.stageId, stageLabel: stageLabel(rec.stageId, rec),
     checked, rejected, statedPct, correctedPct, status, flags,
   };
 }

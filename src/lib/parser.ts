@@ -131,7 +131,7 @@ function serialToISO(n: number): string {
 
 // Collapse internal whitespace/newlines to a single space, trim, and de-duplicate
 // repeated header names by suffixing ` (2)`, ` (3)`, … to the 2nd+ occurrence.
-function normalizeHeaders(rawHeader: unknown[]): string[] {
+export function normalizeHeaders(rawHeader: unknown[]): string[] {
   const seen = new Map<string, number>();
   return rawHeader.map(cell => {
     const base = String(cell ?? '').replace(/\s+/g, ' ').trim();
@@ -140,6 +140,17 @@ function normalizeHeaders(rawHeader: unknown[]): string[] {
     seen.set(base, count);
     return count === 1 ? base : `${base} (${count})`;
   });
+}
+
+
+export function colIndexToLabel(idx: number): string {
+  let label = "";
+  let temp = idx;
+  while (temp >= 0) {
+    label = String.fromCharCode((temp % 26) + 65) + label;
+    temp = Math.floor(temp / 26) - 1;
+  }
+  return label;
 }
 
 // A genuine column-header row contains at least one of these "hint" words.
@@ -168,7 +179,7 @@ function rowHasHeaderHint(row: unknown[]): boolean {
 // Two passes: prefer the best row that ALSO carries a header-hint word; only if
 // no eligible row has a hint do we fall back to the best by raw distinct count
 // (keeps behaviour for synthetic/odd files that lack hint words entirely).
-function detectHeaderRow(rawRows: unknown[][]): number {
+export function detectHeaderRow(rawRows: unknown[][]): number {
   let bestIdx = 0;
   let bestScore = -1;
   let bestHintIdx = -1;
@@ -244,7 +255,7 @@ function isHeaderLabelRow(row: unknown[]): boolean {
 // the per-column code beneath it), falling back to the main header cell.
 // Numeric label cells (the ordinal row) are never used as names.
 // Returns the merged header and the index where real data begins.
-function buildHeaderBlock(
+export function buildHeaderBlock(
   rawRows: unknown[][],
   headerRowIndex: number
 ): { header: unknown[]; dataStartIndex: number } {
@@ -317,8 +328,10 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
       // rows to those names rather than relying on xlsx's auto-dedup.
       const normalizedHeader = normalizeHeaders(mergedHeader);
       const dataRows = rawRows.slice(dataStartIndex);
-      let json: Record<string, unknown>[] = dataRows.map(row => {
-        const rec: Record<string, unknown> = {};
+      let json: Record<string, unknown>[] = dataRows.map((row, rowIdx) => {
+        const rec: Record<string, unknown> = {
+          __rowNum: dataStartIndex + rowIdx + 1
+        };
         normalizedHeader.forEach((name, idx) => {
           if (name === '') return;
           rec[name] = row[idx] ?? '';
@@ -497,13 +510,23 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
       });
 
       // ── Raw rows for verification panel ────────────────────────────────────
+      const colLetters: Record<string, string> = {};
+      columns.forEach(col => {
+        const idx = normalizedHeader.indexOf(col);
+        if (idx !== -1) {
+          colLetters[col] = colIndexToLabel(idx);
+        }
+      });
+
       rawSheets.push({
         name: `${fileName} - ${sheetName}`,
         fileName: fileName,
         columns,
-        rows: cleanRows.slice(0, MAX_DISPLAY_ROWS).map(row =>
-          Object.fromEntries(columns.map(c => [c, (row as any)[c] ?? '']))
-        ),
+        colLetters,
+        rows: cleanRows.slice(0, MAX_DISPLAY_ROWS).map(row => ({
+          ...Object.fromEntries(columns.map(c => [c, (row as any)[c] ?? ''])),
+          __rowNum: (row as any).__rowNum,
+        })),
       });
     }
   }

@@ -14,7 +14,7 @@ import { findContributingSheets } from "@/lib/verify-nav";
 import BeamOverlay, { type BeamEndpoints } from "./BeamOverlay";
 import SourcesPanel from "./SourcesPanel";
 import Icon from "@/components/editorial/Icon";
-import FloatingDetailModal from "@/components/FloatingDetailModal";
+import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { TrendLine, VerticalBars } from "@/components/editorial/EditorialCharts";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { ThemeSwitcher } from "@/components/editorial/EditorialHeader";
@@ -174,6 +174,113 @@ export default function Dashboard({
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
   const [modalContent, setModalContent] = useState<React.ReactNode>(null);
+  const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
+  const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
+  const [isObservationsExpanded, setIsObservationsExpanded] = useState(true);
+
+  const getTraceRows = (label: string, sourceCol: string | null): SourceRow[] => {
+    const result: SourceRow[] = [];
+    const query = label.toLowerCase();
+    
+    // Classify target interest
+    let interest: "checked" | "rejected" | "defect" | "all" = "all";
+    let targetDefectName: string | null = null;
+
+    if (query.includes("check") || query.includes("inspect") || query.includes("input") || query.includes("production")) {
+      interest = "checked";
+    } else if (query.includes("reject") || query.includes("copq") || query.includes("saving") || query.includes("cost")) {
+      interest = "rejected";
+    } else if (sourceCol) {
+      interest = "defect";
+      targetDefectName = sourceCol;
+    } else {
+      interest = "defect";
+      targetDefectName = label;
+    }
+
+    const sheetsToScan = rawSheets ?? [];
+    for (const sheet of sheetsToScan) {
+      const cols = sheet.columns;
+      const dateCol = cols.find(c => /date/i.test(c)) || cols[0];
+      const checkedCol = cols.find(c => /check|qty chk|quantity|rec/i.test(c) && !/%|rej/i.test(c));
+      const rejectedCol = cols.find(c => /reject|rej/i.test(c) && !/%/i.test(c));
+
+      // Find defect column if interest is defect
+      let defectCol: string | null = null;
+      if (interest === "defect" && targetDefectName) {
+        const { findColumn } = require("@/lib/verify-nav");
+        defectCol = findColumn(targetDefectName, cols);
+      }
+
+      for (const row of sheet.rows) {
+        const dateVal = row[dateCol] ? String(row[dateCol]) : "";
+        if (!dateVal || /total/i.test(dateVal)) continue;
+
+        let dateStr = dateVal;
+        if (typeof row[dateCol] === "number" && row[dateCol] > 30000 && row[dateCol] < 60000) {
+          const ms = Math.round((Number(row[dateCol]) - 25569) * 86400 * 1000);
+          dateStr = new Date(ms).toISOString().slice(0, 10);
+        }
+
+        const colLtr = (col: string) => sheet.colLetters?.[col] || "A";
+        const rowNum = row.__rowNum || 1;
+
+        let size: string | null = null;
+        const sizeMatch = sheet.name.match(/^(\d+)FR$/i);
+        if (sizeMatch) {
+          size = `Fr${sizeMatch[1]}`;
+        }
+
+        if (interest === "checked" && checkedCol) {
+          const val = Number(row[checkedCol]);
+          if (!isNaN(val) && val > 0) {
+            result.push({
+              date: dateStr,
+              stage: sheet.name,
+              size,
+              type: "production",
+              qty: Math.round(val),
+              file: sheet.fileName,
+              sheet: sheet.name,
+              cell: `${sheet.name}!${colLtr(checkedCol)}${rowNum}`,
+            });
+          }
+        } else if (interest === "rejected") {
+          if (rejectedCol) {
+            const val = Number(row[rejectedCol]);
+            if (!isNaN(val) && val > 0) {
+              result.push({
+                date: dateStr,
+                stage: sheet.name,
+                size,
+                type: "inspection",
+                qty: Math.round(val),
+                file: sheet.fileName,
+                sheet: sheet.name,
+                cell: `${sheet.name}!${colLtr(rejectedCol)}${rowNum}`,
+              });
+            }
+          }
+        } else if (interest === "defect" && defectCol) {
+          const val = Number(row[defectCol]);
+          if (!isNaN(val) && val > 0) {
+            result.push({
+              date: dateStr,
+              stage: sheet.name,
+              size,
+              type: "rejection",
+              qty: Math.round(val),
+              file: sheet.fileName,
+              sheet: sheet.name,
+              cell: `${sheet.name}!${colLtr(defectCol)}${rowNum}`,
+            });
+          }
+        }
+      }
+    }
+
+    return result.sort((a, b) => a.date.localeCompare(b.date));
+  };
 
   const openKpiModal = (kpi: any) => {
     const labelLower = kpi.label.toLowerCase();
@@ -196,9 +303,13 @@ export default function Dashboard({
       </div>
     );
 
+    const srcRows = getTraceRows(kpi.label, kpi.sourceColumn ?? null);
+
     setModalTitle(kpi.label);
     setModalInsight(insightText);
     setModalContent(modalView);
+    setModalPrimaryValue(String(kpi.value) + (kpi.unit ?? ""));
+    setModalSourceRows(srcRows);
     setModalOpen(true);
   };
 
@@ -230,9 +341,13 @@ export default function Dashboard({
       </div>
     );
 
+    const srcRows = getTraceRows(chart.title, null);
+
     setModalTitle(chart.title);
     setModalInsight(insightText);
     setModalContent(largeChart);
+    setModalPrimaryValue(undefined);
+    setModalSourceRows(srcRows);
     setModalOpen(true);
   };
 
@@ -797,124 +912,135 @@ export default function Dashboard({
                       padding: "var(--pad-card)",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 800,
-                          background: "var(--accent)",
-                          color: "var(--text-invert)",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.05em",
-                        }}
-                      >
-                        AI
-                      </span>
-                      <span className="eyebrow accent" style={{ fontWeight: 700, margin: 0 }}>
-                        Observations & Diagnostics
-                      </span>
+                    <div 
+                      onClick={() => setIsObservationsExpanded(p => !p)}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isObservationsExpanded ? 24 : 0, cursor: "pointer", userSelect: "none" }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            background: "var(--accent)",
+                            color: "var(--text-invert)",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          AI
+                        </span>
+                        <span className="eyebrow accent" style={{ fontWeight: 700, margin: 0 }}>
+                          Observations & Diagnostics
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span className="muted" style={{ fontSize: 11 }}>{isObservationsExpanded ? "Collapse" : "Expand"}</span>
+                        <Icon name={isObservationsExpanded ? "chevron-up" : "chevron-down"} size={14} />
+                      </div>
                     </div>
 
-                    {isNarrativePending ? (
-                      <ObservationsSkeleton />
-                    ) : (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: verifyMode || !insights.length || !recommendations.length ? "1fr" : "1fr 1fr",
-                          gap: 48,
-                        }}
-                      >
-                        {insights.length > 0 && (
-                          <div>
-                            <SectionHeader
-                              eyebrow="Observations"
-                              title="What the data is telling you"
-                              sub="⚡ Deep diagnostics from the model."
-                            />
-                            <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                              {insights.map((line, i) => (
-                                <li
-                                  key={i}
-                                  style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "44px 1fr",
-                                    gap: 16,
-                                    padding: "16px 0",
-                                    borderBottom: "1px solid var(--border)",
-                                  }}
-                                >
-                                  <span
-                                    className="num"
+                    {isObservationsExpanded && (
+                      isNarrativePending ? (
+                        <ObservationsSkeleton />
+                      ) : (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: verifyMode || !insights.length || !recommendations.length ? "1fr" : "1fr 1fr",
+                            gap: 48,
+                          }}
+                        >
+                          {insights.length > 0 && (
+                            <div>
+                              <SectionHeader
+                                eyebrow="Observations"
+                                title="What the data is telling you"
+                                sub="⚡ Deep diagnostics from the model."
+                              />
+                              <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                                {insights.map((line, i) => (
+                                  <li
+                                    key={i}
                                     style={{
-                                      fontFamily: "var(--font-display)",
-                                      fontSize: 26,
-                                      fontWeight: 800,
-                                      color: "var(--accent)",
-                                      lineHeight: 1,
-                                      letterSpacing: "-0.02em",
+                                      display: "grid",
+                                      gridTemplateColumns: "44px 1fr",
+                                      gap: 16,
+                                      padding: "16px 0",
+                                      borderBottom: "1px solid var(--border)",
                                     }}
                                   >
-                                    {String(i + 1).padStart(2, "0")}
-                                  </span>
-                                  <span style={{ fontSize: 15, lineHeight: 1.55 }}>
-                                    {safeBolden(line)}
-                                  </span>
-                                </li>
-                              ))}
-                            </ol>
-                          </div>
-                        )}
+                                    <span
+                                      className="num"
+                                      style={{
+                                        fontFamily: "var(--font-display)",
+                                        fontSize: 26,
+                                        fontWeight: 800,
+                                        color: "var(--accent)",
+                                        lineHeight: 1,
+                                        letterSpacing: "-0.02em",
+                                      }}
+                                    >
+                                      {String(i + 1).padStart(2, "0")}
+                                    </span>
+                                    <span style={{ fontSize: 15, lineHeight: 1.55 }}>
+                                      {safeBolden(line)}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ol>
+                            </div>
+                          )}
 
-                        {recommendations.length > 0 && (
-                          <div>
-                            <SectionHeader
-                              eyebrow="Recommendations"
-                              title="What to do about it"
-                              sub="⚡ Suggested corrective actions."
-                            />
-                            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                              {recommendations.map((rec, i) => (
-                                <li
-                                  key={i}
-                                  style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "20px 1fr 80px",
-                                    gap: 14,
-                                    padding: "16px 0",
-                                    borderBottom: "1px solid var(--border)",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <span
+                          {recommendations.length > 0 && (
+                            <div>
+                              <SectionHeader
+                                eyebrow="Recommendations"
+                                title="What to do about it"
+                                sub="⚡ Suggested corrective actions."
+                              />
+                              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                                {recommendations.map((rec, i) => (
+                                  <li
+                                    key={i}
                                     style={{
-                                      width: 14,
-                                      height: 14,
-                                      border: "1.5px solid var(--border-strong)",
-                                      marginTop: 2,
-                                    }}
-                                  />
-                                  <span style={{ fontSize: 14, lineHeight: 1.5 }}>
-                                    {safeBolden(rec)}
-                                  </span>
-                                  <span
-                                    className="num"
-                                    style={{
-                                      fontSize: 10,
-                                      color: "var(--text-3)",
-                                      letterSpacing: "0.08em",
+                                      display: "grid",
+                                      gridTemplateColumns: "20px 1fr 80px",
+                                      gap: 14,
+                                      padding: "16px 0",
+                                      borderBottom: "1px solid var(--border)",
+                                      alignItems: "center",
                                     }}
                                   >
-                                    {["Today", "This wk", "Next wk", "30 days"][i] ?? "—"}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
+                                    <span
+                                      style={{
+                                        width: 14,
+                                        height: 14,
+                                        border: "1.5px solid var(--border-strong)",
+                                        marginTop: 2,
+                                      }}
+                                    />
+                                    <span style={{ fontSize: 14, lineHeight: 1.5 }}>
+                                      {safeBolden(rec)}
+                                    </span>
+                                    <span
+                                      className="num"
+                                      style={{
+                                        fontSize: 10,
+                                        color: "var(--text-3)",
+                                        letterSpacing: "0.08em",
+                                      }}
+                                    >
+                                      {["Today", "This wk", "Next wk", "30 days"][i] ?? "—"}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )
                     )}
                   </div>
                 </section>
@@ -1023,6 +1149,9 @@ export default function Dashboard({
         onClose={() => setModalOpen(false)}
         title={modalTitle}
         insight={modalInsight}
+        primaryValue={modalPrimaryValue}
+        sourceRows={modalSourceRows}
+        rawSheets={rawSheets}
       >
         {modalContent}
       </FloatingDetailModal>

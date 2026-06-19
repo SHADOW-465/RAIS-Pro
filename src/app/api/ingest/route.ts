@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { emitMany, type StageDayRecord } from "@/lib/ingest/emit";
 import { checkRecord } from "@/lib/entry/validate-entry";
 import { getStores } from "@/lib/store";
+import { createServerClient } from "@/lib/supabase";
 
 interface IngestBody {
   ingestionId: string;
@@ -140,7 +141,29 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Emit canonical events and append (idempotent on content hash).
-    const events = emitMany(toWrite);
+    let activeRegistry = undefined;
+    try {
+      const db = createServerClient();
+      const { data: regRow } = await db
+        .from("registries")
+        .select("*")
+        .eq("client_id", "disposafe")
+        .maybeSingle();
+      if (regRow) {
+        activeRegistry = {
+          clientId: regRow.client_id,
+          registryVersion: regRow.registry_version,
+          fiscalYearStartMonth: regRow.fiscal_year_start_month,
+          stages: regRow.stages,
+          defects: regRow.defects,
+          costConfig: regRow.cost_config || null,
+        };
+      }
+    } catch (err) {
+      console.warn("Could not fetch active registry (non-fatal, falling back to static default):", err);
+    }
+
+    const events = emitMany(toWrite, activeRegistry);
     const { inserted, deduped } = await store.append(events);
 
     // 3. Per-stage rollup for the success summary (deterministic, from events).
