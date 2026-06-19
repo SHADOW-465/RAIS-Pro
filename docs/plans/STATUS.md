@@ -1,41 +1,56 @@
 # MO!D Build Status
 
-Living tracker of what's implemented vs planned. Branch: `moid-v1`. Updated 2026-06-18.
-Spec: `docs/design/MOID-SPEC.md` · Plans: `docs/plans/00-INDEX.md` … `07`. Tests: **126 green**, `tsc` clean.
+Living tracker for handoff between agents (Claude Code ⇄ Antigravity).
+**Branch: `feat/phase2-real-parsers`.** Updated 2026-06-19.
+Tests: **160 green**, `tsc` clean, `npm run build` clean.
 
-## ✅ Done (committed + tested)
+> Handoff rule: keep this file current. When you finish a task, tick it here and commit.
+> The active work plan is `docs/plans/2026-06-19-friend-issues-round2.md`.
+> Design spec: `docs/2026-06-18-data-pipeline-and-charts-design.md`.
 
-### Foundation / data model
-- **Canonical contract** — `src/lib/contract/d1.ts` (events, registries, CostConfig), `d3.ts` (findings/adjudication/rulebook), `hash.ts` (content-hash ids: identity-based eventId → idempotent re-ingest; evidence-order-independent findingId). Mirrors `docs/design/*.ts`.
-- **Registry** — `src/lib/registry/disposafe.ts`: rejection stages + defect alias map (incl. real misspellings) + `resolveDefect`/`activeStageIds`. (⚠ currently 4 stages — needs Eye Punching added, see Pending.)
-- **Append-only store** — `src/lib/store/`: `EventStore/FindingStore/RulebookStore` interfaces (`types.ts`); memory adapter (`memory.ts`, idempotent append, Correction-aware `effective()`, derived finding state); Supabase adapter (`supabase.ts`) + migration (`supabase/migrations/20260615000000_schema.sql`, append-only RLS); `index.ts` selector (Supabase if env else process-singleton memory).
+## Architecture (current, as built)
+- **Durable ledger:** Supabase/Postgres. `src/lib/store/` (`supabase.ts` adapter + `supabase-mappers.ts`,
+  memory adapter for tests). Migration `supabase/migrations/20260618_canonical_ledger.sql`.
+  `shouldUseSupabase()` = durable by default; `MOID_STORE=memory` for tests.
+  Reseed util: `npx tsx --env-file=.env.local scripts/reseed-db.ts` (clears + reseeds from real parsers).
+- **Real parsers (no synthetic data):** `src/lib/ingest/parsers/` — `parse-assembly-daily`,
+  `parse-rejection-analysis`, `parse-size-wise`, `dedupe` (precedence: size-wise > assembly/rejection >
+  cumulative-claims), `reconcile` (merge-or-clarify). Seeder: `src/lib/store/seed.ts`.
+  Date helpers `src/lib/ingest/date.ts` (local-ISO + filename-date, fixes UTC off-by-one).
+- **Analytics (numbers only here):** `src/lib/analytics/` — `scope`, `rejection`, `defect`, `size`,
+  `cost`, `trust`, `status`, `narrative`.
+- **Cockpit:** `src/app/page.tsx` + per-screen pages; charts in `src/components/app/widgets.tsx`;
+  shell `src/components/app/AppShell.tsx` (grain D/W/M/FY + date-range presets).
+- **AI:** `src/lib/ai.ts` — free-tier chain Groq → NVIDIA NIM → OpenRouter (preferred-first via
+  `RAIS_AI_BACKEND`, never exclusive; valid `:free` models; `maxRetries:1` fast-fail). Chat
+  `src/app/api/chat/route.ts` (slide → text → rule-based fallback; Markdown answers).
 
-### Ingestion (the demo)
-- **Emit core** — `src/lib/ingest/emit.ts`: `StageDayRecord → canonical events` (production / inspection(rejected) / rejection / aggregate-claim), provenance + confidence + ids.
-- **Classifier** — `src/lib/ingest/from-rejection-sheets.ts`: parsed rejection workbooks → records + human-verifiable mapping preview (stage-per-sheet shape).
-- **Live clarification** — `src/lib/entry/validate-entry.ts`: point-in-time + spike checks (rejected>checked, negatives, defect-sum V-004, % V-003, spike V-009).
-- **UI + API** — `src/app/ingest/page.tsx` (upload → verify mapping table **with per-row comment button** → confirm → summary), `src/app/api/ingest/route.ts` (emit + store + checks). `src/app/page.tsx` now **dashboard-first** (ingest is a CTA, not a gate). `comment` icon + status-color tokens added.
+## ✅ Done this cycle (Phase 1 + 2 + fixes)
+- Phase 1 durable Supabase ledger (PR #5, merged to main).
+- Phase 2 real parsers + dedupe/merge + seed rewrite (no synthetic weights). 4,520 real events.
+- Stabilized Antigravity handoff (build/types/tests green).
+- Original 33-issue list + 16 production issues: largely resolved (`0af0d0b` + later commits).
+- Ask RAIS: responds + Markdown formatting; AI free-tier chain hardened.
+- **Data verification feature** (`cd656fd`): bigger/cleaner `FloatingDetailModal`, "View Source"
+  bezier-beam provenance trace (value → exact source cell), wired for KPIs + stage/defect/size.
 
-### Analytics engine (plan 02 — the backbone)
-- `src/lib/analytics/`: `scope.ts` (filter + FY period bucketing + prevWindow), `rejection.ts` (rate/totals/fpy/byStage/trend/stageTrend/weeklyTrend), `defect.ts` (byDefect Pareto / defectTrend / bySize — empty-state when absent), `index.ts`.
-- **`/api/events`** — serves the effective ledger to the engine.
-- Multi-provider AI — `src/lib/ai.ts` (NVIDIA NIM + OpenRouter w/ fallback).
+## 🚧 In progress — Round-2 friend issues (plan: 2026-06-19-friend-issues-round2.md)
+Status of the 7 tasks (RC = root cause):
+- [ ] **RC-1 dashboard** — headline metrics ignore date range / break on week-day grain (#4,5,6).
+      Make `m` aggregate over `scope` (selected range); grain only buckets trends.
+- [ ] **RC-1 process-flow + copq pages** — same snapshot bug (#10, #11).
+- [ ] **RC-2** — size dropdown hardcoded 8 vs YTD 11 (#1, #7): derive options from `m.sizes`.
+- [ ] **RC-5** — custom-field add forces Operator/required fill (#12): gate required on submit only.
+- [ ] **RC-3** — SPC UCL/LCL wrong (#9): proper p-chart `σ=√(p̄(1−p̄)/n̄)`, pooled centerline, fix interp.
+- [ ] **RC-4** — Pareto: show % per defect on chart + table (#8).
+- [ ] **RC-6** — verify size/weekly/COPQ trends after RC-1; clean if still noisy (#2, #3).
 
-### Tests
-`src/__tests__/`: `store`, `ingest-emit`, `ingest-classify`, `analytics` (+ pre-existing parser/metrics/golden). Reconciled to the GM's real April-2025 numbers.
+## Known good commands
+- `npx tsc --noEmit` · `npm run build` · `npx jest`
+- Dev: `PORT=3000 npm run dev` (Supabase env in `.env.local`).
 
-## 🔜 Next (queued, per plan build order)
-1. **Shell + shared components** (plans 01 + 06): TopBar w/ global Scope filters, LeftNav, StatusBar, DataTrustScore; `ScopeProvider` + `useAnalytics` hook (fetches `/api/events`); chart set (Line/Bar/Pareto/Donut/Sparkline/Gauge) + primitives (KpiCard/StatusCard/DataTable/TrustBadge/EmptyState/LockedModule). Inline SVG, tokens only.
-2. **Dashboard cockpit** (plan 04): compose from selectors + components; cost-gated widgets hidden; empty-states.
-3. **Analytics screens** (plan 05): Stage/Size/Defect shared scaffold; SPC (V1.5).
-
-## ⏳ Not started
-- **Trust/status/narrative selectors** (plan 02 remainder): `trust.ts` (trustScore/auditSummary), `status.ts` (qualityStatus/thresholds + SPC limits), `cost.ts` (copq/savings — cost-gated), `narrative.ts` (de-identified LLM context).
-- **Data Entry full form + Staging publish-to-analytics** (plan 03): extend `StageDayRecord`/emit with `acceptedGood`+`rework`; route `checkRecord` issues into `FindingStore`.
-- **Secondary** (plan 07): Audit Trail, Settings (registry/cost/thresholds), Reports/export, Ask RAS, Process Flow page, COPQ page, CAPA stub.
-- **B-sec**: egress guard + scrubber + local-LLM default (MOID-SPEC §12 / security).
-- **Registry fix**: add Eye Punching stage (effectiveFrom 2025-11-01) → 5 stages per mockup.
-
-## Notes / decisions in force
-- Numbers come only from the analytics engine; screens never compute. One shared component set (no bespoke charts). No fake data — absent data → empty/locked state.
-- Cost (COPQ/savings) hidden until `CostConfig.enabled`. Machine/operator/shift correlation = V2, captured-not-analyzed until enough tagged data.
+## Notes / invariants
+- Numbers come ONLY from `src/lib/analytics/*`; screens never compute. No synthetic data — absent
+  data → explicit "No data" empty state (never assumed splits).
+- Two fiscal years coexist on one timeline: assembly/rejection = FY2025-26, size-wise = FY2026-27.
+- Strict-real: when an uploaded file lacks a size/defect split, the UI must offer manual entry, not invent.
