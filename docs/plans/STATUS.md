@@ -25,7 +25,7 @@ Tests: **160 green**, `tsc` clean, `npm run build` clean.
   `RAIS_AI_BACKEND`, never exclusive; valid `:free` models; `maxRetries:1` fast-fail). Chat
   `src/app/api/chat/route.ts` (slide → text → rule-based fallback; Markdown answers).
 
-## ✅ Done this cycle (Phase 1 + 2 + fixes)
+## ✅ Done this cycle (Phase 1 + 2 + fixes + friend's round-2 issues)
 - Phase 1 durable Supabase ledger (PR #5, merged to main).
 - Phase 2 real parsers + dedupe/merge + seed rewrite (no synthetic weights). 4,520 real events.
 - Stabilized Antigravity handoff (build/types/tests green).
@@ -33,17 +33,10 @@ Tests: **160 green**, `tsc` clean, `npm run build` clean.
 - Ask RAIS: responds + Markdown formatting; AI free-tier chain hardened.
 - **Data verification feature** (`cd656fd`): bigger/cleaner `FloatingDetailModal`, "View Source"
   bezier-beam provenance trace (value → exact source cell), wired for KPIs + stage/defect/size.
+- **Resolved friend's 12 issues** (RC-1 to RC-6): unified date range scopes globally, data-driven size filters, pooled SPC p-chart calculations, defect Pareto percentages + details table, and non-blocking custom field validation UX.
 
-## 🚧 In progress — Round-2 friend issues (plan: 2026-06-19-friend-issues-round2.md)
-Status of the 7 tasks (RC = root cause):
-- [ ] **RC-1 dashboard** — headline metrics ignore date range / break on week-day grain (#4,5,6).
-      Make `m` aggregate over `scope` (selected range); grain only buckets trends.
-- [ ] **RC-1 process-flow + copq pages** — same snapshot bug (#10, #11).
-- [ ] **RC-2** — size dropdown hardcoded 8 vs YTD 11 (#1, #7): derive options from `m.sizes`.
-- [ ] **RC-5** — custom-field add forces Operator/required fill (#12): gate required on submit only.
-- [ ] **RC-3** — SPC UCL/LCL wrong (#9): proper p-chart `σ=√(p̄(1−p̄)/n̄)`, pooled centerline, fix interp.
-- [ ] **RC-4** — Pareto: show % per defect on chart + table (#8).
-- [ ] **RC-6** — verify size/weekly/COPQ trends after RC-1; clean if still noisy (#2, #3).
+## 🚧 In progress
+- None (All planned tasks complete, verified green build and test suite).
 
 ## Known good commands
 - `npx tsc --noEmit` · `npm run build` · `npx jest`

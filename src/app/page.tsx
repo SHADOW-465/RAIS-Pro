@@ -155,53 +155,18 @@ export default function Dashboard() {
     const allPeriods = periodsIn(events, t.grain);
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
-    // Build the scope for trends (historical sequence)
+    // Trends bucket by grain across the selected range.
     const trendScope: Scope = { grain: t.grain, dateFrom: scope.dateFrom, dateTo: scope.dateTo };
 
-    // Build the scope for active period snapshots (filter to latest period only)
-    let snapshotScope: Scope = { grain: t.grain };
-    if (latestPeriod) {
-      if (t.grain === "day") {
-        snapshotScope = { grain: "day", dateFrom: latestPeriod, dateTo: latestPeriod };
-      } else if (t.grain === "month") {
-        // e.g. "2025-05" -> May 2025
-        const [y, mStr] = latestPeriod.split("-");
-        const yNum = Number(y);
-        const mNum = Number(mStr);
-        const lastDay = new Date(yNum, mNum, 0).getDate();
-        snapshotScope = {
-          grain: "month",
-          dateFrom: `${y}-${mStr}-01`,
-          dateTo: `${y}-${mStr}-${String(lastDay).padStart(2, "0")}`
-        };
-      } else if (t.grain === "week") {
-        // e.g. "2025-05-W2" -> Days 8-14 of May 2025
-        const [y, mStr, wStr] = latestPeriod.split("-");
-        const wNum = Number(wStr.replace("W", ""));
-        const dStart = String((wNum - 1) * 7 + 1).padStart(2, "0");
-        const dEnd = String(Math.min(wNum * 7, 31)).padStart(2, "0");
-        snapshotScope = {
-          grain: "week",
-          dateFrom: `${y}-${mStr}-${dStart}`,
-          dateTo: `${y}-${mStr}-${dEnd}`
-        };
-      } else if (t.grain === "fy") {
-        // e.g. "FY2025-26" -> Apr 2025 to Mar 2026
-        const startYear = Number(latestPeriod.match(/FY(\d{4})/) ? latestPeriod.match(/FY(\d{4})/)![1] : "2025");
-        snapshotScope = {
-          grain: "fy",
-          dateFrom: `${startYear}-04-01`,
-          dateTo: `${startYear + 1}-03-31`
-        };
-      }
-    }
-
-    const rate = rejectionRate(events, snapshotScope).value;
-    const rejected = totalRejected(events, snapshotScope).value;
-    const checked = totalChecked(events, snapshotScope).value;
-    const fpyVal = fpy(events, snapshotScope).value;
-    const stages = byStage(events, snapshotScope);
-    const defects = byDefect(events, snapshotScope);
+    // Headline metrics aggregate over the SELECTED date range (scope). Grain only
+    // controls trend bucketing below — so changing the date range moves every tile,
+    // and weekly/daily views are never empty just because the latest period is sparse.
+    const rate = rejectionRate(events, scope).value;
+    const rejected = totalRejected(events, scope).value;
+    const checked = totalChecked(events, scope).value;
+    const fpyVal = fpy(events, scope).value;
+    const stages = byStage(events, scope);
+    const defects = byDefect(events, scope);
     
     // Ensure all 5 stages from mockup are mapped correctly (Visual, Eye Punching, Balloon, Valve, Final)
     const order = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
@@ -220,11 +185,11 @@ export default function Dashboard() {
     });
 
     const weekly = weeklyTrend(events, trendScope);
-    const copqRes = copq(events, snapshotScope);
-    const savings = savingsOpportunity(events, snapshotScope);
-    const trust = trustScore(events, snapshotScope);
-    const audit = auditSummary(events, snapshotScope);
-    const status = qualityStatus(events, snapshotScope);
+    const copqRes = copq(events, scope);
+    const savings = savingsOpportunity(events, scope);
+    const trust = trustScore(events, scope);
+    const audit = auditSummary(events, scope);
+    const status = qualityStatus(events, scope);
     const szTrend = sizeTrend(events, trendScope, selectedSize);
     const cTrend = copqTrend(events, trendScope);
 
@@ -260,10 +225,18 @@ export default function Dashboard() {
       copqTrend: cTrend,
       sizeWiseInsight,
       sizeTrendInsight,
-      snapshotScope,
+      snapshotScope: scope,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
   }, [events, scope, t.grain, selectedSize]);
+
+  // Synchronize selected size with the available sizes dataset
+  useEffect(() => {
+    if (m && m.sizes.length > 0 && !m.sizes.some(s => s.size === selectedSize)) {
+      const worstSize = [...m.sizes].sort((a, b) => b.rejRate - a.rejRate)[0];
+      setSelectedSize(worstSize ? worstSize.size : m.sizes[0].size);
+    }
+  }, [m, selectedSize]);
 
   // Build provenance rows for a metric's "View Source" panel (scoped to the snapshot period).
   const srcRows = (filter: Parameters<typeof toSourceRows>[1] = {}): SourceRow[] =>
@@ -490,7 +463,7 @@ export default function Dashboard() {
               <BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct }))} fmt={(n) => `${n.toFixed(1)}%`} />
             </Card>
             <Card title="Defect Pareto (All Stages)" onClick={() => openModal("Defect Pareto (All Stages)", "Six Sigma Pareto analysis highlighting the vital few defect categories responsible for most rejects.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
-              <ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} />
+              <ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} showTable={false} />
             </Card>
             <Card title="Defect Trend (Top 5)" onClick={() => openModal("Defect Trend (Top 5)", "Historical trends for the top 5 defect categories.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>)}>
               <MultiLine 
@@ -528,7 +501,7 @@ export default function Dashboard() {
                     cursor: "pointer"
                   }}
                 >
-                  {["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"].map((sz) => (
+                  {(m.sizes.length > 0 ? m.sizes.map(s => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => (
                     <option key={sz} value={sz}>{sz}</option>
                   ))}
                 </select>

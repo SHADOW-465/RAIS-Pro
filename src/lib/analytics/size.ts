@@ -3,8 +3,9 @@ import type { SeriesPoint } from "./rejection";
 import type { Event } from "@/lib/store/types";
 
 export function sizeTrend(events: Event[], scope: Scope, size: string): SeriesPoint[] {
-  const ev = scopeEvents(events, scope).filter((e) => "size" in e && (e as any).size === size);
-  const periods = periodsIn(ev, scope.grain);
+  const allEvents = scopeEvents(events, scope);
+  const ev = allEvents.filter((e) => "size" in e && (e as any).size === size);
+  const periods = periodsIn(allEvents, scope.grain);
   return periods.map((p) => {
     const bucket = ev.filter((e) => periodKey(e.occurredOn.start, scope.grain) === p);
     let checked = 0;

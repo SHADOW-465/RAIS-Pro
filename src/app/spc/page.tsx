@@ -128,41 +128,7 @@ export default function SpcPage() {
 
     const trendScope: Scope = { grain: t.grain, dateFrom: scope.dateFrom, dateTo: scope.dateTo };
 
-    let snapshotScope: Scope = { grain: t.grain };
-    if (latestPeriod) {
-      if (t.grain === "day") {
-        snapshotScope = { grain: "day", dateFrom: latestPeriod, dateTo: latestPeriod };
-      } else if (t.grain === "month") {
-        const [y, mStr] = latestPeriod.split("-");
-        const yNum = Number(y);
-        const mNum = Number(mStr);
-        const lastDay = new Date(yNum, mNum, 0).getDate();
-        snapshotScope = {
-          grain: "month",
-          dateFrom: `${y}-${mStr}-01`,
-          dateTo: `${y}-${mStr}-${String(lastDay).padStart(2, "0")}`
-        };
-      } else if (t.grain === "week") {
-        const [y, mStr, wStr] = latestPeriod.split("-");
-        const wNum = Number(wStr.replace("W", ""));
-        const dStart = String((wNum - 1) * 7 + 1).padStart(2, "0");
-        const dEnd = String(Math.min(wNum * 7, 31)).padStart(2, "0");
-        snapshotScope = {
-          grain: "week",
-          dateFrom: `${y}-${mStr}-${dStart}`,
-          dateTo: `${y}-${mStr}-${dEnd}`
-        };
-      } else if (t.grain === "fy") {
-        const startYear = Number(latestPeriod.match(/FY(\d{4})/) ? latestPeriod.match(/FY(\d{4})/)![1] : "2025");
-        snapshotScope = {
-          grain: "fy",
-          dateFrom: `${startYear}-04-01`,
-          dateTo: `${startYear + 1}-03-31`
-        };
-      }
-    }
-
-    const rate = rejectionRate(events, snapshotScope).value;
+    const rate = rejectionRate(events, scope).value;
     const tr = trend(events, trendScope, "rejectionRate");
 
     const checkedTrend = trend(events, trendScope, "totalChecked");

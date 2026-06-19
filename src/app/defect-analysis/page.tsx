@@ -80,41 +80,7 @@ export default function DefectAnalysisPage() {
 
     const trendScope: Scope = { grain: t.grain, dateFrom: scope.dateFrom, dateTo: scope.dateTo };
 
-    let snapshotScope: Scope = { grain: t.grain };
-    if (latestPeriod) {
-      if (t.grain === "day") {
-        snapshotScope = { grain: "day", dateFrom: latestPeriod, dateTo: latestPeriod };
-      } else if (t.grain === "month") {
-        const [y, mStr] = latestPeriod.split("-");
-        const yNum = Number(y);
-        const mNum = Number(mStr);
-        const lastDay = new Date(yNum, mNum, 0).getDate();
-        snapshotScope = {
-          grain: "month",
-          dateFrom: `${y}-${mStr}-01`,
-          dateTo: `${y}-${mStr}-${String(lastDay).padStart(2, "0")}`
-        };
-      } else if (t.grain === "week") {
-        const [y, mStr, wStr] = latestPeriod.split("-");
-        const wNum = Number(wStr.replace("W", ""));
-        const dStart = String((wNum - 1) * 7 + 1).padStart(2, "0");
-        const dEnd = String(Math.min(wNum * 7, 31)).padStart(2, "0");
-        snapshotScope = {
-          grain: "week",
-          dateFrom: `${y}-${mStr}-${dStart}`,
-          dateTo: `${y}-${mStr}-${dEnd}`
-        };
-      } else if (t.grain === "fy") {
-        const startYear = Number(latestPeriod.match(/FY(\d{4})/) ? latestPeriod.match(/FY(\d{4})/)![1] : "2025");
-        snapshotScope = {
-          grain: "fy",
-          dateFrom: `${startYear}-04-01`,
-          dateTo: `${startYear + 1}-03-31`
-        };
-      }
-    }
-
-    const defects = byDefect(events, snapshotScope);
+    const defects = byDefect(events, scope);
     const dt = defectTrend(events, trendScope, 5);
 
     return {
@@ -151,7 +117,7 @@ export default function DefectAnalysisPage() {
           return (
             <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: 20 }}>
               <Card title={`Defect Pareto (${grainLabel})`} onClick={() => openModal(`Defect Pareto (${grainLabel})`, paretoText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={chartData} /></div>)}>
-                <ParetoChart analysis={chartData} />
+                <ParetoChart analysis={chartData} showTable={false} />
               </Card>
 
               <Card title={`Defect Trend (Top 5) (${grainLabel})`} onClick={() => openModal(`Defect Trend (Top 5) (${grainLabel})`, `Historical trends for the top 5 defect categories showing performance changes across periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>)}>

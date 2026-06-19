@@ -28,6 +28,7 @@ export default function DataEntryPage() {
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   // Dynamic, user-defined fields (#8). Each can be flagged required.
   interface CustomField { id: string; label: string; value: string; required: boolean }
@@ -117,6 +118,7 @@ export default function DataEntryPage() {
   const dqBad = dq.some((d) => d.state === "Failed") || blockingErrors.length > 0;
 
   async function submit() {
+    setAttemptedSubmit(true);
     if (blockingErrors.length > 0) { setError(blockingErrors[0]); return; }
     setBusy(true); setError(null);
     const ingestionId = globalThis.crypto?.randomUUID?.() ?? `entry-${Date.now()}`;
@@ -161,7 +163,7 @@ export default function DataEntryPage() {
           {/* header fields */}
           <Section title="Data Entry Form">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-              <Field label="Operator *"><input style={{ ...inp, borderColor: hdr.operator.trim() ? "var(--border)" : "var(--status-bad)" }} value={hdr.operator} onChange={(e) => setHdr({ ...hdr, operator: e.target.value })} placeholder="Required" /></Field>
+              <Field label="Operator *"><input style={{ ...inp, borderColor: attemptedSubmit && !hdr.operator.trim() ? "var(--status-bad)" : "var(--border)" }} value={hdr.operator} onChange={(e) => setHdr({ ...hdr, operator: e.target.value })} placeholder="Required" /></Field>
               <Field label="Supervisor"><input style={inp} value={hdr.supervisor} onChange={(e) => setHdr({ ...hdr, supervisor: e.target.value })} placeholder="Name" /></Field>
               <Field label="Product"><input style={inp} value={hdr.product} onChange={(e) => setHdr({ ...hdr, product: e.target.value })} /></Field>
               <Field label="Size (French)"><input style={inp} value={hdr.size} onChange={(e) => setHdr({ ...hdr, size: e.target.value })} /></Field>
@@ -223,7 +225,7 @@ export default function DataEntryPage() {
               {customFields.map((cf) => (
                 <div key={cf.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto auto", gap: 8, alignItems: "center" }}>
                   <input style={inp} value={cf.label} onChange={(e) => updateField(cf.id, { label: e.target.value })} placeholder="Field name" />
-                  <input style={{ ...inp, borderColor: cf.required && !cf.value.trim() ? "var(--status-bad)" : "var(--border)" }} value={cf.value} onChange={(e) => updateField(cf.id, { value: e.target.value })} placeholder={cf.required ? "Required value" : "Value"} />
+                  <input style={{ ...inp, borderColor: attemptedSubmit && cf.required && !cf.value.trim() ? "var(--status-bad)" : "var(--border)" }} value={cf.value} onChange={(e) => updateField(cf.id, { value: e.target.value })} placeholder={cf.required ? "Required value" : "Value"} />
                   <label className="muted" style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
                     <input type="checkbox" checked={cf.required} onChange={(e) => updateField(cf.id, { required: e.target.checked })} /> Required
                   </label>
@@ -243,7 +245,7 @@ export default function DataEntryPage() {
           <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 24 }}>
             <button onClick={reset} style={ghost}>Reset</button>
             <button onClick={() => { try { localStorage.setItem(`moid_draft_${date}`, JSON.stringify({ hdr, rows, remarks })); } catch {} }} style={{ ...ghost, color: "var(--accent)", borderColor: "var(--accent)" }}>Save as Draft</button>
-            <button onClick={submit} disabled={busy || dqBad} style={{ ...primary, opacity: busy || dqBad ? 0.5 : 1, cursor: busy || dqBad ? "not-allowed" : "pointer" }} title={dqBad ? "Fix logical errors first" : ""}>{busy ? "Saving…" : "Submit & Lock"}</button>
+            <button onClick={submit} disabled={busy} style={{ ...primary, opacity: busy || (attemptedSubmit && dqBad) ? 0.5 : 1, cursor: busy ? "not-allowed" : "pointer" }} title={attemptedSubmit && dqBad ? "Fix logical errors first" : ""}>{busy ? "Saving…" : "Submit & Lock"}</button>
           </div>
         </div>
 
@@ -266,9 +268,9 @@ export default function DataEntryPage() {
             ))}
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border)", fontSize: 13 }}>
               <span style={{ fontWeight: 700 }}>Overall Status</span>
-              <span style={{ color: dqBad ? "var(--status-bad)" : "var(--status-good)", fontWeight: 700 }}>{dqBad ? "Needs fix" : "All Good"}</span>
+              <span style={{ color: (attemptedSubmit && dqBad) ? "var(--status-bad)" : "var(--status-good)", fontWeight: 700 }}>{(attemptedSubmit && dqBad) ? "Needs fix" : "All Good"}</span>
             </div>
-            {blockingErrors.length > 0 && (
+            {attemptedSubmit && blockingErrors.length > 0 && (
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "var(--status-bad)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                   Fix before submitting

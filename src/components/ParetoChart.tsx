@@ -14,6 +14,7 @@ interface ParetoChartProps {
   analysis: ParetoAnalysis;
   /** Limit the number of categories plotted (long tails get noisy). */
   maxItems?: number;
+  showTable?: boolean;
 }
 
 const W = 820;
@@ -40,7 +41,7 @@ function smoothPath(pts: { x: number; y: number }[]): string {
   return d;
 }
 
-export default function ParetoChart({ analysis, maxItems = 10 }: ParetoChartProps) {
+export default function ParetoChart({ analysis, maxItems = 10, showTable = true }: ParetoChartProps) {
   const [hover, setHover] = useState<number | null>(null);
   const items = analysis.items.slice(0, maxItems);
   if (items.length === 0) return null;
@@ -123,19 +124,31 @@ export default function ParetoChart({ analysis, maxItems = 10 }: ParetoChartProp
           const y = yValue(it.value);
           const active = hover === i;
           return (
-            <rect
-              key={`bar-${i}`}
-              x={x}
-              y={y}
-              width={barW}
-              height={PAD.top + PLOT_H - y}
-              fill={it.isVitalFew ? "var(--accent)" : "var(--border-strong)"}
-              opacity={hover === null || active ? 1 : 0.55}
-              rx={2}
-              onMouseEnter={() => setHover(i)}
-              onMouseLeave={() => setHover(null)}
-              style={{ transition: "opacity 0.15s ease" }}
-            />
+            <g key={`bar-group-${i}`}>
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={PAD.top + PLOT_H - y}
+                fill={it.isVitalFew ? "var(--accent)" : "var(--border-strong)"}
+                opacity={hover === null || active ? 1 : 0.55}
+                rx={2}
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(null)}
+                style={{ transition: "opacity 0.15s ease" }}
+              />
+              <text
+                x={xCenter(i)}
+                y={y - 6}
+                fontSize={9}
+                fontWeight={700}
+                textAnchor="middle"
+                fill={it.isVitalFew ? "var(--accent)" : "var(--text-2)"}
+                opacity={hover === null || active ? 1 : 0.55}
+              >
+                {it.contribution.toFixed(1)}%
+              </text>
+            </g>
           );
         })}
 
@@ -226,6 +239,48 @@ export default function ParetoChart({ analysis, maxItems = 10 }: ParetoChartProp
           Cumulative %
         </span>
       </div>
+
+      {showTable && (
+        <div style={{ marginTop: 24, overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left", border: "1px solid var(--border)" }}>
+            <thead>
+              <tr style={{ background: "var(--surface-2)", borderBottom: "2px solid var(--border-strong)" }}>
+                <th style={{ padding: "8px 12px", fontFamily: "var(--font-display)", fontWeight: 700 }}>Rank</th>
+                <th style={{ padding: "8px 12px", fontFamily: "var(--font-display)", fontWeight: 700 }}>Defect Category</th>
+                <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 700 }}>Count</th>
+                <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 700 }}>Contribution %</th>
+                <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 700 }}>Cumulative %</th>
+                <th style={{ padding: "8px 12px", textAlign: "center", fontFamily: "var(--font-display)", fontWeight: 700 }}>Classification</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it, idx) => (
+                <tr key={idx} style={{ borderBottom: "1px solid var(--border)", background: idx % 2 === 1 ? "var(--surface-2)" : "transparent" }}>
+                  <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)" }}>#{it.rank}</td>
+                  <td style={{ padding: "8px 12px", fontWeight: it.isVitalFew ? 600 : 400 }}>{it.label}</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-mono)" }}>{Math.round(it.value)}</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-mono)", color: it.isVitalFew ? "var(--accent)" : "var(--text-2)" }}>{it.contribution.toFixed(1)}%</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-mono)" }}>{it.cumulative.toFixed(1)}%</td>
+                  <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                    <span style={{ 
+                      display: "inline-block", 
+                      padding: "2px 6px", 
+                      borderRadius: 4, 
+                      fontSize: 10.5, 
+                      fontWeight: 700, 
+                      textTransform: "uppercase",
+                      background: it.isVitalFew ? "var(--accent-weak)" : "var(--border-strong)",
+                      color: it.isVitalFew ? "var(--accent)" : "var(--text-3)"
+                    }}>
+                      {it.isVitalFew ? "Vital Few" : "Useful Many"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

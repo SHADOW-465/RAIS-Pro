@@ -82,39 +82,7 @@ export default function SizeAnalysisPage() {
 
     const trendScope: Scope = { grain: t.grain, dateFrom: scope.dateFrom, dateTo: scope.dateTo };
 
-    let snapshotScope: Scope = { grain: t.grain };
-    if (latestPeriod) {
-      if (t.grain === "day") {
-        snapshotScope = { grain: "day", dateFrom: latestPeriod, dateTo: latestPeriod };
-      } else if (t.grain === "month") {
-        const [y, mStr] = latestPeriod.split("-");
-        const yNum = Number(y);
-        const mNum = Number(mStr);
-        const lastDay = new Date(yNum, mNum, 0).getDate();
-        snapshotScope = {
-          grain: "month",
-          dateFrom: `${y}-${mStr}-01`,
-          dateTo: `${y}-${mStr}-${String(lastDay).padStart(2, "0")}`
-        };
-      } else if (t.grain === "week") {
-        const [y, mStr, wStr] = latestPeriod.split("-");
-        const wNum = Number(wStr.replace("W", ""));
-        const dStart = String((wNum - 1) * 7 + 1).padStart(2, "0");
-        const dEnd = String(Math.min(wNum * 7, 31)).padStart(2, "0");
-        snapshotScope = {
-          grain: "week",
-          dateFrom: `${y}-${mStr}-${dStart}`,
-          dateTo: `${y}-${mStr}-${dEnd}`
-        };
-      } else if (t.grain === "fy") {
-        const startYear = Number(latestPeriod.match(/FY(\d{4})/) ? latestPeriod.match(/FY(\d{4})/)![1] : "2025");
-        snapshotScope = {
-          grain: "fy",
-          dateFrom: `${startYear}-04-01`,
-          dateTo: `${startYear + 1}-03-31`
-        };
-      }
-    }
+
 
     const sizes = bySize(events, scope);
     const orderedSizes = [...sizes].sort((a, b) => {
@@ -131,6 +99,14 @@ export default function SizeAnalysisPage() {
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
   }, [events, scope, selectedSize, t.grain]);
+
+  // Synchronize selected size with the available sizes dataset
+  useEffect(() => {
+    if (m && m.sizes.length > 0 && !m.sizes.some(s => s.size === selectedSize)) {
+      const worstSize = [...m.sizes].sort((a, b) => b.rejRate - a.rejRate)[0];
+      setSelectedSize(worstSize ? worstSize.size : m.sizes[0].size);
+    }
+  }, [m, selectedSize]);
 
   const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
 
@@ -192,7 +168,7 @@ export default function SizeAnalysisPage() {
                       cursor: "pointer"
                     }}
                   >
-                    {["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"].map((sz) => (
+                    {(m.sizes.length > 0 ? m.sizes.map(s => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => (
                       <option key={sz} value={sz}>{sz} Catheter</option>
                     ))}
                   </select>
