@@ -69,6 +69,7 @@ function scoreFor(basis: ConfidenceBasis): number {
 
 function envelope(rec: StageDayRecord, cells: string[], header: string, formulaText: string | null, cachedValue: number | string | null) {
   const basis = basisFor(rec.extractedBy);
+  const isDirect = rec.extractedBy === "direct-entry";
   return {
     schemaVersion: SCHEMA_VERSION,
     ingestionId: rec.ingestionId,
@@ -84,6 +85,10 @@ function envelope(rec: StageDayRecord, cells: string[], header: string, formulaT
       formulaText,
       cachedValue,
       externalRef: null,
+      provenance_file: rec.source.file,
+      provenance_coordinate: `${rec.source.sheet}!${cells[0] ?? ""}`,
+      provenance_hash: rec.source.fileHash,
+      is_direct_entry: isDirect,
     },
     confidence: { score: scoreFor(basis), basis },
     extractedBy: rec.extractedBy,

@@ -53,9 +53,18 @@ export default function AppShell({
   const [showPicker, setShowPicker] = useState(false);
   const [analyticsExpanded] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    fetch("/api/schema")
+      .then((res) => res.json())
+      .then((data) => {
+        setIsConfigured(data.configured !== false);
+      })
+      .catch(() => {
+        setIsConfigured(true);
+      });
   }, []);
 
   // Export the canonical ledger as a CSV (ALCOA+ audit extract). Pulls the live
@@ -584,9 +593,88 @@ export default function AppShell({
         gridArea: "main", 
         overflowY: "auto", 
         padding: "24px",
-        background: "var(--bg)"
+        background: "var(--bg)",
+        position: "relative"
       }}>
-        {children}
+        {isConfigured === false && active !== "staging" && active !== "settings" && active !== "clear-data" ? (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "70vh",
+            width: "100%"
+          }}>
+            <div style={{
+              background: "var(--paper)",
+              border: "2px solid var(--ink)",
+              borderRadius: "var(--radius-lg)",
+              padding: "40px",
+              boxShadow: "8px 8px 0px var(--ink)",
+              maxWidth: "600px",
+              width: "100%",
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 20
+            }}>
+              <div style={{
+                background: "color-mix(in srgb, var(--status-bad) 12%, transparent)",
+                color: "var(--status-bad)",
+                border: "2px solid var(--ink)",
+                borderRadius: "50%",
+                width: 64,
+                height: 64,
+                display: "grid",
+                placeItems: "center",
+                boxShadow: "3px 3px 0 var(--ink)"
+              }}>
+                <Icon name="alert" size={32} />
+              </div>
+              <h2 style={{ fontFamily: "var(--font-display)", fontSize: 26, margin: 0, color: "var(--ink)", fontWeight: 800 }}>
+                Cockpit Locked
+              </h2>
+              <p style={{ fontSize: 14, color: "var(--text-2)", lineHeight: "1.6", margin: 0 }}>
+                The manufacturing cockpit is currently unconfigured. No plant-wide schema, stages, or defect types have been established in the database ledger.
+              </p>
+              <div style={{
+                background: "var(--surface-2)",
+                border: "1.5px solid var(--border-strong)",
+                borderRadius: "var(--radius-md)",
+                padding: "14px 18px",
+                fontSize: 13,
+                color: "var(--text-2)",
+                textAlign: "left",
+                fontFamily: "var(--font-sans)",
+                margin: "10px 0",
+                borderStyle: "dashed"
+              }}>
+                <strong>Administrative Action Required:</strong> Ingest a pristine master workbook on the Staging page to extract your manufacturing line's stages and defects and unlock all analytics.
+              </div>
+              <button 
+                onClick={() => router.push("/staging")}
+                style={{
+                  background: "var(--accent)",
+                  color: "#fff",
+                  border: "2px solid var(--ink)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "12px 28px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  boxShadow: "4px 4px 0 var(--ink)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8
+                }}
+              >
+                <Icon name="upload" size={16} /> Establish Master Schema Configuration
+              </button>
+            </div>
+          </div>
+        ) : (
+          children
+        )}
       </main>
 
       {/* Footer Status Bar */}

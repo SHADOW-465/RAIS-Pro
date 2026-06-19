@@ -262,7 +262,7 @@ export default function DataEntryPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ color: "var(--text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  <th style={{ ...eth, textAlign: "left" }}>Stage</th><th style={eth}>Input</th><th style={eth}>Good</th><th style={eth}>Rework</th><th style={eth}>Rejected</th><th style={eth}>Rej %</th><th style={eth}>Inspection By</th><th style={eth}>Remarks</th>
+                  <th style={{ ...eth, textAlign: "left" }}>Stage</th><th style={eth}>Input</th><th style={eth}>Good</th><th style={eth}>Rework</th><th style={eth}>Rejected</th><th style={eth}>Rej %</th><th style={{ ...eth, textAlign: "center" }}>Balance Check</th><th style={eth}>Inspection By</th><th style={eth}>Remarks</th>
                 </tr>
               </thead>
               <tbody>
@@ -280,6 +280,15 @@ export default function DataEntryPage() {
                   const rej = num(rejectedStr);
                   const pct = input && rej != null ? (rej / input) * 100 : null;
                   const bad = input != null && rej != null && rej > input;
+
+                  // Balance calculations
+                  const goodVal = num(r.good) ?? 0;
+                  const reworkVal = num(r.rework) ?? 0;
+                  const rejVal = rej ?? 0;
+                  const inputVal = input ?? 0;
+                  const balanceSum = goodVal + reworkVal + rejVal;
+                  const isBalanced = inputVal === balanceSum;
+
                   return (
                     <React.Fragment key={id}>
                       <tr style={{ borderTop: "1px solid var(--border)" }}>
@@ -314,6 +323,25 @@ export default function DataEntryPage() {
                           )}
                         </td>
                         <td style={{ ...etd, fontFamily: "var(--font-mono)", color: bad ? "var(--status-bad)" : pct != null && pct > 5 ? "var(--status-warn)" : "var(--text)" }}>{pct != null ? `${pct.toFixed(2)}%` : "—"}</td>
+                        
+                        {/* Live Balance Check Display */}
+                        <td style={{ ...etd, textAlign: "center" }}>
+                          {num(r.input) != null && (
+                            <span style={{ 
+                              fontFamily: "var(--font-mono)", 
+                              fontSize: 10.5, 
+                              fontWeight: 700,
+                              color: isBalanced ? "var(--status-good)" : "var(--status-bad)",
+                              background: isBalanced ? "color-mix(in srgb, var(--status-good) 8%, transparent)" : "color-mix(in srgb, var(--status-bad) 8%, transparent)",
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                              border: isBalanced ? "1px solid color-mix(in srgb, var(--status-good) 30%, transparent)" : "1px solid color-mix(in srgb, var(--status-bad) 30%, transparent)"
+                            }}>
+                              {inputVal} = {goodVal} + {reworkVal} + {rejVal}
+                            </span>
+                          )}
+                        </td>
+                        
                         <td style={etd}><input style={{ ...inp, width: 110 }} value={r.by} onChange={(e) => setCell(id, "by", e.target.value)} placeholder="Initials" /></td>
                         <td style={etd}>
                           <button onClick={() => setOpenRemark(openRemark === id ? null : id)} style={{ background: remarks[id]?.trim() ? "var(--accent)" : "var(--surface-2)", color: remarks[id]?.trim() ? "#fff" : "var(--text-2)", border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer" }}><Icon name="comment" size={13} /></button>
@@ -321,7 +349,7 @@ export default function DataEntryPage() {
                       </tr>
                       {hasDefects && isExpanded && (
                         <tr style={{ background: "var(--surface-2)" }}>
-                          <td colSpan={8} style={{ padding: "12px 16px", borderBottom: "1.5px solid var(--border)", textAlign: "left" }}>
+                          <td colSpan={9} style={{ padding: "12px 16px", borderBottom: "1.5px solid var(--border)", textAlign: "left" }}>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
                               {stageDefects.map((df: any) => (
                                 <label key={df.defectCode} style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 120 }}>

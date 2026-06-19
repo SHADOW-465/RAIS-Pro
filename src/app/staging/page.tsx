@@ -9,9 +9,9 @@ import AppShell from "@/components/app/AppShell";
 import { Card, Empty } from "@/components/app/widgets";
 import UploadZone from "@/components/UploadZone";
 import Icon from "@/components/editorial/Icon";
-import { classifyRejectionSheets } from "@/lib/ingest/from-rejection-sheets";
 import { buildReviewRows, reviewSummary, applyEdit } from "@/lib/ingest/review";
 import type { StageDayRecord } from "@/lib/ingest/emit";
+import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 
 export default function StagingPage() {
   const router = useRouter();
@@ -34,12 +34,44 @@ export default function StagingPage() {
   // ref map for scrolling to rows
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
 
+  // Master Schema Lifecycles
+  const [activeRegistry, setActiveRegistry] = useState<any>(null);
+  const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
+  const [isMasterMode, setIsMasterMode] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/schema")
+      .then(res => res.json())
+      .then(data => {
+        if (data.configured) {
+          setActiveRegistry(data.registry);
+          setIsConfigured(true);
+          setIsMasterMode(false);
+        } else {
+          setIsConfigured(false);
+          setIsMasterMode(true); // force master schema mode if not configured!
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load active registry:", err);
+        setIsConfigured(true);
+      });
+  }, []);
+
   const rows = useMemo(() => buildReviewRows(records), [records]);
   const summary = useMemo(() => reviewSummary(rows), [rows]);
   const totals = useMemo(() => {
-    let input = 0, rejected = 0; for (const r of rows) { input += r.checked ?? 0; rejected += r.rejected ?? 0; }
+    let input = 0, rejected = 0; 
+    for (const r of rows) { 
+      input += r.checked ?? 0; 
+      rejected += r.rejected ?? 0; 
+    }
     return { input, rejected, rejPct: input ? (rejected / input) * 100 : 0 };
   }, [rows]);
+
+  const registryToUse = activeRegistry || DISPOSAFE_REGISTRY;
+  const defectsList = registryToUse.defects;
+  const totalCols = 11 + defectsList.length;
 
   async function handleUpload(files: File[]) {
     setError(null); setDone(null); setComments({}); setEditingCommentRow(null); setExtractedSchema(null);
@@ -50,23 +82,54 @@ export default function StagingPage() {
       const xlsx = await import("xlsx");
       const wb = xlsx.read(arrayBuffer, { type: "array" });
 
+      // 1. Post raw file to server to be archived and secure cryptohash
+      const formData = new FormData();
+      formData.append("file", file);
+      const archiveRes = await fetch("/api/archive-upload", { method: "POST", body: formData });
+      if (!archiveRes.ok) throw new Error("Failed to archive workbook on server.");
+      const { fileHash } = await archiveRes.json();
+
       const { extractSchemaFromWorkbook, classifyWithSchema } = await import("@/lib/ingest/schema-extractor");
       const schema = extractSchemaFromWorkbook(wb, file.name);
+
+      // Enforce master registry staging filters if in data workbook mode
+      if (!isMasterMode) {
+        if (!activeRegistry) {
+          throw new Error("No master schema configured. Please upload a pristine master workbook first.");
+        }
+        const masterStageIds = activeRegistry.stages.map((s: any) => s.stageId);
+        schema.stages = schema.stages.filter((s: any) => masterStageIds.includes(s.stageId));
+        if (schema.stages.length === 0) {
+          throw new Error("The uploaded data workbook does not match the established master configuration stages.");
+        }
+      }
+
       setExtractedSchema(schema);
 
       const { parseExcelFilesWithRaw } = await import("@/lib/parser");
       const { rawSheets } = await parseExcelFilesWithRaw(files);
 
-      let records = classifyWithSchema(rawSheets, schema, ingestionId);
-      if (records.length === 0) {
+      let classifiedRecords = classifyWithSchema(rawSheets, schema, ingestionId);
+      if (classifiedRecords.length === 0) {
         const { classifyRejectionSheets } = await import("@/lib/ingest/from-rejection-sheets");
         const res = classifyRejectionSheets(rawSheets, ingestionId);
-        records = res.records;
+        classifiedRecords = res.records;
       }
-      setRecords(records);
+
+      // Append file cryptographic hash metadata
+      classifiedRecords = classifiedRecords.map(r => ({
+        ...r,
+        source: {
+          ...r.source,
+          fileHash
+        }
+      }));
+
+      setRecords(classifiedRecords);
       setFileName(file.name);
+
       // Jump to the page containing the first invalid row
-      const reviewedRows = buildReviewRows(records);
+      const reviewedRows = buildReviewRows(classifiedRecords);
       const firstInvalidGlobalIdx = reviewedRows.findIndex(r => r.status === "invalid");
       if (firstInvalidGlobalIdx >= 0) {
         setPage(Math.floor(firstInvalidGlobalIdx / PAGE_SIZE));
@@ -74,13 +137,18 @@ export default function StagingPage() {
         setPage(0);
       }
 
-      // Auto-save active schema to registry database if valid stages exist
-      if (schema && schema.stages.length > 0) {
-        await fetch("/api/schema", {
+      // Auto-save active schema to registry database if in master configuration mode
+      if (isMasterMode && schema && schema.stages.length > 0) {
+        const regRes = await fetch("/api/schema", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ schema })
-        }).catch(err => console.warn("Failed to auto-save schema registry:", err));
+        });
+        const regData = await regRes.json();
+        if (regData.success) {
+          setActiveRegistry(regData.registry);
+          setIsConfigured(true);
+        }
       }
     } catch (e: any) {
       console.error("File upload reading error:", e);
@@ -96,7 +164,7 @@ export default function StagingPage() {
     }
   }
 
-  const handleCellChange = (recordIndex: number, field: "checked" | "rejected", valString: string) => {
+  const handleCellChange = (recordIndex: number, field: string, valString: string) => {
     const val = valString === "" ? 0 : Number(valString);
     if (isNaN(val) || val < 0) return;
     setRecords((prev) => applyEdit(prev, recordIndex, field, val));
@@ -120,13 +188,6 @@ export default function StagingPage() {
   async function publish() {
     setBusy(true); setError(null);
     try {
-      if (extractedSchema) {
-        await fetch("/api/schema", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ schema: extractedSchema })
-        });
-      }
       const res = await fetch("/api/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,7 +207,7 @@ export default function StagingPage() {
   ] as { label: string; state: "Passed" | "Warning" | "Failed" }[];
 
   const gridInputStyle: React.CSSProperties = {
-    width: "90px",
+    width: "80px",
     textAlign: "right",
     border: "1px solid var(--border-strong)",
     borderRadius: "var(--radius-sm)",
@@ -167,12 +228,10 @@ export default function StagingPage() {
     setFocusedInvalidIdx(clamped);
     const target = invalidRows[clamped];
     if (!target) return;
-    // find position in full sorted rows array
     const globalIdx = rows.findIndex(r => r.recordIndex === target.recordIndex);
     if (globalIdx < 0) return;
     const targetPage = Math.floor(globalIdx / PAGE_SIZE);
     setPage(targetPage);
-    // scroll after render
     setTimeout(() => {
       const el = rowRefs.current.get(target.recordIndex);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -192,8 +251,43 @@ export default function StagingPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 18 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Card title="Upload" sub="raw rejection workbook (.xlsx / .csv) — convenience only">
-            <UploadZone onUpload={handleUpload} />
+          <Card 
+            title="Upload" 
+            sub="Ingest raw workbook (.xlsx) — establishes layout or logs production entries"
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <UploadZone onUpload={handleUpload} />
+              
+              {/* Master Schema Registry Toggle */}
+              <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 8, 
+                padding: "10px 14px", 
+                background: "var(--surface-2)", 
+                borderRadius: "var(--radius-md)",
+                border: "1.5px solid var(--border-strong)",
+                borderStyle: isConfigured === false ? "dashed" : "solid",
+                borderColor: isConfigured === false ? "var(--status-bad)" : "var(--border-strong)"
+              }}>
+                <input 
+                  type="checkbox"
+                  id="masterMode"
+                  checked={isMasterMode}
+                  disabled={isConfigured === false}
+                  onChange={(e) => setIsMasterMode(e.target.checked)}
+                  style={{ width: 15, height: 15, cursor: isConfigured === false ? "not-allowed" : "pointer" }}
+                />
+                <label htmlFor="masterMode" style={{ fontSize: 13, fontWeight: 700, cursor: isConfigured === false ? "not-allowed" : "pointer" }}>
+                  Register as Master Workbook
+                  {isConfigured === false && (
+                    <span style={{ color: "var(--status-bad)", marginLeft: 6, fontWeight: 800 }}>
+                      (Required: App Cockpit is Unconfigured)
+                    </span>
+                  )}
+                </label>
+              </div>
+            </div>
           </Card>
 
           {/* ─── Invalid-row Error Navigator ─────────────────────────────────── */}
@@ -306,27 +400,39 @@ export default function StagingPage() {
           <Card title="Staging Area (Verify & Approve Records)" sub={fileName || "no file yet"}>
             {rows.length === 0 ? <Empty label="Upload a file to review extracted, recomputed records here." /> : (
               <>
-                <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                  <thead><tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10, textTransform: "uppercase" }}>
-                    <th style={sth}>#</th>
-                    <th style={sth}>Date</th>
-                    <th style={sth}>Stage</th>
-                    <th style={{ ...sth, textAlign: "right" }}>Input (Checked)</th>
-                    <th style={{ ...sth, textAlign: "right" }}>Rejected</th>
-                    <th style={{ ...sth, textAlign: "right" }}>Rej %</th>
-                    <th style={sth}>Status</th>
-                    <th style={{ ...sth, textAlign: "center" }}>Comment</th>
-                  </tr></thead>
-                  <tbody>
-                    {rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r, idx) => {
-                      const i = page * PAGE_SIZE + idx;
-                      const hasComment = !!comments[r.recordIndex]?.trim();
-                      const isInvalid = r.status === "invalid";
-                      const isCorrected = r.status === "corrected";
-                      const flagsExpanded = expandedFlagsRow === r.recordIndex;
-                      const isSwappable = isInvalid && r.flags.some(f => f.toLowerCase().includes("exceeds checked"));
-                      return (
-                        <>
+                {/* Horizontal scroll container for full editability */}
+                <div style={{ overflowX: "auto", width: "100%", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", marginBottom: 12 }}>
+                  <table style={{ width: "100%", minWidth: "1200px", fontSize: 12, borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10, textTransform: "uppercase", background: "var(--surface-2)" }}>
+                        <th style={{ ...sth, minWidth: 40 }}>#</th>
+                        <th style={{ ...sth, minWidth: 90 }}>Date</th>
+                        <th style={{ ...sth, minWidth: 130 }}>Stage</th>
+                        <th style={{ ...sth, textAlign: "right", minWidth: 90 }}>Input (Checked)</th>
+                        <th style={{ ...sth, textAlign: "right", minWidth: 90 }}>Good</th>
+                        <th style={{ ...sth, textAlign: "right", minWidth: 90 }}>Rework</th>
+                        <th style={{ ...sth, textAlign: "right", minWidth: 90 }}>Rejected</th>
+                        <th style={{ ...sth, textAlign: "right", minWidth: 70 }}>Rej %</th>
+                        <th style={{ ...sth, textAlign: "center", minWidth: 155 }}>Balance Check</th>
+                        {defectsList.map((d: any) => (
+                          <th key={d.defectCode} style={{ ...sth, textAlign: "right", minWidth: 65 }} title={d.label}>
+                            {d.defectCode}
+                          </th>
+                        ))}
+                        <th style={{ ...sth, minWidth: 100 }}>Status</th>
+                        <th style={{ ...sth, textAlign: "center", minWidth: 50 }}>Comment</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r, idx) => {
+                        const i = page * PAGE_SIZE + idx;
+                        const hasComment = !!comments[r.recordIndex]?.trim();
+                        const isInvalid = r.status === "invalid";
+                        const isCorrected = r.status === "corrected";
+                        const flagsExpanded = expandedFlagsRow === r.recordIndex;
+                        const isSwappable = isInvalid && r.flags.some(f => f.toLowerCase().includes("exceeds checked"));
+                        
+                        return (
                           <tr
                             key={r.recordIndex}
                             ref={(el) => { if (el) rowRefs.current.set(r.recordIndex, el); else rowRefs.current.delete(r.recordIndex); }}
@@ -340,6 +446,8 @@ export default function StagingPage() {
                             <td style={std}>{i + 1}</td>
                             <td style={{ ...std, fontFamily: "var(--font-mono)" }}>{r.date}</td>
                             <td style={std}>{r.stageLabel}</td>
+                            
+                            {/* Editable Quantities */}
                             <td style={{ ...std, textAlign: "right" }}>
                               <input
                                 type="number"
@@ -351,14 +459,78 @@ export default function StagingPage() {
                             <td style={{ ...std, textAlign: "right" }}>
                               <input
                                 type="number"
+                                value={r.acceptedGood ?? ""}
+                                onChange={(e) => handleCellChange(r.recordIndex, "acceptedGood", e.target.value)}
+                                style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                              />
+                            </td>
+                            <td style={{ ...std, textAlign: "right" }}>
+                              <input
+                                type="number"
+                                value={r.rework ?? ""}
+                                onChange={(e) => handleCellChange(r.recordIndex, "rework", e.target.value)}
+                                style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                              />
+                            </td>
+                            <td style={{ ...std, textAlign: "right" }}>
+                              <input
+                                type="number"
                                 value={r.rejected ?? ""}
                                 onChange={(e) => handleCellChange(r.recordIndex, "rejected", e.target.value)}
                                 style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
                               />
                             </td>
+                            
                             <td style={{ ...std, textAlign: "right", fontFamily: "var(--font-mono)", paddingRight: "12px" }}>
                               {r.correctedPct != null ? `${r.correctedPct.toFixed(2)}%` : "—"}
                             </td>
+                            
+                            {/* Equation Balance Status */}
+                            <td style={{ ...std, textAlign: "center" }}>
+                              {(() => {
+                                const sum = (r.acceptedGood ?? 0) + (r.rework ?? 0) + (r.rejected ?? 0);
+                                const isBalanced = r.checked === sum;
+                                return (
+                                  <span style={{ 
+                                    fontFamily: "var(--font-mono)", 
+                                    fontSize: 10.5, 
+                                    fontWeight: 700,
+                                    color: isBalanced ? "var(--status-good)" : "var(--status-bad)",
+                                    background: isBalanced ? "color-mix(in srgb, var(--status-good) 8%, transparent)" : "color-mix(in srgb, var(--status-bad) 8%, transparent)",
+                                    padding: "3px 6px",
+                                    borderRadius: 5,
+                                    border: isBalanced ? "1px solid color-mix(in srgb, var(--status-good) 30%, transparent)" : "1px solid color-mix(in srgb, var(--status-bad) 30%, transparent)"
+                                  }}>
+                                    {r.checked ?? 0} = {r.acceptedGood ?? 0} + {r.rework ?? 0} + {r.rejected ?? 0}
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                            
+                            {/* Dynamic Defect Cells */}
+                            {defectsList.map((d: any) => {
+                              const isApplicable = d.stages.includes(r.stageId);
+                              const defectVal = r.defects.find(df => df.raw === d.label || df.raw === d.defectCode)?.value ?? 0;
+                              return (
+                                <td key={d.defectCode} style={{ ...std, textAlign: "right" }}>
+                                  <input
+                                    type="number"
+                                    disabled={!isApplicable}
+                                    value={isApplicable ? (defectVal || "") : ""}
+                                    onChange={(e) => handleCellChange(r.recordIndex, d.label, e.target.value)}
+                                    style={{ 
+                                      ...gridInputStyle, 
+                                      width: "55px", 
+                                      borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)",
+                                      opacity: isApplicable ? 1 : 0.25,
+                                      background: isApplicable ? "var(--bg)" : "var(--surface-2)",
+                                      cursor: isApplicable ? "text" : "not-allowed"
+                                    }}
+                                  />
+                                </td>
+                              );
+                            })}
+
                             <td style={{ ...std, fontWeight: 600 }}>
                               {isInvalid ? (
                                 <button
@@ -397,56 +569,12 @@ export default function StagingPage() {
                               </button>
                             </td>
                           </tr>
-                          {/* Inline flag expansion row */}
-                          {flagsExpanded && isInvalid && (
-                            <tr key={`${r.recordIndex}-flags`} style={{ background: "color-mix(in srgb, var(--status-bad) 5%, var(--surface-2))" }}>
-                              <td colSpan={8} style={{ padding: "10px 14px 12px", borderBottom: "2px solid var(--status-bad)" }}>
-                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: "var(--status-bad)", letterSpacing: "0.05em", marginBottom: 6 }}>
-                                      Validation issues on this row:
-                                    </div>
-                                    {r.flags.map((flag, fi) => (
-                                      <div key={fi} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 4, fontSize: 12.5, color: "var(--text)" }}>
-                                        <span style={{ color: "var(--status-bad)", fontWeight: 800, flexShrink: 0, marginTop: 1 }}>⚠</span>
-                                        <span>{flag}</span>
-                                      </div>
-                                    ))}
-                                    <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--text-3)" }}>
-                                      Fix the values in the Input or Rejected columns on this row, then the status will update automatically.
-                                    </div>
-                                  </div>
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0, alignItems: "flex-end" }}>
-                                    {isSwappable && (
-                                      <button
-                                        onClick={() => { handleSwapCheckedRejected(r.recordIndex); setExpandedFlagsRow(null); }}
-                                        style={{
-                                          fontSize: 12, fontWeight: 700, padding: "6px 14px", borderRadius: 7, cursor: "pointer",
-                                          border: "1.5px solid var(--status-warn)",
-                                          background: "color-mix(in srgb, var(--status-warn) 14%, var(--surface))",
-                                          color: "var(--status-warn)",
-                                          whiteSpace: "nowrap",
-                                        }}
-                                      >
-                                        ⇅ Auto-fix: swap Input ↔ Rejected
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={() => setExpandedFlagsRow(null)}
-                                      style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, cursor: "pointer", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text-2)" }}
-                                    >
-                                      Dismiss
-                                    </button>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
                 {editingCommentRow !== null && (
                   <div style={{ marginTop: 16, padding: 12, border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface-2)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13, fontWeight: 700 }}>
@@ -485,7 +613,7 @@ export default function StagingPage() {
                   return (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
                       <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>Showing {from}–{to} of {rows.length.toLocaleString()} records</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
                         <button disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} style={pgBtn(page === 0)}>‹ Prev</button>
                         <span style={{ fontSize: 11.5, fontWeight: 700 }}>{page + 1} / {totalPages}</span>
                         <button disabled={page >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} style={pgBtn(page >= totalPages - 1)}>Next ›</button>
@@ -697,7 +825,6 @@ export default function StagingPage() {
                                 ))}
                               </div>
                             </div>
-
                           </div>
                         </div>
                       </div>

@@ -66,6 +66,10 @@ export class SupabaseEventStore implements EventStore {
       extracted_by: e.extractedBy,
       recorded_at: e.recordedAt,
       superseded_by: e.supersededBy,
+      provenance_file: e.provenance.provenance_file ?? null,
+      provenance_coordinate: e.provenance.provenance_coordinate ?? null,
+      provenance_hash: e.provenance.provenance_hash ?? null,
+      is_direct_entry: e.provenance.is_direct_entry ?? false,
       payload: getPayload(e),
     }));
 

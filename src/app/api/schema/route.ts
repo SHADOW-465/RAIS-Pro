@@ -31,11 +31,12 @@ export async function GET(req: NextRequest) {
           fiscalYearStartMonth: data.fiscal_year_start_month,
           stages: data.stages,
           defects: data.defects,
-        }
+        },
+        configured: true
       });
     }
 
-    return NextResponse.json({ registry: DISPOSAFE_REGISTRY });
+    return NextResponse.json({ registry: DISPOSAFE_REGISTRY, configured: false });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? "Failed to load registry" }, { status: 500 });
   }
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      configured: true,
       registry: {
         clientId: "disposafe",
         registryVersion: "1.0.0",

@@ -48,6 +48,10 @@ export const Provenance = z.object({
   formulaText: z.string().nullable(),
   cachedValue: z.union([z.string(), z.number()]).nullable(),
   externalRef: z.string().nullable(), // e.g. "[2]MAY25 PRIMARY OUTPUT!$E$36"
+  provenance_file: z.string().optional(),
+  provenance_coordinate: z.string().optional(),
+  provenance_hash: z.string().optional(),
+  is_direct_entry: z.boolean().optional(),
 });
 
 export const ConfidenceBasis = z.enum([
