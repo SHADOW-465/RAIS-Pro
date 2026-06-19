@@ -3,7 +3,7 @@
 // Staging & Review (mockup 3). Upload raw files (the only place upload lives),
 // review the recomputed extraction, then Publish to Analytics → dashboard.
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import { Card, Empty } from "@/components/app/widgets";
@@ -27,6 +27,12 @@ export default function StagingPage() {
   const [editingCommentRow, setEditingCommentRow] = useState<number | null>(null);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 45;
+  // tracks which invalid record index is currently focused in the error navigator
+  const [focusedInvalidIdx, setFocusedInvalidIdx] = useState(0);
+  // which row's flags are expanded inline
+  const [expandedFlagsRow, setExpandedFlagsRow] = useState<number | null>(null);
+  // ref map for scrolling to rows
+  const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
 
   const rows = useMemo(() => buildReviewRows(records), [records]);
   const summary = useMemo(() => reviewSummary(rows), [rows]);
@@ -37,6 +43,7 @@ export default function StagingPage() {
 
   async function handleUpload(files: File[]) {
     setError(null); setDone(null); setComments({}); setEditingCommentRow(null); setExtractedSchema(null);
+    setFocusedInvalidIdx(0); setExpandedFlagsRow(null);
     try {
       const file = files[0];
       const arrayBuffer = await file.arrayBuffer();
@@ -58,6 +65,14 @@ export default function StagingPage() {
       }
       setRecords(records);
       setFileName(file.name);
+      // Jump to the page containing the first invalid row
+      const reviewedRows = buildReviewRows(records);
+      const firstInvalidGlobalIdx = reviewedRows.findIndex(r => r.status === "invalid");
+      if (firstInvalidGlobalIdx >= 0) {
+        setPage(Math.floor(firstInvalidGlobalIdx / PAGE_SIZE));
+      } else {
+        setPage(0);
+      }
 
       // Auto-save active schema to registry database if valid stages exist
       if (schema && schema.stages.length > 0) {
@@ -85,6 +100,21 @@ export default function StagingPage() {
     const val = valString === "" ? 0 : Number(valString);
     if (isNaN(val) || val < 0) return;
     setRecords((prev) => applyEdit(prev, recordIndex, field, val));
+  };
+
+  /** Swap checked ↔ rejected for a single record (fixes the most common error) */
+  const handleSwapCheckedRejected = (recordIndex: number) => {
+    setRecords((prev) => prev.map((rec, i) => {
+      if (i !== recordIndex) return rec;
+      const checkedVal = rec.checked?.value ?? 0;
+      const rejectedVal = rec.rejected?.value ?? 0;
+      return {
+        ...rec,
+        checked: rec.checked ? { ...rec.checked, value: rejectedVal } : { value: rejectedVal, cell: `EDIT!checked`, header: "Checked" },
+        rejected: rec.rejected ? { ...rec.rejected, value: checkedVal } : { value: checkedVal, cell: `EDIT!rejected`, header: "Rejected" },
+        extractedBy: "direct-entry",
+      };
+    }));
   };
 
   async function publish() {
@@ -128,6 +158,27 @@ export default function StagingPage() {
     outline: "none"
   };
 
+  // Derived invalid row list for error navigator
+  const invalidRows = useMemo(() => rows.filter(r => r.status === "invalid"), [rows]);
+
+  // When navigating to a focused invalid row: jump page and scroll to it
+  const jumpToInvalid = (navIdx: number) => {
+    const clamped = Math.max(0, Math.min(navIdx, invalidRows.length - 1));
+    setFocusedInvalidIdx(clamped);
+    const target = invalidRows[clamped];
+    if (!target) return;
+    // find position in full sorted rows array
+    const globalIdx = rows.findIndex(r => r.recordIndex === target.recordIndex);
+    if (globalIdx < 0) return;
+    const targetPage = Math.floor(globalIdx / PAGE_SIZE);
+    setPage(targetPage);
+    // scroll after render
+    setTimeout(() => {
+      const el = rowRefs.current.get(target.recordIndex);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  };
+
   return (
     <AppShell active="staging" statusCounts={{ anomalies: summary.invalid + summary.corrected }}>
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 800, margin: "0 0 2px" }}>Staging &amp; Review</h1>
@@ -145,6 +196,113 @@ export default function StagingPage() {
             <UploadZone onUpload={handleUpload} />
           </Card>
 
+          {/* ─── Invalid-row Error Navigator ─────────────────────────────────── */}
+          {invalidRows.length > 0 && (
+            <div style={{
+              border: "1.5px solid var(--status-bad)",
+              borderRadius: "var(--radius-md)",
+              background: "color-mix(in srgb, var(--status-bad) 6%, var(--surface))",
+              overflow: "hidden",
+            }}>
+              {/* header bar */}
+              <div style={{
+                padding: "10px 16px",
+                background: "color-mix(in srgb, var(--status-bad) 14%, var(--surface-2))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderBottom: "1px solid color-mix(in srgb, var(--status-bad) 22%, transparent)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Icon name="alert" size={14} style={{ color: "var(--status-bad)", flexShrink: 0 }} />
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "var(--status-bad)" }}>
+                    {invalidRows.length} Invalid Row{invalidRows.length !== 1 ? "s" : ""} — must fix before publishing
+                  </span>
+                </div>
+                {/* prev / next navigator */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <button
+                    disabled={focusedInvalidIdx === 0}
+                    onClick={() => jumpToInvalid(focusedInvalidIdx - 1)}
+                    style={{ padding: "3px 9px", fontSize: 11.5, fontWeight: 700, border: "1px solid var(--border-strong)", borderRadius: 6, background: "var(--bg)", color: "var(--text-2)", cursor: focusedInvalidIdx === 0 ? "not-allowed" : "pointer", opacity: focusedInvalidIdx === 0 ? 0.4 : 1 }}
+                  >‹ Prev</button>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, fontFamily: "var(--font-mono)", minWidth: 50, textAlign: "center" }}>
+                    {focusedInvalidIdx + 1} / {invalidRows.length}
+                  </span>
+                  <button
+                    disabled={focusedInvalidIdx >= invalidRows.length - 1}
+                    onClick={() => jumpToInvalid(focusedInvalidIdx + 1)}
+                    style={{ padding: "3px 9px", fontSize: 11.5, fontWeight: 700, border: "1px solid var(--border-strong)", borderRadius: 6, background: "var(--bg)", color: "var(--text-2)", cursor: focusedInvalidIdx >= invalidRows.length - 1 ? "not-allowed" : "pointer", opacity: focusedInvalidIdx >= invalidRows.length - 1 ? 0.4 : 1 }}
+                  >Next ›</button>
+                </div>
+              </div>
+              {/* error list — all invalid rows scrollable */}
+              <div style={{ maxHeight: 220, overflowY: "auto", padding: "6px 0" }}>
+                {invalidRows.map((r, navIdx) => {
+                  const globalIdx = rows.findIndex(rr => rr.recordIndex === r.recordIndex);
+                  const isFocused = navIdx === focusedInvalidIdx;
+                  const isSwappable = r.flags.some(f => f.toLowerCase().includes("exceeds checked"));
+                  return (
+                    <div
+                      key={r.recordIndex}
+                      style={{
+                        padding: "8px 16px",
+                        borderBottom: "1px solid color-mix(in srgb, var(--status-bad) 12%, transparent)",
+                        background: isFocused ? "color-mix(in srgb, var(--status-bad) 10%, var(--surface))" : "transparent",
+                        cursor: "pointer",
+                        transition: "background 0.15s",
+                      }}
+                      onClick={() => jumpToInvalid(navIdx)}
+                    >
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, fontWeight: 700, color: "var(--text-3)", flexShrink: 0 }}>Row {globalIdx + 1}</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", flexShrink: 0 }}>{r.date}</span>
+                            <span style={{ fontSize: 11, color: "var(--text-3)", flexShrink: 0 }}>·</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text)" }}>{r.stageLabel}</span>
+                            {r.checked != null && r.rejected != null && (
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-3)" }}>
+                                (Checked: {r.checked}, Rejected: {r.rejected})
+                              </span>
+                            )}
+                          </div>
+                          {r.flags.map((flag, fi) => (
+                            <div key={fi} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--status-bad)", marginTop: 2 }}>
+                              <span style={{ flexShrink: 0 }}>⚠</span>
+                              <span>{flag}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end", flexShrink: 0 }}>
+                          {isSwappable && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleSwapCheckedRejected(r.recordIndex); }}
+                              title="Swap Checked ↔ Rejected values"
+                              style={{
+                                fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 6, cursor: "pointer",
+                                border: "1px solid var(--status-warn)",
+                                background: "color-mix(in srgb, var(--status-warn) 12%, var(--surface))",
+                                color: "var(--status-warn)",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              ⇅ Swap values
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); jumpToInvalid(navIdx); }}
+                            style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 6, cursor: "pointer", border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--text-2)", whiteSpace: "nowrap" }}
+                          >→ Jump to row</button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <Card title="Staging Area (Verify & Approve Records)" sub={fileName || "no file yet"}>
             {rows.length === 0 ? <Empty label="Upload a file to review extracted, recomputed records here." /> : (
               <>
@@ -153,7 +311,7 @@ export default function StagingPage() {
                     <th style={sth}>#</th>
                     <th style={sth}>Date</th>
                     <th style={sth}>Stage</th>
-                    <th style={{ ...sth, textAlign: "right" }}>Input</th>
+                    <th style={{ ...sth, textAlign: "right" }}>Input (Checked)</th>
                     <th style={{ ...sth, textAlign: "right" }}>Rejected</th>
                     <th style={{ ...sth, textAlign: "right" }}>Rej %</th>
                     <th style={sth}>Status</th>
@@ -163,50 +321,128 @@ export default function StagingPage() {
                     {rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r, idx) => {
                       const i = page * PAGE_SIZE + idx;
                       const hasComment = !!comments[r.recordIndex]?.trim();
+                      const isInvalid = r.status === "invalid";
+                      const isCorrected = r.status === "corrected";
+                      const flagsExpanded = expandedFlagsRow === r.recordIndex;
+                      const isSwappable = isInvalid && r.flags.some(f => f.toLowerCase().includes("exceeds checked"));
                       return (
-                        <tr key={r.recordIndex} style={{ borderTop: "1px solid var(--border)", background: r.status === "invalid" ? "color-mix(in srgb, var(--status-bad) 8%, transparent)" : "transparent", color: r.status === "invalid" ? "var(--status-bad)" : "var(--text)" }}>
-                          <td style={std}>{i + 1}</td>
-                          <td style={{ ...std, fontFamily: "var(--font-mono)" }}>{r.date}</td>
-                          <td style={std}>{r.stageLabel}</td>
-                          <td style={{ ...std, textAlign: "right" }}>
-                            <input
-                              type="number"
-                              value={r.checked ?? ""}
-                              onChange={(e) => handleCellChange(r.recordIndex, "checked", e.target.value)}
-                              style={gridInputStyle}
-                            />
-                          </td>
-                          <td style={{ ...std, textAlign: "right" }}>
-                            <input
-                              type="number"
-                              value={r.rejected ?? ""}
-                              onChange={(e) => handleCellChange(r.recordIndex, "rejected", e.target.value)}
-                              style={gridInputStyle}
-                            />
-                          </td>
-                          <td style={{ ...std, textAlign: "right", fontFamily: "var(--font-mono)", paddingRight: "12px" }}>
-                            {r.correctedPct != null ? `${r.correctedPct.toFixed(2)}%` : "—"}
-                          </td>
-                          <td style={{ ...std, fontWeight: 600, color: r.status === "invalid" ? "var(--status-bad)" : r.status === "corrected" ? "var(--status-warn)" : "var(--status-good)" }}>
-                            {r.status === "invalid" ? "Invalid" : r.status === "corrected" ? "Corrected" : "Valid"}
-                          </td>
-                          <td style={{ ...std, textAlign: "center" }}>
-                            <button
-                              onClick={() => setEditingCommentRow(editingCommentRow === r.recordIndex ? null : r.recordIndex)}
-                              style={{
-                                background: hasComment ? "var(--accent)" : "var(--surface-2)",
-                                color: hasComment ? "#fff" : "var(--text-2)",
-                                border: "none",
-                                borderRadius: 7,
-                                width: 28,
-                                height: 28,
-                                cursor: "pointer"
-                              }}
-                            >
-                              <Icon name="comment" size={13} />
-                            </button>
-                          </td>
-                        </tr>
+                        <>
+                          <tr
+                            key={r.recordIndex}
+                            ref={(el) => { if (el) rowRefs.current.set(r.recordIndex, el); else rowRefs.current.delete(r.recordIndex); }}
+                            style={{
+                              borderTop: "1px solid var(--border)",
+                              background: isInvalid ? "color-mix(in srgb, var(--status-bad) 8%, transparent)" : isCorrected ? "color-mix(in srgb, var(--status-warn) 6%, transparent)" : "transparent",
+                              color: isInvalid ? "var(--status-bad)" : "var(--text)",
+                              outline: flagsExpanded && isInvalid ? "2px solid var(--status-bad)" : "none",
+                            }}
+                          >
+                            <td style={std}>{i + 1}</td>
+                            <td style={{ ...std, fontFamily: "var(--font-mono)" }}>{r.date}</td>
+                            <td style={std}>{r.stageLabel}</td>
+                            <td style={{ ...std, textAlign: "right" }}>
+                              <input
+                                type="number"
+                                value={r.checked ?? ""}
+                                onChange={(e) => handleCellChange(r.recordIndex, "checked", e.target.value)}
+                                style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                              />
+                            </td>
+                            <td style={{ ...std, textAlign: "right" }}>
+                              <input
+                                type="number"
+                                value={r.rejected ?? ""}
+                                onChange={(e) => handleCellChange(r.recordIndex, "rejected", e.target.value)}
+                                style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                              />
+                            </td>
+                            <td style={{ ...std, textAlign: "right", fontFamily: "var(--font-mono)", paddingRight: "12px" }}>
+                              {r.correctedPct != null ? `${r.correctedPct.toFixed(2)}%` : "—"}
+                            </td>
+                            <td style={{ ...std, fontWeight: 600 }}>
+                              {isInvalid ? (
+                                <button
+                                  onClick={() => setExpandedFlagsRow(flagsExpanded ? null : r.recordIndex)}
+                                  title="Click to see what's wrong"
+                                  style={{
+                                    display: "inline-flex", alignItems: "center", gap: 4,
+                                    padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700,
+                                    border: "1px solid var(--status-bad)",
+                                    background: "color-mix(in srgb, var(--status-bad) 12%, transparent)",
+                                    color: "var(--status-bad)",
+                                  }}
+                                >
+                                  ⚠ Invalid {flagsExpanded ? "▲" : "▼"}
+                                </button>
+                              ) : isCorrected ? (
+                                <span style={{ color: "var(--status-warn)" }}>Corrected</span>
+                              ) : (
+                                <span style={{ color: "var(--status-good)" }}>✓ Valid</span>
+                              )}
+                            </td>
+                            <td style={{ ...std, textAlign: "center" }}>
+                              <button
+                                onClick={() => setEditingCommentRow(editingCommentRow === r.recordIndex ? null : r.recordIndex)}
+                                style={{
+                                  background: hasComment ? "var(--accent)" : "var(--surface-2)",
+                                  color: hasComment ? "#fff" : "var(--text-2)",
+                                  border: "none",
+                                  borderRadius: 7,
+                                  width: 28,
+                                  height: 28,
+                                  cursor: "pointer"
+                                }}
+                              >
+                                <Icon name="comment" size={13} />
+                              </button>
+                            </td>
+                          </tr>
+                          {/* Inline flag expansion row */}
+                          {flagsExpanded && isInvalid && (
+                            <tr key={`${r.recordIndex}-flags`} style={{ background: "color-mix(in srgb, var(--status-bad) 5%, var(--surface-2))" }}>
+                              <td colSpan={8} style={{ padding: "10px 14px 12px", borderBottom: "2px solid var(--status-bad)" }}>
+                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: "var(--status-bad)", letterSpacing: "0.05em", marginBottom: 6 }}>
+                                      Validation issues on this row:
+                                    </div>
+                                    {r.flags.map((flag, fi) => (
+                                      <div key={fi} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 4, fontSize: 12.5, color: "var(--text)" }}>
+                                        <span style={{ color: "var(--status-bad)", fontWeight: 800, flexShrink: 0, marginTop: 1 }}>⚠</span>
+                                        <span>{flag}</span>
+                                      </div>
+                                    ))}
+                                    <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--text-3)" }}>
+                                      Fix the values in the Input or Rejected columns on this row, then the status will update automatically.
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0, alignItems: "flex-end" }}>
+                                    {isSwappable && (
+                                      <button
+                                        onClick={() => { handleSwapCheckedRejected(r.recordIndex); setExpandedFlagsRow(null); }}
+                                        style={{
+                                          fontSize: 12, fontWeight: 700, padding: "6px 14px", borderRadius: 7, cursor: "pointer",
+                                          border: "1.5px solid var(--status-warn)",
+                                          background: "color-mix(in srgb, var(--status-warn) 14%, var(--surface))",
+                                          color: "var(--status-warn)",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        ⇅ Auto-fix: swap Input ↔ Rejected
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => setExpandedFlagsRow(null)}
+                                      style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, cursor: "pointer", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text-2)" }}
+                                    >
+                                      Dismiss
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       );
                     })}
                   </tbody>
