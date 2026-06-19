@@ -7,9 +7,9 @@ import type { DashboardConfig, KPI, Chart } from "@/types/dashboard";
 
 const SYSTEM_PROMPT =
   "You are a quality-analytics assistant answering follow-up questions about a " +
-  "dashboard. You reply with a focused insight slide. CRITICAL: every number you " +
-  "state in a chart or bullet MUST be one of the VERIFIED FIGURES provided below — " +
-  "these were computed deterministically from the source data. Never invent, " +
+  "dashboard. You reply with a focused insight slide as a JSON object. CRITICAL: every " +
+  "number you state in a chart or bullet MUST be one of the VERIFIED FIGURES provided " +
+  "below — these were computed deterministically from the source data. Never invent, " +
   "estimate, or recompute a value. If the answer is not derivable from the verified " +
   "figures, say so plainly in a bullet instead of guessing.";
 
@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
           system: SYSTEM_PROMPT,
           prompt,
           temperature: 0.2,
+          maxRetries: 1, // fail fast so the backend chain cascades quickly
         }),
       );
 
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest) {
               "3. (Optional) one '> ' blockquote line with a caveat if the data can't fully answer it.\n" +
               "Keep it under ~8 lines. Use only the verified figures above. No headings, no JSON, no code fences.",
             temperature: 0.2,
+            maxRetries: 1,
           }),
         );
         return NextResponse.json({ type: "text", text: text.trim() || "I couldn't find that in the verified figures." });
