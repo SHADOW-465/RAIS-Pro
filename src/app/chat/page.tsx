@@ -346,8 +346,8 @@ function ChatContent() {
                     color: "var(--text)"
                   }}
                 >
-                  {m.text}
-                  
+                  {m.sender === "rais" ? <ChatMarkdown text={m.text} /> : m.text}
+
                   {m.slide && (
                     <div style={{ marginTop: 10, borderTop: "1px dashed var(--border)", paddingTop: 8, display: "flex", justifyContent: "flex-end" }}>
                       <button
@@ -482,6 +482,50 @@ function ChatContent() {
       </div>
     </AppShell>
   );
+}
+
+// Lightweight Markdown renderer for chat answers — handles **bold**, `- ` bullets,
+// `> ` blockquotes, and paragraph/line breaks. Dependency-free (no react-markdown).
+function renderInline(text: string, keyBase: string): React.ReactNode[] {
+  // Split on **bold** spans.
+  return text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, i) => {
+    const m = part.match(/^\*\*([^*]+)\*\*$/);
+    if (m) return <strong key={`${keyBase}-${i}`} style={{ fontWeight: 700, color: "var(--text)" }}>{m[1]}</strong>;
+    return <span key={`${keyBase}-${i}`}>{part}</span>;
+  });
+}
+
+function ChatMarkdown({ text }: { text: string }) {
+  const lines = (text ?? "").replace(/\r/g, "").split("\n");
+  const blocks: React.ReactNode[] = [];
+  let bullets: string[] = [];
+  const flushBullets = () => {
+    if (bullets.length === 0) return;
+    const items = bullets;
+    blocks.push(
+      <ul key={`ul-${blocks.length}`} style={{ margin: "6px 0", paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
+        {items.map((b, i) => <li key={i} style={{ lineHeight: 1.5 }}>{renderInline(b, `li-${blocks.length}-${i}`)}</li>)}
+      </ul>,
+    );
+    bullets = [];
+  };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (/^\s*[-•]\s+/.test(line)) { bullets.push(line.replace(/^\s*[-•]\s+/, "")); continue; }
+    flushBullets();
+    if (line.trim() === "") continue;
+    if (/^\s*>\s+/.test(line)) {
+      blocks.push(
+        <div key={`bq-${blocks.length}`} style={{ borderLeft: "3px solid var(--accent)", paddingLeft: 10, margin: "6px 0", color: "var(--text-2)", fontStyle: "italic" }}>
+          {renderInline(line.replace(/^\s*>\s+/, ""), `bq-${blocks.length}`)}
+        </div>,
+      );
+      continue;
+    }
+    blocks.push(<p key={`p-${blocks.length}`} style={{ margin: "4px 0", lineHeight: 1.5 }}>{renderInline(line, `p-${blocks.length}`)}</p>);
+  }
+  flushBullets();
+  return <div>{blocks}</div>;
 }
 
 const selectStyle: React.CSSProperties = {

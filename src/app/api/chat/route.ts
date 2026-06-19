@@ -123,7 +123,11 @@ export async function POST(req: NextRequest) {
             system: SYSTEM_PROMPT,
             prompt:
               prompt +
-              "\n\nAnswer the question directly in 2–4 concise sentences using only the verified figures above. Plain text, no JSON.",
+              "\n\nFormat your answer as clear, scannable Markdown so it reads at a glance. Use this structure:\n" +
+              "1. A one-line **bold summary** answering the question directly.\n" +
+              "2. A short bulleted list (`- `) of the supporting verified figures — wrap every number in **bold**.\n" +
+              "3. (Optional) one '> ' blockquote line with a caveat if the data can't fully answer it.\n" +
+              "Keep it under ~8 lines. Use only the verified figures above. No headings, no JSON, no code fences.",
             temperature: 0.2,
           }),
         );
