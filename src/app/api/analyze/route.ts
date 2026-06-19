@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { createServerClient } from "@/lib/supabase";
 import { tryModels } from "@/lib/ai";
-import { SheetGraphSetSchema } from "@/lib/schemas";
+import { SheetMappingSetSchema } from "@/lib/schemas";
 import { buildGraphPrompt } from "@/lib/analysis-utils";
 import { inferSheetGraph, computeMetrics } from "@/lib/metrics";
 import {
@@ -36,6 +36,55 @@ const SYSTEM_PROMPT =
   "You are a senior quality-analytics analyst. Return ONLY data that conforms " +
   "to the requested schema. Never invent numbers — every value must trace to " +
   "the provided data.";
+
+/** Translates the new strict AI Ontology Alignment Mapping to the internal legacy SheetGraph structure. */
+function translateMappingToGraph(
+  sheetKey: string,
+  mapping: any,
+  fallback: SheetGraph,
+): SheetGraph {
+  const stageOrderSet = new Set<string>();
+  const columns = mapping.columnMapping.map((col: any) => {
+    let role = "ignore";
+    if (col.mappedRole === "date") role = "date";
+    else if (col.mappedRole === "checked") role = "stage_checked";
+    else if (col.mappedRole === "accepted") role = "stage_accepted";
+    else if (col.mappedRole === "rejected") role = "stage_rejected";
+    else if (col.mappedRole === "hold") role = "stage_hold";
+    else if (col.mappedRole === "defect_mode") role = "reason_count";
+    else if (col.mappedRole === "sku" || col.mappedRole === "size") role = "dimension";
+    else if (col.mappedRole === "ignore") role = "ignore";
+
+    let stage = null;
+    if (col.targetStage) {
+      if (col.targetStage === "Visual Inspection") stage = "Visual";
+      else if (col.targetStage === "Balloon Testing") stage = "Balloon";
+      else if (col.targetStage === "Final Inspection") stage = "Final";
+      else stage = col.targetStage;
+
+      if (role.startsWith("stage_")) {
+        stageOrderSet.add(stage);
+      }
+    }
+
+    return {
+      column: col.excelHeaderName,
+      role,
+      stage,
+    };
+  });
+
+  const stageOrder = Array.from(stageOrderSet);
+
+  return {
+    sheetKey,
+    reportType: fallback.reportType,
+    isSummary: mapping.metadata.containsSummaryBlocks || fallback.isSummary,
+    stageOrder: stageOrder.length > 0 ? stageOrder : fallback.stageOrder,
+    columns,
+    notes: null,
+  };
+}
 
 /** Deterministic placeholder title shown until the narrative supplies a real one. */
 function fallbackTitle(fileNames?: string[]): string {
@@ -88,7 +137,7 @@ export async function POST(req: NextRequest) {
           (model) =>
             generateObject({
               model,
-              schema: SheetGraphSetSchema,
+              schema: SheetMappingSetSchema,
               system: SYSTEM_PROMPT,
               prompt: buildGraphPrompt(uniqueSummaries),
               temperature: 0.1,
@@ -99,10 +148,14 @@ export async function POST(req: NextRequest) {
         "graph classification",
       );
 
-      const llmByKey = new Map(object.sheets.map((g) => [g.sheetKey, g]));
+      const llmByKey = new Map(object.sheets.map((g) => [g.sheetKey, g.mapping]));
       const reconciled = uniqueSummaries.map((s, i) => {
-        const llm = llmByKey.get(s.name);
-        return llm ? reconcileGraph(llm, s, heuristicGraphs[i]) : heuristicGraphs[i];
+        const mapping = llmByKey.get(s.name);
+        let graph = heuristicGraphs[i];
+        if (mapping) {
+          graph = translateMappingToGraph(s.name, mapping, heuristicGraphs[i]);
+        }
+        return reconcileGraph(graph, s, heuristicGraphs[i]);
       });
 
       // Accept the LLM graph only if the numbers it yields are sane.

@@ -34,6 +34,10 @@ export default function StagingPage() {
   // ref map for scrolling to rows
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
 
+  // Schema modification & verification states
+  const [rawSheetsData, setRawSheetsData] = useState<any[] | null>(null);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
   // Master Schema Lifecycles
   const [activeRegistry, setActiveRegistry] = useState<any>(null);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
@@ -75,7 +79,7 @@ export default function StagingPage() {
 
   async function handleUpload(files: File[]) {
     setError(null); setDone(null); setComments({}); setEditingCommentRow(null); setExtractedSchema(null);
-    setFocusedInvalidIdx(0); setExpandedFlagsRow(null);
+    setFocusedInvalidIdx(0); setExpandedFlagsRow(null); setRawSheetsData(null);
     try {
       const file = files[0];
       const arrayBuffer = await file.arrayBuffer();
@@ -108,6 +112,7 @@ export default function StagingPage() {
 
       const { parseExcelFilesWithRaw } = await import("@/lib/parser");
       const { rawSheets } = await parseExcelFilesWithRaw(files);
+      setRawSheetsData(rawSheets);
 
       let classifiedRecords = classifyWithSchema(rawSheets, schema, ingestionId);
       if (classifiedRecords.length === 0) {
@@ -184,6 +189,132 @@ export default function StagingPage() {
       };
     }));
   };
+
+  const handleSchemaFieldRoleChange = (stageId: string, fieldName: string, newRole: any) => {
+    if (!extractedSchema) return;
+
+    // Convert from the UI roles back to backend schema-extractor roles if needed!
+    let backendRole = newRole;
+    if (newRole === "accepted") backendRole = "good";
+    else if (newRole === "hold") backendRole = "rework";
+    else if (newRole === "defect_mode") backendRole = "defect";
+    else if (newRole === "ignore") backendRole = "other";
+
+    const updatedStages = extractedSchema.stages.map((stage: any) => {
+      if (stage.stageId !== stageId) return stage;
+
+      const updatedFields = stage.fields.map((field: any) => {
+        if (field.name !== fieldName) return field;
+        return { ...field, role: backendRole };
+      });
+
+      return { ...stage, fields: updatedFields };
+    });
+
+    const updatedSchema = { ...extractedSchema, stages: updatedStages };
+    setExtractedSchema(updatedSchema);
+
+    // Re-classify the raw rows using the updated schema in real time!
+    if (rawSheetsData) {
+      import("@/lib/ingest/schema-extractor").then(({ classifyWithSchema }) => {
+        const reclassified = classifyWithSchema(rawSheetsData, updatedSchema, ingestionId);
+
+        // Append file cryptographic hash metadata
+        const finalRecords = reclassified.map((r: any) => ({
+          ...r,
+          source: {
+            ...r.source,
+            fileHash: records[0]?.source?.fileHash ?? "local"
+          }
+        }));
+        setRecords(finalRecords);
+      });
+    }
+  };
+
+  const getSelectRoleValue = (fieldRole: string) => {
+    if (fieldRole === "good") return "accepted";
+    if (fieldRole === "rework") return "hold";
+    if (fieldRole === "defect") return "defect_mode";
+    if (fieldRole === "other") return "ignore";
+    return fieldRole || "ignore";
+  };
+
+  const getHeaderStyle = (role: string, defectCode?: string) => {
+    const hasValidationFailure = rows.some(r => r.status === "invalid");
+
+    let hasMismatch = false;
+    if (!isMasterMode && activeRegistry && extractedSchema) {
+      let found = false;
+      extractedSchema.stages.forEach((stage: any) => {
+        const field = stage.fields.find((f: any) => {
+          if (role === "checked" && f.role === "checked") return true;
+          if (role === "good" && f.role === "good") return true;
+          if (role === "rework" && f.role === "rework") return true;
+          if (role === "rejected" && f.role === "rejected") return true;
+          if (role === "date" && f.role === "date") return true;
+          if (role === "defect" && f.role === "defect" && defectCode) {
+            const code = f.name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+            return code === defectCode;
+          }
+          return false;
+        });
+        if (field) {
+          found = true;
+        }
+      });
+      if (!found && role !== "balance" && role !== "status" && role !== "comment") {
+        hasMismatch = true;
+      }
+    }
+
+    const isBalanceQuantity = ["checked", "good", "rework", "rejected", "balance"].includes(role);
+    
+    if (hasMismatch || (hasValidationFailure && isBalanceQuantity)) {
+      return {
+        background: "#FFEBAA",
+        color: "#C8421C",
+        borderBottom: "2px solid #C8421C",
+        transition: "background 0.3s, color 0.3s"
+      };
+    }
+    return {};
+  };
+
+  const roleOptions = [
+    { value: "date", label: "Date / Period" },
+    { value: "checked", label: "Total Checked (Input)" },
+    { value: "accepted", label: "Accepted Good" },
+    { value: "hold", label: "Rework Quantity" },
+    { value: "rejected", label: "Stated Rejection" },
+    { value: "defect_mode", label: "Defect Count" },
+    { value: "formula", label: "Formula / Calculated" },
+    { value: "ignore", label: "Ignore Column" },
+  ];
+
+  async function commitSchemaAsMaster() {
+    if (!extractedSchema) return;
+    setBusy(true); setError(null); setSaveSuccessMsg(null);
+    try {
+      const regRes = await fetch("/api/schema", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schema: extractedSchema })
+      });
+      const regData = await regRes.json();
+      if (!regRes.ok) throw new Error(regData.error ?? "Failed to save schema");
+      if (regData.success) {
+        setActiveRegistry(regData.registry);
+        setIsConfigured(true);
+        setSaveSuccessMsg("Master schema locked and updated successfully!");
+        setTimeout(() => setSaveSuccessMsg(null), 4000);
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to save schema");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function publish() {
     setBusy(true); setError(null);
@@ -406,16 +537,16 @@ export default function StagingPage() {
                     <thead>
                       <tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10, textTransform: "uppercase", background: "var(--surface-2)" }}>
                         <th style={{ ...sth, minWidth: 40 }}>#</th>
-                        <th style={{ ...sth, minWidth: 90 }}>Date</th>
+                        <th style={{ ...sth, minWidth: 90, ...getHeaderStyle("date") }}>Date</th>
                         <th style={{ ...sth, minWidth: 130 }}>Stage</th>
-                        <th style={{ ...sth, textAlign: "right", minWidth: 90 }}>Input (Checked)</th>
-                        <th style={{ ...sth, textAlign: "right", minWidth: 90 }}>Good</th>
-                        <th style={{ ...sth, textAlign: "right", minWidth: 90 }}>Rework</th>
-                        <th style={{ ...sth, textAlign: "right", minWidth: 90 }}>Rejected</th>
+                        <th style={{ ...sth, textAlign: "right", minWidth: 90, ...getHeaderStyle("checked") }}>Input (Checked)</th>
+                        <th style={{ ...sth, textAlign: "right", minWidth: 90, ...getHeaderStyle("good") }}>Good</th>
+                        <th style={{ ...sth, textAlign: "right", minWidth: 90, ...getHeaderStyle("rework") }}>Rework</th>
+                        <th style={{ ...sth, textAlign: "right", minWidth: 90, ...getHeaderStyle("rejected") }}>Rejected</th>
                         <th style={{ ...sth, textAlign: "right", minWidth: 70 }}>Rej %</th>
-                        <th style={{ ...sth, textAlign: "center", minWidth: 155 }}>Balance Check</th>
+                        <th style={{ ...sth, textAlign: "center", minWidth: 155, ...getHeaderStyle("balance") }}>Balance Check</th>
                         {defectsList.map((d: any) => (
-                          <th key={d.defectCode} style={{ ...sth, textAlign: "right", minWidth: 65 }} title={d.label}>
+                          <th key={d.defectCode} style={{ ...sth, textAlign: "right", minWidth: 65, ...getHeaderStyle("defect", d.defectCode) }} title={d.label}>
                             {d.defectCode}
                           </th>
                         ))}
@@ -676,6 +807,20 @@ export default function StagingPage() {
 
             {/* Content */}
             <div style={{ padding: 24, overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 24 }}>
+              {saveSuccessMsg && (
+                <div style={{
+                  background: "color-mix(in srgb, var(--status-good) 12%, transparent)",
+                  border: "1.5px solid var(--status-good)",
+                  color: "var(--status-good)",
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  boxShadow: "2px 2px 0px var(--status-good)"
+                }}>
+                  {saveSuccessMsg}
+                </div>
+              )}
               {/* Stage Relationship Flowchart */}
               <div>
                 <h3 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)", margin: "0 0 14px", fontWeight: 700 }}>Manufacturing Process Flow</h3>
@@ -704,128 +849,88 @@ export default function StagingPage() {
                 <h3 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)", margin: "0 0 14px", fontWeight: 700 }}>Extracted Schema Details</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   {extractedSchema.stages.map((stage: any) => {
-                    const checked = stage.fields.find((f: any) => f.role === "checked");
-                    const good = stage.fields.find((f: any) => f.role === "good");
-                    const rework = stage.fields.find((f: any) => f.role === "rework");
-                    const rejected = stage.fields.find((f: any) => f.role === "rejected");
-                    const defects = stage.fields.filter((f: any) => f.role === "defect");
-                    const formulas = stage.fields.filter((f: any) => f.role === "formula");
-
                     return (
                       <div key={stage.stageId} style={{ border: "1.5px solid var(--ink)", borderRadius: "var(--radius-md)", background: "var(--surface)", overflow: "hidden", boxShadow: "3px 3px 0 var(--ink)" }}>
                         <div style={{ background: "var(--surface-2)", padding: "10px 16px", borderBottom: "1.5px solid var(--ink)", fontWeight: 700, fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span style={{ fontFamily: "var(--font-display)", fontSize: 14 }}>{stage.label}</span>
                           <code style={{ fontSize: 10, color: "var(--text-3)" }}>id: {stage.stageId}</code>
                         </div>
-                        <div style={{ padding: 16 }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 50px 1fr", gap: 16, alignItems: "stretch" }}>
-                            {/* Left: Operators Fields */}
-                            <div style={{ border: "1.5px solid var(--border)", borderRadius: "var(--radius-md)", padding: 14, background: "var(--surface-2)" }}>
-                              <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "var(--text-3)", display: "block", marginBottom: 10, letterSpacing: "0.05em" }}>
-                                Operator Entry Fields
-                              </span>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5 }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed var(--border)", paddingBottom: 6 }}>
-                                  <span className="muted">Total Checked:</span>
-                                  <span style={{ fontWeight: 700, color: "var(--text)" }}>
-                                    {checked ? `${checked.name} (${checked.colLetter})` : "—"}
-                                  </span>
-                                </div>
-                                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed var(--border)", paddingBottom: 6 }}>
-                                  <span className="muted">Accepted Good:</span>
-                                  <span style={{ fontWeight: 700, color: "var(--status-good)" }}>
-                                    {good ? `${good.name} (${good.colLetter})` : "—"}
-                                  </span>
-                                </div>
-                                {rework && (
-                                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed var(--border)", paddingBottom: 6 }}>
-                                    <span className="muted">Rework Quantity:</span>
-                                    <span style={{ fontWeight: 700, color: "var(--status-warn)" }}>
-                                      {rework.name} ({rework.colLetter})
-                                    </span>
-                                  </div>
-                                )}
-                                {!rejected && defects.length === 0 && (
-                                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed var(--border)", paddingBottom: 6 }}>
-                                    <span className="muted">Stated Rejection:</span>
-                                    <span style={{ fontWeight: 700, color: "var(--status-bad)" }}>
-                                      (Manual Entry)
-                                    </span>
-                                  </div>
-                                )}
-
-                                {defects.length > 0 && (
-                                  <div style={{ marginTop: 6 }}>
-                                    <span className="muted" style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>
-                                      Defect Reason Fields ({defects.length})
-                                    </span>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, maxHeight: 110, overflowY: "auto", paddingRight: 4 }}>
-                                      {defects.map((d: any) => (
-                                        <span key={d.name} style={{ background: "var(--surface-2)", border: "1px solid var(--border-strong)", borderRadius: 5, padding: "3px 6px", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                                          <span style={{ fontWeight: 800, color: "var(--accent)", fontFamily: "var(--font-mono)", fontSize: 10 }}>{d.colLetter}</span>
-                                          <span style={{ color: "var(--text)" }}>{d.name}</span>
+                        <div style={{ padding: 16, overflowX: "auto" }}>
+                          <table style={modalTableStyle}>
+                            <thead>
+                              <tr>
+                                <th style={{ ...modalThStyle, width: "60px" }}>Col</th>
+                                <th style={modalThStyle}>Excel Header Name</th>
+                                <th style={{ ...modalThStyle, width: "100px" }}>Data Type</th>
+                                <th style={{ ...modalThStyle, width: "240px" }}>Mapped Role</th>
+                                <th style={{ ...modalThStyle, width: "180px" }}>Verification / Details</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {stage.fields.map((field: any) => {
+                                const selectVal = getSelectRoleValue(field.role);
+                                return (
+                                  <tr key={field.name}>
+                                    <td style={{ ...modalTdStyle, fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--accent)" }}>
+                                      {field.colLetter}
+                                    </td>
+                                    <td style={{ ...modalTdStyle, fontWeight: 600 }}>
+                                      {field.name}
+                                    </td>
+                                    <td style={modalTdStyle}>
+                                      <span style={{
+                                        fontSize: "10.5px",
+                                        fontWeight: 700,
+                                        textTransform: "uppercase",
+                                        color: field.type === "date" ? "var(--accent)" : field.type === "number" ? "var(--status-good)" : "var(--text-3)",
+                                        background: "var(--surface-2)",
+                                        padding: "2px 6px",
+                                        borderRadius: "4px"
+                                      }}>
+                                        {field.type}
+                                      </span>
+                                    </td>
+                                    <td style={modalTdStyle}>
+                                      <select
+                                        value={selectVal}
+                                        onChange={(e) => handleSchemaFieldRoleChange(stage.stageId, field.name, e.target.value)}
+                                        style={modalSelectStyle}
+                                      >
+                                        {roleOptions.map(opt => (
+                                          <option key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                    <td style={modalTdStyle}>
+                                      {field.formula ? (
+                                        <code style={{ fontSize: "10px", color: "var(--text-2)" }}>
+                                          {field.formula}
+                                        </code>
+                                      ) : field.role === "defect" ? (
+                                        <span style={{ fontSize: "11px", color: "var(--status-bad)", fontWeight: 600 }}>
+                                          Defect mode count
                                         </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Middle Arrow Connector */}
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 120 }}>
-                              <div style={{ border: "1.5px solid var(--border-strong)", height: 30, width: 0, borderStyle: "dashed" }}></div>
-                              <div style={{ background: "var(--accent-weak)", color: "var(--accent)", border: "1.5px solid var(--accent)", borderRadius: "50%", width: 26, height: 26, display: "grid", placeItems: "center", margin: "6px 0" }}>
-                                <Icon name="arrow-right" size={12} stroke={2.5} />
-                              </div>
-                              <div style={{ border: "1.5px solid var(--border-strong)", height: 30, width: 0, borderStyle: "dashed" }}></div>
-                            </div>
-
-                            {/* Right: System Math & Verification */}
-                            <div style={{ border: "1px solid var(--accent)", borderRadius: "var(--radius-md)", padding: 14, background: "var(--accent-weak)", height: "100%" }}>
-                              <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "var(--accent)", display: "block", marginBottom: 10, letterSpacing: "0.05em" }}>
-                                System Computed Math (Formulas)
-                              </span>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12 }}>
-                                <div>
-                                  <span className="muted" style={{ display: "block", fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
-                                    1. Total Rejected Qty
-                                  </span>
-                                  <div style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "5px 8px", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <code style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text)" }}>
-                                      {defects.length > 0 ? "Σ (Defect Counts)" : rejected ? `${rejected.name} (${rejected.colLetter})` : "Stated Rejection"}
-                                    </code>
-                                    <span style={{ fontSize: 10, color: "var(--status-good)", fontWeight: 700 }}>✓ Auto-calculated</span>
-                                  </div>
-                                </div>
-                                <div>
-                                  <span className="muted" style={{ display: "block", fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
-                                    2. Audit Balance Equation
-                                  </span>
-                                  <div style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "5px 8px", borderRadius: 6, display: "flex", flexDirection: "column", gap: 3 }}>
-                                    <code style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--accent)", fontWeight: 700 }}>
-                                      Checked = Good {rework ? "+ Rework " : ""}+ Rejected
-                                    </code>
-                                    <span style={{ fontSize: 9.5, color: "var(--text-3)" }}>
-                                      Ensures shopfloor data adds up correctly before locking.
-                                    </span>
-                                  </div>
-                                </div>
-                                {formulas.map((f: any) => (
-                                  <div key={f.name}>
-                                    <span className="muted" style={{ display: "block", fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>
-                                      3. Derived Rate Metric: {f.name}
-                                    </span>
-                                    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", padding: "5px 8px", borderRadius: 6 }}>
-                                      <code style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-2)", wordBreak: "break-all" }}>
-                                        {f.formula || "([Rejected] / [Checked]) * 100"}
-                                      </code>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
+                                      ) : field.role === "good" ? (
+                                        <span style={{ fontSize: "11px", color: "var(--status-good)", fontWeight: 600 }}>
+                                          Pass count
+                                        </span>
+                                      ) : field.role === "rework" ? (
+                                        <span style={{ fontSize: "11px", color: "var(--status-warn)", fontWeight: 600 }}>
+                                          Rework count
+                                        </span>
+                                      ) : (
+                                        <span style={{ fontSize: "11px", color: "var(--text-3)" }}>
+                                          —
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     );
@@ -835,7 +940,25 @@ export default function StagingPage() {
             </div>
 
             {/* Footer */}
-            <div style={{ padding: "14px 20px", borderTop: "1.5px solid var(--border)", background: "var(--surface-2)", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ padding: "14px 20px", borderTop: "1.5px solid var(--border)", background: "var(--surface-2)", display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button
+                onClick={commitSchemaAsMaster}
+                disabled={busy}
+                style={{
+                  background: "var(--status-good)",
+                  color: "#fff",
+                  border: "1.5px solid var(--ink)",
+                  borderRadius: 8,
+                  padding: "8px 18px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: busy ? "not-allowed" : "pointer",
+                  boxShadow: busy ? "none" : "2px 2px 0 var(--ink)",
+                  opacity: busy ? 0.7 : 1
+                }}
+              >
+                {busy ? "Locking..." : "Commit Layout as Master Schema"}
+              </button>
               <button onClick={() => setShowSchemaModal(false)}
                 style={{ background: "var(--accent)", color: "#fff", border: "1.5px solid var(--ink)", borderRadius: 8, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "2px 2px 0 var(--ink)" }}>
                 Close Schema Viewer
@@ -854,3 +977,43 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "go
 }
 const sth: React.CSSProperties = { padding: "6px 8px", fontWeight: 600 };
 const std: React.CSSProperties = { padding: "6px 8px" };
+
+const modalTableStyle: React.CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontSize: "12.5px",
+  textAlign: "left",
+  marginTop: "10px",
+  border: "1px solid var(--border)",
+};
+
+const modalThStyle: React.CSSProperties = {
+  padding: "8px 12px",
+  background: "var(--surface-2)",
+  borderBottom: "1.5px solid var(--ink)",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  fontSize: "10px",
+  letterSpacing: "0.05em",
+  color: "var(--text-3)",
+};
+
+const modalTdStyle: React.CSSProperties = {
+  padding: "8px 12px",
+  borderBottom: "1px solid var(--border)",
+  verticalAlign: "middle",
+};
+
+const modalSelectStyle: React.CSSProperties = {
+  background: "var(--surface)",
+  border: "1.5px solid var(--ink)",
+  borderRadius: "6px",
+  padding: "4px 8px",
+  fontSize: "12px",
+  fontFamily: "var(--font-sans)",
+  color: "var(--ink)",
+  cursor: "pointer",
+  outline: "none",
+  width: "100%",
+  boxShadow: "1px 1px 0px var(--ink)",
+};

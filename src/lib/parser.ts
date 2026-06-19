@@ -31,6 +31,7 @@ export interface SheetSummary {
   columns: ColumnSummary[];
   groupedSeries: GroupedSeries[];
   manifest: SheetManifest;
+  sampleRows?: any[];
   // legacy compat flags (still used for sheet preference logic)
   isYearly?: boolean;
   isMonthly?: boolean;
@@ -505,6 +506,11 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
         columns: columnSummaries,
         groupedSeries,
         manifest,
+        sampleRows: cleanRows.slice(0, 10).map(row => {
+          // Remove __rowNum and similar internal properties from sample data
+          const { __rowNum, ...rest } = row as any;
+          return rest;
+        }),
         isYearly,
         isMonthly,
       });

@@ -92,7 +92,12 @@ export function buildGraphPrompt(summaries: SheetSummary[]): string {
         return `    - "${c.name}" [${c.type}] uniq=${c.uniqueCount}${sum} samples=[${samples}]`;
       })
       .join("\n");
-    return `SHEET "${s.name}" (rows=${s.rowCount}):\n${cols}`;
+
+    const sampleRowsText = s.sampleRows && s.sampleRows.length > 0
+      ? `  SAMPLE ROWS (first ${s.sampleRows.length} clean rows):\n` + s.sampleRows.map(row => "    " + JSON.stringify(row)).join("\n")
+      : "";
+
+    return `SHEET "${s.name}" (rows=${s.rowCount}):\n${cols}\n${sampleRowsText}`;
   });
 
   let body = sheetBlocks.join("\n\n");
@@ -102,28 +107,24 @@ export function buildGraphPrompt(summaries: SheetSummary[]): string {
 
   const allKeys = summaries.map((s) => `"${s.name}"`).join(", ");
 
-  return `Read every sheet below and produce a semantic GRAPH of what each column represents. This is a quality-inspection / rejection-report dataset.
+  return `You are the Master Ingestion Parser for a regulated medical device facility.
+Analyze the provided spreadsheet header arrays and sample matrix data.
+Align the arbitrary column keys to our fixed canonical plant ontology:
+- Stages: Visual Inspection, Eye Punching, Balloon Testing, Valve Integrity, Final Inspection
+- Defects: Thin Spot, Stuck Balloon, Leakage, Balloon Burst, Bubble, 90/10, Pinhole, Coagulum, Surface Defect, Raised Wire, Black Mark, Webbing, Others
 
+Rules:
+1. Identify how many junk metadata lines to skip at the top (ignoreRowsTop) before the header row starts.
+2. If sheet contains summary tables (containsSummaryBlocks) that must be excluded from daily totals, set containsSummaryBlocks to true.
+3. If column headers are renamed (e.g., "Appearance Rejects" vs "Visual Rejects"), map them to the correct target parameter role (mappedRole) without breaking the schema.
+4. Mapped roles should be one of: 'date', 'sku', 'size', 'checked', 'accepted', 'hold', 'rejected', 'defect_mode', 'ignore'.
+5. For 'defect_mode' columns, specify the corresponding 'targetDefectType' from the canonical list: 'Thin Spot', 'Stuck Balloon', 'Leakage', 'Balloon Burst', 'Bubble', '90/10', 'Pinhole', 'Coagulum', 'Surface Defect', 'Raised Wire', 'Black Mark', 'Webbing', 'Others'.
+6. Specify which 'targetStage' from the canonical list ('Visual Inspection', 'Eye Punching', 'Balloon Testing', 'Valve Integrity', 'Final Inspection') the column belongs to.
+
+DATA TO ANALYZE:
 ${body}
 
-For EACH sheet emit one object with: sheetKey (echo verbatim), reportType, isSummary, stageOrder, columns (every column → a role), notes.
-
-COLUMN ROLES:
-- date            — a date/period column.
-- stage_checked   — units inspected at an inspection stage (e.g. "VISUAL QTY", "REC. QTY", "CHECKED QTY").
-- stage_accepted  — units that passed a stage (e.g. "ACPT QTY", "ACCEPT QTY").
-- stage_rejected  — units rejected at a stage (e.g. "REJ QTY").
-- stage_hold      — units put on hold (e.g. "HOLD QTY").
-- reason_count    — a per-defect-reason tally (e.g. "COAG", "LEAKAGE", "SD", "STRUCK BALLOON"). Reason matrices have many of these.
-- derived_total   — a TOTAL/FINAL/SUM column that is itself a roll-up of other columns in the SAME row (NEVER summed, would double-count).
-- dimension       — a categorical/grouping column that isn't a quantity (e.g. "No of TROLLEYS", machine id).
-- ignore          — percentages ("REJ %", "%"), blank, or anything not above. NEVER sum a percentage.
-
-RULES:
-- For stage_* roles, set "stage" to the stage name (reuse the same string across that stage's checked/accepted/rejected/hold). stageOrder lists those stage names earliest-first.
-- isSummary = true for yearly/cumulative/rollup sheets that re-total OTHER sheets — they are excluded so we don't double-count.
-- Classify EVERY column exactly once. Echo column names and sheetKeys verbatim.
-- Available sheetKeys: [${allKeys}]`;
+Available sheetKeys: [${allKeys}]`;
 }
 
 // ── Phase 3b: narrative prompt → Narrative (prose only) ──────────────────────

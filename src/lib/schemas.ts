@@ -248,6 +248,50 @@ export const SheetGraphSetSchema = z.object({
 
 export type SheetGraphSetOutput = z.infer<typeof SheetGraphSetSchema>;
 
+// ── SheetMapping (Phase 2 — AI Ontology Alignment) ─────────────────────────
+export const SheetMappingSchema = z.object({
+  metadata: z.object({
+    ignoreRowsTop: z.number().describe("Number of junk metadata lines to skip at the top before headers start"),
+    containsSummaryBlocks: z.boolean().describe("True if sheet contains summary tables that must be excluded from daily totals")
+  }),
+  columnMapping: z.array(z.object({
+    excelHeaderName: z.string().describe("The literal column string found in the uploaded file"),
+    mappedRole: z.enum(['date', 'sku', 'size', 'checked', 'accepted', 'hold', 'rejected', 'defect_mode', 'ignore']),
+    targetStage: z.enum([
+      'Visual Inspection',
+      'Eye Punching',
+      'Balloon Testing',
+      'Valve Integrity',
+      'Final Inspection'
+    ]).nullable().optional().describe("Which stage this column belongs to (if checked, accepted, hold, rejected)"),
+    targetDefectType: z.enum([
+      'Thin Spot',
+      'Stuck Balloon',
+      'Leakage',
+      'Balloon Burst',
+      'Bubble',
+      '90/10',
+      'Pinhole',
+      'Coagulum',
+      'Surface Defect',
+      'Raised Wire',
+      'Black Mark',
+      'Webbing',
+      'Others'
+    ]).nullable().optional().describe("Standard defect code/name if mappedRole is defect_mode")
+  }))
+});
+
+export const SheetMappingSetSchema = z.object({
+  sheets: z.array(z.object({
+    sheetKey: z.string().describe("EXACT sheetKey echoed from the input — must match verbatim"),
+    mapping: SheetMappingSchema
+  })).min(1)
+});
+
+export type SheetMappingSetOutput = z.infer<typeof SheetMappingSetSchema>;
+
+
 // ── Narrative (Phase 3b — prose-only dashboard) ──────────────────────────────
 // KPIs and charts are built deterministically from computeMetrics(); the model
 // only writes the words. It never emits a single number it has to compute.
