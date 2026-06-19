@@ -5,6 +5,30 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 
+/**
+ * Returns a writable archive directory.
+ *
+ * Vercel serverless containers have a read-only filesystem at /var/task
+ * (process.cwd()). Only /tmp is writable at runtime in that environment.
+ * In local development process.cwd() works fine, so we try that first
+ * and fall back to /tmp when it is not writable.
+ */
+function resolveArchiveDir(): string {
+  // Primary: project-relative path (works in local dev / self-hosted)
+  const local = path.join(process.cwd(), "Uploads", "Original");
+  try {
+    fs.mkdirSync(local, { recursive: true });
+    // Quick write-access probe
+    fs.accessSync(local, fs.constants.W_OK);
+    return local;
+  } catch {
+    // Fallback: /tmp is always writable in Vercel serverless
+    const tmp = path.join("/tmp", "rais-uploads", "Original");
+    fs.mkdirSync(tmp, { recursive: true });
+    return tmp;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -20,35 +44,44 @@ export async function POST(req: NextRequest) {
     // Compute cryptographic SHA-256 hash
     const hash = crypto.createHash("sha256").update(buffer).digest("hex");
 
-    // Local directory archiving
-    const dir = path.join(process.cwd(), "Uploads", "Original");
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    // ── Local disk archive (best-effort) ────────────────────────────────────
+    // Supabase raw_files is the durable, authoritative archive.
+    // The local copy is a convenience; we never hard-fail if it can't be written.
+    let archivedLocalPath: string | null = null;
+    try {
+      const dir = resolveArchiveDir();
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const archivedName = `${hash}_${safeName}`;
+      const destPath = path.join(dir, archivedName);
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const archivedName = `${hash}_${safeName}`;
-    const destPath = path.join(dir, archivedName);
-
-    // Save only if it does not exist (idempotent / read-only)
-    if (!fs.existsSync(destPath)) {
-      fs.writeFileSync(destPath, buffer);
-      try {
-        // Set file permissions to read-only (Windows/Unix compatible)
-        fs.chmodSync(destPath, 0o444);
-      } catch (err) {
-        console.warn("Could not set file permissions to read-only:", err);
+      if (!fs.existsSync(destPath)) {
+        fs.writeFileSync(destPath, buffer);
+        try {
+          fs.chmodSync(destPath, 0o444);
+        } catch {
+          // chmod may be unsupported on some platforms — not critical
+        }
       }
+      archivedLocalPath = destPath;
+    } catch (localErr) {
+      // Log but do NOT propagate — Supabase is the source of truth
+      console.warn(
+        "[archive-upload] Local disk write skipped (read-only fs?):",
+        (localErr as Error).message
+      );
     }
 
-    // Save record of raw file to Supabase raw_files table
+    // ── Supabase durable archive (authoritative) ─────────────────────────────
     const db = createServerClient();
-    const { error: dbError } = await db.from("raw_files").upsert({
-      file_hash: hash,
-      file_name: file.name,
-      file_bytes: buffer,
-      recorded_at: new Date().toISOString()
-    }, { onConflict: "file_hash" });
+    const { error: dbError } = await db.from("raw_files").upsert(
+      {
+        file_hash: hash,
+        file_name: file.name,
+        file_bytes: buffer,
+        recorded_at: new Date().toISOString(),
+      },
+      { onConflict: "file_hash" }
+    );
 
     if (dbError) {
       console.error("Failed to save file to Supabase raw_files:", dbError);
@@ -59,10 +92,14 @@ export async function POST(req: NextRequest) {
       success: true,
       fileHash: hash,
       fileName: file.name,
-      filePath: `/Uploads/Original/${archivedName}`
+      // Return the local path if available, otherwise indicate Supabase-only storage
+      filePath: archivedLocalPath ?? `supabase://raw_files/${hash}`,
     });
   } catch (err: any) {
     console.error("Failed to archive upload:", err);
-    return NextResponse.json({ error: err?.message ?? "Archiving failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message ?? "Archiving failed" },
+      { status: 500 }
+    );
   }
 }
