@@ -39,17 +39,25 @@ describe("analytics — rejection selectors", () => {
   const events = build();
 
   test("totals reconcile to the source rows", () => {
-    expect(totalChecked(events, FY).value).toBe(10982 + 11054 + 8346 + 9612);
+    // totalChecked = the ENTRY stage (Visual) checked qty, NOT Σ across stages:
+    // a unit inspected at Visual and again at Valve is the same physical unit, so
+    // summing every stage's checked quadruple-counts the line. totalRejected is a
+    // genuine count of rejects across all stages.
+    expect(totalChecked(events, FY).value).toBe(10982 + 11054 + 8346);
     expect(totalRejected(events, FY).value).toBe(1054 + 828 + 451 + 129);
   });
 
-  test("rejection rate = rejected / checked", () => {
+  test("rejection rate = Σ per-stage rates (client 'Total Rejection %' convention)", () => {
     const r = rejectionRate(events, FY).value;
-    expect(r).toBeCloseTo((1054 + 828 + 451 + 129) / (10982 + 11054 + 8346 + 9612), 9);
+    const visualRate = (1054 + 828 + 451) / (10982 + 11054 + 8346);
+    const valveRate = 129 / 9612;
+    expect(r).toBeCloseTo(visualRate + valveRate, 9);
   });
 
-  test("fpy falls back to 1 − rejection rate when no accepted-good events", () => {
-    expect(fpy(events, FY).value).toBeCloseTo(1 - rejectionRate(events, FY).value, 9);
+  test("fpy = rolled-throughput yield Π(1 − stageRate)", () => {
+    const visualRate = (1054 + 828 + 451) / (10982 + 11054 + 8346);
+    const valveRate = 129 / 9612;
+    expect(fpy(events, FY).value).toBeCloseTo((1 - visualRate) * (1 - valveRate), 9);
   });
 
   test("byStage splits visual vs valve and computes contribution", () => {
@@ -80,7 +88,8 @@ describe("analytics — scope", () => {
   const events = build();
   test("date scope narrows to April only", () => {
     const apr: Scope = { grain: "month", dateFrom: "2025-04-01", dateTo: "2025-04-30" };
-    expect(totalChecked(events, apr).value).toBe(10982 + 11054 + 9612); // no May
+    // entry-stage (Visual) checked, April only — valve is a downstream stage
+    expect(totalChecked(events, apr).value).toBe(10982 + 11054); // no May, Visual only
   });
   test("stage scope filters to one stage", () => {
     const s: Scope = { ...FY, stageIds: ["valve-integrity"] };

@@ -46,33 +46,61 @@ function ids(events: Event[], pred: (e: Event) => boolean): string[] {
   return events.filter(pred).map((e) => e.eventId);
 }
 
-export function rejectionRate(events: Event[], scope: Scope): MetricValue {
-  const ev = scopeEvents(events, scope);
-  const a = aggregate(ev);
-  return {
-    value: a.checked > 0 ? a.rejected / a.checked : 0,
-    sourceEventIds: ids(ev, (e) => isProd(e) || isRej(e) || e.eventType === "rejection"),
-  };
+const stageOf = (e: Event) => ("stageId" in e ? ((e as any).stageId as string) : null);
+
+/** Per-stage {checked, rejected, rate} in registry order, over an event set.
+ *  The funnel must NOT be summed across stages — a unit inspected at Visual,
+ *  Balloon, Valve and Final is the *same* unit, so a naïve Σ-checked across
+ *  stages inflates the denominator ~4×. Each stage is aggregated independently
+ *  here; headline metrics are composed from these per-stage numbers. */
+function perStageAgg(
+  events: Event[],
+  registry: Registry
+): { stageId: string; checked: number; rejected: number; rate: number }[] {
+  return registry.stages.map((s) => {
+    const a = aggregate(events.filter((e) => stageOf(e) === s.stageId));
+    return { stageId: s.stageId, checked: a.checked, rejected: a.rejected, rate: a.checked > 0 ? a.rejected / a.checked : 0 };
+  });
 }
 
+/** Headline "Total Rejection %" — the client convention: the SUM of each
+ *  stage's own rejection rate (Visual% + Balloon% + Valve% + Final%), matching
+ *  the totals on their REJECTION ANALYSIS / YEARLY sheets. This is a funnel-loss
+ *  figure, NOT overall rejected÷checked. */
+export function rejectionRate(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): MetricValue {
+  const ev = scopeEvents(events, scope);
+  const stages = perStageAgg(ev, registry);
+  const value = stages.reduce((sum, s) => sum + s.rate, 0);
+  return { value, sourceEventIds: ids(ev, (e) => isProd(e) || isRej(e)) };
+}
+
+/** Total rejected units across every stage (a raw count, not a rate). */
 export function totalRejected(events: Event[], scope: Scope): MetricValue {
   const ev = scopeEvents(events, scope);
   return { value: aggregate(ev).rejected, sourceEventIds: ids(ev, (e) => isRej(e) || e.eventType === "rejection") };
 }
 
-export function totalChecked(events: Event[], scope: Scope): MetricValue {
+/** Units that entered the line = the ENTRY stage's checked qty (first registry
+ *  stage with data — Visual). NOT Σ-checked across stages (that quadruple-counts
+ *  the same physical units). */
+export function totalChecked(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): MetricValue {
   const ev = scopeEvents(events, scope);
-  return { value: aggregate(ev).checked, sourceEventIds: ids(ev, isProd) };
+  const stages = perStageAgg(ev, registry);
+  const entry = stages.find((s) => s.checked > 0);
+  return {
+    value: entry?.checked ?? 0,
+    sourceEventIds: ids(ev, (e) => isProd(e) && stageOf(e) === (entry?.stageId ?? null)),
+  };
 }
 
-/** First Pass Yield. Uses accepted-good events when present; else 1 − rejection rate. */
-export function fpy(events: Event[], scope: Scope): MetricValue {
+/** First Pass Yield = rolled-throughput yield Π(1 − stageRate) across stages —
+ *  the fraction of entering units that pass every stage without rejection. */
+export function fpy(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): MetricValue {
   const ev = scopeEvents(events, scope);
-  const a = aggregate(ev);
-  if (a.checked === 0) return { value: 1, sourceEventIds: [] };
-  const goodExists = ev.some(isAcc);
-  const value = goodExists ? a.good / a.checked : (a.checked - a.rejected) / a.checked;
-  return { value, sourceEventIds: ids(ev, (e) => isProd(e) || isAcc(e) || isRej(e)) };
+  const stages = perStageAgg(ev, registry).filter((s) => s.checked > 0);
+  if (stages.length === 0) return { value: 1, sourceEventIds: [] };
+  const value = stages.reduce((y, s) => y * (1 - s.rate), 1);
+  return { value, sourceEventIds: ids(ev, (e) => isProd(e) || isRej(e)) };
 }
 
 export interface StageRow extends StageAgg {

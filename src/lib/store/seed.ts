@@ -3,31 +3,15 @@ import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { emitMany } from "@/lib/ingest/emit";
 import {
-  routeFamily,
-  parseAssemblyDaily,
-  parseRejectionAnalysis,
-  parseSizeWise,
+  recordsFromBuffer,
   dedupeByPrecedence,
   type PrecededRecord,
 } from "@/lib/ingest/parsers";
 import type { EventStore } from "./types";
 
-/** Parse one workbook buffer into precedence-tagged records (no synthetic data). */
-export function recordsFromBuffer(buf: Buffer, file: string): PrecededRecord[] {
-  const name = file.split(/[\\/]/).pop()!;
-  const family = routeFamily(name);
-  if (!family) return [];
-  if (family === "assembly-daily") {
-    return parseAssemblyDaily(buf, name).records.map((record) => ({ record, family }));
-  }
-  if (family === "rejection-analysis") {
-    return parseRejectionAnalysis(buf, name);
-  }
-  if (family === "size-wise" || family === "stage-report") {
-    return parseSizeWise(buf, file).map((record) => ({ record, family }));
-  }
-  return [];
-}
+// `recordsFromBuffer` now lives (fs-free) in @/lib/ingest/parsers so the same
+// classifier runs in the browser (/staging upload) and here on the server.
+export { recordsFromBuffer };
 
 function walkXlsx(dir: string): string[] {
   if (!existsSync(dir)) return [];

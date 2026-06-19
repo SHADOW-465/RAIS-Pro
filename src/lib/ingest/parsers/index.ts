@@ -1,5 +1,9 @@
 // src/lib/ingest/parsers/index.ts
-import type { SourceFamily } from "./types";
+import type { PrecededRecord } from "./types";
+import { routeFamily } from "./types";
+import { parseAssemblyDaily } from "./parse-assembly-daily";
+import { parseRejectionAnalysis } from "./parse-rejection-analysis";
+import { parseSizeWise } from "./parse-size-wise";
 
 export { dedupeByPrecedence } from "./dedupe";
 export { reconcileConflicts } from "./reconcile";
@@ -8,13 +12,30 @@ export { parseRejectionAnalysis } from "./parse-rejection-analysis";
 export { parseSizeWise } from "./parse-size-wise";
 export * from "./types";
 
-/** Decide the source family from a filename. */
-export function routeFamily(file: string): SourceFamily | null {
-  const f = file.toLowerCase();
-  if (/assembly/.test(f)) return "assembly-daily";
-  if (/rejection analysis/.test(f)) return "rejection-analysis";
-  if (/visual inspection report|balloon & valve integrity inspection/i.test(f)) return "stage-report";
-  if (/c[ou]mm?ulative|yearly/i.test(f)) return "cumulative";
-  if (/\b\d{1,2}\s+[a-z]+/i.test(f) || /weekly/i.test(f) || /daily activity/i.test(f)) return "size-wise";
-  return null;
+/**
+ * Parse one workbook buffer into precedence-tagged records, routing by filename
+ * family. Pure (no fs) so it runs in the browser (the /staging upload) AND on
+ * the server (seedFromDisk) — both MUST classify identically. `fileName` is the
+ * routing key; `buf` is the raw workbook bytes.
+ */
+export function recordsFromBuffer(buf: Buffer | ArrayBuffer, fileName: string): PrecededRecord[] {
+  const name = fileName.split(/[\\/]/).pop()!;
+  const family = routeFamily(name);
+  if (!family) return [];
+  // rejection-analysis / assembly embed the file name in per-cell provenance
+  // refs (which are length-capped), so they get the short BASENAME. parse-size-
+  // wise instead needs the FULL path — it distinguishes Valve vs Visual
+  // workbooks from the folder segment ("…/VALVE INTEGRITY/…" vs "…/VISUAL/…"),
+  // which identically-named monthly files ("1 APRIL 26.xlsx") lack — and it
+  // builds cells from the sheet name, so the long path never reaches provenance.
+  if (family === "assembly-daily") {
+    return parseAssemblyDaily(buf, name).records.map((record) => ({ record, family }));
+  }
+  if (family === "rejection-analysis") {
+    return parseRejectionAnalysis(buf, name);
+  }
+  if (family === "size-wise" || family === "stage-report") {
+    return parseSizeWise(buf, fileName).map((record) => ({ record, family }));
+  }
+  return [];
 }

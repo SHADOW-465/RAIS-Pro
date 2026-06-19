@@ -184,9 +184,15 @@ export function classifyWithSchema(
   const records: StageDayRecord[] = [];
 
   for (const stage of schema.stages) {
-    const sheet = rawSheets.find(
-      (s) => s.name.toLowerCase().trim() === stage.label.toLowerCase().trim()
-    );
+    // rawSheet.name is "<fileName> - <sheetName>" (see parser.ts), but a schema
+    // stage.label is the bare sheet name. Match on the sheet-name suffix so the
+    // lookup actually resolves (the strict === never matched → 0 records).
+    const target = stage.label.toLowerCase().trim();
+    const sheet = rawSheets.find((s) => {
+      const full = s.name.toLowerCase().trim();
+      const suffix = full.includes(" - ") ? full.split(" - ").slice(1).join(" - ").trim() : full;
+      return suffix === target || full === target;
+    });
     if (!sheet) continue;
 
     const dateField = stage.fields.find((f) => f.role === "date");

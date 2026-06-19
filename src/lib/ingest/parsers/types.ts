@@ -21,3 +21,21 @@ export interface PrecededRecord {
   record: StageDayRecord;
   family: SourceFamily;
 }
+
+/** Decide the source family from a filename. Pure string logic (no xlsx) so it
+ *  can be imported by the read-side canonicalizer without bundling the parsers. */
+export function routeFamily(file: string): SourceFamily | null {
+  const f = file.toLowerCase();
+  // "DAILY ACTIVITY REPORT" is a process-stage production log with an evolving,
+  // multi-stage column layout that parse-assembly-daily's FIXED columns do NOT
+  // match — routing it there would silently misparse. It is also redundant for
+  // counts (size-wise is authoritative for Visual/Balloon/Valve; rejection-
+  // analysis covers Final). Skip it until a dedicated parser exists.
+  if (/daily activity/.test(f)) return null;
+  if (/assembly/.test(f)) return "assembly-daily";
+  if (/rejection analysis/.test(f)) return "rejection-analysis";
+  if (/visual inspection report|balloon & valve integrity inspection/i.test(f)) return "stage-report";
+  if (/c[ou]mm?ulative|yearly/i.test(f)) return "cumulative";
+  if (/\b\d{1,2}\s+[a-z]+/i.test(f) || /weekly/i.test(f)) return "size-wise";
+  return null;
+}

@@ -114,7 +114,29 @@ export default function StagingPage() {
       const { rawSheets } = await parseExcelFilesWithRaw(files);
       setRawSheetsData(rawSheets);
 
-      let classifiedRecords = classifyWithSchema(rawSheets, schema, ingestionId);
+      // Prefer the specialized, verified family parsers (size-wise / rejection-
+      // analysis) — the SAME classifier seedFromDisk uses — so per-FR size rows,
+      // multi-row headers and side-by-side stage tables map correctly. The
+      // generic schema classifier is only a fallback for unrecognized layouts.
+      let classifiedRecords: any[] = [];
+      try {
+        const { recordsFromBuffer, dedupeByPrecedence } = await import("@/lib/ingest/parsers");
+        const preceded = recordsFromBuffer(arrayBuffer, file.name);
+        if (preceded.length > 0) {
+          const { kept } = dedupeByPrecedence(preceded);
+          classifiedRecords = kept.map((p: any) => ({ ...p.record, ingestionId }));
+          // Respect the master-registry stage filter in data-workbook mode.
+          if (!isMasterMode && activeRegistry) {
+            const masterStageIds = activeRegistry.stages.map((s: any) => s.stageId);
+            classifiedRecords = classifiedRecords.filter((r) => masterStageIds.includes(r.stageId));
+          }
+        }
+      } catch (e) {
+        console.warn("Family parser failed; falling back to schema classifier:", e);
+      }
+      if (classifiedRecords.length === 0) {
+        classifiedRecords = classifyWithSchema(rawSheets, schema, ingestionId);
+      }
       if (classifiedRecords.length === 0) {
         const { classifyRejectionSheets } = await import("@/lib/ingest/from-rejection-sheets");
         const res = classifyRejectionSheets(rawSheets, ingestionId);
