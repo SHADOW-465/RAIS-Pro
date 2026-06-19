@@ -123,7 +123,13 @@ export function byStage(events: Event[], scope: Scope, registry: Registry = DISP
         label: s.label,
         ...a,
         rejRate: a.checked > 0 ? a.rejected / a.checked : 0,
-        yield: a.checked > 0 ? (a.good || a.checked - a.rejected) / a.checked : 1,
+        // Stage pass-through yield = the exact complement of the stage's
+        // rejection rate: (checked − rejected) / checked = 1 − rejRate. Do NOT
+        // use `a.good` here — accepted events are only partially captured by the
+        // parsers (most rows carry checked + rejected but no explicit accepted),
+        // so `(a.good || …)` would divide a tiny partial good-count by full
+        // checked and report ~0% yield for a stage that actually passed ~94%.
+        yield: a.checked > 0 ? (a.checked - a.rejected) / a.checked : 1,
         contributionPct: total > 0 ? (a.rejected / total) * 100 : 0,
       };
     })

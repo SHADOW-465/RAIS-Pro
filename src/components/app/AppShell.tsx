@@ -67,8 +67,10 @@ export default function AppShell({
       });
   }, []);
 
-  // Export the canonical ledger as a CSV (ALCOA+ audit extract). Pulls the live
-  // event ledger and streams a download — no server round-trip needed.
+  // Export the audit-ready package: CSV extracts (rejection summary, stage-wise,
+  // defect Pareto, size-wise, monthly trend, full ledger) + manifest.json with a
+  // SHA-256 of every file, zipped (MOID-SPEC §365, ALCOA+). Pulls the live
+  // (already-canonicalized) ledger; no server round-trip beyond /api/events.
   async function handleExport() {
     if (exporting) return;
     setExporting(true);
@@ -76,27 +78,18 @@ export default function AppShell({
       const res = await fetch("/api/events");
       const body = await res.json();
       const events: any[] = body.events ?? [];
-      const cols = ["eventId", "eventType", "date", "stageId", "size", "defectCodeRaw", "quantity", "disposition", "file", "cell", "extractedBy", "recordedAt"];
-      const esc = (v: any) => {
-        const s = v == null ? "" : String(v);
-        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-      };
-      const rows = events.map((e) => [
-        e.eventId, e.eventType, e.occurredOn?.start, e.stageId ?? "", e.size ?? "",
-        e.defectCodeRaw ?? "", e.quantity ?? e.statedValue ?? "", e.disposition ?? "",
-        e.provenance?.file ?? "", e.provenance?.cells?.[0] ?? "", e.extractedBy ?? "", e.recordedAt ?? "",
-      ].map(esc).join(","));
-      const csv = [cols.join(","), ...rows].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const { buildAuditPackage } = await import("@/lib/audit-package");
+      const { blob, fileName } = await buildAuditPackage(events, { grain: "month" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `moid-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-    } catch {
+    } catch (e) {
+      console.error("Audit export failed:", e);
       window.print(); // fallback: print the current view to PDF
     } finally {
       setExporting(false);

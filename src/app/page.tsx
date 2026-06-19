@@ -255,16 +255,23 @@ export default function Dashboard() {
       rateDiff = `, a ${Math.abs(diff * 100).toFixed(2)}% pt ${dir} vs ${m.tr[m.tr.length - 2].label}`;
     }
 
-    const topDefect = m.defects[0]?.label ?? "Unknown";
-    const secondDefect = m.defects[1]?.label ?? "Unknown";
-    const thirdDefect = m.defects[2]?.label ?? "Unknown";
-
-    return [
+    const lines = [
       `Overall rejection rate is ${pct(m.rate)}${rateDiff}.`,
       `Visual Inspection contributes ${m.stages.find(s => s.stageId === "visual")?.contributionPct.toFixed(1) ?? "0.0"}% of total rejections.`,
-      `Top drivers: ${topDefect}, ${secondDefect}, ${thirdDefect}.`,
-      `Estimated annual savings opportunity: ${rupee(m.savings)}.`
     ];
+
+    // Only assert defect drivers when per-defect data actually exists. Showing
+    // "Unknown, Unknown, Unknown" reads as a broken pipeline; an honest note is
+    // correct for a regulated context.
+    if (m.defects.length > 0) {
+      const drivers = m.defects.slice(0, 3).map(d => d.label).join(", ");
+      lines.push(`Top defect drivers: ${drivers}.`);
+    } else {
+      lines.push("Per-defect breakdown unavailable for this period — ingest the size-wise defect sheets to populate it.");
+    }
+
+    lines.push(`Estimated annual savings opportunity: ${rupee(m.savings)}.`);
+    return lines;
   }, [m]);
 
   const recommendations = useMemo(() => {

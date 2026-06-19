@@ -40,11 +40,16 @@ export const DISPOSAFE_REGISTRY: Registry = {
   costConfig: null, // optional; user enters ₹/unit to unlock cost figures (MOID-SPEC §8)
 };
 
-/** Case/whitespace-insensitive alias resolution. Returns null when unknown (→ Finding). */
+/** Case/separator-insensitive alias resolution. Collapses ALL non-alphanumeric
+ *  characters so "90-10", "90/10" and "90 10" (the same defect written three
+ *  ways across sheets) all resolve to one code. Returns null when unknown
+ *  (→ low-confidence event + Finding), never an invented category. */
+const normDefect = (s: string): string => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 export function resolveDefect(raw: string, reg: Registry = DISPOSAFE_REGISTRY): string | null {
-  const norm = raw.trim().toUpperCase().replace(/\s+/g, " ");
+  const norm = normDefect(raw);
+  if (!norm) return null;
   for (const d of reg.defects) {
-    if (d.aliases.some((a) => a.trim().toUpperCase().replace(/\s+/g, " ") === norm)) return d.defectCode;
+    if (d.aliases.some((a) => normDefect(a) === norm)) return d.defectCode;
   }
   return null;
 }
