@@ -81,95 +81,106 @@ export default function StagingPage() {
     setError(null); setDone(null); setComments({}); setEditingCommentRow(null); setExtractedSchema(null);
     setFocusedInvalidIdx(0); setExpandedFlagsRow(null); setRawSheetsData(null);
     try {
-      const file = files[0];
-      const arrayBuffer = await file.arrayBuffer();
-      const xlsx = await import("xlsx");
-      const wb = xlsx.read(arrayBuffer, { type: "array" });
+      if (!files || files.length === 0) return;
+      setBusy(true);
 
-      // 1. Post raw file to server to be archived and secure cryptohash
-      const formData = new FormData();
-      formData.append("file", file);
-      const archiveRes = await fetch("/api/archive-upload", { method: "POST", body: formData });
-      if (!archiveRes.ok) throw new Error("Failed to archive workbook on server.");
-      const { fileHash } = await archiveRes.json();
-
+      const { recordsFromBuffer, dedupeByPrecedence } = await import("@/lib/ingest/parsers");
       const { extractSchemaFromWorkbook, classifyWithSchema } = await import("@/lib/ingest/schema-extractor");
-      const schema = extractSchemaFromWorkbook(wb, file.name);
-
-      // Enforce master registry staging filters if in data workbook mode
-      if (!isMasterMode) {
-        if (!activeRegistry) {
-          throw new Error("No master schema configured. Please upload a pristine master workbook first.");
-        }
-        const masterStageIds = activeRegistry.stages.map((s: any) => s.stageId);
-        schema.stages = schema.stages.filter((s: any) => masterStageIds.includes(s.stageId));
-        if (schema.stages.length === 0) {
-          throw new Error("The uploaded data workbook does not match the established master configuration stages.");
-        }
-      }
-
-      setExtractedSchema(schema);
-
       const { parseExcelFilesWithRaw } = await import("@/lib/parser");
-      const { rawSheets } = await parseExcelFilesWithRaw(files);
-      setRawSheetsData(rawSheets);
+      const { classifyRejectionSheets } = await import("@/lib/ingest/from-rejection-sheets");
+      const xlsx = await import("xlsx");
 
-      // Prefer the specialized, verified family parsers (size-wise / rejection-
-      // analysis) — the SAME classifier seedFromDisk uses — so per-FR size rows,
-      // multi-row headers and side-by-side stage tables map correctly. The
-      // generic schema classifier is only a fallback for unrecognized layouts.
-      let classifiedRecords: any[] = [];
-      try {
-        const { recordsFromBuffer, dedupeByPrecedence } = await import("@/lib/ingest/parsers");
-        const preceded = recordsFromBuffer(arrayBuffer, file.name);
-        if (preceded.length > 0) {
-          const { kept } = dedupeByPrecedence(preceded);
-          classifiedRecords = kept.map((p: any) => ({ ...p.record, ingestionId }));
-          // Respect the master-registry stage filter in data-workbook mode.
-          if (!isMasterMode && activeRegistry) {
-            const masterStageIds = activeRegistry.stages.map((s: any) => s.stageId);
-            classifiedRecords = classifiedRecords.filter((r) => masterStageIds.includes(r.stageId));
+      if (!isMasterMode && !activeRegistry) {
+        throw new Error("No master schema configured. Please upload a pristine master workbook first.");
+      }
+      const masterStageIds: string[] | null =
+        !isMasterMode && activeRegistry ? activeRegistry.stages.map((s: any) => s.stageId) : null;
+
+      const allPreceded: any[] = [];     // recognized-family records (PrecededRecord[])
+      const fallbackRecords: any[] = []; // generic-classifier records (unknown layouts)
+      const allRawSheets: any[] = [];
+      const skipped: string[] = [];
+      let firstSchema: any = null;
+
+      // Process EVERY uploaded file (the previous version silently used only
+      // files[0]). Accumulate all records, THEN dedup the combined set so two
+      // overlapping workbooks can never double-count the same stage·day.
+      for (const file of files) {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const wb = xlsx.read(arrayBuffer, { type: "array" });
+
+          // Archive → cryptographic fileHash (best-effort; never blocks ingest).
+          let fileHash = "local";
+          try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const archiveRes = await fetch("/api/archive-upload", { method: "POST", body: fd });
+            if (archiveRes.ok) fileHash = (await archiveRes.json()).fileHash ?? "local";
+          } catch { /* keep "local" */ }
+
+          // Schema for the editor / master-mode save (first usable one wins).
+          const schema = extractSchemaFromWorkbook(wb, file.name);
+          if (masterStageIds) schema.stages = schema.stages.filter((s: any) => masterStageIds.includes(s.stageId));
+          if (!firstSchema && schema.stages.length > 0) firstSchema = schema;
+
+          // PREFER the verified family parsers (size-wise / rejection-analysis).
+          const preceded = recordsFromBuffer(arrayBuffer, file.name);
+          if (preceded.length > 0) {
+            for (const p of preceded) {
+              p.record = { ...p.record, ingestionId, source: { ...p.record.source, fileHash } };
+            }
+            allPreceded.push(...preceded);
+          } else {
+            // Fallback: generic classifier for unrecognized layouts.
+            const { rawSheets } = await parseExcelFilesWithRaw([file]);
+            allRawSheets.push(...rawSheets);
+            let recs = classifyWithSchema(rawSheets, schema, ingestionId);
+            if (recs.length === 0) recs = classifyRejectionSheets(rawSheets, ingestionId).records;
+            recs = recs.map((r: any) => ({ ...r, source: { ...r.source, fileHash } }));
+            fallbackRecords.push(...recs);
           }
+        } catch (fileErr: any) {
+          skipped.push(`${file.name}: ${fileErr?.message ?? "read error"}`);
         }
-      } catch (e) {
-        console.warn("Family parser failed; falling back to schema classifier:", e);
-      }
-      if (classifiedRecords.length === 0) {
-        classifiedRecords = classifyWithSchema(rawSheets, schema, ingestionId);
-      }
-      if (classifiedRecords.length === 0) {
-        const { classifyRejectionSheets } = await import("@/lib/ingest/from-rejection-sheets");
-        const res = classifyRejectionSheets(rawSheets, ingestionId);
-        classifiedRecords = res.records;
       }
 
-      // Append file cryptographic hash metadata
-      classifiedRecords = classifiedRecords.map(r => ({
-        ...r,
-        source: {
-          ...r.source,
-          fileHash
-        }
-      }));
+      // Dedup recognized-family records across ALL files, then add fallbacks.
+      let classifiedRecords: any[] = [];
+      if (allPreceded.length > 0) {
+        const { kept } = dedupeByPrecedence(allPreceded);
+        classifiedRecords = kept.map((p: any) => p.record);
+      }
+      classifiedRecords.push(...fallbackRecords);
+      if (masterStageIds) {
+        classifiedRecords = classifiedRecords.filter((r) => masterStageIds.includes(r.stageId));
+      }
 
+      setExtractedSchema(firstSchema);
+      if (allRawSheets.length > 0) setRawSheetsData(allRawSheets);
       setRecords(classifiedRecords);
-      setFileName(file.name);
+      setFileName(files.length === 1 ? files[0].name : `${files.length} files`);
 
-      // Jump to the page containing the first invalid row
-      const reviewedRows = buildReviewRows(classifiedRecords);
-      const firstInvalidGlobalIdx = reviewedRows.findIndex(r => r.status === "invalid");
-      if (firstInvalidGlobalIdx >= 0) {
-        setPage(Math.floor(firstInvalidGlobalIdx / PAGE_SIZE));
-      } else {
-        setPage(0);
+      if (classifiedRecords.length === 0) {
+        throw new Error(
+          skipped.length
+            ? `No records extracted. ${skipped.join("; ")}`
+            : "No records could be extracted — the file layout was not recognized."
+        );
       }
+      if (skipped.length) setError(`Some files were skipped: ${skipped.join("; ")}`);
 
-      // Auto-save active schema to registry database if in master configuration mode
-      if (isMasterMode && schema && schema.stages.length > 0) {
+      // Jump to the page containing the first invalid row.
+      const reviewedRows = buildReviewRows(classifiedRecords);
+      const firstInvalidGlobalIdx = reviewedRows.findIndex((r) => r.status === "invalid");
+      setPage(firstInvalidGlobalIdx >= 0 ? Math.floor(firstInvalidGlobalIdx / PAGE_SIZE) : 0);
+
+      // Auto-save active schema to registry in master-configuration mode.
+      if (isMasterMode && firstSchema && firstSchema.stages.length > 0) {
         const regRes = await fetch("/api/schema", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ schema })
+          body: JSON.stringify({ schema: firstSchema }),
         });
         const regData = await regRes.json();
         if (regData.success) {
@@ -188,6 +199,8 @@ export default function StagingPage() {
         errMsg = "Locked File / Permission Error: The file could not be read. If this Excel file is currently open in Microsoft Excel or another program, please close the file in Excel, save your changes, and try uploading it again.";
       }
       setError(errMsg);
+    } finally {
+      setBusy(false);
     }
   }
 

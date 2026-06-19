@@ -3,6 +3,23 @@ import * as xlsx from "xlsx";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { dateFromFilename, toLocalISODate } from "@/lib/ingest/date";
 
+/** Decide whether a size-wise workbook is a Valve (balloon+valve) or Visual
+ *  book. Filename hint first (folder path on disk), then sheet-content sniffing
+ *  (browser uploads have only a basename). */
+function detectSizeKind(wb: xlsx.WorkBook, fileLower: string): "valve" | "visual" {
+  if (fileLower.includes("valve") || fileLower.includes("integrity")) return "valve";
+  if (fileLower.includes("visual")) return "visual";
+  for (const sn of wb.SheetNames) {
+    if (!/^\d+FR$/i.test(sn) && !/^commulative|^cumulative/i.test(sn)) continue;
+    const rows = xlsx.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: null }) as any[][];
+    const text = rows.slice(0, 12).flat().map((c) => String(c ?? "").toUpperCase()).join(" | ");
+    if (text.includes("VALVE INTEGRITY") || text.includes("STRUCK BALLOON") || text.includes("BALLOM BRUST")) return "valve";
+    if (text.includes("REASON FOR REJECTION") || text.includes("REC. QTY") || text.includes("REC QTY")) return "visual";
+    break; // inspect only the first matching sheet
+  }
+  return "visual"; // safe default (visual is the simpler single-section layout)
+}
+
 export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDayRecord[] {
   const date = dateFromFilename(file);
   if (!date) return [];
@@ -10,9 +27,14 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
   const wb = xlsx.read(buf, { type: "buffer", cellDates: true });
   const records: StageDayRecord[] = [];
 
-  const fileLower = file.toLowerCase();
-  const isValve = fileLower.includes("valve") || fileLower.includes("integrity");
-  const isVisual = fileLower.includes("visual") || fileLower.includes("vis");
+  // Valve vs Visual must be detectable from a browser upload, where File.name is
+  // just the basename ("1 APRIL 26.xlsx") with NO folder context. Prefer the
+  // filename hint; otherwise inspect the first size sheet's header text — Valve
+  // workbooks carry the side-by-side "BALLOON … VALVE INTEGRITY" block, Visual
+  // workbooks carry "REC. QTY … REASON FOR REJECTION".
+  const kind = detectSizeKind(wb, file.toLowerCase());
+  const isValve = kind === "valve";
+  const isVisual = kind === "visual";
 
   if (isValve) {
     // Valve Integrity workbook: loop through detailed size sheets, e.g. 6FR, 8FR, etc.
