@@ -366,7 +366,26 @@ export default function Dashboard() {
         </div>
       )}
       {events !== null && events.length === 0 && (
-        <Empty label="No rejection data yet — go to Data Entry or Staging & Review (left) to bring data in." />
+        <div style={{ padding: "72px 32px", textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 12 }}>
+            No data yet
+          </div>
+          <div style={{ color: "var(--text-2)", fontSize: 14, lineHeight: 1.75, maxWidth: 760, margin: "0 auto 20px" }}>
+            Upload your monthly inspection workbooks on <strong>Staging &amp; Review</strong> to populate the dashboard —
+            the <strong>Visual</strong> size-wise book, the <strong>Valve Integrity</strong> size-wise book (covers Balloon + Valve),
+            and the <strong>Rejection Analysis</strong> book (covers Final inspection). Or key figures in manually via <strong>Data Entry</strong>.
+          </div>
+          <button
+            onClick={() => router.push("/staging")}
+            style={{
+              fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 13, cursor: "pointer",
+              color: "var(--paper)", background: "var(--accent)", border: "none",
+              padding: "10px 20px", borderRadius: "var(--radius-md)",
+            }}
+          >
+            Go to Staging &amp; Review →
+          </button>
+        </div>
       )}
 
       {m && (

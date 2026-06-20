@@ -1,8 +1,6 @@
 // src/app/api/hard-reset/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import { getStores } from "@/lib/store";
-import { seedFromDisk } from "@/lib/store/seed";
 
 export async function POST(req: NextRequest) {
   try {
@@ -49,19 +47,9 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // Re-seed the now-empty ledger from disk so the dashboard immediately
-    // reflects the corrected ingestion (seedFromDisk is idempotent and only
-    // runs because the store is empty after the clear above).
-    let reseeded = 0;
-    try {
-      const { events } = getStores();
-      await seedFromDisk(events);
-      reseeded = (await events.effective()).length;
-    } catch (e) {
-      console.warn("Re-seed after hard reset failed (non-fatal):", (e as Error).message);
-    }
-
-    return NextResponse.json({ success: true, cleared: true, reseeded });
+    // Reset leaves the store BLANK — no re-seed. The app starts empty and the
+    // user uploads their own workbooks (/staging) to populate it.
+    return NextResponse.json({ success: true, cleared: true });
   } catch (err: any) {
     console.error("Hard reset failed:", err);
     return NextResponse.json({ error: err?.message ?? "Hard reset failed" }, { status: 500 });

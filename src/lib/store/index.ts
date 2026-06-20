@@ -71,7 +71,12 @@ export function getStores(): Stores {
 
 import { seedFromDisk } from "./seed";
 
+// Auto-seeding from the ANALYTICAL DATA/ folder is OFF by default. The app
+// starts BLANK and shows only what users upload (/staging) or key in
+// (/data-entry) — no courtesy demo data. Set MOID_AUTOSEED=1 to opt back in for
+// local dev/demos.
 function seedStore(eventsStore: EventStore) {
   if (typeof window !== "undefined") return;
+  if (process.env.MOID_AUTOSEED !== "1") return;
   void seedFromDisk(eventsStore).catch((e) => console.error("seed failed:", e));
 }
