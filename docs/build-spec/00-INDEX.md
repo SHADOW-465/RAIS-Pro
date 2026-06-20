@@ -25,6 +25,7 @@ This folder is the **complete, code-accurate specification** of the working PoC,
 | 17 | [module-map](17-module-map.md) | Every module → role → exports |
 | 18 | [correctness-invariants](18-correctness-invariants.md) | The non-negotiable rules |
 | 19 | [glossary-decisions](19-glossary-decisions.md) | Glossary + decision log |
+| 20 | [porting-playbook](20-porting-playbook.md) | Prompts + parity-test method to rebuild in Python (FastAPI) |
 
 ## The one sentence that matters
 **The dashboard is a pure deterministic function of an append-only event ledger; the LLM only classifies columns and writes prose — it never computes a KPI. All arithmetic is verified against the client's own embedded spreadsheet totals.**
