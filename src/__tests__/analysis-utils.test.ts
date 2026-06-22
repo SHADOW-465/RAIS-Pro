@@ -1,72 +1,14 @@
-import { buildPrompt, buildManifestPrompt } from "../lib/analysis-utils";
 import {
   DashboardConfigSchema,
   MergePlanSchema,
   InsightSlideAnswerSchema,
 } from "../lib/schemas";
 
-describe("buildPrompt", () => {
-  const minimalMergedResult = {
-    groups: [
-      {
-        label: "All Data",
-        rowCount: 5,
-        sourceSheets: ["test.xlsx - Sheet1"],
-        numericAggregates: { Rejections: { sum: 100, mean: 20, min: 5, max: 40 } },
-        groupedSeries: [],
-      },
-    ],
-    grandTotals: { Rejections: { sum: 100, mean: 20 } },
-    mergePlan: {
-      groups: [
-        { label: "All Data", sheets: ["test.xlsx - Sheet1"], reason: "single sheet" },
-      ],
-      excludedSheets: [],
-      crossFileStrategy: "sum" as const,
-      warnings: [],
-    },
-  };
-
-  it("includes the data section with grand totals", () => {
-    const prompt = buildPrompt(minimalMergedResult);
-    expect(prompt).toContain("GRAND TOTALS");
-    expect(prompt).toContain("Rejections");
-  });
-
-  it("does not contain hardcoded manufacturing field names", () => {
-    const prompt = buildPrompt(minimalMergedResult);
-    expect(prompt).not.toContain("rejectionRate");
-    expect(prompt).not.toContain("totalOutput");
-    expect(prompt).not.toContain("qualityScore");
-  });
-
-  it("instructs the model to populate history when a time series exists", () => {
-    const prompt = buildPrompt(minimalMergedResult);
-    expect(prompt).toContain("history");
-  });
-});
-
-describe("buildManifestPrompt", () => {
-  it("formats sheets and rules", () => {
-    const prompt = buildManifestPrompt([
-      {
-        sheetKey: "a.xlsx - S1",
-        fileName: "a.xlsx",
-        sheetName: "S1",
-        rowCount: 100,
-        totalRowsStripped: 0,
-        granularity: "monthly",
-        timeRange: "Jan-Mar 2024",
-        isSummaryCandidate: false,
-        columns: ["date", "rejections"],
-        numericTotals: { rejections: 50 },
-        numericMeans: { rejections: 0.5 },
-      },
-    ]);
-    expect(prompt).toContain("a.xlsx - S1");
-    expect(prompt).toContain("crossFileStrategy");
-  });
-});
+// NOTE: buildPrompt and buildManifestPrompt were removed in the legacy pipeline
+// cleanup (June 2026). They belonged to the old phase-1 MergePlan path which was
+// superseded by inferSheetGraph (heuristic) + SheetMappingSetSchema (LLM).
+// The active prompt builder (buildGraphPrompt, buildNarrativePrompt) is exercised
+// end-to-end via the analyze route integration tests.
 
 // Minimal KPI with all nullable fields set to null (cross-provider compat).
 const minimalKpi = (overrides: Partial<Record<string, unknown>> = {}) => ({
