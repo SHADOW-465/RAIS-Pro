@@ -38,6 +38,8 @@ export interface EventStore {
   /** Effective set = all events minus those superseded by a Correction. */
   effective(filter?: EventFilter): Promise<Event[]>;
   byIds(ids: string[]): Promise<Event[]>;
+  /** Wipe the entire ledger (operator "Clear Data" — destructive, full reset). */
+  clear(): Promise<{ deleted: number }>;
 }
 
 export type FindingWithState = FindingT & { state: FindingStateT };

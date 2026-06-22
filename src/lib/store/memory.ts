@@ -70,6 +70,12 @@ export class MemoryEventStore implements EventStore {
     return ids.map((id) => this.byId.get(id)).filter((e): e is Event => !!e);
   }
 
+  async clear(): Promise<{ deleted: number }> {
+    const deleted = this.byId.size;
+    this.byId.clear();
+    return { deleted };
+  }
+
   /** test/debug helper */
   get size(): number {
     return this.byId.size;

@@ -19,9 +19,18 @@ const STAGE_FROM_NAME: { test: RegExp; stageId: string; label: string }[] = [
 
 const SUMMARY_NAME = /cumm?ulative|yearly|summary|^\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
 
+/** RawSheet.name is "<fileName> - <sheetName>". Stage detection must look at the
+ *  sheet portion only — otherwise a workbook *named* e.g. "VISUAL INSPECTION
+ *  REPORT…" makes every one of its sheets match /visual/ and get double-claimed. */
+function sheetPortion(name: string): string {
+  const idx = name.indexOf(" - ");
+  return idx >= 0 ? name.slice(idx + 3) : name;
+}
+
 function stageForSheet(sheetName: string): { stageId: string; label: string } | null {
+  const s0 = sheetPortion(sheetName);
   // valve before balloon (valve sheets often mention balloon too)
-  for (const s of STAGE_FROM_NAME) if (s.test.test(sheetName)) return { stageId: s.stageId, label: s.label };
+  for (const s of STAGE_FROM_NAME) if (s.test.test(s0)) return { stageId: s.stageId, label: s.label };
   return null;
 }
 
@@ -98,7 +107,7 @@ export function classifyRejectionSheets(
   rawSheets.forEach((sheet, sheetIdx) => {
     const stage = stageForSheet(sheet.name);
     if (!stage) {
-      skipped.push({ sheet: sheet.name, reason: SUMMARY_NAME.test(sheet.name) ? "summary/rollup sheet (kept as claim only)" : "no rejection stage detected" });
+      skipped.push({ sheet: sheet.name, reason: SUMMARY_NAME.test(sheetPortion(sheet.name)) ? "summary/rollup sheet (kept as claim only)" : "no rejection stage detected" });
       return;
     }
 

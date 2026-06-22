@@ -9,7 +9,7 @@ import AppShell from "@/components/app/AppShell";
 import { Card, Empty } from "@/components/app/widgets";
 import UploadZone from "@/components/UploadZone";
 import Icon from "@/components/editorial/Icon";
-import { classifyRejectionSheets } from "@/lib/ingest/from-rejection-sheets";
+import { classifyWorkbook } from "@/lib/ingest/classify";
 import { buildReviewRows, reviewSummary, applyEdit } from "@/lib/ingest/review";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 
@@ -36,7 +36,7 @@ export default function StagingPage() {
     try {
       const { parseExcelFilesWithRaw } = await import("@/lib/parser");
       const { rawSheets } = await parseExcelFilesWithRaw(files);
-      const { records } = classifyRejectionSheets(rawSheets, ingestionId);
+      const { records } = classifyWorkbook(rawSheets, ingestionId);
       setRecords(records); setFileName(files.map((f) => f.name).join(", "));
     } catch (e: any) {
       console.error("File upload reading error:", e);

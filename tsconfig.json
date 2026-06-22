@@ -30,9 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-<<<<<<< Updated upstream
-  "exclude": ["node_modules", "supabase"]
-=======
   "exclude": ["node_modules", "supabase", "scratch", "_legacy_trash"]
->>>>>>> Stashed changes
 }

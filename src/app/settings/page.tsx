@@ -19,6 +19,8 @@ export default function SettingsPage() {
   });
 
   const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState<null | "data" | "schema">(null);
+  const [dangerMsg, setDangerMsg] = useState<string | null>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -72,6 +74,39 @@ export default function SettingsPage() {
       "valve-integrity": "0.90",
       "final": "1.00",
     });
+  };
+
+  // Danger zone — wipe the canonical ledger (server) or the local schema/draft state.
+  const clearData = async () => {
+    if (!window.confirm("Permanently delete ALL ingested data from the ledger? This cannot be undone. You can re-upload your Excel files afterwards.")) return;
+    setBusy("data"); setDangerMsg(null);
+    try {
+      const res = await fetch("/api/clear-data", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Clear failed");
+      setDangerMsg(`Cleared ${body.deleted ?? 0} events from the ledger. Re-upload via Staging or Data Entry to repopulate.`);
+    } catch (e) {
+      setDangerMsg(`Clear failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const clearSchema = () => {
+    if (!window.confirm("Reset the entry schema, drafts, and local settings on this device? Ledger data is NOT affected.")) return;
+    setBusy("schema"); setDangerMsg(null);
+    try {
+      if (typeof window !== "undefined") {
+        const kill = Object.keys(localStorage).filter((k) =>
+          k.startsWith("rais_settings_") || k.startsWith("moid_draft_") || k.startsWith("moid_schema") || k.startsWith("rais_schema"),
+        );
+        kill.forEach((k) => localStorage.removeItem(k));
+        handleReset();
+        setDangerMsg(`Cleared ${kill.length} local schema/draft/setting keys.`);
+      }
+    } finally {
+      setBusy(null);
+    }
   };
 
   return (
@@ -223,6 +258,35 @@ export default function SettingsPage() {
             </div>
           </Card>
 
+          {/* Danger Zone — destructive resets */}
+          <Card title="Data Management (Danger Zone)" sub="Destructive — use with care">
+            {dangerMsg && (
+              <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: "var(--radius-md)", background: "var(--surface-2)", border: "1px solid var(--border-strong)", fontSize: 12.5, color: "var(--text-2)" }}>
+                {dangerMsg}
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Clear All Data</span>
+                <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+                  Permanently wipes the entire canonical-event ledger (all uploaded &amp; entered data). Use this to start fresh or to re-ingest after a bad import. Re-upload via Staging or Data Entry afterwards.
+                </span>
+                <button onClick={clearData} disabled={busy !== null} style={{ ...btnDanger, opacity: busy ? 0.6 : 1 }}>
+                  {busy === "data" ? "Clearing…" : "Clear All Data"}
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Clear Schema &amp; Local Settings</span>
+                <span className="muted" style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+                  Resets the data-entry schema, saved drafts, and this device&apos;s settings (targets, weights) to defaults. Ledger data is <strong>not</strong> affected.
+                </span>
+                <button onClick={clearSchema} disabled={busy !== null} style={{ ...btnDangerGhost, opacity: busy ? 0.6 : 1 }}>
+                  {busy === "schema" ? "Clearing…" : "Clear Schema & Settings"}
+                </button>
+              </div>
+            </div>
+          </Card>
+
           {/* Bottom Actions */}
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, borderTop: "1px solid var(--border)", paddingTop: 20 }}>
             <button onClick={handleReset} style={btnGhost}>
@@ -291,3 +355,27 @@ const btnGhost: React.CSSProperties = {
 
 const thStyle: React.CSSProperties = { padding: "8px 10px", fontWeight: 600 };
 const tdStyle: React.CSSProperties = { padding: "8px 10px", color: "var(--text-2)" };
+
+const btnDanger: React.CSSProperties = {
+  background: "var(--critical)",
+  color: "#fff",
+  border: "none",
+  borderRadius: "var(--radius-md)",
+  padding: "9px 16px",
+  fontSize: "13px",
+  fontWeight: 700,
+  cursor: "pointer",
+  alignSelf: "flex-start",
+};
+
+const btnDangerGhost: React.CSSProperties = {
+  background: "transparent",
+  color: "var(--critical)",
+  border: "1px solid var(--critical)",
+  borderRadius: "var(--radius-md)",
+  padding: "9px 16px",
+  fontSize: "13px",
+  fontWeight: 700,
+  cursor: "pointer",
+  alignSelf: "flex-start",
+};

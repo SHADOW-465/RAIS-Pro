@@ -11,7 +11,8 @@ import {
 } from "./memory";
 import type { EventStore, FindingStore, RulebookStore } from "./types";
 import { parseWorkbookBuffer } from "../parser";
-import { classifyRejectionSheets, toISODate } from "../ingest/from-rejection-sheets";
+import { toISODate } from "../ingest/from-rejection-sheets";
+import { classifyWorkbook } from "../ingest/classify";
 import { emitMany } from "../ingest/emit";
 
 export interface Stores {
@@ -98,40 +99,11 @@ function seedStore(eventsStore: EventStore) {
             for (const file of files) {
               const buf = fs.readFileSync(path.join(rejDir, file));
               const { rawSheets } = parseWorkbookBuffer(buf, file);
-              const { records } = classifyRejectionSheets(rawSheets, "init-seed-rej");
-              // Emit base events (production + inspection)
-              const baseEvents = emitMany(records);
-              allEvents.push(...baseEvents);
-              // Synthesize defect breakdown from total rejected qty
-              // Distribution derived from GM's analytical data: THSP 34%, LEAK 24%, BM 16%, BUB 10%, PINH 8%, OTH 8%
-              const DEFECT_MIX: { raw: string; weight: number }[] = [
-                { raw: "THIN SPOT",  weight: 0.34 },
-                { raw: "LEAKAGE",    weight: 0.24 },
-                { raw: "BLACK MARK", weight: 0.16 },
-                { raw: "BUBBLE",     weight: 0.10 },
-                { raw: "PINHOLE",    weight: 0.08 },
-                { raw: "OTHERS",     weight: 0.08 },
-              ];
-              records.forEach((rec: any, idx: number) => {
-                const totalRej = rec.rejected?.value ?? 0;
-                if (totalRej <= 0) return;
-                DEFECT_MIX.forEach((dm) => {
-                  const qty = Math.round(totalRej * dm.weight);
-                  if (qty <= 0) return;
-                  const syntheticRec = {
-                    ...rec,
-                    defects: [{ raw: dm.raw, value: qty, cell: `${rec.source.sheet}!synth-${dm.raw}-${idx}` }],
-                    checked: null,
-                    rejected: null,
-                    acceptedGood: null,
-                    rework: null,
-                    statedPct: null,
-                    ingestionId: "init-seed-rej-defects",
-                  };
-                  const defectEvents = emitMany([syntheticRec]);
-                  allEvents.push(...defectEvents);
-                });
-              });
+              // Real parsers only — no fabricated defect mix. Per-defect data
+              // comes from genuine defect columns (the visual-inspection report
+              // and the size-wise files below), never an invented distribution.
+              const { records } = classifyWorkbook(rawSheets, "init-seed-rej");
+              allEvents.push(...emitMany(records));
             }
           }
 
@@ -269,7 +241,7 @@ function seedStore(eventsStore: EventStore) {
           for (const file of files) {
             const buf = fs.readFileSync(path.join(dataDir, file));
             const { rawSheets } = parseWorkbookBuffer(buf, file);
-            const { records } = classifyRejectionSheets(rawSheets, "init-seed-workspace");
+            const { records } = classifyWorkbook(rawSheets, "init-seed-workspace");
 
             const sizes = ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18"];
             const sizeWeights = [0.10, 0.15, 0.20, 0.35, 0.20];

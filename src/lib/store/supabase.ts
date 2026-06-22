@@ -146,6 +146,16 @@ export class SupabaseEventStore implements EventStore {
     }
     return out;
   }
+
+  async clear(): Promise<{ deleted: number }> {
+    const { count } = await this.client
+      .from("events")
+      .select("event_id", { count: "exact", head: true });
+    // event_id is the non-null PK, so this matches (and deletes) every row.
+    const { error } = await this.client.from("events").delete().not("event_id", "is", null);
+    if (error) throw error;
+    return { deleted: count ?? 0 };
+  }
 }
 
 export class SupabaseFindingStore implements FindingStore {

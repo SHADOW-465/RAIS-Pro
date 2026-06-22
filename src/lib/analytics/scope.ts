@@ -91,6 +91,49 @@ export function periodsIn(events: Event[], grain: Grain): string[] {
   return sorted;
 }
 
+/** The latest-period snapshot window + the full-span trend window for an event
+ *  set under a grain. Centralizes the snapshot/trend scope math every screen
+ *  needs so grain (D/W/M/FY) wires identically everywhere. */
+export interface DerivedScopes {
+  snapshotScope: Scope;
+  trendScope: Scope;
+  latestPeriod: string | null;
+  latestPeriodLabel: string;
+}
+
+export function deriveScopes(events: Event[], grain: Grain): DerivedScopes {
+  if (!events.length) {
+    return { snapshotScope: { grain }, trendScope: { grain }, latestPeriod: null, latestPeriodLabel: "" };
+  }
+  const dates = events.map((e) => e.occurredOn.start).sort();
+  const trendScope: Scope = { grain, dateFrom: dates[0], dateTo: dates[dates.length - 1] };
+
+  const periods = periodsIn(events, grain);
+  const latestPeriod = periods[periods.length - 1] ?? null;
+
+  let snapshotScope: Scope = { grain };
+  if (latestPeriod) {
+    if (grain === "day") {
+      snapshotScope = { grain: "day", dateFrom: latestPeriod, dateTo: latestPeriod };
+    } else if (grain === "month") {
+      const [y, mStr] = latestPeriod.split("-");
+      const lastDay = new Date(Number(y), Number(mStr), 0).getDate();
+      snapshotScope = { grain: "month", dateFrom: `${y}-${mStr}-01`, dateTo: `${y}-${mStr}-${String(lastDay).padStart(2, "0")}` };
+    } else if (grain === "week") {
+      const [y, mStr, wStr] = latestPeriod.split("-");
+      const wNum = Number(wStr.replace("W", ""));
+      const dStart = String((wNum - 1) * 7 + 1).padStart(2, "0");
+      const dEnd = String(Math.min(wNum * 7, 31)).padStart(2, "0");
+      snapshotScope = { grain: "week", dateFrom: `${y}-${mStr}-${dStart}`, dateTo: `${y}-${mStr}-${dEnd}` };
+    } else if (grain === "fy") {
+      const mm = latestPeriod.match(/FY(\d{4})/);
+      const startYear = Number(mm ? mm[1] : "2025");
+      snapshotScope = { grain: "fy", dateFrom: `${startYear}-04-01`, dateTo: `${startYear + 1}-03-31` };
+    }
+  }
+  return { snapshotScope, trendScope, latestPeriod, latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : "" };
+}
+
 /** The immediately-prior equal-length window, for "vs previous period" deltas. */
 export function prevWindow(scope: Scope): Scope {
   if (!scope.dateFrom || !scope.dateTo) return scope;
