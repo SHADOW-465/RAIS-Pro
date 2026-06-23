@@ -85,10 +85,10 @@ export default function ProcessFlowPage() {
       }
     }
 
-    // Full-span breakdown so every stage that has data anywhere is shown — not
-    // just whatever the global latest period (often visual-only) contains.
-    const fullScope: Scope = { grain: t.grain, dateFrom: scope.dateFrom, dateTo: scope.dateTo };
-    const stages = byStage(events, fullScope);
+    // Respect the selected timeframe (grain): show the stages present in the
+    // active period (snapshot). Empty for a period simply means that period has
+    // no data for those stages yet.
+    const stages = byStage(events, snapshotScope);
     const order = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
     const orderedStages = [...stages].sort((a, b) => order.indexOf(a.stageId) - order.indexOf(b.stageId));
 

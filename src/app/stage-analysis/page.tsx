@@ -96,10 +96,11 @@ export default function StageAnalysisPage() {
     }
 
     const rate = rejectionRate(events, snapshotScope).value;
-    // Stage breakdown spans the WHOLE dataset — a station present only in one
-    // month (e.g. balloon in December) must still appear, not vanish because the
-    // global latest period happens to be a visual-only month.
-    const stages = byStage(events, trendScope);
+    // Respect the selected timeframe (grain): show the stages that have data in
+    // the active period. When the period has no data for a stage, it correctly
+    // shows nothing — pick a period that has data (e.g. December for the
+    // rejection-analysis stations) to see them.
+    const stages = byStage(events, snapshotScope);
     const order = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
     const orderedStages = [...stages].sort((a, b) => order.indexOf(a.stageId) - order.indexOf(b.stageId));
     const tr = trend(events, trendScope, "rejectionRate");
