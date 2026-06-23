@@ -98,7 +98,7 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
   if (rec.checked && Number.isInteger(rec.checked.value) && rec.checked.value >= 0) {
     const payload = { stageId: rec.stageId, quantity: rec.checked.value, unit: "pcs" as const, batchNo: null, size: rec.size ?? null };
     const env = envelope(rec, [rec.checked.cell], rec.checked.header, null, null);
-    const eventId = hashEvent({ eventType: "production", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
+    const eventId = hashEvent({ eventType: "production", occurredOn: rec.occurredOn, payload });
     out.push(ProductionEvent.parse({ eventId, eventType: "production", ...env, ...payload }));
   }
 
@@ -106,7 +106,7 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
     if (!sv || !Number.isInteger(sv.value) || sv.value < 0) return;
     const payload = { stageId: rec.stageId, disposition, quantity: sv.value, unit: "pcs" as const, batchNo: null, size: rec.size ?? null };
     const env = envelope(rec, [sv.cell], sv.header, null, null);
-    const eventId = hashEvent({ eventType: "inspection", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
+    const eventId = hashEvent({ eventType: "inspection", occurredOn: rec.occurredOn, payload });
     out.push(InspectionEvent.parse({ eventId, eventType: "inspection", ...env, ...payload }));
   };
   inspection(rec.rejected, "rejected");
@@ -125,7 +125,7 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
       size: rec.size ?? null,
     };
     const env = envelope(rec, [d.cell], d.raw, null, null);
-    const eventId = hashEvent({ eventType: "rejection", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
+    const eventId = hashEvent({ eventType: "rejection", occurredOn: rec.occurredOn, payload });
     out.push(RejectionEvent.parse({ eventId, eventType: "rejection", ...env, ...payload }));
   }
 
@@ -138,7 +138,7 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
       aboutDefectCode: null,
     };
     const env = envelope(rec, [rec.statedPct.cell], "REJ %", rec.statedPct.formula, rec.statedPct.value);
-    const eventId = hashEvent({ eventType: "aggregate-claim", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
+    const eventId = hashEvent({ eventType: "aggregate-claim", occurredOn: rec.occurredOn, payload });
     out.push(AggregateClaimEvent.parse({ eventId, eventType: "aggregate-claim", ...env, ...payload }));
   }
 
@@ -159,7 +159,7 @@ export function emitStageDay(rec: StageDayRecord): Event[] {
       findingId: null,
       verdict: null,
     };
-    const eventId = hashEvent({ eventType: "annotation", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
+    const eventId = hashEvent({ eventType: "annotation", occurredOn: rec.occurredOn, payload });
     out.push(AnnotationEvent.parse({ eventId, eventType: "annotation", ...env, ...payload }));
   }
 

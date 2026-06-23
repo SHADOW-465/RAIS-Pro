@@ -96,6 +96,9 @@ export default function Dashboard() {
     const tr = trend(events, trendScope, "rejectionRate");
     const st = stageTrend(events, trendScope);
     const cumTrend = cumulativeStageTrend(events, trendScope);
+    // The workbook's "REJECTION TRENDS" chart: the single Total % line per period
+    // (= sum of the stage daily rates), recomputed from raw counts.
+    const totalTrend = cumTrend.map((p) => ({ period: p.period, label: p.label, value: p.perStage[CUM_TOTAL_KEY] ?? 0 }));
     const dt = defectTrend(events, trendScope, 5);
     const sizes = bySize(events, snapshotScope);
 
@@ -125,6 +128,7 @@ export default function Dashboard() {
       tr,
       stageTrend: st,
       cumTrend,
+      totalTrend,
       defectTrend: dt,
       sizes: orderedSizes,
       weekly,
@@ -259,6 +263,21 @@ export default function Dashboard() {
             <Kpi label="COPQ (This Month)" value={rupee(m.copq)} sub="↑ 8.70% vs Feb-26" tone="warn" spark={m.tr} onClick={() => openModal("Cost of Poor Quality (COPQ) Trend", "COPQ remains elevated at ₹55.07 Lakhs. Focus on minimizing raw material scrap.", <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: p.value * m.copq * 6 }))} fmt={rupee} /></div>)} />
             <Kpi label="Savings Opportunity" value={rupee(m.savings)} sub="◆ Annual Potential" tone="good" spark={m.tr} onClick={() => openModal("Savings Opportunity Projections", "Achieving quality targets offers ₹6.27 Lakhs in annual production cost recoveries.", <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} fmt={pct} /></div>)} />
           </div>
+
+          {/* Total rejection % per period — the workbook's "REJECTION TRENDS" chart */}
+          <Card
+            title="Total Rejection % (Daily)"
+            sub="Σ of stage rates · mean line · hover for exact values"
+            onClick={() => openModal(
+              "Total Rejection % (Daily)",
+              "The total rejection rate per period — the sum of each station's rate over its own checked quantity, matching the workbook's COMMULATIVE 'Total Rejection %'. Recomputed from raw counts; hover any point for the exact value. Switch the grain (D/W/M/FY) in the top bar to change the period.",
+              <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <LineChart points={m.totalTrend} fmt={pct} mean />
+              </div>
+            )}
+          >
+            <LineChart points={m.totalTrend} fmt={pct} mean />
+          </Card>
 
           {/* Cumulative rejection % by stage — the COMMULATIVE-sheet chart (stations + Total) */}
           <Card

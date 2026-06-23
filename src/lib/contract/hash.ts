@@ -32,15 +32,20 @@ function sha256(input: string): string {
 }
 
 /**
- * Compute the eventId from the identity-bearing parts of an event. The envelope
- * fields that are NOT identity (eventId itself, recordedAt, ingestionId,
- * supersededBy, extractedBy, confidence) are excluded so the same observation
- * read twice — even in different runs — collides on purpose.
+ * Compute the eventId from the SEMANTIC identity of an event: its type, the
+ * business period it describes, and its payload (stage, disposition, defect,
+ * size, quantity, …). Everything else — eventId, recordedAt, ingestionId,
+ * supersededBy, extractedBy, confidence, AND provenance — is excluded.
+ *
+ * Provenance is deliberately NOT hashed: the same fact (visual / 01-Dec / 824
+ * rejected) must collide on its id no matter which file, sheet, or cell it was
+ * read from. That is what makes re-uploading the same workbook — even renamed or
+ * re-exported — idempotent instead of doubling the numbers. The full provenance
+ * is still stored on the event for audit; it just doesn't change identity.
  */
 export function hashEvent(parts: {
   eventType: string;
   occurredOn: unknown;
-  provenance: unknown;
   payload: unknown;
 }): string {
   return sha256(canonicalize(parts)).slice(0, 32);

@@ -53,7 +53,7 @@ function production(opts: {
     batchNo: null,
     size: null,
   };
-  const eventId = hashEvent({ eventType: "production", occurredOn, provenance, payload });
+  const eventId = hashEvent({ eventType: "production", occurredOn, payload });
   return ProductionEvent.parse({
     eventId,
     schemaVersion: "1.0.0",
@@ -81,7 +81,7 @@ function rejection(opts: { start: string; stageId: string; defectCode: string | 
     batchNo: null,
     size: null,
   };
-  const eventId = hashEvent({ eventType: "rejection", occurredOn, provenance, payload });
+  const eventId = hashEvent({ eventType: "rejection", occurredOn, payload });
   return RejectionEvent.parse({
     eventId, schemaVersion: "1.0.0", ingestionId: "ing-1", occurredOn, provenance,
     confidence: { score: 0.9, basis: "heuristic" }, extractedBy: "heuristic",
@@ -94,7 +94,7 @@ function correction(supersedesEventId: string): Event {
   const occurredOn = occ("2025-04-01");
   const provenance = prov();
   const payload = { supersedesEventId, replacementEventId: null, reason: "typo", authorisedBy: "adj-1" };
-  const eventId = hashEvent({ eventType: "correction", occurredOn, provenance, payload });
+  const eventId = hashEvent({ eventType: "correction", occurredOn, payload });
   return CorrectionEvent.parse({
     eventId, schemaVersion: "1.0.0", ingestionId: "ing-1", occurredOn, provenance,
     confidence: { score: 1, basis: "exact" }, extractedBy: "direct-entry",
@@ -142,9 +142,17 @@ describe("content hashing", () => {
     expect(a.eventId).toBe(b.eventId);
   });
 
-  test("different cells → different eventId", () => {
+  test("provenance is NOT identity: same fact from different cells/files → same id", () => {
+    // The same observation read from a different cell (or a renamed/re-exported
+    // file) must collide on its eventId so re-ingest dedups instead of doubling.
     const a = production({ start: "2025-04-01", cells: ["B6"] });
     const b = production({ start: "2025-04-01", cells: ["B7"] });
+    expect(a.eventId).toBe(b.eventId);
+  });
+
+  test("a genuinely different quantity → different eventId", () => {
+    const a = production({ start: "2025-04-01", quantity: 100 });
+    const b = production({ start: "2025-04-01", quantity: 200 });
     expect(a.eventId).not.toBe(b.eventId);
   });
 
