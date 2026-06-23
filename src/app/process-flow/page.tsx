@@ -14,6 +14,7 @@ import {
   periodsIn,
   periodKey,
   periodLabel,
+  resolveScope,
   type Scope
 } from "@/lib/analytics";
 import { FBC_PROCESS } from "@/lib/registry/fbc-process";
@@ -41,35 +42,10 @@ export default function ProcessFlowPage() {
       .catch(() => setEvents([]));
   }, []);
 
-  const scope: Scope = useMemo(() => {
-    let from = t.dateFrom;
-    let to = t.dateTo;
-    
-    if (t.datePreset === "all" || (!from && !to)) {
-      if (events?.length) {
-        const d = events.map((e) => e.occurredOn.start).sort();
-        from = d[0];
-        to = d[d.length - 1];
-      }
-    } else if (t.datePreset === "last-90-days") {
-      const today = new Date(2026, 5, 18);
-      const prior = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
-      const pad = (n: number) => String(n).padStart(2, "0");
-      from = `${prior.getFullYear()}-${pad(prior.getMonth() + 1)}-${pad(prior.getDate())}`;
-      to = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-    } else if (t.datePreset === "last-12-months") {
-      const today = new Date(2026, 5, 18);
-      const prior = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
-      const pad = (n: number) => String(n).padStart(2, "0");
-      from = `${prior.getFullYear()}-${pad(prior.getMonth() + 1)}-${pad(prior.getDate())}`;
-      to = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-    } else if (t.datePreset === "this-fy") {
-      from = "2026-04-01";
-      to = "2027-03-31";
-    }
-
-    return { grain: t.grain, dateFrom: from || undefined, dateTo: to || undefined };
-  }, [events, t.grain, t.datePreset, t.dateFrom, t.dateTo]);
+  const scope: Scope = useMemo(
+    () => resolveScope(events ?? [], t),
+    [events, t.grain, t.datePreset, t.dateFrom, t.dateTo, t.stageView],
+  );
 
   const m = useMemo(() => {
     if (!events || events.length === 0) return null;

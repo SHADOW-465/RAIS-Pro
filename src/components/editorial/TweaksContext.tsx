@@ -19,6 +19,9 @@ export interface Tweaks {
   datePreset: "all" | "last-90-days" | "last-12-months" | "this-fy" | "custom";
   dateFrom: string;
   dateTo: string;
+  /** Global stage scope: "cumulative" (all stages combined) or a registry stageId.
+   *  Drives EVERY analytics screen so the whole app shows one process at a time. */
+  stageView: string;
 }
 
 export const TWEAK_DEFAULTS: Tweaks = {
@@ -28,6 +31,7 @@ export const TWEAK_DEFAULTS: Tweaks = {
   datePreset: "all",
   dateFrom: "",
   dateTo: "",
+  stageView: "cumulative",
 };
 
 interface Ctx {

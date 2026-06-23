@@ -39,6 +39,7 @@ import {
   defectTrend, 
   bySize,
   scopeEvents,
+  resolveScope,
   type Scope,
   copq,
   savingsOpportunity,
@@ -87,7 +88,6 @@ export default function Dashboard() {
   const { t } = useTweaks();
   const router = useRouter();
   const [events, setEvents] = useState<Event[] | null>(null);
-  const [view, setView] = useState<string>("cumulative"); // Cumulative | <stageId>
   const [selectedSize, setSelectedSize] = useState("Fr16");
   const [targetRej, setTargetRej] = useState(0.10);
   const [modalOpen, setModalOpen] = useState(false);
@@ -121,35 +121,10 @@ export default function Dashboard() {
     setTargetRej(getTargetRejectionRate());
   }, []);
 
-  const scope: Scope = useMemo(() => {
-    let from = t.dateFrom;
-    let to = t.dateTo;
-    
-    if (t.datePreset === "all" || (!from && !to)) {
-      if (events?.length) {
-        const d = events.map((e) => e.occurredOn.start).sort();
-        from = d[0];
-        to = d[d.length - 1];
-      }
-    } else if (t.datePreset === "last-90-days") {
-      const today = new Date(2026, 5, 18); // June 18, 2026
-      const prior = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
-      const pad = (n: number) => String(n).padStart(2, "0");
-      from = `${prior.getFullYear()}-${pad(prior.getMonth() + 1)}-${pad(prior.getDate())}`;
-      to = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-    } else if (t.datePreset === "last-12-months") {
-      const today = new Date(2026, 5, 18);
-      const prior = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
-      const pad = (n: number) => String(n).padStart(2, "0");
-      from = `${prior.getFullYear()}-${pad(prior.getMonth() + 1)}-${pad(prior.getDate())}`;
-      to = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-    } else if (t.datePreset === "this-fy") {
-      from = "2026-04-01";
-      to = "2027-03-31";
-    }
-
-    return { grain: t.grain, dateFrom: from || undefined, dateTo: to || undefined };
-  }, [events, t.grain, t.datePreset, t.dateFrom, t.dateTo]);
+  const scope: Scope = useMemo(
+    () => resolveScope(events ?? [], t),
+    [events, t.grain, t.datePreset, t.dateFrom, t.dateTo, t.stageView],
+  );
 
   const m = useMemo(() => {
     if (!events || events.length === 0) return null;
@@ -159,7 +134,7 @@ export default function Dashboard() {
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
     // Trends bucket by grain across the selected range.
-    const trendScope: Scope = { grain: t.grain, dateFrom: scope.dateFrom, dateTo: scope.dateTo };
+    const trendScope: Scope = scope; // carries the stage filter into the trends
 
     // Headline metrics aggregate over the SELECTED date range (scope). Grain only
     // controls trend bucketing below — so changing the date range moves every tile,
@@ -227,8 +202,8 @@ export default function Dashboard() {
       defectTrend: dt, 
       sizes: orderedSizes, 
       weekly, 
-      copq: copqRes?.value ?? 324000, 
-      savings: savings ?? 1245000,
+      copq: copqRes?.value ?? 0,
+      savings: savings ?? 0,
       trust, 
       audit, 
       status,
@@ -245,13 +220,8 @@ export default function Dashboard() {
     };
   }, [events, scope, t.grain, selectedSize]);
 
-  // Top-level workbook/station view tabs: Cumulative (whole) + one per station present in the data.
-  const tabs = useMemo(() => {
-    const base = [{ id: "cumulative", label: "Cumulative" }];
-    if (!m) return base;
-    return [...base, ...m.stagesAll.map((s) => ({ id: s.stageId, label: STAGE_LABELS[s.stageId] ?? s.label }))];
-  }, [m]);
-  const activeView = tabs.some((tb) => tb.id === view) ? view : "cumulative";
+  // The active view is the GLOBAL stage scope from the header (TweaksContext).
+  const activeView = t.stageView;
 
   // Synchronize selected size with the available sizes dataset
   useEffect(() => {
@@ -382,7 +352,7 @@ export default function Dashboard() {
   const worstStageByRejs = m ? [...m.stages].sort((a, b) => b.rejected - a.rejected)[0]?.label ?? "Visual Inspection" : "Visual Inspection";
 
   return (
-    <AppShell active="dashboard" trustScore={m?.trust.pct ?? 98.4} statusCounts={{ anomalies: 5, alerts: 3, capa: 7, overdue: 2 }} dateRange={m?.latestPeriodLabel}>
+    <AppShell active="dashboard" trustScore={m?.trust.pct ?? null} statusCounts={{ anomalies: 0, alerts: 0, capa: 0, overdue: 0 }} dateRange={m?.latestPeriodLabel}>
       {events === null && (
         <div style={{ padding: 120, textAlign: "center", color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
           Initializing the intelligence ledger...
@@ -413,14 +383,11 @@ export default function Dashboard() {
 
       {m && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Top-level view toggle: Cumulative (whole) + per-station */}
-          <ViewToggle tabs={tabs} active={activeView} onChange={setView} />
-
           {activeView !== "cumulative" ? (
             <StationView
               events={events!}
               stageId={activeView}
-              label={tabs.find((tb) => tb.id === activeView)?.label ?? activeView}
+              label={STAGE_LABELS[activeView] ?? activeView}
               scope={m.snapshotScope}
               trendScope={m.trendScope}
               grainLabel={grainLabel}
@@ -640,28 +607,6 @@ export default function Dashboard() {
         {modalContent}
       </FloatingDetailModal>
     </AppShell>
-  );
-}
-
-/** Segmented top-level view switch: Cumulative (whole) + per-station tabs. */
-function ViewToggle({ tabs, active, onChange }: {
-  tabs: { id: string; label: string }[];
-  active: string;
-  onChange: (id: string) => void;
-}) {
-  return (
-    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: "1px solid var(--border)", paddingBottom: 2 }}>
-      {tabs.map((tb) => {
-        const on = tb.id === active;
-        return (
-          <button key={tb.id} onClick={() => onChange(tb.id)} style={{
-            padding: "8px 16px", fontSize: 13, fontWeight: on ? 700 : 500,
-            color: on ? "var(--text)" : "var(--text-2)", background: "transparent", border: "none",
-            borderBottom: on ? "2px solid #C8421C" : "2px solid transparent", cursor: "pointer", transition: "all 0.12s ease",
-          }}>{tb.label}</button>
-        );
-      })}
-    </div>
   );
 }
 

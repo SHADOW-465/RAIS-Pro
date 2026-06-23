@@ -192,25 +192,26 @@ export function LineChart({ points, target, fmt, mean, color = "var(--accent)" }
   if (!points || points.length === 0) {
     return <Empty label="No trend points available for the selected range." />;
   }
-  const W = 660, H = 230, padX = 40, padY = 26;
+  const W = 660, H = 280, padX = 42, padTop = 22, padBottom = 72;
+  const plotH = H - padTop - padBottom;
+  const axisY = H - padBottom;
   const v = points.map((p) => p.value);
   const max = Math.max(...v, target ?? 0, 1e-6);
   const avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
   const x = (i: number) => padX + (i / Math.max(points.length - 1, 1)) * (W - padX * 2);
-  const y = (val: number) => H - padY - (val / (max || 1)) * (H - padY * 2);
-  const step = Math.max(1, Math.ceil(points.length / 12)); // ~12 x-labels, kept horizontal so dates don't overlap
+  const y = (val: number) => axisY - (val / (max || 1)) * plotH;
 
   return (
     <div style={{ position: "relative", width: "100%" }} onMouseLeave={() => setHover(null)}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}
         onMouseMove={(e) => setHover(hoverIndexFromEvent(e, W, padX, points.length))}>
         {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
-          <line key={i} x1={padX} y1={padY + (H - padY * 2) * p} x2={W - padX} y2={padY + (H - padY * 2) * p} stroke="var(--border)" strokeWidth={0.5} />
+          <line key={i} x1={padX} y1={padTop + plotH * p} x2={W - padX} y2={padTop + plotH * p} stroke="var(--border)" strokeWidth={0.5} />
         ))}
         {[0, 0.5, 1].map((p, i) => (
-          <text key={`yl${i}`} x={padX - 6} y={padY + (H - padY * 2) * p + 3} fontSize={8.5} textAnchor="end" fill="var(--text-3)" fontFamily="var(--font-mono)">{fmt(max * (1 - p))}</text>
+          <text key={`yl${i}`} x={padX - 6} y={padTop + plotH * p + 3} fontSize={8.5} textAnchor="end" fill="var(--text-3)" fontFamily="var(--font-mono)">{fmt(max * (1 - p))}</text>
         ))}
-        <line x1={padX} y1={H - padY} x2={W - padX} y2={H - padY} stroke="var(--border-strong)" strokeWidth={1} />
+        <line x1={padX} y1={axisY} x2={W - padX} y2={axisY} stroke="var(--border-strong)" strokeWidth={1} />
 
         {target != null && (
           <g>
@@ -226,21 +227,22 @@ export function LineChart({ points, target, fmt, mean, color = "var(--accent)" }
         )}
 
         {points.length > 1 && (
-          <path d={`M ${x(0)} ${H - padY} ` + points.map((p, i) => `L ${x(i)} ${y(p.value)}`).join(" ") + ` L ${x(points.length - 1)} ${H - padY} Z`} fill="var(--accent-weak)" opacity={0.25} />
+          <path d={`M ${x(0)} ${axisY} ` + points.map((p, i) => `L ${x(i)} ${y(p.value)}`).join(" ") + ` L ${x(points.length - 1)} ${axisY} Z`} fill="var(--accent-weak)" opacity={0.25} />
         )}
         {points.length > 1 && (
           <polyline points={points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} fill="none" stroke={color} strokeWidth={2} />
         )}
 
-        {hover != null && <line x1={x(hover)} y1={padY} x2={x(hover)} y2={H - padY} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />}
+        {hover != null && <line x1={x(hover)} y1={padTop} x2={x(hover)} y2={axisY} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />}
 
         {points.map((p, i) => (
           <circle key={i} cx={x(i)} cy={y(p.value)} r={hover === i ? 5 : (points.length > 25 ? 2.5 : 3)} fill={hover === i ? color : "var(--surface)"} stroke={color} strokeWidth={2} />
         ))}
 
-        {points.map((p, i) => ((i % step === 0 || i === points.length - 1) ? (
-          <text key={`xl${i}`} x={x(i)} y={H - padY + 14} fontSize={8.5} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">{p.label.length > 9 ? p.label.substring(0, 8) + "…" : p.label}</text>
-        ) : null))}
+        {/* Vertical date labels — every point, rotated so dense daily axes stay readable */}
+        {points.map((p, i) => (
+          <text key={`xl${i}`} x={x(i)} y={axisY + 8} fontSize={7.5} textAnchor="end" fill="var(--text-3)" fontFamily="var(--font-sans)" transform={`rotate(-90 ${x(i)} ${axisY + 8})`}>{p.label}</text>
+        ))}
       </svg>
       {hover != null && (
         <ChartTip leftPct={(x(hover) / W) * 100} topPct={(y(points[hover].value) / H) * 100} below={y(points[hover].value) < H * 0.32} title={points[hover].label} rows={[{ label: "Value", value: fmt(points[hover].value), color }]} />
@@ -258,12 +260,13 @@ export function MultiLine({ data, stages, fmt }: { data: StageTrendPoint[]; stag
   }
   // Smart default: rates (≤1) render as %, counts render as integers.
   const fmtVal = fmt ?? ((n: number) => (n <= 1 ? `${(n * 100).toFixed(2)}%` : Math.round(n).toLocaleString("en-IN")));
-  const W = 660, H = 230, padX = 40, padY = 34;
+  const W = 660, H = 296, padX = 42, padTop = 38, padBottom = 72;
+  const plotH = H - padTop - padBottom;
+  const axisY = H - padBottom;
   let max = 1e-6;
   for (const d of data) for (const s of stages) max = Math.max(max, d.perStage[s.stageId] ?? 0);
   const x = (i: number) => padX + (i / Math.max(data.length - 1, 1)) * (W - padX * 2);
-  const y = (val: number) => H - padY - (val / (max || 1)) * (H - padY * 2);
-  const step = Math.max(1, Math.ceil(data.length / 12));
+  const y = (val: number) => axisY - (val / (max || 1)) * plotH;
   const color = (si: number) => SERIES_COLORS[si % SERIES_COLORS.length];
 
   return (
@@ -271,14 +274,14 @@ export function MultiLine({ data, stages, fmt }: { data: StageTrendPoint[]; stag
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}
         onMouseMove={(e) => setHover(hoverIndexFromEvent(e, W, padX, data.length))}>
         {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
-          <line key={i} x1={padX} y1={padY + (H - padY * 2) * p} x2={W - padX} y2={padY + (H - padY * 2) * p} stroke="var(--border)" strokeWidth={0.5} />
+          <line key={i} x1={padX} y1={padTop + plotH * p} x2={W - padX} y2={padTop + plotH * p} stroke="var(--border)" strokeWidth={0.5} />
         ))}
         {[0, 0.5, 1].map((p, i) => (
-          <text key={`yl${i}`} x={padX - 6} y={padY + (H - padY * 2) * p + 3} fontSize={8.5} textAnchor="end" fill="var(--text-3)" fontFamily="var(--font-mono)">{fmtVal(max * (1 - p))}</text>
+          <text key={`yl${i}`} x={padX - 6} y={padTop + plotH * p + 3} fontSize={8.5} textAnchor="end" fill="var(--text-3)" fontFamily="var(--font-mono)">{fmtVal(max * (1 - p))}</text>
         ))}
-        <line x1={padX} y1={H - padY} x2={W - padX} y2={H - padY} stroke="var(--border-strong)" strokeWidth={1} />
+        <line x1={padX} y1={axisY} x2={W - padX} y2={axisY} stroke="var(--border-strong)" strokeWidth={1} />
 
-        {hover != null && <line x1={x(hover)} y1={padY} x2={x(hover)} y2={H - padY} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />}
+        {hover != null && <line x1={x(hover)} y1={padTop} x2={x(hover)} y2={axisY} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />}
 
         {stages.map((s, si) => (
           <polyline key={s.stageId} fill="none" stroke={color(si)} strokeWidth={1.8}
@@ -288,9 +291,10 @@ export function MultiLine({ data, stages, fmt }: { data: StageTrendPoint[]; stag
           <circle key={`h${s.stageId}`} cx={x(hover)} cy={y(data[hover].perStage[s.stageId] ?? 0)} r={3.5} fill={color(si)} stroke="var(--surface)" strokeWidth={1.5} />
         ))}
 
-        {data.map((d, i) => ((i % step === 0 || i === data.length - 1) ? (
-          <text key={`xl${i}`} x={x(i)} y={H - padY + 14} fontSize={8.5} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">{d.label.length > 9 ? d.label.substring(0, 8) + "…" : d.label}</text>
-        ) : null))}
+        {/* Vertical date labels — every period, rotated for dense axes */}
+        {data.map((d, i) => (
+          <text key={`xl${i}`} x={x(i)} y={axisY + 8} fontSize={7.5} textAnchor="end" fill="var(--text-3)" fontFamily="var(--font-sans)" transform={`rotate(-90 ${x(i)} ${axisY + 8})`}>{d.label}</text>
+        ))}
 
         {/* Legend */}
         {stages.map((s, si) => (

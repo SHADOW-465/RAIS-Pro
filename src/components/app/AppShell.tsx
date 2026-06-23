@@ -38,6 +38,16 @@ const NAV: NavItem[] = [
   { key: "clear-data", label: "Clear Data", icon: "x", href: "/clear-data" },
 ];
 
+// Global stage scope. "cumulative" = all stages combined; the rest scope every
+// screen (KPIs, trends, view-source, SPC) to a single inspection process.
+const VIEW_OPTIONS: { id: string; label: string }[] = [
+  { id: "cumulative", label: "Cumulative" },
+  { id: "visual", label: "Visual" },
+  { id: "balloon", label: "Balloon" },
+  { id: "valve-integrity", label: "Valve" },
+  { id: "final", label: "Final" },
+];
+
 export default function AppShell({
   active, trustScore, statusCounts, dateRange, children,
 }: {
@@ -281,12 +291,16 @@ export default function AppShell({
                   fontWeight: 800, 
                   color: "var(--positive)" 
                 }}>
-                  {trustScore != null ? `${trustScore.toFixed(1)}%` : "98.4%"}
+                  {trustScore != null ? `${trustScore.toFixed(1)}%` : "—"}
                 </span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--positive)" }}>Excellent</span>
+                {trustScore != null && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--positive)" }}>
+                    {trustScore >= 95 ? "Excellent" : trustScore >= 85 ? "Good" : "Review"}
+                  </span>
+                )}
               </div>
               <div className="muted" style={{ fontSize: 9, marginTop: 1 }}>
-                Last Validated: 17 Jun 2026 09:41 AM
+                {trustScore != null ? "Computed from the live ledger" : "No data ingested yet"}
               </div>
             </div>
           </div>
@@ -310,7 +324,36 @@ export default function AppShell({
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <Selector label="Plant" value="Disposable Baddi" />
           <Selector label="Line" value="FBC Line 1" />
-          
+
+          {/* Global View (stage) selector — scopes the ENTIRE app to one process */}
+          <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
+            <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
+              View
+            </span>
+            <div style={{ display: "flex", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: 2, background: "var(--surface-2)", alignItems: "center" }}>
+              {VIEW_OPTIONS.map((v) => {
+                const active = t.stageView === v.id;
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => setTweak("stageView", v.id)}
+                    style={{
+                      padding: "2px 9px",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      borderRadius: 3,
+                      background: active ? "var(--accent)" : "transparent",
+                      color: active ? "var(--text-invert)" : "var(--text-2)",
+                      transition: "all 0.12s ease",
+                    }}
+                  >
+                    {v.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* D, W, M, FY Segmented Control */}
           <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
             <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
@@ -682,10 +725,10 @@ export default function AppShell({
         fontSize: 12
       }}>
         <div style={{ display: "flex", gap: 24 }}>
-          <Status tone="var(--critical)" label="Active Alerts" value={`${sc.alerts ?? 3} Critical`} />
-          <Status tone="var(--positive)" label="Pending CAPA" value={`${sc.capa ?? 7} Actions`} />
-          <Status tone="var(--warning)" label="Overdue Actions" value={`${sc.overdue ?? 2}`} />
-          <Status tone="var(--accent)" label="Data Anomalies" value={`${sc.anomalies ?? 5}`} />
+          <Status tone="var(--critical)" label="Active Alerts" value={`${sc.alerts ?? 0} Critical`} />
+          <Status tone="var(--positive)" label="Pending CAPA" value={`${sc.capa ?? 0} Actions`} />
+          <Status tone="var(--warning)" label="Overdue Actions" value={`${sc.overdue ?? 0}`} />
+          <Status tone="var(--accent)" label="Data Anomalies" value={`${sc.anomalies ?? 0}`} />
         </div>
         
         {/* Ask RAIS text input field */}

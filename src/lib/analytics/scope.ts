@@ -88,6 +88,55 @@ export function periodsIn(events: Event[], grain: Grain): string[] {
   return sorted;
 }
 
+export interface ScopeTweaks {
+  grain: Grain;
+  datePreset: "all" | "last-90-days" | "last-12-months" | "this-fy" | "custom";
+  dateFrom: string;
+  dateTo: string;
+  stageView?: string;
+}
+
+/**
+ * The single source of truth for turning the header controls into a Scope.
+ * Date presets anchor on the DATA's latest date (never a hardcoded "today"), so
+ * "Last 90 days" actually lands on real data. `stageView !== "cumulative"` scopes
+ * the WHOLE screen to one stage — the universal per-stage separation.
+ */
+export function resolveScope(events: Event[], t: ScopeTweaks): Scope {
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const dates = events.length ? events.map((e) => e.occurredOn.start).sort() : [];
+  const dataMin = dates[0];
+  const dataMax = dates[dates.length - 1];
+  const anchor = dataMax ? new Date(`${dataMax}T00:00:00Z`) : new Date();
+
+  let from: string | undefined = t.dateFrom || undefined;
+  let to: string | undefined = t.dateTo || undefined;
+
+  if (t.datePreset === "custom") {
+    /* keep typed from/to */
+  } else if (t.datePreset === "last-90-days") {
+    from = iso(new Date(anchor.getTime() - 90 * 86400000));
+    to = iso(anchor);
+  } else if (t.datePreset === "last-12-months") {
+    const p = new Date(anchor);
+    p.setUTCFullYear(p.getUTCFullYear() - 1);
+    from = iso(p);
+    to = iso(anchor);
+  } else if (t.datePreset === "this-fy") {
+    const m = anchor.getUTCMonth();
+    const y = anchor.getUTCFullYear();
+    const fy = m >= 3 ? y : y - 1; // fiscal year Apr–Mar
+    from = `${fy}-04-01`;
+    to = `${fy + 1}-03-31`;
+  } else {
+    from = dataMin; // "all"
+    to = dataMax;
+  }
+
+  const stageIds = t.stageView && t.stageView !== "cumulative" ? [t.stageView] : undefined;
+  return { grain: t.grain, dateFrom: from, dateTo: to, stageIds };
+}
+
 /** The immediately-prior equal-length window, for "vs previous period" deltas. */
 export function prevWindow(scope: Scope): Scope {
   if (!scope.dateFrom || !scope.dateTo) return scope;
