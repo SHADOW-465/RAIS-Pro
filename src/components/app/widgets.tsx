@@ -1,7 +1,45 @@
 "use client";
 
+import { useState } from "react";
 import type { SeriesPoint, StageRow, DefectRow, StageTrendPoint } from "@/lib/analytics";
 import Icon from "@/components/editorial/Icon";
+
+/** Shared hover tooltip card used by every time-series chart. Positioned over the
+ *  chart container at the hovered point; flips below when the point sits high. */
+function ChartTip({ leftPct, topPct, below, title, rows }: {
+  leftPct: number; topPct: number; below: boolean; title: string;
+  rows: { label: string; value: string; color?: string }[];
+}) {
+  const clampedLeft = Math.max(6, Math.min(94, leftPct));
+  return (
+    <div style={{
+      position: "absolute", left: `${clampedLeft}%`, top: `${topPct}%`,
+      transform: below ? "translate(-50%, 12px)" : "translate(-50%, calc(-100% - 12px))",
+      background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)",
+      boxShadow: "0 6px 20px rgba(0,0,0,0.18)", padding: "8px 10px", pointerEvents: "none",
+      zIndex: 30, minWidth: 130, whiteSpace: "nowrap",
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: rows.length ? 5 : 0, fontFamily: "var(--font-sans)" }}>{title}</div>
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, fontSize: 11.5, lineHeight: 1.7 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--text-2)" }}>
+            {r.color && <span style={{ width: 8, height: 8, borderRadius: 2, background: r.color, display: "inline-block" }} />}
+            {r.label}
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{r.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Nearest data index under the pointer, in a viewBox-width-W chart. */
+function hoverIndexFromEvent(e: React.MouseEvent<SVGSVGElement>, W: number, padX: number, n: number): number {
+  const r = e.currentTarget.getBoundingClientRect();
+  const relX = ((e.clientX - r.left) / Math.max(r.width, 1)) * W;
+  const idx = Math.round(((relX - padX) / Math.max(W - padX * 2, 1)) * (n - 1));
+  return Math.max(0, Math.min(n - 1, idx));
+}
 
 export function Card({ title, sub, children, span, onClick }: { title?: string; sub?: string; children: React.ReactNode; span?: number; onClick?: () => void }) {
   return (
@@ -149,111 +187,132 @@ export function GaugeChart({ value, label, subtext }: { value: number; label: st
   );
 }
 
-export function LineChart({ points, target, fmt }: { points: SeriesPoint[]; target?: number; fmt: (n: number) => string }) {
+export function LineChart({ points, target, fmt, mean, color = "var(--accent)" }: { points: SeriesPoint[]; target?: number; fmt: (n: number) => string; mean?: boolean; color?: string }) {
+  const [hover, setHover] = useState<number | null>(null);
   if (!points || points.length === 0) {
     return <Empty label="No trend points available for the selected range." />;
   }
-  const W = 640, H = 200, pad = 34;
-  const v = points.map((p) => p.value); 
+  const W = 660, H = 230, padX = 40, padY = 26;
+  const v = points.map((p) => p.value);
   const max = Math.max(...v, target ?? 0, 1e-6);
-  const x = (i: number) => pad + (i / Math.max(points.length - 1, 1)) * (W - pad * 2);
-  const y = (val: number) => H - pad - (val / (max || 1)) * (H - pad * 2);
-  
+  const avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
+  const x = (i: number) => padX + (i / Math.max(points.length - 1, 1)) * (W - padX * 2);
+  const y = (val: number) => H - padY - (val / (max || 1)) * (H - padY * 2);
+  const step = Math.max(1, Math.ceil(points.length / 12)); // ~12 x-labels, kept horizontal so dates don't overlap
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }}>
-      {/* Grid Lines */}
-      {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
-        <line key={i} x1={pad} y1={pad + (H - pad * 2) * p} x2={W - pad} y2={pad + (H - pad * 2) * p} stroke="var(--border)" strokeWidth={0.5} />
-      ))}
-      <line x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke="var(--border-strong)" strokeWidth={1} />
-      
-      {/* Target Line */}
-      {target != null && (
-        <g>
-          <line x1={pad} y1={y(target)} x2={W - pad} y2={y(target)} stroke="var(--critical)" strokeDasharray="5,4" strokeWidth={1.2} />
-          <text x={W - pad - 6} y={y(target) - 6} fontSize={8.5} fill="var(--critical)" fontWeight={700} textAnchor="end">
-            TARGET ({(target * 100).toFixed(0)}%)
-          </text>
-        </g>
-      )}
-      
-      {/* Trend Area */}
-      {points.length > 1 && (
-        <path d={`M ${x(0)} ${H - pad} ` + points.map((p, i) => `L ${x(i)} ${y(p.value)}`).join(" ") + ` L ${x(points.length - 1)} ${H - pad} Z`} fill="var(--accent-weak)" opacity={0.3} />
-      )}
-      
-      {/* Line & Nodes */}
-      {points.length > 1 && (
-        <polyline points={points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} fill="none" stroke="var(--accent)" strokeWidth={2.2} />
-      )}
-      
-      {points.map((p, i) => {
-        const showLabel = points.length <= 10 || i === 0 || i === points.length - 1 || i % Math.ceil(points.length / 8) === 0;
-        const showValue = points.length <= 15 || i === points.length - 1;
-        return (
-          <g key={i}>
-            <circle cx={x(i)} cy={y(p.value)} r={points.length > 25 ? 2.5 : 4} fill="var(--surface)" stroke="var(--accent)" strokeWidth={points.length > 25 ? 1 : 2} />
-            {showLabel && (
-              <text x={x(i)} y={H - pad + 14} fontSize={9} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">
-                {p.label.length > 8 ? p.label.substring(0, 7) + "…" : p.label}
-              </text>
-            )}
-            {showValue && (
-              <text x={x(i)} y={y(p.value) - 8} fontSize={9} textAnchor="middle" fill="var(--text-2)" fontFamily="var(--font-mono)" fontWeight={600}>{fmt(p.value)}</text>
-            )}
+    <div style={{ position: "relative", width: "100%" }} onMouseLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}
+        onMouseMove={(e) => setHover(hoverIndexFromEvent(e, W, padX, points.length))}>
+        {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
+          <line key={i} x1={padX} y1={padY + (H - padY * 2) * p} x2={W - padX} y2={padY + (H - padY * 2) * p} stroke="var(--border)" strokeWidth={0.5} />
+        ))}
+        {[0, 0.5, 1].map((p, i) => (
+          <text key={`yl${i}`} x={padX - 6} y={padY + (H - padY * 2) * p + 3} fontSize={8.5} textAnchor="end" fill="var(--text-3)" fontFamily="var(--font-mono)">{fmt(max * (1 - p))}</text>
+        ))}
+        <line x1={padX} y1={H - padY} x2={W - padX} y2={H - padY} stroke="var(--border-strong)" strokeWidth={1} />
+
+        {target != null && (
+          <g>
+            <line x1={padX} y1={y(target)} x2={W - padX} y2={y(target)} stroke="var(--critical)" strokeDasharray="5,4" strokeWidth={1.2} />
+            <text x={W - padX - 4} y={y(target) - 5} fontSize={8} fill="var(--critical)" fontWeight={700} textAnchor="end">TARGET {fmt(target)}</text>
           </g>
-        );
-      })}
-    </svg>
+        )}
+        {mean && (
+          <g>
+            <line x1={padX} y1={y(avg)} x2={W - padX} y2={y(avg)} stroke="#C8421C" strokeDasharray="6,3" strokeWidth={1.4} />
+            <text x={padX + 4} y={y(avg) - 5} fontSize={8} fill="#C8421C" fontWeight={700}>MEAN {fmt(avg)}</text>
+          </g>
+        )}
+
+        {points.length > 1 && (
+          <path d={`M ${x(0)} ${H - padY} ` + points.map((p, i) => `L ${x(i)} ${y(p.value)}`).join(" ") + ` L ${x(points.length - 1)} ${H - padY} Z`} fill="var(--accent-weak)" opacity={0.25} />
+        )}
+        {points.length > 1 && (
+          <polyline points={points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} fill="none" stroke={color} strokeWidth={2} />
+        )}
+
+        {hover != null && <line x1={x(hover)} y1={padY} x2={x(hover)} y2={H - padY} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />}
+
+        {points.map((p, i) => (
+          <circle key={i} cx={x(i)} cy={y(p.value)} r={hover === i ? 5 : (points.length > 25 ? 2.5 : 3)} fill={hover === i ? color : "var(--surface)"} stroke={color} strokeWidth={2} />
+        ))}
+
+        {points.map((p, i) => ((i % step === 0 || i === points.length - 1) ? (
+          <text key={`xl${i}`} x={x(i)} y={H - padY + 14} fontSize={8.5} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">{p.label.length > 9 ? p.label.substring(0, 8) + "…" : p.label}</text>
+        ) : null))}
+      </svg>
+      {hover != null && (
+        <ChartTip leftPct={(x(hover) / W) * 100} topPct={(y(points[hover].value) / H) * 100} below={y(points[hover].value) < H * 0.32} title={points[hover].label} rows={[{ label: "Value", value: fmt(points[hover].value), color }]} />
+      )}
+    </div>
   );
 }
 
 const SERIES_COLORS = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#7C3AED", "#65A30D"];
 
-export function MultiLine({ data, stages }: { data: StageTrendPoint[]; stages: { stageId: string; label: string }[] }) {
+export function MultiLine({ data, stages, fmt }: { data: StageTrendPoint[]; stages: { stageId: string; label: string }[]; fmt?: (n: number) => string }) {
+  const [hover, setHover] = useState<number | null>(null);
   if (!data || data.length === 0) {
     return <Empty label="No trend data available for the selected range." />;
   }
-  const W = 640, H = 200, pad = 34;
-  let max = 1e-6; 
-  for (const d of data) {
-    for (const s of stages) {
-      max = Math.max(max, d.perStage[s.stageId] ?? 0);
-    }
-  }
-  const x = (i: number) => pad + (i / Math.max(data.length - 1, 1)) * (W - pad * 2);
-  const y = (val: number) => H - pad - (val / (max || 1)) * (H - pad * 2);
+  // Smart default: rates (≤1) render as %, counts render as integers.
+  const fmtVal = fmt ?? ((n: number) => (n <= 1 ? `${(n * 100).toFixed(2)}%` : Math.round(n).toLocaleString("en-IN")));
+  const W = 660, H = 230, padX = 40, padY = 34;
+  let max = 1e-6;
+  for (const d of data) for (const s of stages) max = Math.max(max, d.perStage[s.stageId] ?? 0);
+  const x = (i: number) => padX + (i / Math.max(data.length - 1, 1)) * (W - padX * 2);
+  const y = (val: number) => H - padY - (val / (max || 1)) * (H - padY * 2);
+  const step = Math.max(1, Math.ceil(data.length / 12));
+  const color = (si: number) => SERIES_COLORS[si % SERIES_COLORS.length];
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }}>
-      {/* Grid Lines */}
-      {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
-        <line key={i} x1={pad} y1={pad + (H - pad * 2) * p} x2={W - pad} y2={pad + (H - pad * 2) * p} stroke="var(--border)" strokeWidth={0.5} />
-      ))}
-      <line x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke="var(--border-strong)" strokeWidth={1} />
-      
-      {stages.map((s, si) => (
-        <polyline key={s.stageId} fill="none" stroke={SERIES_COLORS[si % SERIES_COLORS.length]} strokeWidth={1.8}
-          points={data.map((d, i) => `${x(i)},${y(d.perStage[s.stageId] ?? 0)}`).join(" ")} />
-      ))}
+    <div style={{ position: "relative", width: "100%" }} onMouseLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}
+        onMouseMove={(e) => setHover(hoverIndexFromEvent(e, W, padX, data.length))}>
+        {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
+          <line key={i} x1={padX} y1={padY + (H - padY * 2) * p} x2={W - padX} y2={padY + (H - padY * 2) * p} stroke="var(--border)" strokeWidth={0.5} />
+        ))}
+        {[0, 0.5, 1].map((p, i) => (
+          <text key={`yl${i}`} x={padX - 6} y={padY + (H - padY * 2) * p + 3} fontSize={8.5} textAnchor="end" fill="var(--text-3)" fontFamily="var(--font-mono)">{fmtVal(max * (1 - p))}</text>
+        ))}
+        <line x1={padX} y1={H - padY} x2={W - padX} y2={H - padY} stroke="var(--border-strong)" strokeWidth={1} />
 
-      {data.map((d, i) => {
-        const showLabel = data.length <= 10 || i === 0 || i === data.length - 1 || i % Math.ceil(data.length / 8) === 0;
-        return showLabel ? (
-          <text key={i} x={x(i)} y={H - pad + 14} fontSize={9} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">
-            {d.label.length > 8 ? d.label.substring(0, 7) + "…" : d.label}
-          </text>
-        ) : null;
-      })}
+        {hover != null && <line x1={x(hover)} y1={padY} x2={x(hover)} y2={H - padY} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />}
 
-      {/* Legend */}
-      {stages.map((s, si) => (
-        <g key={s.stageId} transform={`translate(${pad + si * 100}, 12)`}>
-          <circle cx={0} cy={-2} r={4} fill={SERIES_COLORS[si % SERIES_COLORS.length]} />
-          <text x={8} y={2} fontSize={8.5} fill="var(--text-2)" fontWeight={600}>{s.label.split(" ")[0].toUpperCase()}</text>
-        </g>
-      ))}
-    </svg>
+        {stages.map((s, si) => (
+          <polyline key={s.stageId} fill="none" stroke={color(si)} strokeWidth={1.8}
+            points={data.map((d, i) => `${x(i)},${y(d.perStage[s.stageId] ?? 0)}`).join(" ")} />
+        ))}
+        {hover != null && stages.map((s, si) => (
+          <circle key={`h${s.stageId}`} cx={x(hover)} cy={y(data[hover].perStage[s.stageId] ?? 0)} r={3.5} fill={color(si)} stroke="var(--surface)" strokeWidth={1.5} />
+        ))}
+
+        {data.map((d, i) => ((i % step === 0 || i === data.length - 1) ? (
+          <text key={`xl${i}`} x={x(i)} y={H - padY + 14} fontSize={8.5} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">{d.label.length > 9 ? d.label.substring(0, 8) + "…" : d.label}</text>
+        ) : null))}
+
+        {/* Legend */}
+        {stages.map((s, si) => (
+          <g key={`lg${s.stageId}`} transform={`translate(${padX + (si % 5) * 110}, ${12 + Math.floor(si / 5) * 12})`}>
+            <circle cx={0} cy={-2} r={4} fill={color(si)} />
+            <text x={8} y={2} fontSize={8.5} fill="var(--text-2)" fontWeight={600}>{s.label.split(" ")[0].toUpperCase()}</text>
+          </g>
+        ))}
+      </svg>
+      {hover != null && (
+        <ChartTip
+          leftPct={(x(hover) / W) * 100}
+          topPct={(y(Math.max(...stages.map((s) => data[hover].perStage[s.stageId] ?? 0))) / H) * 100}
+          below={false}
+          title={data[hover].label}
+          rows={[...stages]
+            .map((s, si) => ({ label: s.label.split(" ")[0], value: fmtVal(data[hover].perStage[s.stageId] ?? 0), color: color(si), raw: data[hover].perStage[s.stageId] ?? 0 }))
+            .sort((a, b) => b.raw - a.raw)
+            .map(({ label, value, color }) => ({ label, value, color }))}
+        />
+      )}
+    </div>
   );
 }
 

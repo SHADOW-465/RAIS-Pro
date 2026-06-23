@@ -174,3 +174,23 @@ export function stageTrend(events: Event[], scope: Scope, registry: Registry = D
 export function weeklyTrend(events: Event[], scope: Scope): SeriesPoint[] {
   return trend(events, { ...scope, grain: "week" }, "rejectionRate");
 }
+
+/** Series key for the additive cumulative-total line in `cumulativeStageTrend`. */
+export const CUM_TOTAL_KEY = "__total";
+
+/**
+ * The COMMULATIVE-sheet chart: per-stage rejection-rate lines PLUS an additive
+ * "Total" line = the per-period SUM of the stage rates (each stage over its own
+ * denominator), matching the operator's "Total Rejection %" column. Recomputed
+ * from raw events — never read from the spreadsheet's % or total cells.
+ */
+export function cumulativeStageTrend(
+  events: Event[],
+  scope: Scope,
+  registry: Registry = DISPOSAFE_REGISTRY,
+): StageTrendPoint[] {
+  return stageTrend(events, scope, registry).map((pt) => {
+    const total = registry.stages.reduce((sum, s) => sum + (pt.perStage[s.stageId] ?? 0), 0);
+    return { ...pt, perStage: { ...pt.perStage, [CUM_TOTAL_KEY]: total } };
+  });
+}

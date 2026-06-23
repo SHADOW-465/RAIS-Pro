@@ -50,7 +50,9 @@ import {
   periodKey,
   periodLabel,
   copqTrend,
-  getTargetRejectionRate
+  getTargetRejectionRate,
+  cumulativeStageTrend,
+  CUM_TOTAL_KEY
 } from "@/lib/analytics";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -85,6 +87,7 @@ export default function Dashboard() {
   const { t } = useTweaks();
   const router = useRouter();
   const [events, setEvents] = useState<Event[] | null>(null);
+  const [view, setView] = useState<string>("cumulative"); // Cumulative | <stageId>
   const [selectedSize, setSelectedSize] = useState("Fr16");
   const [targetRej, setTargetRej] = useState(0.10);
   const [modalOpen, setModalOpen] = useState(false);
@@ -174,6 +177,14 @@ export default function Dashboard() {
 
     const tr = trend(events, trendScope, "rejectionRate");
     const st = stageTrend(events, trendScope);
+    // Cumulative-by-stage trend (stations + additive Total) and the single Total
+    // line that matches the workbook's "REJECTION TRENDS" chart.
+    const cumTrend = cumulativeStageTrend(events, trendScope);
+    const totalTrend = cumTrend.map((p) => ({ period: p.period, label: p.label, value: p.perStage[CUM_TOTAL_KEY] ?? 0 }));
+    // Every stage that has data anywhere — keeps the station tabs stable/discoverable
+    // even when the selected date range is sparse for some stations.
+    const order2 = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
+    const stagesAll = [...byStage(events, { grain: t.grain })].sort((a, b) => order2.indexOf(a.stageId) - order2.indexOf(b.stageId));
     const dt = defectTrend(events, trendScope, 5);
     const sizes = bySize(events, scope);
     
@@ -223,12 +234,24 @@ export default function Dashboard() {
       status,
       sizeTrend: szTrend,
       copqTrend: cTrend,
+      cumTrend,
+      totalTrend,
+      stagesAll,
       sizeWiseInsight,
       sizeTrendInsight,
       snapshotScope: scope,
+      trendScope,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
   }, [events, scope, t.grain, selectedSize]);
+
+  // Top-level workbook/station view tabs: Cumulative (whole) + one per station present in the data.
+  const tabs = useMemo(() => {
+    const base = [{ id: "cumulative", label: "Cumulative" }];
+    if (!m) return base;
+    return [...base, ...m.stagesAll.map((s) => ({ id: s.stageId, label: STAGE_LABELS[s.stageId] ?? s.label }))];
+  }, [m]);
+  const activeView = tabs.some((tb) => tb.id === view) ? view : "cumulative";
 
   // Synchronize selected size with the available sizes dataset
   useEffect(() => {
@@ -390,6 +413,23 @@ export default function Dashboard() {
 
       {m && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Top-level view toggle: Cumulative (whole) + per-station */}
+          <ViewToggle tabs={tabs} active={activeView} onChange={setView} />
+
+          {activeView !== "cumulative" ? (
+            <StationView
+              events={events!}
+              stageId={activeView}
+              label={tabs.find((tb) => tb.id === activeView)?.label ?? activeView}
+              scope={m.snapshotScope}
+              trendScope={m.trendScope}
+              grainLabel={grainLabel}
+              targetRej={targetRej}
+              openModal={openModal}
+              srcRows={srcRows}
+            />
+          ) : (
+          <>
           {/* Row 1: Intelligence cockpit */}
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.3fr 0.9fr 0.9fr", gap: 16 }}>
             <Card title="AI Executive Summary">
@@ -466,6 +506,16 @@ export default function Dashboard() {
             <Kpi label="First Pass Yield (FPY)" value={pct(m.fpy)} sub={stats.fpyDiff} tone={m.fpy >= (1 - targetRej) ? "good" : "bad"} spark={m.tr} onClick={() => openModal(`${grainLabel} FPY Trend`, `First Pass Yield stands at ${pct(m.fpy)} for the latest period.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: 1 - p.value }))} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.fpy) })} />
             <Kpi label="COPQ (This Period)" value={rupee(m.copq)} sub={stats.copqDiff} tone="warn" spark={m.tr} onClick={() => openModal(`${grainLabel} Cost of Poor Quality (COPQ) Trend`, `COPQ stands at ${rupee(m.copq)} for this period (${stats.copqDiff}).`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })} />
             <Kpi label="Savings Opportunity" value={rupee(m.savings)} sub="◆ Annual Potential" tone="good" spark={m.tr} onClick={() => openModal("Savings Opportunity Projections", `Achieving target quality limits offers up to ${rupee(m.savings)} in annual recoverable opportunity.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} fmt={pct} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.savings) })} />
+          </div>
+
+          {/* Total rejection % per period — the workbook's "REJECTION TRENDS" chart */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <Card title={`Total Rejection % (${grainLabel})`} sub="Σ of stage rates · mean line · hover for values" onClick={() => openModal(`Total Rejection % (${grainLabel})`, "The total rejection rate per period — the sum of each station's rate over its own checked quantity, matching the workbook's COMMULATIVE 'Total Rejection %'. Recomputed from raw counts. Use the date range / grain in the top bar to change the period.", <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.totalTrend} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: m.totalTrend.length ? pct(m.totalTrend[m.totalTrend.length - 1].value) : "—" })}>
+              <LineChart points={m.totalTrend} fmt={pct} mean />
+            </Card>
+            <Card title={`Cumulative Rejection % by Stage (${grainLabel})`} sub="per-stage + Total — hover for values" onClick={() => openModal(`Cumulative Rejection % by Stage (${grainLabel})`, "Each line is a station's rejection rate over its own checked quantity; the Total line is the per-period sum of those stage rates. All recomputed from raw counts — the spreadsheet's own % / total cells are never trusted.", <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+              <MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} />
+            </Card>
           </div>
 
           {/* Row 3: Trends & Process Flow */}
@@ -574,6 +624,8 @@ export default function Dashboard() {
               </div>
             </Card>
           </div>
+          </>
+          )}
         </div>
       )}
 
@@ -588,5 +640,87 @@ export default function Dashboard() {
         {modalContent}
       </FloatingDetailModal>
     </AppShell>
+  );
+}
+
+/** Segmented top-level view switch: Cumulative (whole) + per-station tabs. */
+function ViewToggle({ tabs, active, onChange }: {
+  tabs: { id: string; label: string }[];
+  active: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: "1px solid var(--border)", paddingBottom: 2 }}>
+      {tabs.map((tb) => {
+        const on = tb.id === active;
+        return (
+          <button key={tb.id} onClick={() => onChange(tb.id)} style={{
+            padding: "8px 16px", fontSize: 13, fontWeight: on ? 700 : 500,
+            color: on ? "var(--text)" : "var(--text-2)", background: "transparent", border: "none",
+            borderBottom: on ? "2px solid #C8421C" : "2px solid transparent", cursor: "pointer", transition: "all 0.12s ease",
+          }}>{tb.label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A single inspection station, scoped to the selected date range — KPIs, daily-%
+ *  trend, and (when present) its defect Pareto. Mirrors a station sheet in the
+ *  workbook; all numbers recomputed from raw counts via the shared selectors. */
+function StationView({ events, stageId, label, scope, trendScope, grainLabel, targetRej, openModal, srcRows }: {
+  events: Event[];
+  stageId: string;
+  label: string;
+  scope: Scope;
+  trendScope: Scope;
+  grainLabel: string;
+  targetRej: number;
+  openModal: (title: string, insight: string | string[], content: React.ReactNode, source?: { rows: SourceRow[]; value: string }) => void;
+  srcRows: (filter?: { stageId?: string; defectCode?: string; size?: string; types?: string[] }) => SourceRow[];
+}) {
+  const d = useMemo(() => {
+    const snap: Scope = { ...scope, stageIds: [stageId] };
+    const tr: Scope = { ...trendScope, stageIds: [stageId] };
+    return {
+      rate: rejectionRate(events, snap).value,
+      checked: totalChecked(events, snap).value,
+      rejected: totalRejected(events, snap).value,
+      fpy: fpy(events, snap).value,
+      trend: trend(events, tr, "rejectionRate"),
+      defects: byDefect(events, snap),
+    };
+  }, [events, stageId, scope, trendScope]);
+
+  if (d.checked === 0 && d.rejected === 0) {
+    return <Empty label={`No ${label} data in the selected date range — widen the range (top bar) or pick a period that has ${label} data (e.g. the month its workbook covers).`} />;
+  }
+
+  const paretoFor = (defects: typeof d.defects) =>
+    calculatePareto(defects.map((x) => ({ label: x.label, value: x.rejected }))) ||
+    { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data for this period." };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+        <Kpi primary label={`${label} — Rejection Rate`} value={pct(d.rate)} tone={d.rate > targetRej ? "bad" : "good"} spark={d.trend}
+          onClick={() => openModal(`${label} — Rejection Rate`, `${label} rejection rate is ${pct(d.rate)} for the selected range.`, <div style={{ minHeight: 280, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection"] }), value: pct(d.rate) })} />
+        <Kpi label="Quantity Checked" value={num(d.checked)} />
+        <Kpi label="Total Rejected" value={num(d.rejected)} tone="bad" />
+        <Kpi label="First Pass Yield" value={pct(d.fpy)} tone={d.fpy >= 1 - targetRej ? "good" : "bad"} />
+      </div>
+
+      <Card title={`${label} — Rejection % Trend (${grainLabel})`} sub="recomputed from raw checked / rejected"
+        onClick={() => openModal(`${label} — Rejection % Trend (${grainLabel})`, `${label} rejection rate per period, from this station's own checked and rejected counts.`, <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection"] }), value: pct(d.rate) })}>
+        <LineChart points={d.trend} target={targetRej} fmt={pct} mean />
+      </Card>
+
+      {d.defects.length > 0 && (
+        <Card title={`${label} — Defect Pareto`}
+          onClick={() => openModal(`${label} — Defect Pareto`, `Defect distribution for ${label} over the selected range.`, <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={paretoFor(d.defects)} /></div>, { rows: srcRows({ stageId, types: ["rejection"] }), value: num(d.defects.reduce((s, x) => s + x.rejected, 0)) })}>
+          <ParetoChart analysis={paretoFor(d.defects)} showTable={false} />
+        </Card>
+      )}
+    </div>
   );
 }

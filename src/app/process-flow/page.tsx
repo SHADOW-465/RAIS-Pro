@@ -16,6 +16,8 @@ import {
   periodLabel,
   type Scope
 } from "@/lib/analytics";
+import { FBC_PROCESS } from "@/lib/registry/fbc-process";
+import type { StageRow } from "@/lib/analytics";
 
 export default function ProcessFlowPage() {
   const { t } = useTweaks();
@@ -104,9 +106,12 @@ export default function ProcessFlowPage() {
         )}
 
         {m && (
-          <div style={{ width: "100%" }}>
-            <Card title="Production Process Flow" onClick={() => openModal("Process Flow", "The catheter assembly process flow indicates that Balloon Sealing and Valve Integrity are bottleneck quality gates.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>)}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+            <Card title="Inspection Stages (Quality Gates)" onClick={() => openModal("Inspection Stages", "The four rejection inspection gates with their current yields for the selected period.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>)}>
               <ProcessFlow rows={m.stages} />
+            </Card>
+            <Card title="FBC Process Flow — DS/ANX/02:00" sub="* = critical operation">
+              <FbcProcessFlow stages={m.stages} />
             </Card>
           </div>
         )}
@@ -121,5 +126,45 @@ export default function ProcessFlowPage() {
         {modalContent}
       </FloatingDetailModal>
     </AppShell>
+  );
+}
+
+/** The official 27-step Foley Balloon Catheter flow (DS/ANX/02:00). Inspection
+ *  steps that have data for the selected period are highlighted with their yield;
+ *  critical (*) operations are flagged; other steps stay visible but quiet. */
+function FbcProcessFlow({ stages }: { stages: StageRow[] }) {
+  const byId = new Map(stages.map((s) => [s.stageId, s]));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 520, overflowY: "auto" }}>
+      {FBC_PROCESS.map((step) => {
+        const data = step.stageId ? byId.get(step.stageId) : undefined;
+        const hasData = !!data && (data.checked > 0 || data.rejected > 0);
+        return (
+          <div key={step.code} style={{
+            display: "flex", alignItems: "center", gap: 10, padding: "6px 10px",
+            border: "1px solid var(--border)", borderRadius: "var(--radius-sm)",
+            background: hasData ? "var(--surface)" : "var(--surface-2)",
+            opacity: step.stageId ? 1 : 0.75,
+          }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 11, color: "var(--text-3)", minWidth: 32 }}>{step.code}</span>
+            <span style={{ fontSize: 12, fontWeight: step.stageId ? 700 : 500, color: "var(--text)", flex: 1 }}>
+              {step.label}
+              {step.critical && <span title="Critical operation — special control" style={{ color: "#C8421C", fontWeight: 800, marginLeft: 6 }}>*</span>}
+            </span>
+            {step.stageId ? (
+              <span style={{
+                fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: 11.5, padding: "2px 7px", borderRadius: 4,
+                color: hasData ? (data!.rejRate > 0.05 ? "var(--critical)" : "var(--positive)") : "var(--text-3)",
+                background: hasData ? (data!.rejRate > 0.05 ? "var(--critical-weak)" : "var(--positive-weak)") : "transparent",
+              }}>
+                {hasData ? `${(data!.rejRate * 100).toFixed(1)}%` : "no data"}
+              </span>
+            ) : (
+              <span className="muted" style={{ fontSize: 10 }}>process</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
