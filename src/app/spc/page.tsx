@@ -21,47 +21,37 @@ import {
 } from "@/lib/analytics";
 
 function XBarChart({ points, ucl, lcl, mean }: { points: any[]; ucl: number; lcl: number; mean: number }) {
-  const W = 640, H = 220, pad = 34;
-  const v = points.map((p) => p.value); 
+  const W = 660, H = 272, padX = 40, padTop = 28, padBottom = 70;
+  const axisY = H - padBottom, plotH = H - padTop - padBottom;
+  const v = points.map((p) => p.value);
   const max = Math.max(...v, ucl, 0.05);
-  const x = (i: number) => pad + (i / Math.max(points.length - 1, 1)) * (W - pad * 2);
-  const y = (val: number) => H - pad - (val / max) * (H - pad * 2);
-  
+  const x = (i: number) => padX + (i / Math.max(points.length - 1, 1)) * (W - padX * 2);
+  const y = (val: number) => axisY - (val / (max || 1)) * plotH;
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }}>
-      {/* Grid Lines */}
       {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
-        <line key={i} x1={pad} y1={pad + (H - pad * 2) * p} x2={W - pad} y2={pad + (H - pad * 2) * p} stroke="var(--border)" strokeWidth={0.5} />
+        <line key={i} x1={padX} y1={padTop + plotH * p} x2={W - padX} y2={padTop + plotH * p} stroke="var(--border)" strokeWidth={0.5} />
       ))}
-      <line x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke="var(--border-strong)" strokeWidth={1} />
-      
-      {/* LCL Line */}
-      <line x1={pad} y1={y(lcl)} x2={W - pad} y2={y(lcl)} stroke="var(--positive)" strokeDasharray="3,3" strokeWidth={1.2} />
-      <text x={pad + 6} y={y(lcl) - 4} fontSize={8} fill="var(--positive)" fontWeight={700}>LCL ({(lcl*100).toFixed(2)}%)</text>
+      <line x1={padX} y1={axisY} x2={W - padX} y2={axisY} stroke="var(--border-strong)" strokeWidth={1} />
 
-      {/* Mean Line */}
-      <line x1={pad} y1={y(mean)} x2={W - pad} y2={y(mean)} stroke="var(--warning)" strokeDasharray="5,4" strokeWidth={1.2} />
-      <text x={pad + 6} y={y(mean) - 4} fontSize={8} fill="var(--warning)" fontWeight={700}>MEAN ({(mean*100).toFixed(2)}%)</text>
+      <line x1={padX} y1={y(lcl)} x2={W - padX} y2={y(lcl)} stroke="var(--positive)" strokeDasharray="3,3" strokeWidth={1.2} />
+      <text x={padX + 6} y={y(lcl) - 4} fontSize={8} fill="var(--positive)" fontWeight={700}>LCL ({(lcl * 100).toFixed(2)}%)</text>
+      <line x1={padX} y1={y(mean)} x2={W - padX} y2={y(mean)} stroke="var(--warning)" strokeDasharray="5,4" strokeWidth={1.2} />
+      <text x={padX + 6} y={y(mean) - 4} fontSize={8} fill="var(--warning)" fontWeight={700}>MEAN ({(mean * 100).toFixed(2)}%)</text>
+      <line x1={padX} y1={y(ucl)} x2={W - padX} y2={y(ucl)} stroke="var(--critical)" strokeDasharray="3,3" strokeWidth={1.2} />
+      <text x={padX + 6} y={y(ucl) - 4} fontSize={8} fill="var(--critical)" fontWeight={700}>UCL ({(ucl * 100).toFixed(2)}%)</text>
 
-      {/* UCL Line */}
-      <line x1={pad} y1={y(ucl)} x2={W - pad} y2={y(ucl)} stroke="var(--critical)" strokeDasharray="3,3" strokeWidth={1.2} />
-      <text x={pad + 6} y={y(ucl) - 4} fontSize={8} fill="var(--critical)" fontWeight={700}>UCL ({(ucl*100).toFixed(2)}%)</text>
-      
-      {/* Trend Area */}
       {points.length > 1 && (
-        <path d={`M ${x(0)} ${H - pad} ` + points.map((p, i) => `L ${x(i)} ${y(p.value)}`).join(" ") + ` L ${x(points.length - 1)} ${H - pad} Z`} fill="var(--accent-weak)" opacity={0.25} />
+        <polyline points={points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} fill="none" stroke="var(--accent)" strokeWidth={2} />
       )}
-      
-      {/* Line & Nodes */}
-      <polyline points={points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} fill="none" stroke="var(--accent)" strokeWidth={2} />
-      
+
       {points.map((p, i) => {
         const isOut = p.value > ucl || p.value < lcl;
         return (
           <g key={i}>
-            <circle cx={x(i)} cy={y(p.value)} r={4.5} fill={isOut ? "var(--critical)" : "var(--surface)"} stroke={isOut ? "var(--critical)" : "var(--accent)"} strokeWidth={2.5} />
-            <text x={x(i)} y={H - pad + 14} fontSize={8.5} textAnchor="middle" fill="var(--text-3)" fontFamily="var(--font-sans)">{p.label}</text>
-            <text x={x(i)} y={y(p.value) - 8} fontSize={8.5} textAnchor="middle" fill={isOut ? "var(--critical)" : "var(--text-2)"} fontFamily="var(--font-mono)" fontWeight={600}>{(p.value*100).toFixed(2)}%</text>
+            <circle cx={x(i)} cy={y(p.value)} r={4} fill={isOut ? "var(--critical)" : "var(--surface)"} stroke={isOut ? "var(--critical)" : "var(--accent)"} strokeWidth={2.5} />
+            <text x={x(i)} y={axisY + 8} fontSize={7.5} textAnchor="end" fill="var(--text-3)" fontFamily="var(--font-sans)" transform={`rotate(-90 ${x(i)} ${axisY + 8})`}>{p.label}</text>
           </g>
         );
       })}

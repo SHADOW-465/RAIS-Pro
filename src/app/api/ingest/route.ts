@@ -164,7 +164,30 @@ export async function POST(req: NextRequest) {
     }
 
     const events = emitMany(toWrite, activeRegistry);
-    const { inserted, deduped } = await store.append(events);
+
+    // Upsert reconcile: when a re-ingest changes a value, supersede the prior
+    // event for the same stage·day·size·kind so totals UPDATE instead of doubling.
+    // Byte-identical re-ingests fall through to content-hash dedup (no churn).
+    const PRIMARY = new Set(["production", "inspection", "rejection"]);
+    const sk = (e: any) => `${e.eventType}|${e.stageId}|${e.occurredOn.start}|${e.disposition ?? ""}|${e.defectCode ?? e.defectCodeRaw ?? ""}|${e.size ?? ""}`;
+    const incomingByKey = new Map<string, string[]>();
+    for (const e of events as any[]) {
+      if (!PRIMARY.has(e.eventType)) continue;
+      const k = sk(e);
+      const arr = incomingByKey.get(k); if (arr) arr.push(e.eventId); else incomingByKey.set(k, [e.eventId]);
+    }
+    const { hashEvent } = require("@/lib/contract/hash");
+    const { CorrectionEvent } = require("@/lib/contract/d1");
+    const corrections: any[] = [];
+    for (const e of existingEvents as any[]) {
+      if (!PRIMARY.has(e.eventType)) continue;
+      const ids = incomingByKey.get(sk(e));
+      if (!ids || ids.includes(e.eventId)) continue; // not re-ingested, or identical → keep as-is
+      const payload = { supersedesEventId: e.eventId, replacementEventId: ids[0], reason: "Re-ingest updated this value", authorisedBy: "ingest:auto-reconcile" };
+      const eventId = hashEvent({ eventType: "correction", occurredOn: e.occurredOn, provenance: e.provenance, payload });
+      corrections.push(CorrectionEvent.parse({ eventId, schemaVersion: "1.0.0", ingestionId: body.ingestionId, occurredOn: e.occurredOn, provenance: e.provenance, confidence: { score: 1, basis: "exact" }, extractedBy: "ingest:auto-reconcile", recordedAt: new Date().toISOString(), supersededBy: null, eventType: "correction", ...payload }));
+    }
+    const { inserted, deduped } = await store.append([...events, ...corrections]);
 
     // 3. Per-stage rollup for the success summary (deterministic, from events).
     const byStage: Record<string, { checked: number; rejected: number; days: number }> = {};

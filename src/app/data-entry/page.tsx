@@ -45,6 +45,40 @@ export default function DataEntryPage() {
       .catch((err) => console.error("Error loading registry:", err));
   }, []);
 
+  // Load any data already committed for the chosen Report Date so the operator can
+  // review/edit it (CRUD). Re-submitting updates it via the ingest upsert (no double).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/events")
+      .then((r) => r.json())
+      .then((b) => {
+        if (cancelled) return;
+        const evs = (b.events ?? []).filter((e: any) => e.occurredOn?.start === date);
+        const nextRows: Record<string, RowState> = {};
+        const nextDefects: Record<string, Record<string, string>> = {};
+        for (const e of evs) {
+          const id = e.stageId;
+          if (!id) continue;
+          if (e.eventType === "rejection") {
+            const code = e.defectCode ?? e.defectCodeRaw;
+            if (code) { (nextDefects[id] = nextDefects[id] ?? {})[code] = String(e.quantity ?? ""); }
+            continue;
+          }
+          const r = nextRows[id] ?? { ...blank };
+          if (e.eventType === "production") r.input = String(e.quantity ?? "");
+          else if (e.eventType === "inspection" && e.disposition === "accepted") r.good = String(e.quantity ?? "");
+          else if (e.eventType === "inspection" && e.disposition === "rework") r.rework = String(e.quantity ?? "");
+          else if (e.eventType === "inspection" && e.disposition === "rejected") r.rejected = String(e.quantity ?? "");
+          else continue;
+          nextRows[id] = r;
+        }
+        setRows(nextRows);
+        setDefectCounts(nextDefects);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [date]);
+
   const activeRegistry = registry || DISPOSAFE_REGISTRY;
 
   // Dynamic, user-defined fields (#8). Each can be flagged required.
