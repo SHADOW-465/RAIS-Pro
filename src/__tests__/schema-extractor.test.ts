@@ -28,7 +28,9 @@ describe("Dynamic Schema Extractor & Classifier", () => {
 
     const stage = schema.stages[0];
     expect(stage.label).toBe("Visual Inspection");
-    expect(stage.stageId).toBe("visual-inspection");
+    // Resolves to the real registry stage (not slugify("Visual Inspection")),
+    // so all visual sheets land on one 'visual' stage instead of bogus per-sheet ids.
+    expect(stage.stageId).toBe("visual");
 
     // Verify field role classifications
     const dateField = stage.fields.find(f => f.name === "DATE");
@@ -89,7 +91,7 @@ describe("Dynamic Schema Extractor & Classifier", () => {
     expect(records.length).toBe(1);
     const rec = records[0];
     expect(rec.occurredOn.start).toBe("2025-04-01");
-    expect(rec.stageId).toBe("visual-inspection");
+    expect(rec.stageId).toBe("visual");
     
     // Core quantities
     expect(rec.checked?.value).toBe(10000);
