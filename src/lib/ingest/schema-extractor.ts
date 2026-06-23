@@ -55,6 +55,24 @@ function slugify(s: string): string {
     .replace(/-+$/, '');
 }
 
+// Resolve a sheet to a real registry inspection stage. Valve is tested before
+// balloon (P20 "Valve Integrity & Balloon Inspection" mentions both). We match
+// the sheet name first, then fall back to the FILE name — so a month-named sheet
+// (e.g. "APRIL 25") inside "VISUAL INSPECTION REPORT…" correctly resolves to
+// `visual` instead of becoming a bogus per-month "april-25" stage.
+const STAGE_PATTERNS: { re: RegExp; id: string }[] = [
+  { re: /valve|integrit/i, id: "valve-integrity" },
+  { re: /balloon/i,        id: "balloon" },
+  { re: /eye.?punch/i,     id: "eye-punching" },
+  { re: /final/i,          id: "final" },
+  { re: /visual/i,         id: "visual" },
+];
+function resolveStageId(sheetName: string, fileName: string): string {
+  for (const p of STAGE_PATTERNS) if (p.re.test(sheetName)) return p.id;
+  for (const p of STAGE_PATTERNS) if (p.re.test(fileName)) return p.id;
+  return slugify(sheetName); // genuinely unknown layout → keep a stable id
+}
+
 const DATE_RE = /date|day|time/i;
 const CHECKED_RE = /checked|chk|qty checked|quantity|input|rec|received|inspect/i;
 const REJECTED_RE = /reject|rej/i; // but not % or rate
@@ -155,7 +173,7 @@ export function extractSchemaFromWorkbook(wb: xlsx.WorkBook, fileName: string): 
 
     if (fields.length > 0) {
       stages.push({
-        stageId: slugify(sheetName),
+        stageId: resolveStageId(sheetName, fileName),
         label: sheetName,
         fields,
         rowCount: dataRows.length,
