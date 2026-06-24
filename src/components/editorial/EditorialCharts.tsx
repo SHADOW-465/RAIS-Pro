@@ -46,7 +46,7 @@ export function TrendLine({
   showTarget?: boolean;
   accentIdx?: number;
 }) {
-  const w = 600;
+  const w = Math.max(600, values.length * 16);
   const h = height;
   const padL = 40, padR = 16, padT = 16, padB = 30;
   const innerW = w - padL - padR;
@@ -64,13 +64,17 @@ export function TrendLine({
 
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
+  const pointDistance = innerW / Math.max(1, values.length - 1);
+  const labelStep = Math.max(1, Math.ceil(75 / pointDistance));
+
   return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      width="100%"
-      preserveAspectRatio="none"
-      style={{ overflow: "visible" }}
-    >
+    <div style={{ overflowX: "auto", width: "100%" }}>
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        width="100%"
+        preserveAspectRatio="none"
+        style={{ overflow: "visible", minWidth: `${w}px`, display: "block" }}
+      >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--viz-1)" stopOpacity="0.25" />
@@ -206,21 +210,25 @@ export function TrendLine({
           />
         </g>
       )}
-      {cycles.map((c, i) => (
-        <text
-          key={`${c}-${i}`}
-          x={xs(i)}
-          y={h - 8}
-          fontSize="11"
-          textAnchor="middle"
-          fontFamily="var(--font-sans)"
-          fill="var(--text-3)"
-          letterSpacing="0.1em"
-        >
-          {c.toUpperCase()}
-        </text>
-      ))}
+      {cycles.map((c, i) => {
+        if (i % labelStep !== 0) return null;
+        return (
+          <text
+            key={`${c}-${i}`}
+            x={xs(i)}
+            y={h - 8}
+            fontSize="11"
+            textAnchor="middle"
+            fontFamily="var(--font-sans)"
+            fill="var(--text-3)"
+            letterSpacing="0.1em"
+          >
+            {c.toUpperCase()}
+          </text>
+        );
+      })}
     </svg>
+    </div>
   );
 }
 
@@ -609,7 +617,8 @@ export function DualLine({
   if (keys.length === 0) return null;
   const allVals = keys.flatMap((k) => data[k].filter((v): v is number => v !== null));
   const len = data[keys[0]].length;
-  const w = 600, padL = 32, padR = 16, padT = 12, padB = 26;
+  const w = Math.max(600, len * 16);
+  const padL = 32, padR = 16, padT = 12, padB = 26;
   const innerW = w - padL - padR;
   const innerH = height - padT - padB;
   const min = Math.min(...allVals) * 0.95;
@@ -620,7 +629,13 @@ export function DualLine({
   const colors = ["var(--viz-1)", "var(--viz-2)"];
 
   return (
-    <svg viewBox={`0 0 ${w} ${height}`} width="100%" style={{ overflow: "visible" }}>
+    <div style={{ overflowX: "auto", width: "100%" }}>
+      <svg
+        viewBox={`0 0 ${w} ${height}`}
+        width="100%"
+        preserveAspectRatio="none"
+        style={{ overflow: "visible", minWidth: `${w}px`, display: "block" }}
+      >
       <line x1={padL} x2={w - padR} y1={padT + innerH} y2={padT + innerH} stroke="var(--border-strong)" strokeWidth="1.5" />
       {keys.map((k, ki) => {
         const vals = data[k];
@@ -694,5 +709,6 @@ export function DualLine({
         ))}
       </g>
     </svg>
+    </div>
   );
 }
