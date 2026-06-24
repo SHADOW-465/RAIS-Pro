@@ -425,37 +425,41 @@ export default function StagingPage() {
         return Array.from(map.values()).sort((a, b) => Number(a.sizeId.slice(2)) - Number(b.sizeId.slice(2)));
       })();
 
-      if (approvedNewCols.length > 0 && regToUpdate) {
-        // Clone registry stages and inject new fields
-        const updatedStages = regToUpdate.stages.map((stage: any) => {
-          const defaultFields = [
-            { name: "Checked Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" },
-            { name: "Good Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
-            { name: "Rework Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
-            { name: "Rejected Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" }
-          ];
-          const fields = stage.fields ? [...stage.fields] : [...defaultFields];
-          
-          approvedNewCols.forEach((newCol) => {
-            if (newCol.stageId === stage.stageId) {
-              const alreadyExists = fields.some(f => f.name.toLowerCase() === newCol.colName.toLowerCase());
-              if (!alreadyExists) {
-                fields.push({
-                  name: newCol.colName,
-                  type: newCol.type as any,
-                  required: false,
-                  addAs: "column",
-                  appliesTo: "selected",
-                  selectedStages: [stage.stageId]
-                });
-              }
-            }
-          });
-          return {
-            ...stage,
-            fields
-          };
-        });
+      const sizesChanged = JSON.stringify(mergedSizes) !== JSON.stringify(regToUpdate.sizes || []);
+
+      if ((approvedNewCols.length > 0 || sizesChanged) && regToUpdate) {
+        // Clone registry stages and inject new fields (only when new columns approved)
+        const updatedStages = approvedNewCols.length > 0
+          ? regToUpdate.stages.map((stage: any) => {
+              const defaultFields = [
+                { name: "Checked Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" },
+                { name: "Good Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
+                { name: "Rework Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
+                { name: "Rejected Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" }
+              ];
+              const fields = stage.fields ? [...stage.fields] : [...defaultFields];
+
+              approvedNewCols.forEach((newCol) => {
+                if (newCol.stageId === stage.stageId) {
+                  const alreadyExists = fields.some(f => f.name.toLowerCase() === newCol.colName.toLowerCase());
+                  if (!alreadyExists) {
+                    fields.push({
+                      name: newCol.colName,
+                      type: newCol.type as any,
+                      required: false,
+                      addAs: "column",
+                      appliesTo: "selected",
+                      selectedStages: [stage.stageId]
+                    });
+                  }
+                }
+              });
+              return {
+                ...stage,
+                fields
+              };
+            })
+          : regToUpdate.stages;
 
         // Save new schema config
         const regRes = await fetch("/api/schema", {
