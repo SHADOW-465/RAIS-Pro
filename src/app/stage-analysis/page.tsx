@@ -163,12 +163,12 @@ export default function StageAnalysisPage() {
           const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
           const hasLeft = m.stageTrend.length > 0 || m.tr.length > 0;
           const hasRight = m.stages.length > 0;
-          const gridTemplate = hasLeft && hasRight ? "1.8fr 1.2fr" : "1fr";
+          const gridTemplate = hasLeft && hasRight ? "minmax(0, 1.8fr) minmax(0, 1.2fr)" : "minmax(0, 1fr)";
 
           return (
             <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
               {hasLeft && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
                   {m.stageTrend.length > 0 && (
                     <Card title={`Stage-wise Rejection Trend (${grainLabel})`} onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Visual Inspection continues to drive the highest defect volume, followed by Valve Integrity and Balloon Inspection.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.stageTrend} stages={DISPOSAFE_REGISTRY.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
                       <MultiLine data={m.stageTrend} stages={DISPOSAFE_REGISTRY.stages} />
@@ -184,7 +184,7 @@ export default function StageAnalysisPage() {
               )}
 
               {hasRight && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
                   <Card title="Process Flow Quality Gates" onClick={() => openModal("Process Flow Quality Gates", "catheter manufacturing process flow highlights Balloon Sealing and Valve Integrity as crucial quality checkpoints.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
                     <ProcessFlow rows={m.stages} />
                   </Card>

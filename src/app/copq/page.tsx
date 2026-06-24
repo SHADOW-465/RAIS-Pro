@@ -165,12 +165,12 @@ export default function CopqPage() {
         {m && (() => {
           const hasLeft = m.copq > 0 || m.savings > 0;
           const hasRight = m.copqTrend.length > 0;
-          const gridTemplate = hasLeft && hasRight ? "1.25fr 1.75fr" : "1fr";
+          const gridTemplate = hasLeft && hasRight ? "minmax(0, 1.25fr) minmax(0, 1.75fr)" : "minmax(0, 1fr)";
 
           return (
             <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
               {hasLeft && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
                   {m.copq > 0 && (
                     <Card title={`${grainLabel} COPQ Impact`} onClick={() => openModal(`${grainLabel} COPQ Impact`, `COPQ reaches ${rupee(m.copq)} this period. ${m.copqDiff}. Material waste and tooling downtime are major drivers.`, <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}>
                       <GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} />

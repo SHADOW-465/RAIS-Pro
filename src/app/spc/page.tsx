@@ -371,12 +371,12 @@ export default function SpcPage() {
 
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "2.2fr 0.8fr", gap: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2.2fr) minmax(0, 0.8fr)", gap: 20 }}>
                 <Card title={`X-Bar Control Chart (${t.grain.toUpperCase()} Rejection Rate)`} onClick={() => openModal("Control Chart", modalText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
                   <XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} />
                 </Card>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
                   <Card title="SPC Control Limits">
                     <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "10px 0" }}>
                       <div className="between">

@@ -1,16 +1,16 @@
 # Graph Report - RAIS-Pro  (2026-06-24)
 
 ## Corpus Check
-- 170 files · ~1,072,639 words
+- 172 files · ~1,080,675 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 710 nodes · 1097 edges · 73 communities (61 shown, 12 thin omitted)
-- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 155 edges (avg confidence: 0.81)
+- 739 nodes · 1151 edges · 74 communities (63 shown, 11 thin omitted)
+- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 162 edges (avg confidence: 0.81)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0c21722b`
+- Built from commit: `8cdd16bb`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -34,24 +34,25 @@
 - [[_COMMUNITY_Community 16|Community 16]]
 - [[_COMMUNITY_Community 17|Community 17]]
 - [[_COMMUNITY_Community 18|Community 18]]
+- [[_COMMUNITY_Community 19|Community 19]]
 - [[_COMMUNITY_Community 20|Community 20]]
-- [[_COMMUNITY_Community 21|Community 21]]
+- [[_COMMUNITY_Community 22|Community 22]]
 - [[_COMMUNITY_Community 24|Community 24]]
-- [[_COMMUNITY_Community 26|Community 26]]
 - [[_COMMUNITY_Community 27|Community 27]]
-- [[_COMMUNITY_Community 37|Community 37]]
+- [[_COMMUNITY_Community 28|Community 28]]
 - [[_COMMUNITY_Community 38|Community 38]]
 - [[_COMMUNITY_Community 39|Community 39]]
 - [[_COMMUNITY_Community 40|Community 40]]
 - [[_COMMUNITY_Community 41|Community 41]]
-- [[_COMMUNITY_Community 70|Community 70]]
+- [[_COMMUNITY_Community 42|Community 42]]
 - [[_COMMUNITY_Community 71|Community 71]]
 - [[_COMMUNITY_Community 72|Community 72]]
+- [[_COMMUNITY_Community 73|Community 73]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `createServerClient()` - 37 edges
-2. `parseWorkbookBuffer()` - 23 edges
-3. `scopeEvents()` - 22 edges
+2. `scopeEvents()` - 26 edges
+3. `parseWorkbookBuffer()` - 23 edges
 4. `buildAuditPackage()` - 16 edges
 5. `seedFromDisk()` - 16 edges
 6. `computeMetrics()` - 15 edges
@@ -78,15 +79,15 @@
 - **Dual-Track Ingestion → Staging → Ledger Pipeline** — moid_spec_staging_grid, plans_status_real_parsers, data_pipeline_merge_not_override, moid_spec_event_ledger, phase1_ledger_migration [INFERRED 0.85]
 - **Sub-phase 2a ingestion pipeline** — phase2_parser_router, phase2_dedupe_module, phase2_emitmany, phase2_seed_module [INFERRED 0.85]
 
-## Communities (73 total, 12 thin omitted)
+## Communities (74 total, 11 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.07
-Nodes (51): copq(), copqTrend(), getFinishedCost(), getStageWeight(), getTargetRejectionRate(), savingsOpportunity(), byDefect(), bySize() (+43 more)
+Cohesion: 0.06
+Nodes (52): copq(), copqTrend(), getFinishedCost(), getStageWeight(), getTargetRejectionRate(), savingsOpportunity(), byDefect(), bySize() (+44 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.05
-Nodes (25): checkRecord(), checkSpike(), POST(), emitMany(), classifyRejectionSheets(), toISODate(), POST(), dedupeByPrecedence() (+17 more)
+Nodes (23): checkRecord(), checkSpike(), POST(), emitMany(), classifyRejectionSheets(), toISODate(), POST(), parseRejectionAnalysis() (+15 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.05
@@ -94,15 +95,15 @@ Nodes (23): POST(), resolveArchiveDir(), POST(), POST(), DELETE(), GET(), create
 
 ### Community 3 - "Community 3"
 Cohesion: 0.05
-Nodes (24): applyEdit(), buildReviewRows(), reviewRow(), reviewSummary(), stageLabel(), classifyWithSchema(), extractSchemaFromWorkbook(), resolveStageId() (+16 more)
+Nodes (9): Card(), srcRows(), toSourceRows(), srcRows(), toSourceRows(), srcRows(), toSourceRows(), srcRows() (+1 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.04
-Nodes (3): Card(), x(), y()
+Cohesion: 0.07
+Nodes (21): classifyWithSchema(), extractSchemaFromWorkbook(), resolveStageId(), slugify(), buildHeaderBlock(), colIndexToLabel(), detectGranularity(), detectHeaderRow() (+13 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.09
-Nodes (16): getTraceRows(), buildBezierPath(), chartStyle(), TrendLine(), xs(), ys(), buildFileGroups(), columnTotal() (+8 more)
+Cohesion: 0.08
+Nodes (14): handleMouseMove(), buildBezierPath(), chartStyle(), handleMouseMove(), TrendLine(), xs(), ys(), getBaseSpacing() (+6 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.09
@@ -125,60 +126,68 @@ Cohesion: 0.14
 Nodes (19): baseName(), baseNameForReason(), colsForRole(), colsForStage(), computeMetrics(), detectIsSummary(), detectReportType(), fmtCount() (+11 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.18
-Nodes (16): buildChatContext(), buildPrompt(), POST(), activeBackend(), availableBackends(), getModel(), isAvailable(), isRetriable() (+8 more)
+Cohesion: 0.13
+Nodes (11): getTraceRows(), buildFileGroups(), columnTotal(), findColumn(), findContributingSheets(), firstMatch(), normalizeColName(), parseMonth() (+3 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.19
+Cohesion: 0.15
 Nodes (12): fallbackTitle(), POST(), withTimeout(), calculatePareto(), deriveMergePlan(), metricsSane(), metricsToCharts(), metricsToKpis() (+4 more)
 
 ### Community 13 - "Community 13"
+Cohesion: 0.18
+Nodes (16): buildChatContext(), buildPrompt(), POST(), activeBackend(), availableBackends(), getModel(), isAvailable(), isRetriable() (+8 more)
+
+### Community 14 - "Community 14"
 Cohesion: 0.33
 Nodes (17): aggAssembly(), aggBalloon(), aggProduction(), aggShopfloor(), aggVisual(), colIndex(), detectHeaderRow(), extractSheet() (+9 more)
 
-### Community 14 - "Community 14"
+### Community 15 - "Community 15"
+Cohesion: 0.15
+Nodes (5): applyEdit(), buildReviewRows(), reviewRow(), reviewSummary(), stageLabel()
+
+### Community 16 - "Community 16"
 Cohesion: 0.12
 Nodes (17): Three Cognitive Layers (Immutable Kernel / Declarative Harness / Agentic), LUCID Framework (expansion to automotive/textiles/engineering), Company Brain Vision (Enterprise Cognitive OS), Merge-not-Override: Finding Raised on Conflict, Supabase Durable Persistence as Keystone Fix, Factory Intelligence Cockpit (dashboard-first layout), Ask RAS Chat (Rejection Advisory System), Canonical Append-Only Event Ledger (+9 more)
 
-### Community 16 - "Community 16"
+### Community 18 - "Community 18"
 Cohesion: 0.2
 Nodes (9): buildGraphPrompt(), buildManifestPrompt(), buildNarrativePrompt(), buildPrompt(), fmtSeries(), applyMergePlan(), fmtNum(), mergedResultToPromptText() (+1 more)
 
-### Community 17 - "Community 17"
+### Community 19 - "Community 19"
 Cohesion: 0.17
 Nodes (12): Heuristic Fallback + metricsSane Sanity Gate, Pipeline Invariants (graph→compute→narrative), tryModels AI Provider Failover Chain, Unified Timeline by Real Date (D/W/M/FY grain), Strict Real-Only Data (no synthesized breakdowns), 8 Non-Negotiable Principles (LLM never does maths, append-only ledger, etc.), No Fake Numbers Invariant (empty/locked state for missing data), Analytics Engine: src/lib/analytics/* (single source of math) (+4 more)
 
-### Community 18 - "Community 18"
+### Community 20 - "Community 20"
 Cohesion: 0.29
 Nodes (7): COPQ: Progressive Cost of Poor Quality Formulation, Registry-Driven Stage Model (src/lib/registry/disposafe.ts), 12 FBC Dipping & Assembly Stages (Visual→Final Insp), 8 Defect Modes (Thin Spod, Bubble, Leakage, etc.), Disposafe Health — FBC Dipping Plant Client, First Pass Yield (FPY) + Rolled Throughput Yield (RTY), RC-2: Size dropdown data-driven from m.sizes (not hardcoded)
 
-### Community 26 - "Community 26"
+### Community 27 - "Community 27"
 Cohesion: 0.67
 Nodes (3): Data Source Families (assembly-daily, rejection-analysis, size-wise, SOPs), Deduplication: size-wise > assembly/rejection > cumulative-claims, Real Parsers (parse-assembly-daily, parse-rejection-analysis, parse-size-wise)
 
-### Community 27 - "Community 27"
+### Community 28 - "Community 28"
 Cohesion: 0.67
 Nodes (3): Semantic CAPA Memory Graph (vector embeddings, local Ollama), Findings Queue + Rulebook Loop, Findings & Adjudication Queue (Mistake/Intentional/Unsure)
 
 ## Knowledge Gaps
 - **44 isolated node(s):** `Full structural profile of every workbook in DATA/ for the D1 data contract.  Du`, `Next.js 16 + React 19 + AI SDK v6 Stack`, `Editorial Design Direction (Rejection Report)`, `tryModels AI Provider Failover Chain`, `DashboardConfig (KPIs + charts derived deterministically)` (+39 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **12 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createServerClient()` connect `Community 2` to `Community 1`, `Community 11`, `Community 12`?**
-  _High betweenness centrality (0.203) - this node is a cross-community bridge._
+- **Why does `createServerClient()` connect `Community 2` to `Community 1`, `Community 12`, `Community 13`?**
+  _High betweenness centrality (0.180) - this node is a cross-community bridge._
+- **Why does `Card()` connect `Community 3` to `Community 12`, `Community 5`, `Community 15`?**
+  _High betweenness centrality (0.128) - this node is a cross-community bridge._
 - **Why does `emitMany()` connect `Community 1` to `Community 0`, `Community 9`?**
-  _High betweenness centrality (0.105) - this node is a cross-community bridge._
-- **Why does `Card()` connect `Community 4` to `Community 3`, `Community 12`?**
-  _High betweenness centrality (0.094) - this node is a cross-community bridge._
+  _High betweenness centrality (0.086) - this node is a cross-community bridge._
 - **Are the 21 inferred relationships involving `createServerClient()` (e.g. with `check()` and `run()`) actually correct?**
   _`createServerClient()` has 21 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 20 inferred relationships involving `scopeEvents()` (e.g. with `srcRows()` and `srcRows()`) actually correct?**
+  _`scopeEvents()` has 20 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 2 inferred relationships involving `parseWorkbookBuffer()` (e.g. with `parseRejectionAnalysis()` and `runFile()`) actually correct?**
   _`parseWorkbookBuffer()` has 2 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 16 inferred relationships involving `scopeEvents()` (e.g. with `copq()` and `savingsOpportunity()`) actually correct?**
-  _`scopeEvents()` has 16 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 11 inferred relationships involving `buildAuditPackage()` (e.g. with `handleExport()` and `byStage()`) actually correct?**
   _`buildAuditPackage()` has 11 INFERRED edges - model-reasoned connections that need verification._

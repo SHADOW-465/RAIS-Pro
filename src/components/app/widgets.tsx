@@ -753,7 +753,17 @@ export const rupee = (n: number) => `₹ ${(n / 100000).toFixed(2)} Lakhs`;
 export const num = (n: number) => n.toLocaleString("en-IN");
 
 /** Donut — composition share (e.g. rejections by stage or defect). Inline SVG arcs. */
-export function Donut({ data, fmt }: { data: { label: string; value: number; color?: string }[]; fmt?: (n: number) => string }) {
+export function Donut({ 
+  data, 
+  fmt,
+  size = 160,
+  fontSize = 12
+}: { 
+  data: { label: string; value: number; color?: string }[]; 
+  fmt?: (n: number) => string;
+  size?: number;
+  fontSize?: number;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   const total = data.reduce((s, d) => s + d.value, 0);
   if (!data.length || total <= 0) return <Empty label="No data for the selected range." />;
@@ -762,8 +772,8 @@ export function Donut({ data, fmt }: { data: { label: string; value: number; col
   const col = (i: number) => data[i].color ?? SERIES_COLORS[i % SERIES_COLORS.length];
   let acc = 0;
   return (
-    <div style={{ position: "relative", display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }} onMouseLeave={() => setHover(null)}>
-      <svg viewBox="0 0 160 160" style={{ width: 160, height: 160, flexShrink: 0 }}>
+    <div style={{ position: "relative", display: "flex", gap: 24, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }} onMouseLeave={() => setHover(null)}>
+      <svg viewBox="0 0 160 160" style={{ width: size, height: size, flexShrink: 0 }}>
         <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--border)" strokeWidth={20} />
         {data.map((d, i) => {
           const frac = d.value / total, seg = frac * C, off = acc * C; acc += frac;
@@ -774,11 +784,11 @@ export function Donut({ data, fmt }: { data: { label: string; value: number; col
         <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fill="var(--text-3)">Total</text>
         <text x={cx} y={cy + 14} textAnchor="middle" fontSize={15} fontWeight={800} fontFamily="var(--font-mono)" fill="var(--text)">{f(total)}</text>
       </svg>
-      <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: fontSize }}>
         {data.map((d, i) => (
-          <div key={i} onMouseEnter={() => setHover(i)} style={{ display: "flex", alignItems: "center", gap: 8, opacity: hover == null || hover === i ? 1 : 0.5 }}>
-            <span style={{ width: 9, height: 9, borderRadius: 2, background: col(i), flexShrink: 0 }} />
-            <span style={{ color: "var(--text-2)", minWidth: 96 }}>{d.label}</span>
+          <div key={i} onMouseEnter={() => setHover(i)} style={{ display: "flex", alignItems: "center", gap: 10, opacity: hover == null || hover === i ? 1 : 0.5 }}>
+            <span style={{ width: fontSize - 3, height: fontSize - 3, borderRadius: 2, background: col(i), flexShrink: 0 }} />
+            <span style={{ color: "var(--text-2)", minWidth: fontSize * 8 }}>{d.label}</span>
             <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{((d.value / total) * 100).toFixed(1)}%</span>
           </div>
         ))}

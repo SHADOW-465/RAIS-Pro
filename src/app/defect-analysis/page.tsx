@@ -155,7 +155,7 @@ export default function DefectAnalysisPage() {
           
           const hasLeft = m.defects.length > 0;
           const hasRight = m.defects.length > 0 && m.defectTrend.length > 0;
-          const gridTemplate = hasLeft && hasRight ? "1.2fr 1.8fr" : "1fr";
+          const gridTemplate = hasLeft && hasRight ? "minmax(0, 1.2fr) minmax(0, 1.8fr)" : "minmax(0, 1fr)";
 
           // Donut (top-7 + Other) + Heatmap (top-8 defects × period).
           const top = m.defects.slice(0, 7);

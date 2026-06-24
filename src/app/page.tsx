@@ -19,7 +19,8 @@ import {
   AuditVerificationTable,
   pct, 
   rupee,
-  num
+  num,
+  Donut
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
@@ -494,51 +495,48 @@ export default function Dashboard() {
             <Kpi label="Savings Opportunity" value={rupee(m.savings)} sub="◆ Annual Potential" tone="good" spark={m.tr} onClick={() => openModal("Savings Opportunity Projections", `Achieving target quality limits offers up to ${rupee(m.savings)} in annual recoverable opportunity.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} fmt={pct} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.savings) })} />
           </div>
 
-          {/* Total rejection % per period — the workbook's "REJECTION TRENDS" chart */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <Card title={`Total Rejection % (${grainLabel})`} sub="Σ of stage rates · mean line · hover for values" onClick={() => openModal(`Total Rejection % (${grainLabel})`, "The total rejection rate per period — the sum of each station's rate over its own checked quantity, matching the workbook's COMMULATIVE 'Total Rejection %'. Recomputed from raw counts. Use the date range / grain in the top bar to change the period.", <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.totalTrend} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: m.totalTrend.length ? pct(m.totalTrend[m.totalTrend.length - 1].value) : "—" })}>
-              <LineChart points={m.totalTrend} fmt={pct} mean />
+          {/* Row 2: Trends */}
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
+            <Card title={`Rejection Trend (${grainLabel})`} sub={`Target (${(targetRej * 100).toFixed(0)}%) & Mean`} onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+              <LineChart points={m.tr} target={targetRej} fmt={pct} mean />
             </Card>
-            <Card title={`Cumulative Rejection % by Stage (${grainLabel})`} sub="per-stage + Total — hover for values" onClick={() => openModal(`Cumulative Rejection % by Stage (${grainLabel})`, "Each line is a station's rejection rate over its own checked quantity; the Total line is the per-period sum of those stage rates. All recomputed from raw counts — the spreadsheet's own % / total cells are never trusted.", <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+            <Card title={`Stage-wise Rejection Trend (${grainLabel})`} sub="per-stage + Total — hover for values" onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Each line is a station's rejection rate over its own checked quantity; the Total line is the per-period sum of those stage rates. Recomputed from raw counts.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
               <MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} />
             </Card>
           </div>
 
-          {/* Row 3: Trends & Process Flow */}
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Card title={`Rejection Trend (${grainLabel})`} sub={`Target (${(targetRej * 100).toFixed(0)}%)`} onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}%.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
-                <LineChart points={m.tr} target={targetRej} fmt={pct} />
-              </Card>
-              <Card title={`Stage-wise Rejection Trend (${grainLabel})`} onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Rejection rate trends split by the four plant stages across historical periods.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.stageTrend} stages={DISPOSAFE_REGISTRY.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
-                <MultiLine data={m.stageTrend} stages={DISPOSAFE_REGISTRY.stages} />
-              </Card>
-            </div>
-            <Card title="Process Flow Overview" onClick={() => openModal("Process Flow Overview", "Catheter assembly process flow indicating quality yields at each gate.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
-              <ProcessFlow rows={m.stages} />
-            </Card>
-          </div>
-
-          {/* Row 4: Stage-wise YTD & Pareto */}
+          {/* Row 3: Pareto & Stage Donut */}
           {(() => {
             const hasPareto = m.defects.length > 0;
-            const hasDefectTrend = m.defects.length > 0 && m.defectTrend.length > 0;
-            const row4Cols = [
-              "1fr",
-              hasPareto ? "1.15fr" : null,
-              hasDefectTrend ? "1.15fr" : null
-            ].filter(Boolean).join(" ");
-
+            const gridTemplate = hasPareto ? "minmax(0, 1.8fr) minmax(0, 1.2fr)" : "minmax(0, 1fr)";
             return (
-              <div style={{ display: "grid", gridTemplateColumns: row4Cols, gap: 16 }}>
-                <Card title="Stage-wise Rejection (YTD)" onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected) })}>
-                  <BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct }))} fmt={(n) => `${n.toFixed(1)}%`} />
-                </Card>
+              <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 16 }}>
                 {hasPareto && (
                   <Card title="Defect Pareto (All Stages)" onClick={() => openModal("Defect Pareto (All Stages)", "Six Sigma Pareto analysis highlighting the vital few defect categories responsible for most rejects.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
                     <ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} showTable={false} />
                   </Card>
                 )}
+                <Card title="Stage-wise Rejection (YTD)" onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected) })}>
+                  <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 0" }}>
+                    <Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} />
+                  </div>
+                </Card>
+              </div>
+            );
+          })()}
+
+          {/* Row 4: Process Flow & Defect Trend */}
+          {(() => {
+            const hasDefectTrend = m.defects.length > 0 && m.defectTrend.length > 0;
+            const row4Cols = hasDefectTrend ? "minmax(0, 1.2fr) minmax(0, 1.8fr)" : "minmax(0, 1fr)";
+
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: row4Cols, gap: 16 }}>
+                <Card title="Process Flow Overview" onClick={() => openModal("Process Flow Overview", "Catheter assembly process flow indicating quality yields at each gate.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+                  <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                    <ProcessFlow rows={m.stages} />
+                  </div>
+                </Card>
                 {hasDefectTrend && (
                   <Card title="Defect Trend (Top 5)" onClick={() => openModal("Defect Trend (Top 5)", "Historical trends for the top 5 defect categories.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
                     <MultiLine 
