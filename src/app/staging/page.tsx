@@ -130,6 +130,9 @@ export default function StagingPage() {
 
           // PREFER the verified family parsers (size-wise / rejection-analysis).
           const preceded = recordsFromBuffer(arrayBuffer, file.name);
+          const { rawSheets } = await parseExcelFilesWithRaw([file]);
+          allRawSheets.push(...rawSheets);
+
           if (preceded.length > 0) {
             for (const p of preceded) {
               p.record = { ...p.record, ingestionId, source: { ...p.record.source, fileHash } };
@@ -137,8 +140,6 @@ export default function StagingPage() {
             allPreceded.push(...preceded);
           } else {
             // Fallback: generic classifier for unrecognized layouts.
-            const { rawSheets } = await parseExcelFilesWithRaw([file]);
-            allRawSheets.push(...rawSheets);
             let recs = classifyWithSchema(rawSheets, schema, ingestionId);
             if (recs.length === 0) recs = classifyRejectionSheets(rawSheets, ingestionId).records;
             recs = recs.map((r: any) => ({ ...r, source: { ...r.source, fileHash } }));
@@ -202,7 +203,15 @@ export default function StagingPage() {
         setNewColumns([]);
       }
 
-      if (allRawSheets.length > 0) setRawSheetsData(allRawSheets);
+      if (allRawSheets.length > 0) {
+        setRawSheetsData(allRawSheets);
+        try {
+          sessionStorage.setItem(`rais_raw_${ingestionId}`, JSON.stringify(allRawSheets));
+          sessionStorage.setItem("rais_active_session_id", ingestionId);
+        } catch (e) {
+          console.warn("Could not cache raw sheets in sessionStorage:", e);
+        }
+      }
       setRecords(classifiedRecords);
       setFileName(files.length === 1 ? files[0].name : `${files.length} files`);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Icon, { type IconName } from "@/components/editorial/Icon";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 
@@ -65,6 +65,39 @@ export default function AppShell({
   const [analyticsExpanded] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
+  const [dateMinMax, setDateMinMax] = useState<{ min: string; max: string } | null>(null);
+
+  const getSuggestedGrain = (): "day" | "week" | "month" | "fy" => {
+    let days = 30;
+    if (t.datePreset === "last-90-days") {
+      days = 90;
+    } else if (t.datePreset === "last-12-months" || t.datePreset === "this-fy") {
+      days = 365;
+    } else if (t.datePreset === "all") {
+      if (dateMinMax) {
+        const d1 = new Date(dateMinMax.min + "T00:00:00Z");
+        const d2 = new Date(dateMinMax.max + "T00:00:00Z");
+        days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
+      } else {
+        days = 365;
+      }
+    } else if (t.datePreset === "custom") {
+      if (t.dateFrom && t.dateTo) {
+        const d1 = new Date(t.dateFrom + "T00:00:00Z");
+        const d2 = new Date(t.dateTo + "T00:00:00Z");
+        days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
+      } else {
+        return "month";
+      }
+    }
+
+    if (days < 90) return "day";
+    if (days < 365) return "week";
+    if (days <= 1095) return "month";
+    return "fy";
+  };
+
+  const suggestedGrain = mounted ? getSuggestedGrain() : "month";
 
   useEffect(() => {
     setMounted(true);
@@ -76,7 +109,83 @@ export default function AppShell({
       .catch(() => {
         setIsConfigured(true);
       });
+
+    fetch("/api/events")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.events && data.events.length > 0) {
+          const dates = data.events.map((e: any) => e.occurredOn.start).sort();
+          const min = dates[0];
+          const max = dates[dates.length - 1];
+          setDateMinMax({ min, max });
+
+          // Auto-suggest grain on initial load if preset is all
+          if (t.datePreset === "all") {
+            const d1 = new Date(min + "T00:00:00Z");
+            const d2 = new Date(max + "T00:00:00Z");
+            const days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
+            let suggested: "day" | "week" | "month" | "fy" = "month";
+            if (days < 90) {
+              suggested = "day";
+            } else if (days < 365) {
+              suggested = "week";
+            } else if (days <= 1095) {
+              suggested = "month";
+            } else {
+              suggested = "fy";
+            }
+            setTweak("grain", suggested);
+          }
+        }
+      })
+      .catch((err) => console.error("Failed to load events for date range calculation", err));
   }, []);
+
+  const lastDateSettingsRef = useRef({ preset: t.datePreset, from: t.dateFrom, to: t.dateTo });
+
+  useEffect(() => {
+    const prev = lastDateSettingsRef.current;
+    const changed = prev.preset !== t.datePreset || prev.from !== t.dateFrom || prev.to !== t.dateTo;
+    if (changed) {
+      lastDateSettingsRef.current = { preset: t.datePreset, from: t.dateFrom, to: t.dateTo };
+      
+      let days = 30;
+      if (t.datePreset === "last-90-days") {
+        days = 90;
+      } else if (t.datePreset === "last-12-months" || t.datePreset === "this-fy") {
+        days = 365;
+      } else if (t.datePreset === "all") {
+        if (dateMinMax) {
+          const d1 = new Date(dateMinMax.min + "T00:00:00Z");
+          const d2 = new Date(dateMinMax.max + "T00:00:00Z");
+          days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
+        } else {
+          days = 365;
+        }
+      } else if (t.datePreset === "custom") {
+        if (t.dateFrom && t.dateTo) {
+          const d1 = new Date(t.dateFrom + "T00:00:00Z");
+          const d2 = new Date(t.dateTo + "T00:00:00Z");
+          days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
+        } else {
+          return;
+        }
+      }
+
+      let suggested: "day" | "week" | "month" | "fy" = "month";
+      if (days < 90) {
+        suggested = "day";
+      } else if (days < 365) {
+        suggested = "week";
+      } else if (days <= 1095) {
+        suggested = "month";
+      } else {
+        suggested = "fy";
+      }
+
+      setTweak("grain", suggested);
+    }
+  }, [t.datePreset, t.dateFrom, t.dateTo, dateMinMax, setTweak]);
 
   // Export the audit-ready package: CSV extracts (rejection summary, stage-wise,
   // defect Pareto, size-wise, monthly trend, full ledger) + manifest.json with a
@@ -357,8 +466,21 @@ export default function AppShell({
 
           {/* D, W, M, FY Segmented Control */}
           <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
-            <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
-              Grain
+            <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2, display: "flex", alignItems: "center", gap: 6 }}>
+              <span>Grain</span>
+              {suggestedGrain && (
+                <span style={{
+                  fontSize: 8,
+                  background: "var(--accent-weak)",
+                  color: "var(--accent)",
+                  padding: "1px 4px",
+                  borderRadius: 3,
+                  fontWeight: 700,
+                  textTransform: "uppercase"
+                }}>
+                  {suggestedGrain === "fy" ? "FY" : suggestedGrain} Suggested
+                </span>
+              )}
             </span>
             <div style={{ 
               display: "flex",
@@ -370,10 +492,12 @@ export default function AppShell({
             }}>
               {(["day", "week", "month", "fy"] as const).map((g) => {
                 const active = t.grain === g;
+                const isSuggested = suggestedGrain === g;
                 return (
                   <button
                     key={g}
                     onClick={() => setTweak("grain", g)}
+                    title={isSuggested ? `${g.toUpperCase()} (Suggested)` : g.toUpperCase()}
                     style={{
                       padding: "2px 8px",
                       fontSize: 10,
@@ -382,10 +506,22 @@ export default function AppShell({
                       background: active ? "var(--accent)" : "transparent",
                       color: active ? "var(--text-invert)" : "var(--text-2)",
                       transition: "all 0.12s ease",
-                      textTransform: "uppercase"
+                      textTransform: "uppercase",
+                      position: "relative"
                     }}
                   >
                     {g === "fy" ? "FY" : g[0]}
+                    {isSuggested && (
+                      <span style={{
+                        position: "absolute",
+                        top: 1,
+                        right: 1,
+                        width: 4,
+                        height: 4,
+                        borderRadius: "50%",
+                        background: active ? "var(--text-invert)" : "var(--accent)",
+                      }} />
+                    )}
                   </button>
                 );
               })}

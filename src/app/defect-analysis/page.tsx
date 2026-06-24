@@ -2,11 +2,14 @@
 
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
-import FloatingDetailModal from "@/components/FloatingDetailModal";
+import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
-import { 
-  Card, 
-  MultiLine 
+import {
+  Card,
+  MultiLine,
+  Donut,
+  Heatmap,
+  num
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
 import ParetoChart from "@/components/ParetoChart";
@@ -18,8 +21,36 @@ import {
   periodKey,
   periodLabel,
   resolveScope,
+  scopeEvents,
   type Scope
 } from "@/lib/analytics";
+
+const STAGE_LABELS: Record<string, string> = {
+  visual: "Visual Inspection", "eye-punching": "Eye Punching", balloon: "Balloon Testing",
+  "valve-integrity": "Valve Integrity", final: "Final Inspection",
+};
+
+function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: string; size?: string; types?: string[] } = {}): SourceRow[] {
+  const out: SourceRow[] = [];
+  for (const e of events as any[]) {
+    if (filter.types && !filter.types.includes(e.eventType)) continue;
+    if (filter.stageId && e.stageId !== filter.stageId) continue;
+    if (filter.size && e.size !== filter.size) continue;
+    if (filter.defectCode && e.defectCodeRaw !== filter.defectCode && e.defectCode !== filter.defectCode) continue;
+    const prov = e.provenance ?? {};
+    out.push({
+      date: e.occurredOn?.start ?? "—",
+      stage: STAGE_LABELS[e.stageId] ?? e.stageId ?? "—",
+      size: e.size ?? null,
+      type: e.eventType + (e.disposition ? `·${e.disposition}` : "") + (e.defectCodeRaw ? ` ${e.defectCodeRaw}` : ""),
+      qty: e.quantity ?? e.statedValue ?? "—",
+      file: prov.file ?? "Manual Entry",
+      sheet: prov.sheet,
+      cell: prov.cells?.[0] ?? "ENTRY",
+    });
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date));
+}
 
 export default function DefectAnalysisPage() {
   const { t } = useTweaks();
@@ -28,11 +59,21 @@ export default function DefectAnalysisPage() {
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
   const [modalContent, setModalContent] = useState<React.ReactNode>(null);
+  const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
+  const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
+  const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
 
-  const openModal = (title: string, insight: string | string[], content: React.ReactNode) => {
+  const openModal = (
+    title: string,
+    insight: string | string[],
+    content: React.ReactNode,
+    source?: { rows: SourceRow[]; value: string }
+  ) => {
     setModalTitle(title);
     setModalInsight(insight);
     setModalContent(content);
+    setModalSourceRows(source?.rows);
+    setModalPrimaryValue(source?.value);
     setModalOpen(true);
   };
 
@@ -41,12 +82,33 @@ export default function DefectAnalysisPage() {
       .then((r) => r.json())
       .then((b) => setEvents(b.events ?? []))
       .catch(() => setEvents([]));
+
+    // Load stashed raw sheets if any are available in sessionStorage
+    try {
+      let activeId = sessionStorage.getItem("rais_active_session_id");
+      if (!activeId) {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && key.startsWith("rais_raw_")) {
+            activeId = key.substring("rais_raw_".length);
+            break;
+          }
+        }
+      }
+      if (activeId) {
+        const stored = sessionStorage.getItem(`rais_raw_${activeId}`);
+        if (stored) setRawSheets(JSON.parse(stored));
+      }
+    } catch { /* ignore */ }
   }, []);
 
   const scope: Scope = useMemo(
     () => resolveScope(events ?? [], t),
     [events, t.grain, t.datePreset, t.dateFrom, t.dateTo, t.stageView],
   );
+
+  const srcRows = (filter: Parameters<typeof toSourceRows>[1] = {}): SourceRow[] =>
+    events ? toSourceRows(scopeEvents(events, scope), filter) : [];
 
   const m = useMemo(() => {
     if (!events || events.length === 0) return null;
@@ -90,18 +152,47 @@ export default function DefectAnalysisPage() {
           const paretoAnalysis = calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected })));
           const paretoText = paretoAnalysis ? paretoAnalysis.criticalAreaText : "Pareto analysis of defect categories.";
           const chartData = paretoAnalysis || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." };
-          return (
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: 20 }}>
-              <Card title={`Defect Pareto (${grainLabel})`} onClick={() => openModal(`Defect Pareto (${grainLabel})`, paretoText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={chartData} /></div>)}>
-                <ParetoChart analysis={chartData} showTable={false} />
-              </Card>
+          
+          const hasLeft = m.defects.length > 0;
+          const hasRight = m.defects.length > 0 && m.defectTrend.length > 0;
+          const gridTemplate = hasLeft && hasRight ? "1.2fr 1.8fr" : "1fr";
 
-              <Card title={`Defect Trend (Top 5) (${grainLabel})`} onClick={() => openModal(`Defect Trend (Top 5) (${grainLabel})`, `Historical trends for the top 5 defect categories showing performance changes across periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>)}>
-                <MultiLine 
-                  data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} 
-                  stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} 
-                />
-              </Card>
+          // Donut (top-7 + Other) + Heatmap (top-8 defects × period).
+          const top = m.defects.slice(0, 7);
+          const otherQty = m.defects.slice(7).reduce((s, d) => s + d.rejected, 0);
+          const donutData = [...top.map((d) => ({ label: d.label, value: d.rejected })), ...(otherQty > 0 ? [{ label: "Other", value: otherQty }] : [])];
+          const heatRows = m.defects.slice(0, 8).map((d) => d.label);
+          const heatCols = m.defectTrend.map((p) => p.label);
+          const heatMatrix = heatRows.map((rl) => m.defectTrend.map((p) => p.perDefect[rl] ?? 0));
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
+              {hasLeft && (
+                <Card title={`Defect Pareto (${grainLabel})`} onClick={() => openModal(`Defect Pareto (${grainLabel})`, paretoText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={chartData} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
+                  <ParetoChart analysis={chartData} showTable={false} />
+                </Card>
+              )}
+
+              {hasRight && (
+                <Card title={`Defect Trend (Top 5) (${grainLabel})`} onClick={() => openModal(`Defect Trend (Top 5) (${grainLabel})`, `Historical trends for the top 5 defect categories showing performance changes across periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
+                  <MultiLine 
+                    data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} 
+                    stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} 
+                  />
+                </Card>
+              )}
+            </div>
+            {hasLeft && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: 20, alignItems: "start" }}>
+                <Card title="Defect Share">
+                  <Donut data={donutData} />
+                </Card>
+                <Card title={`Defect Hotspots (${grainLabel})`} sub="rejected qty by defect × period">
+                  <Heatmap rows={heatRows} cols={heatCols} matrix={heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} />
+                </Card>
+              </div>
+            )}
             </div>
           );
         })()}
@@ -112,6 +203,9 @@ export default function DefectAnalysisPage() {
         onClose={() => setModalOpen(false)}
         title={modalTitle}
         insight={modalInsight}
+        sourceRows={modalSourceRows}
+        primaryValue={modalPrimaryValue}
+        rawSheets={rawSheets}
       >
         {modalContent}
       </FloatingDetailModal>

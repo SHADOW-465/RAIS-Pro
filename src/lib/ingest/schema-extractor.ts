@@ -80,6 +80,10 @@ const GOOD_RE = /good|accept|acpt|ok|pass/i;
 const REWORK_RE = /rework|rw|hold/i;
 const PCT_RE = /%|pct|percent|rate/i;
 const OTHER_RE = /s\.?\s*no|trolley|batch|lot|machine|m\/c|operator|supervisor|remarks|comment/i;
+// Known reason/defect codes (visual report + registry). Detected by NAME before the
+// formula/rework catches, because these columns are usually formula-driven and a
+// bare `hasFormula` was hiding them — leaving 0 defect events / an empty Pareto.
+const DEFECT_CODES = new Set(["COAG","SD","TT","BL","PS","SB","PW","FP","RW","BEP","DEC","BM","WEB","BT","SF","BIC","WK","BMP","TF","PH","BST","THSP","LEAK","BLBR","BUB","PINH","OTH"]);
 
 export function extractSchemaFromWorkbook(wb: xlsx.WorkBook, fileName: string): ExtractedSchema {
   const stages: ExtractedStage[] = [];
@@ -147,17 +151,19 @@ export function extractSchemaFromWorkbook(wb: xlsx.WorkBook, fileName: string): 
         else type = "string";
       }
 
-      // Classify role
+      // Classify role. Known defect codes win first (so "RW"/formula-driven counts
+      // aren't mis-read as rework/formula); only true %/rate columns are "formula".
+      const u = colName.trim().toUpperCase();
       let role: ExtractedField["role"] = "other";
-
       if (DATE_RE.test(colName)) role = "date";
+      else if (PCT_RE.test(colName)) role = "formula";
+      else if (DEFECT_CODES.has(u)) role = "defect";
       else if (CHECKED_RE.test(colName)) role = "checked";
       else if (GOOD_RE.test(colName)) role = "good";
       else if (REWORK_RE.test(colName)) role = "rework";
-      else if (REJECTED_RE.test(colName)) {
-        if (PCT_RE.test(colName)) role = "formula";
-        else role = "rejected";
-      } else if (PCT_RE.test(colName) || hasFormula) role = "formula";
+      else if (REJECTED_RE.test(colName)) role = "rejected";
+      else if (type === "number" && /^[A-Z0-9/]{1,5}$/.test(u)) role = "defect"; // generic short reason code
+      else if (hasFormula) role = "formula";
       else if (OTHER_RE.test(colName)) role = "other";
       else if (type === "number") role = "defect";
 

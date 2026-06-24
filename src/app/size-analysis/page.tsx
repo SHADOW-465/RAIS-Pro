@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
-import FloatingDetailModal from "@/components/FloatingDetailModal";
+import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
   Card, 
@@ -19,8 +19,36 @@ import {
   periodKey,
   periodLabel,
   resolveScope,
+  scopeEvents,
   type Scope
 } from "@/lib/analytics";
+
+const STAGE_LABELS: Record<string, string> = {
+  visual: "Visual Inspection", "eye-punching": "Eye Punching", balloon: "Balloon Testing",
+  "valve-integrity": "Valve Integrity", final: "Final Inspection",
+};
+
+function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: string; size?: string; types?: string[] } = {}): SourceRow[] {
+  const out: SourceRow[] = [];
+  for (const e of events as any[]) {
+    if (filter.types && !filter.types.includes(e.eventType)) continue;
+    if (filter.stageId && e.stageId !== filter.stageId) continue;
+    if (filter.size && e.size !== filter.size) continue;
+    if (filter.defectCode && e.defectCodeRaw !== filter.defectCode && e.defectCode !== filter.defectCode) continue;
+    const prov = e.provenance ?? {};
+    out.push({
+      date: e.occurredOn?.start ?? "—",
+      stage: STAGE_LABELS[e.stageId] ?? e.stageId ?? "—",
+      size: e.size ?? null,
+      type: e.eventType + (e.disposition ? `·${e.disposition}` : "") + (e.defectCodeRaw ? ` ${e.defectCodeRaw}` : ""),
+      qty: e.quantity ?? e.statedValue ?? "—",
+      file: prov.file ?? "Manual Entry",
+      sheet: prov.sheet,
+      cell: prov.cells?.[0] ?? "ENTRY",
+    });
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date));
+}
 
 export default function SizeAnalysisPage() {
   const { t } = useTweaks();
@@ -30,11 +58,21 @@ export default function SizeAnalysisPage() {
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
   const [modalContent, setModalContent] = useState<React.ReactNode>(null);
+  const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
+  const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
+  const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
 
-  const openModal = (title: string, insight: string | string[], content: React.ReactNode) => {
+  const openModal = (
+    title: string,
+    insight: string | string[],
+    content: React.ReactNode,
+    source?: { rows: SourceRow[]; value: string }
+  ) => {
     setModalTitle(title);
     setModalInsight(insight);
     setModalContent(content);
+    setModalSourceRows(source?.rows);
+    setModalPrimaryValue(source?.value);
     setModalOpen(true);
   };
 
@@ -43,12 +81,33 @@ export default function SizeAnalysisPage() {
       .then((r) => r.json())
       .then((b) => setEvents(b.events ?? []))
       .catch(() => setEvents([]));
+
+    // Load stashed raw sheets if any are available in sessionStorage
+    try {
+      let activeId = sessionStorage.getItem("rais_active_session_id");
+      if (!activeId) {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && key.startsWith("rais_raw_")) {
+            activeId = key.substring("rais_raw_".length);
+            break;
+          }
+        }
+      }
+      if (activeId) {
+        const stored = sessionStorage.getItem(`rais_raw_${activeId}`);
+        if (stored) setRawSheets(JSON.parse(stored));
+      }
+    } catch { /* ignore */ }
   }, []);
 
   const scope: Scope = useMemo(
     () => resolveScope(events ?? [], t),
     [events, t.grain, t.datePreset, t.dateFrom, t.dateTo, t.stageView],
   );
+
+  const srcRows = (filter: Parameters<typeof toSourceRows>[1] = {}): SourceRow[] =>
+    events ? toSourceRows(scopeEvents(events, scope), filter) : [];
 
   const m = useMemo(() => {
     if (!events || events.length === 0) return null;
@@ -57,8 +116,6 @@ export default function SizeAnalysisPage() {
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
     const trendScope: Scope = scope; // carries the stage filter into the trends
-
-
 
     const sizes = bySize(events, scope);
     const orderedSizes = [...sizes].sort((a, b) => {
@@ -116,48 +173,48 @@ export default function SizeAnalysisPage() {
             ? `Quality level trends for catheter size ${selectedSize} across historical periods.`
             : `No trend data available for size ${selectedSize}.`;
 
+          const hasLeft = m.sizes.length > 0;
+          const hasRight = m.sizeTrend.length > 0;
+          const gridTemplate = hasLeft && hasRight ? "1.2fr 1.8fr" : "1fr";
+
           return (
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: 20 }}>
-              <Card title={`Size-wise Rejection (YTD) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection (YTD) (${grainLabel})`, ytdModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>)}>
-                {m.sizes.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
+              {hasLeft && (
+                <Card title={`Size-wise Rejection (YTD) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection (YTD) (${grainLabel})`, ytdModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" })}>
                   <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} />
-                ) : (
-                  <Empty label="No size-wise YTD data available for the selected period." />
-                )}
-              </Card>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>Filter Size Trend:</span>
-                  <select
-                    value={selectedSize}
-                    onChange={(e) => setSelectedSize(e.target.value)}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--border-strong)",
-                      background: "var(--surface)",
-                      color: "var(--text)",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      outline: "none",
-                      cursor: "pointer"
-                    }}
-                  >
-                    {(m.sizes.length > 0 ? m.sizes.map(s => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => (
-                      <option key={sz} value={sz}>{sz} Catheter</option>
-                    ))}
-                  </select>
-                </div>
-
-                <Card title={`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`, trendModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>)}>
-                  {m.sizeTrend.length > 0 ? (
-                    <LineChart points={m.sizeTrend} fmt={pct} />
-                  ) : (
-                    <Empty label={`No trend data available for size ${selectedSize}.`} />
-                  )}
                 </Card>
-              </div>
+              )}
+
+              {hasRight && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>Filter Size Trend:</span>
+                    <select
+                      value={selectedSize}
+                      onChange={(e) => setSelectedSize(e.target.value)}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: "var(--radius-sm)",
+                        border: "1px solid var(--border-strong)",
+                        background: "var(--surface)",
+                        color: "var(--text)",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        outline: "none",
+                        cursor: "pointer"
+                      }}
+                    >
+                      {(m.sizes.length > 0 ? m.sizes.map(s => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => (
+                        <option key={sz} value={sz}>{sz} Catheter</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <Card title={`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`, trendModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" })}>
+                    <LineChart points={m.sizeTrend} fmt={pct} />
+                  </Card>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -168,6 +225,9 @@ export default function SizeAnalysisPage() {
         onClose={() => setModalOpen(false)}
         title={modalTitle}
         insight={modalInsight}
+        sourceRows={modalSourceRows}
+        primaryValue={modalPrimaryValue}
+        rawSheets={rawSheets}
       >
         {modalContent}
       </FloatingDetailModal>

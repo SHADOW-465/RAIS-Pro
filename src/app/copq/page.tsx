@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
-import FloatingDetailModal from "@/components/FloatingDetailModal";
+import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
   Card, 
@@ -19,9 +19,37 @@ import {
   periodKey,
   periodLabel,
   resolveScope,
+  scopeEvents,
   type Scope,
   copqTrend
 } from "@/lib/analytics";
+
+const STAGE_LABELS: Record<string, string> = {
+  visual: "Visual Inspection", "eye-punching": "Eye Punching", balloon: "Balloon Testing",
+  "valve-integrity": "Valve Integrity", final: "Final Inspection",
+};
+
+function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: string; size?: string; types?: string[] } = {}): SourceRow[] {
+  const out: SourceRow[] = [];
+  for (const e of events as any[]) {
+    if (filter.types && !filter.types.includes(e.eventType)) continue;
+    if (filter.stageId && e.stageId !== filter.stageId) continue;
+    if (filter.size && e.size !== filter.size) continue;
+    if (filter.defectCode && e.defectCodeRaw !== filter.defectCode && e.defectCode !== filter.defectCode) continue;
+    const prov = e.provenance ?? {};
+    out.push({
+      date: e.occurredOn?.start ?? "—",
+      stage: STAGE_LABELS[e.stageId] ?? e.stageId ?? "—",
+      size: e.size ?? null,
+      type: e.eventType + (e.disposition ? `·${e.disposition}` : "") + (e.defectCodeRaw ? ` ${e.defectCodeRaw}` : ""),
+      qty: e.quantity ?? e.statedValue ?? "—",
+      file: prov.file ?? "Manual Entry",
+      sheet: prov.sheet,
+      cell: prov.cells?.[0] ?? "ENTRY",
+    });
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date));
+}
 
 export default function CopqPage() {
   const { t } = useTweaks();
@@ -30,11 +58,21 @@ export default function CopqPage() {
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
   const [modalContent, setModalContent] = useState<React.ReactNode>(null);
+  const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
+  const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
+  const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
 
-  const openModal = (title: string, insight: string | string[], content: React.ReactNode) => {
+  const openModal = (
+    title: string,
+    insight: string | string[],
+    content: React.ReactNode,
+    source?: { rows: SourceRow[]; value: string }
+  ) => {
     setModalTitle(title);
     setModalInsight(insight);
     setModalContent(content);
+    setModalSourceRows(source?.rows);
+    setModalPrimaryValue(source?.value);
     setModalOpen(true);
   };
 
@@ -43,12 +81,33 @@ export default function CopqPage() {
       .then((r) => r.json())
       .then((b) => setEvents(b.events ?? []))
       .catch(() => setEvents([]));
+
+    // Load stashed raw sheets if any are available in sessionStorage
+    try {
+      let activeId = sessionStorage.getItem("rais_active_session_id");
+      if (!activeId) {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && key.startsWith("rais_raw_")) {
+            activeId = key.substring("rais_raw_".length);
+            break;
+          }
+        }
+      }
+      if (activeId) {
+        const stored = sessionStorage.getItem(`rais_raw_${activeId}`);
+        if (stored) setRawSheets(JSON.parse(stored));
+      }
+    } catch { /* ignore */ }
   }, []);
 
   const scope: Scope = useMemo(
     () => resolveScope(events ?? [], t),
     [events, t.grain, t.datePreset, t.dateFrom, t.dateTo, t.stageView],
   );
+
+  const srcRows = (filter: Parameters<typeof toSourceRows>[1] = {}): SourceRow[] =>
+    events ? toSourceRows(scopeEvents(events, scope), filter) : [];
 
   const m = useMemo(() => {
     if (!events || events.length === 0) return null;
@@ -103,33 +162,47 @@ export default function CopqPage() {
           </div>
         )}
 
-        {m && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.25fr 1.75fr", gap: 20 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <Card title={`${grainLabel} COPQ Impact`} onClick={() => openModal(`${grainLabel} COPQ Impact`, `COPQ reaches ${rupee(m.copq)} this period. ${m.copqDiff}. Material waste and tooling downtime are major drivers.`, <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} /></div>)}>
-                <GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} />
-              </Card>
+        {m && (() => {
+          const hasLeft = m.copq > 0 || m.savings > 0;
+          const hasRight = m.copqTrend.length > 0;
+          const gridTemplate = hasLeft && hasRight ? "1.25fr 1.75fr" : "1fr";
 
-              <Card title="Savings Opportunity Summary">
-                <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "8px 0" }}>
-                  <div>
-                    <span className="muted" style={{ fontSize: 11.5, display: "block" }}>Annual Recoverable Opportunity</span>
-                    <strong style={{ fontSize: 22, fontFamily: "var(--font-mono)", color: "var(--positive)" }}>
-                      {rupee(m.savings)}
-                    </strong>
-                  </div>
-                  <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.4, margin: 0 }}>
-                    Calculated by bringing overall rejection rates down to the Watch Limit (5.00%). Refers to finished cost inputs configured in settings.
-                  </p>
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
+              {hasLeft && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  {m.copq > 0 && (
+                    <Card title={`${grainLabel} COPQ Impact`} onClick={() => openModal(`${grainLabel} COPQ Impact`, `COPQ reaches ${rupee(m.copq)} this period. ${m.copqDiff}. Material waste and tooling downtime are major drivers.`, <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}>
+                      <GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} />
+                    </Card>
+                  )}
+
+                  {m.savings > 0 && (
+                    <Card title="Savings Opportunity Summary">
+                      <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "8px 0" }}>
+                        <div>
+                          <span className="muted" style={{ fontSize: 11.5, display: "block" }}>Annual Recoverable Opportunity</span>
+                          <strong style={{ fontSize: 22, fontFamily: "var(--font-mono)", color: "var(--positive)" }}>
+                            {rupee(m.savings)}
+                          </strong>
+                        </div>
+                        <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.4, margin: 0 }}>
+                          Calculated by bringing overall rejection rates down to the Watch Limit (5.00%). Refers to finished cost inputs configured in settings.
+                        </p>
+                      </div>
+                    </Card>
+                  )}
                 </div>
-              </Card>
-            </div>
+              )}
 
-            <Card title={`COPQ Trend (${grainLabel})`} onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>)}>
-              <LineChart points={m.copqTrend} fmt={rupee} />
-            </Card>
-          </div>
-        )}
+              {hasRight && (
+                <Card title={`COPQ Trend (${grainLabel})`} onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}>
+                  <LineChart points={m.copqTrend} fmt={rupee} />
+                </Card>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <FloatingDetailModal
@@ -137,6 +210,9 @@ export default function CopqPage() {
         onClose={() => setModalOpen(false)}
         title={modalTitle}
         insight={modalInsight}
+        sourceRows={modalSourceRows}
+        primaryValue={modalPrimaryValue}
+        rawSheets={rawSheets}
       >
         {modalContent}
       </FloatingDetailModal>

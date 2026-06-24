@@ -1,8 +1,16 @@
 // src/components/ParetoChart.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ParetoAnalysis } from "@/types/metrics";
+import { ZoomButton } from "@/components/app/widgets";
+import { useTweaks } from "@/components/editorial/TweaksContext";
+import {
+  useContainerWidth,
+  getBaseSpacing,
+  hoverIndexFromPixels,
+  shouldShowLabel
+} from "@/lib/chart-utils";
 
 // High-fidelity dual-axis Pareto chart, hand-rendered as inline SVG to match the
 // editorial design system (no Chart.js). Bars use the LEFT axis (defect count);
@@ -42,15 +50,30 @@ function smoothPath(pts: { x: number; y: number }[]): string {
 }
 
 export default function ParetoChart({ analysis, maxItems = 10, showTable = true }: ParetoChartProps) {
+  const [zoom, setZoom] = useState(1.0);
+  const [scrollLeft, setScrollLeft] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
+
+  const { ref: containerRef, width: containerWidth } = useContainerWidth(820);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
   const items = analysis.items.slice(0, maxItems);
   if (items.length === 0) return null;
 
-  const maxValue = Math.max(...items.map((it) => it.value)) * 1.15 || 1;
-  const band = PLOT_W / items.length;
+  const numPoints = items.length;
+  // Pareto charts need wider item spacing since they display bars
+  const baseSpacing = Math.max(80, getBaseSpacing(numPoints) * 2.5);
+  const currentSpacing = baseSpacing * zoom;
+  const totalNeededWidth = currentSpacing * numPoints + PAD.left + PAD.right;
+  const isScrollable = totalNeededWidth > containerWidth;
+  const canvasWidth = isScrollable ? totalNeededWidth : containerWidth;
+
+  const PLOT_W = canvasWidth - PAD.left - PAD.right;
+  const band = isScrollable ? currentSpacing : PLOT_W / numPoints;
   const barW = Math.min(band * 0.58, 64);
 
   const xCenter = (i: number) => PAD.left + band * (i + 0.5);
+  const maxValue = Math.max(...items.map((it) => it.value)) * 1.15 || 1;
   const yValue = (v: number) => PAD.top + PLOT_H * (1 - v / maxValue);
   const yCum = (c: number) => PAD.top + PLOT_H * (1 - c / 100);
 
@@ -61,159 +84,208 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
   const valueTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round((maxValue / 1.15) * f));
   const cumTicks = [0, 20, 40, 60, 80, 100];
 
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.shiftKey && wrapperRef.current) {
+      wrapperRef.current.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  };
+
   return (
-    <div style={{ position: "relative", width: "100%" }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", overflow: "visible" }}>
-        {/* horizontal gridlines + right-axis (%) labels */}
-        {cumTicks.map((c) => (
-          <g key={`grid-${c}`}>
-            <line
-              x1={PAD.left}
-              x2={W - PAD.right}
-              y1={yCum(c)}
-              y2={yCum(c)}
-              stroke="var(--border)"
-              strokeWidth={1}
-              strokeDasharray={c === 0 ? undefined : "2 4"}
-              opacity={c === 0 ? 1 : 0.5}
-            />
-            <text
-              x={W - PAD.right + 8}
-              y={yCum(c) + 3}
-              fontSize={10}
-              fill="var(--text-3)"
-              className="num"
-            >
-              {c}%
-            </text>
-          </g>
-        ))}
+    <div ref={containerRef} style={{ position: "relative", width: "100%", minWidth: 0 }} onMouseLeave={() => setHover(null)}>
+      {/* Zoom Controls */}
+      <div style={{
+        position: "absolute",
+        right: 12,
+        top: -12,
+        zIndex: 40,
+        display: "flex",
+        gap: 4,
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-sm)",
+        padding: "2px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+      }}>
+        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(4.0, z * 1.3)); }} title="Zoom In">+</ZoomButton>
+        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(0.25, z / 1.3)); }} title="Zoom Out">−</ZoomButton>
+        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(1.0); }} title="Fit Viewport">FIT</ZoomButton>
+      </div>
 
-        {/* left-axis (count) labels */}
-        {valueTicks.map((v, i) => (
-          <text
-            key={`lv-${i}`}
-            x={PAD.left - 8}
-            y={yValue(v) + 3}
-            fontSize={10}
-            textAnchor="end"
-            fill="var(--text-3)"
-            className="num"
-          >
-            {v}
-          </text>
-        ))}
-
-        {/* 80% Pareto cut-off */}
-        <line
-          x1={PAD.left}
-          x2={W - PAD.right}
-          y1={y80}
-          y2={y80}
-          stroke="var(--warning)"
-          strokeWidth={1.5}
-          strokeDasharray="6 4"
-        />
-        <text x={PAD.left + 4} y={y80 - 6} fontSize={10} fontWeight={700} fill="var(--warning)">
-          80% PARETO CUT-OFF
-        </text>
-
-        {/* bars */}
-        {items.map((it, i) => {
-          const x = xCenter(i) - barW / 2;
-          const y = yValue(it.value);
-          const active = hover === i;
-          return (
-            <g key={`bar-group-${i}`}>
-              <rect
-                x={x}
-                y={y}
-                width={barW}
-                height={PAD.top + PLOT_H - y}
-                fill={it.isVitalFew ? "var(--accent)" : "var(--border-strong)"}
-                opacity={hover === null || active ? 1 : 0.55}
-                rx={2}
-                onMouseEnter={() => setHover(i)}
-                onMouseLeave={() => setHover(null)}
-                style={{ transition: "opacity 0.15s ease" }}
+      <div 
+        ref={wrapperRef}
+        onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
+        onWheel={handleWheel}
+        style={{ 
+          width: "100%", 
+          overflowX: "auto", 
+          position: "relative",
+          scrollbarWidth: "thin",
+        }}
+      >
+        <svg 
+          width={canvasWidth} 
+          height={H} 
+          viewBox={`0 0 ${canvasWidth} ${H}`} 
+          style={{ display: "block", overflow: "visible" }}
+        >
+          {/* horizontal gridlines + right-axis (%) labels */}
+          {cumTicks.map((c) => (
+            <g key={`grid-${c}`}>
+              <line
+                x1={PAD.left}
+                x2={canvasWidth - PAD.right}
+                y1={yCum(c)}
+                y2={yCum(c)}
+                stroke="var(--border)"
+                strokeWidth={1}
+                strokeDasharray={c === 0 ? undefined : "2 4"}
+                opacity={c === 0 ? 1 : 0.5}
               />
               <text
-                x={xCenter(i)}
-                y={y - 6}
-                fontSize={9}
-                fontWeight={700}
-                textAnchor="middle"
-                fill={it.isVitalFew ? "var(--accent)" : "var(--text-2)"}
-                opacity={hover === null || active ? 1 : 0.55}
+                x={canvasWidth - PAD.right + 8}
+                y={yCum(c) + 4}
+                fontSize={12}
+                fill="var(--text-2)"
+                fontWeight={600}
+                className="num"
               >
-                {it.contribution.toFixed(1)}%
+                {c}%
               </text>
             </g>
-          );
-        })}
+          ))}
 
-        {/* cumulative curve */}
-        <path d={smoothPath(linePts)} fill="none" stroke="var(--text)" strokeWidth={2} />
-        {linePts.map((p, i) => (
-          <circle
-            key={`pt-${i}`}
-            cx={p.x}
-            cy={p.y}
-            r={hover === i ? 5 : 3.5}
-            fill="var(--surface)"
-            stroke="var(--text)"
-            strokeWidth={2}
-            onMouseEnter={() => setHover(i)}
-            onMouseLeave={() => setHover(null)}
-            style={{ cursor: "pointer" }}
+          {/* left-axis (count) labels */}
+          {valueTicks.map((v, i) => (
+            <text
+              key={`lv-${i}`}
+              x={PAD.left - 8}
+              y={yValue(v) + 4}
+              fontSize={12}
+              fontWeight={600}
+              textAnchor="end"
+              fill="var(--text-2)"
+              className="num"
+            >
+              {v}
+            </text>
+          ))}
+
+          {/* 80% Pareto cut-off */}
+          <line
+            x1={PAD.left}
+            x2={canvasWidth - PAD.right}
+            y1={y80}
+            y2={y80}
+            stroke="var(--warning)"
+            strokeWidth={1.5}
+            strokeDasharray="6 4"
           />
-        ))}
-
-        {/* x-axis labels (rotated) */}
-        {items.map((it, i) => (
-          <text
-            key={`lbl-${i}`}
-            x={xCenter(i)}
-            y={PAD.top + PLOT_H + 14}
-            fontSize={10}
-            fill={it.isVitalFew ? "var(--accent)" : "var(--text-2)"}
-            fontWeight={it.isVitalFew ? 700 : 500}
-            textAnchor="end"
-            transform={`rotate(-40 ${xCenter(i)} ${PAD.top + PLOT_H + 14})`}
-          >
-            {it.label.length > 16 ? it.label.slice(0, 15) + "…" : it.label}
+          <text x={PAD.left + 4} y={y80 - 6} fontSize={12} fontWeight={800} fill="var(--warning)">
+            80% PARETO CUT-OFF
           </text>
-        ))}
-      </svg>
 
-      {/* tooltip */}
-      {hover !== null && items[hover] && (
-        <div
-          style={{
-            position: "absolute",
-            left: `${(xCenter(hover) / W) * 100}%`,
-            top: `${(yValue(items[hover].value) / H) * 100}%`,
-            transform: "translate(-50%, calc(-100% - 10px))",
-            pointerEvents: "none",
-            background: "var(--text)",
-            color: "var(--surface)",
-            padding: "8px 10px",
-            borderRadius: "var(--radius-sm)",
-            fontSize: 11,
-            lineHeight: 1.5,
-            whiteSpace: "nowrap",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
-            zIndex: 5,
-          }}
-        >
-          <div style={{ fontWeight: 700, marginBottom: 2 }}>
-            #{items[hover].rank} · {items[hover].label}
+          {/* bars */}
+          {items.map((it, i) => {
+            const x = xCenter(i) - barW / 2;
+            const y = yValue(it.value);
+            const active = hover === i;
+            return (
+              <g key={`bar-group-${i}`}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={barW}
+                  height={PAD.top + PLOT_H - y}
+                  fill={it.isVitalFew ? "var(--accent)" : "var(--border-strong)"}
+                  opacity={hover === null || active ? 1 : 0.55}
+                  rx={2}
+                  onMouseEnter={() => setHover(i)}
+                  onMouseLeave={() => setHover(null)}
+                  style={{ transition: "opacity 0.15s ease", cursor: "pointer" }}
+                />
+                <text
+                  x={xCenter(i)}
+                  y={y - 6}
+                  fontSize={11}
+                  fontWeight={800}
+                  textAnchor="middle"
+                  fill={it.isVitalFew ? "var(--accent)" : "var(--text-2)"}
+                  opacity={hover === null || active ? 1 : 0.55}
+                >
+                  {it.contribution.toFixed(1)}%
+                </text>
+              </g>
+            );
+          })}
+
+          {/* cumulative curve */}
+          <path d={smoothPath(linePts)} fill="none" stroke="var(--text)" strokeWidth={2} />
+          {linePts.map((p, i) => (
+            <circle
+              key={`pt-${i}`}
+              cx={p.x}
+              cy={p.y}
+              r={hover === i ? 5 : 3.5}
+              fill="var(--surface)"
+              stroke="var(--text)"
+              strokeWidth={2}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              style={{ cursor: "pointer" }}
+            />
+          ))}
+
+          {/* x-axis labels (rotated) */}
+          {items.map((it, i) => {
+            const show = shouldShowLabel(it.label, i, items.map(pt => pt.label), band, "week");
+            if (!show) return null;
+            return (
+              <text
+                key={`lbl-${i}`}
+                x={xCenter(i)}
+                y={PAD.top + PLOT_H + 16}
+                fontSize={12}
+                fill={it.isVitalFew ? "var(--accent)" : "var(--text-2)"}
+                fontWeight={it.isVitalFew ? 800 : 600}
+                textAnchor="end"
+                transform={`rotate(-40 ${xCenter(i)} ${PAD.top + PLOT_H + 16})`}
+              >
+                {it.label.length > 16 ? it.label.slice(0, 15) + "…" : it.label}
+              </text>
+            );
+          })}
+        </svg>
+
+        {/* tooltip */}
+        {hover !== null && items[hover] && (
+          <div
+            style={{
+              position: "absolute",
+              left: xCenter(hover),
+              top: yValue(items[hover].value),
+              transform: "translate(-50%, calc(-100% - 10px))",
+              pointerEvents: "none",
+              background: "var(--text)",
+              color: "var(--surface)",
+              padding: "8px 10px",
+              borderRadius: "var(--radius-sm)",
+              fontSize: 11,
+              lineHeight: 1.5,
+              whiteSpace: "nowrap",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+              zIndex: 5,
+            }}
+          >
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>
+              #{items[hover].rank} · {items[hover].label}
+            </div>
+            <div className="num">Count: {Math.round(items[hover].value)}</div>
+            <div className="num">Share: {items[hover].contribution.toFixed(1)}%</div>
+            <div className="num">Cumulative: {items[hover].cumulative.toFixed(1)}%</div>
           </div>
-          <div className="num">Count: {Math.round(items[hover].value)}</div>
-          <div className="num">Share: {items[hover].contribution.toFixed(1)}%</div>
-          <div className="num">Cumulative: {items[hover].cumulative.toFixed(1)}%</div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* axis legend */}
       <div

@@ -96,6 +96,7 @@ export default function Dashboard() {
   const [modalContent, setModalContent] = useState<React.ReactNode>(null);
   const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
   const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
+  const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
 
   const openModal = (
     title: string,
@@ -119,6 +120,24 @@ export default function Dashboard() {
     
     // Load target rejection rate from settings/localStorage
     setTargetRej(getTargetRejectionRate());
+
+    // Load stashed raw sheets if any are available in sessionStorage
+    try {
+      let activeId = sessionStorage.getItem("rais_active_session_id");
+      if (!activeId) {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && key.startsWith("rais_raw_")) {
+            activeId = key.substring("rais_raw_".length);
+            break;
+          }
+        }
+      }
+      if (activeId) {
+        const stored = sessionStorage.getItem(`rais_raw_${activeId}`);
+        if (stored) setRawSheets(JSON.parse(stored));
+      }
+    } catch { /* ignore */ }
   }, []);
 
   const scope: Scope = useMemo(
@@ -501,96 +520,129 @@ export default function Dashboard() {
           </div>
 
           {/* Row 4: Stage-wise YTD & Pareto */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.15fr 1.15fr", gap: 16 }}>
-            <Card title="Stage-wise Rejection (YTD)" onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected) })}>
-              <BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct }))} fmt={(n) => `${n.toFixed(1)}%`} />
-            </Card>
-            <Card title="Defect Pareto (All Stages)" onClick={() => openModal("Defect Pareto (All Stages)", "Six Sigma Pareto analysis highlighting the vital few defect categories responsible for most rejects.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
-              <ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} showTable={false} />
-            </Card>
-            <Card title="Defect Trend (Top 5)" onClick={() => openModal("Defect Trend (Top 5)", "Historical trends for the top 5 defect categories.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
-              <MultiLine 
-                data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} 
-                stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} 
-              />
-            </Card>
-          </div>
+          {(() => {
+            const hasPareto = m.defects.length > 0;
+            const hasDefectTrend = m.defects.length > 0 && m.defectTrend.length > 0;
+            const row4Cols = [
+              "1fr",
+              hasPareto ? "1.15fr" : null,
+              hasDefectTrend ? "1.15fr" : null
+            ].filter(Boolean).join(" ");
+
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: row4Cols, gap: 16 }}>
+                <Card title="Stage-wise Rejection (YTD)" onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected) })}>
+                  <BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct }))} fmt={(n) => `${n.toFixed(1)}%`} />
+                </Card>
+                {hasPareto && (
+                  <Card title="Defect Pareto (All Stages)" onClick={() => openModal("Defect Pareto (All Stages)", "Six Sigma Pareto analysis highlighting the vital few defect categories responsible for most rejects.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
+                    <ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} showTable={false} />
+                  </Card>
+                )}
+                {hasDefectTrend && (
+                  <Card title="Defect Trend (Top 5)" onClick={() => openModal("Defect Trend (Top 5)", "Historical trends for the top 5 defect categories.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
+                    <MultiLine 
+                      data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} 
+                      stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} 
+                    />
+                  </Card>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Row 5: Size-wise & Audit */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1.2fr", gap: 16 }}>
-            <Card title="Size-wise Rejection (YTD)" onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" })}>
-              {m.sizes.length > 0 ? (
-                <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} />
-              ) : (
-                <Empty label="No size-wise data available for this range." />
-              )}
-            </Card>
-            
-            <Card title={`Size-wise Trend (${selectedSize})`} onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" })}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
-                <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Size:</span>
-                <select
-                  value={selectedSize}
-                  onChange={(e) => setSelectedSize(e.target.value)}
-                  style={{
-                    padding: "2px 6px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border)",
-                    background: "var(--surface)",
-                    color: "var(--text)",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    outline: "none",
-                    cursor: "pointer"
-                  }}
-                >
-                  {(m.sizes.length > 0 ? m.sizes.map(s => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => (
-                    <option key={sz} value={sz}>{sz}</option>
-                  ))}
-                </select>
+          {(() => {
+            const hasSizeYtd = m.sizes.length > 0;
+            const hasSizeTrend = m.sizeTrend.length > 0;
+            const hasWeekly = m.weekly.length > 0;
+            const hasCopqTrend = m.copqTrend.length > 0;
+
+            const row5Cols = [
+              hasSizeYtd ? "1fr" : null,
+              hasSizeTrend ? "1fr" : null,
+              hasWeekly ? "1fr" : null,
+              hasCopqTrend ? "1fr" : null,
+              "1.2fr"
+            ].filter(Boolean).join(" ");
+
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: row5Cols, gap: 16 }}>
+                {hasSizeYtd && (
+                  <Card title="Size-wise Rejection (YTD)" onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" })}>
+                    <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} />
+                  </Card>
+                )}
+                
+                {hasSizeTrend && (
+                  <Card title={`Size-wise Trend (${selectedSize})`} onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" })}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
+                      <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Size:</span>
+                      <select
+                        value={selectedSize}
+                        onChange={(e) => setSelectedSize(e.target.value)}
+                        style={{
+                          padding: "2px 6px",
+                          borderRadius: "var(--radius-sm)",
+                          border: "1px solid var(--border)",
+                          background: "var(--surface)",
+                          color: "var(--text)",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          outline: "none",
+                          cursor: "pointer"
+                        }}
+                      >
+                        {(m.sizes.length > 0 ? m.sizes.map(s => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => (
+                          <option key={sz} value={sz}>{sz}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <LineChart points={m.sizeTrend} fmt={pct} />
+                  </Card>
+                )}
+
+                {hasWeekly && (
+                  <Card title="Weekly Rejection Trend (Current Month)" onClick={() => openModal("Weekly Rejection Trend (Current Month)", "Rejection rates week-by-week for the current month.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.weekly} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: m.weekly.length ? pct(m.weekly[m.weekly.length - 1].value) : "—" })}>
+                    <LineChart points={m.weekly} fmt={pct} />
+                  </Card>
+                )}
+
+                {hasCopqTrend && (
+                  <Card title={`COPQ Trend (${grainLabel})`} onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}>
+                    <LineChart points={m.copqTrend} fmt={rupee} />
+                  </Card>
+                )}
+
+                <Card title="Audit &amp; Verification" onClick={() => openModal("Audit & Verification", `Ledger verification metrics derived from processed source files.`, <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable sourceFiles={m.audit.sourceFilesProcessed} validation={m.audit.dataValidationChecks} integrity={m.audit.formulaIntegrity} overrides={m.audit.manualOverrides} completeness={m.audit.dataCompleteness} /></div>)}>
+                  <AuditVerificationTable 
+                    sourceFiles={m.audit.sourceFilesProcessed}
+                    validation={m.audit.dataValidationChecks}
+                    integrity={m.audit.formulaIntegrity}
+                    overrides={m.audit.manualOverrides}
+                    completeness={m.audit.dataCompleteness}
+                  />
+                  <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); router.push("/audit"); }}
+                      style={{
+                        background: "var(--surface-2)",
+                        border: "1px solid var(--border-strong)",
+                        borderRadius: "var(--radius-sm)",
+                        padding: "6px 16px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        width: "100%"
+                      }}
+                    >
+                      View Audit Trail
+                    </button>
+                  </div>
+                </Card>
               </div>
-              {m.sizeTrend && m.sizeTrend.length > 0 ? (
-                <LineChart points={m.sizeTrend} fmt={pct} />
-              ) : (
-                <Empty label={`No trend data available for size ${selectedSize}.`} />
-              )}
-            </Card>
-
-            <Card title="Weekly Rejection Trend (Current Month)" onClick={() => openModal("Weekly Rejection Trend (Current Month)", "Rejection rates week-by-week for the current month.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.weekly} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: m.weekly.length ? pct(m.weekly[m.weekly.length - 1].value) : "—" })}>
-              <LineChart points={m.weekly} fmt={pct} />
-            </Card>
-
-            <Card title={`COPQ Trend (${grainLabel})`} onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}>
-              <LineChart points={m.copqTrend} fmt={rupee} />
-            </Card>
-
-            <Card title="Audit &amp; Verification" onClick={() => openModal("Audit & Verification", `Ledger verification metrics derived from processed source files.`, <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable sourceFiles={m.audit.sourceFilesProcessed} validation={m.audit.dataValidationChecks} integrity={m.audit.formulaIntegrity} overrides={m.audit.manualOverrides} completeness={m.audit.dataCompleteness} /></div>)}>
-              <AuditVerificationTable 
-                sourceFiles={m.audit.sourceFilesProcessed}
-                validation={m.audit.dataValidationChecks}
-                integrity={m.audit.formulaIntegrity}
-                overrides={m.audit.manualOverrides}
-                completeness={m.audit.dataCompleteness}
-              />
-              <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); router.push("/audit"); }}
-                  style={{
-                    background: "var(--surface-2)",
-                    border: "1px solid var(--border-strong)",
-                    borderRadius: "var(--radius-sm)",
-                    padding: "6px 16px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    width: "100%"
-                  }}
-                >
-                  View Audit Trail
-                </button>
-              </div>
-            </Card>
-          </div>
+            );
+          })()}
           </>
           )}
         </div>
@@ -603,6 +655,7 @@ export default function Dashboard() {
         insight={modalInsight}
         sourceRows={modalSourceRows}
         primaryValue={modalPrimaryValue}
+        rawSheets={rawSheets}
       >
         {modalContent}
       </FloatingDetailModal>
