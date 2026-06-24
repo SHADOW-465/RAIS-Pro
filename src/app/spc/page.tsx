@@ -277,21 +277,22 @@ export default function SpcPage() {
 
     const tr = trend(events, scope);
 
-    // Compute SPC limits (UCL / Mean / LCL) based on historical rejection rates
-    // Mean = avg rejection rate, StdDev = sqrt(p * (1-p) / n) where n is average checked per period
+    if (tr.length === 0) return null;
+
+    // Calculate empirical mean from the actual points being plotted
+    const sumValues = tr.reduce((sum, p) => sum + p.value, 0);
+    const mean = sumValues / tr.length;
+
+    // Calculate empirical standard deviation from the actual plotted values
+    const sumSquaredDiffs = tr.reduce((sum, p) => sum + Math.pow(p.value - mean, 2), 0);
+    const stdDev = tr.length > 1 ? Math.sqrt(sumSquaredDiffs / tr.length) : 0.005;
+
+    // Derive true 3-sigma boundaries based on empirical variance
+    const ucl = mean + 3 * stdDev;
+    const lcl = Math.max(0, mean - 3 * stdDev);
+
+    const overallRate = mean;
     const rates = tr.map((p) => p.value);
-    const mean = rates.reduce((sum, val) => sum + val, 0) / rates.length;
-    
-    // Sum total checked and total rejected in scope to get n
-    const checked = totalChecked(events, scope).value;
-    const rejected = totalRejected(events, scope).value;
-    const overallRate = checked > 0 ? rejected / checked : 0;
-    
-    const avgCheckedPerPeriod = checked / tr.length;
-    const stdDev = avgCheckedPerPeriod > 0 ? Math.sqrt((overallRate * (1 - overallRate)) / avgCheckedPerPeriod) : 0;
-    
-    const ucl = Math.min(1.0, overallRate + 3 * stdDev);
-    const lcl = Math.max(0.0, overallRate - 3 * stdDev);
 
     // Rule violations
     let r1 = 0; // Out of UCL/LCL
