@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
           fiscalYearStartMonth: data.fiscal_year_start_month,
           stages: enrichedStages,
           defects: data.defects || [],
+          sizes: data.sizes || DISPOSAFE_REGISTRY.sizes,
         },
         configured: true
       });
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
     });
 
     const defects = payload.defects || DISPOSAFE_REGISTRY.defects;
+    const sizes = payload.sizes || DISPOSAFE_REGISTRY.sizes;
 
     const db = createServerClient();
     const { error } = await db.from("registries").upsert({
@@ -97,6 +99,7 @@ export async function POST(req: NextRequest) {
       fiscal_year_start_month: 4,
       stages,
       defects,
+      sizes,
     }, { onConflict: "client_id" });
 
     if (error) throw error;
@@ -110,6 +113,7 @@ export async function POST(req: NextRequest) {
         fiscalYearStartMonth: 4,
         stages,
         defects,
+        sizes,
       }
     });
   } catch (err: any) {
