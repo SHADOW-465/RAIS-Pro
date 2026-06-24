@@ -91,7 +91,7 @@ export default function StagingPage() {
       setBusy(true);
 
       const { recordsFromBuffer, dedupeByPrecedence } = await import("@/lib/ingest/parsers");
-      const { extractSchemaFromWorkbook, classifyWithSchema } = await import("@/lib/ingest/schema-extractor");
+      const { extractSchemaFromWorkbook, classifyWithSchema, extractSizesFromWorkbook } = await import("@/lib/ingest/schema-extractor");
       const { parseExcelFilesWithRaw } = await import("@/lib/parser");
       const { classifyRejectionSheets } = await import("@/lib/ingest/from-rejection-sheets");
       const xlsx = await import("xlsx");
@@ -107,6 +107,7 @@ export default function StagingPage() {
       const allRawSheets: any[] = [];
       const skipped: string[] = [];
       let firstSchema: any = null;
+      const discoveredSizes = new Map<string, { sizeId: string; label: string }>();
 
       // Process EVERY uploaded file (the previous version silently used only
       // files[0]). Accumulate all records, THEN dedup the combined set so two
@@ -115,6 +116,7 @@ export default function StagingPage() {
         try {
           const arrayBuffer = await file.arrayBuffer();
           const wb = xlsx.read(arrayBuffer, { type: "array" });
+          for (const sz of extractSizesFromWorkbook(wb)) discoveredSizes.set(sz.sizeId, sz);
 
           // Archive → cryptographic fileHash (best-effort; never blocks ingest).
           let fileHash = "local";
@@ -210,6 +212,7 @@ export default function StagingPage() {
         try {
           sessionStorage.setItem(`rais_raw_${ingestionId}`, JSON.stringify(allRawSheets));
           sessionStorage.setItem("rais_active_session_id", ingestionId);
+          sessionStorage.setItem(`rais_sizes_${ingestionId}`, JSON.stringify(Array.from(discoveredSizes.values())));
         } catch (e) {
           console.warn("Could not cache raw sheets in sessionStorage:", e);
         }
@@ -412,7 +415,16 @@ export default function StagingPage() {
     try {
       const approvedNewCols = newColumns.filter(c => confirmMappings[`${c.stageId}|${c.colName}`]);
       const regToUpdate = activeRegistry || DISPOSAFE_REGISTRY;
-      
+
+      const mergedSizes = (() => {
+        const map = new Map<string, any>();
+        for (const s of (regToUpdate.sizes || [])) map.set(s.sizeId, s);
+        // discoveredSizes is bridged from handleUpload via sessionStorage.
+        const cached = sessionStorage.getItem(`rais_sizes_${ingestionId}`);
+        if (cached) for (const s of JSON.parse(cached)) map.set(s.sizeId, s);
+        return Array.from(map.values()).sort((a, b) => Number(a.sizeId.slice(2)) - Number(b.sizeId.slice(2)));
+      })();
+
       if (approvedNewCols.length > 0 && regToUpdate) {
         // Clone registry stages and inject new fields
         const updatedStages = regToUpdate.stages.map((stage: any) => {
@@ -452,7 +464,8 @@ export default function StagingPage() {
           body: JSON.stringify({
             registry: {
               ...regToUpdate,
-              stages: updatedStages
+              stages: updatedStages,
+              sizes: mergedSizes
             }
           })
         });

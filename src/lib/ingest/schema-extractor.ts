@@ -294,3 +294,19 @@ export function classifyWithSchema(
 
   return records;
 }
+
+/** Discover French sizes from per-size sheet names (e.g. "16FR" → "Fr16"). */
+export function extractSizesFromWorkbook(wb: xlsx.WorkBook): { sizeId: string; label: string }[] {
+  const out: { sizeId: string; label: string }[] = [];
+  const seen = new Set<string>();
+  for (const sn of wb.SheetNames) {
+    const m = sn.trim().match(/^(\d+)\s*FR$/i);
+    if (!m) continue;
+    const sizeId = `Fr${m[1]}`;
+    if (seen.has(sizeId)) continue;
+    seen.add(sizeId);
+    out.push({ sizeId, label: `${m[1]} FR` });
+  }
+  // numeric ascending
+  return out.sort((a, b) => Number(a.sizeId.slice(2)) - Number(b.sizeId.slice(2)));
+}
