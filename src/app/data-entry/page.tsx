@@ -888,7 +888,7 @@ Assign another field as Rejected Quantity.`;
         let av = a[field] ?? "";
         let bv = b[field] ?? "";
         
-        if (field === "date") {
+        if (field === "date" || field === "recordedAt") {
           return desc ? bv.localeCompare(av) : av.localeCompare(bv);
         }
         
@@ -1253,13 +1253,14 @@ Assign another field as Rejected Quantity.`;
                 <th style={th}>Checked</th>
                 <th style={th}>Rejected</th>
                 <th style={th}>Rej %</th>
+                <th style={{ ...th, cursor: "pointer" }} onClick={() => toggleSort("recordedAt")}>Last Saved/Edited {ledgerSort.col === "recordedAt" ? (ledgerSort.desc ? "▼" : "▲") : ""}</th>
                 <th style={{ ...th, textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredLedger.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ ...td, textAlign: "center", padding: 24, color: "var(--text-3)" }}>
+                  <td colSpan={11} style={{ ...td, textAlign: "center", padding: 24, color: "var(--text-3)" }}>
                     No manual or uploaded entry records found matching search.
                   </td>
                 </tr>
@@ -1296,6 +1297,14 @@ Assign another field as Rejected Quantity.`;
                       <td style={{ ...td, fontFamily: "var(--font-mono)" }}>{chk.toLocaleString()}</td>
                       <td style={{ ...td, fontFamily: "var(--font-mono)", color: "var(--status-bad)" }}>{rej.toLocaleString()}</td>
                       <td style={{ ...td, fontFamily: "var(--font-mono)", color: rate > 10 ? "var(--status-bad)" : "inherit" }}>{rate.toFixed(2)}%</td>
+                      <td style={td}>
+                        {rec.recordedAt ? new Date(rec.recordedAt).toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        }) : "—"}
+                      </td>
                       <td style={{ ...td, textAlign: "right" }}>
                         <div style={{ display: "inline-flex", gap: 8 }}>
                           <button 

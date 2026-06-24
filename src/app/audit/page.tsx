@@ -229,6 +229,7 @@ export default function AuditPage() {
                 <thead>
                   <tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     <th style={thStyle}>Date</th>
+                    <th style={thStyle}>Recorded At</th>
                     <th style={thStyle}>Type</th>
                     <th style={thStyle}>Source / Ingestion</th>
                     <th style={thStyle}>Stage</th>
@@ -245,6 +246,15 @@ export default function AuditPage() {
                       <tr key={e.eventId || idx} style={{ borderTop: "1px solid var(--border)", background: inlineComments.length > 0 ? "color-mix(in srgb, var(--warning) 4%, transparent)" : "transparent" }}>
                         <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
                           {e.occurredOn?.start || "—"}
+                        </td>
+                        <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
+                          {e.recordedAt ? new Date(e.recordedAt).toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit"
+                          }) : "—"}
                         </td>
                         <td style={tdStyle}>
                           <span style={getEventBadgeStyle(e.eventType)}>{e.eventType}</span>

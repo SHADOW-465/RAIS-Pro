@@ -83,7 +83,8 @@ export async function GET(req: NextRequest) {
         batch,
         notes,
         stageData,
-        source
+        source,
+        recordedAt: firstEvent.recordedAt
       };
     });
 
