@@ -660,12 +660,12 @@ export default function ReportsPage() {
 
       <div className="w-full pb-12">
         {/* Masthead Header (Hidden in Print) */}
-        <div className="flex justify-between items-end border-b border-gray-200 pb-4 mb-6 no-print">
+        <div className="flex justify-between items-end border-b border-hairline pb-4 mb-6 no-print">
           <div>
-            <h1 className="font-display text-2xl font-extrabold text-gray-900 tracking-tight">
+            <h1 className="font-display text-2xl font-extrabold text-ink tracking-tight">
               Forensic Quality Review Compiler
             </h1>
-            <p className="text-gray-500 text-sm mt-1">
+            <p className="text-muted text-sm mt-1">
               Render and compile the deterministic 24-page audit-ready FBC compliance book.
             </p>
           </div>
@@ -673,7 +673,7 @@ export default function ReportsPage() {
             <button
               onClick={handlePrint}
               disabled={events.length === 0}
-              className="bg-gray-900 text-white font-bold text-sm px-5 py-2.5 rounded-md hover:bg-gray-800 transition flex items-center gap-2 shadow"
+              className="btn primary shadow"
             >
               <Icon name="print" size={13} /> Print Forensic Book (24 Pages)
             </button>
@@ -682,11 +682,11 @@ export default function ReportsPage() {
 
         {/* Ingestion Check */}
         {isLoading ? (
-          <div className="py-20 text-center text-gray-500 font-mono no-print">
+          <div className="py-20 text-center text-muted font-mono no-print">
             Compiling ledger databases and verifying SHA-256 package signature...
           </div>
         ) : !m ? (
-          <div className="py-20 text-center text-gray-500 border border-dashed border-gray-300 rounded-lg no-print">
+          <div className="py-20 text-center text-muted border border-dashed border-hairline rounded-lg no-print">
             No active quality logs. Ingest FBC sheets in the Staging & Review page to compile the compliance book.
           </div>
         ) : (
