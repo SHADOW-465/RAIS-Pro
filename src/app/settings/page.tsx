@@ -5,8 +5,10 @@ import AppShell from "@/components/app/AppShell";
 import { Card } from "@/components/app/widgets";
 import Icon from "@/components/editorial/Icon";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { useEvents } from "@/components/app/EventsContext";
 
 export default function SettingsPage() {
+  const { refreshEvents } = useEvents();
   const [targetRej, setTargetRej] = useState("10.00");
   const [watchRej, setWatchRej] = useState("5.00");
   const [unitCost, setUnitCost] = useState("20.00");
@@ -37,6 +39,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/clear-data", { method: "POST" });
       if (!res.ok) throw new Error("Purge failed");
+      await refreshEvents();
       setActionStatus("Transaction data cleared successfully.");
       setShowClearModal(false);
       setClearConfirmText("");
@@ -54,6 +57,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/clear-schema", { method: "POST" });
       if (!res.ok) throw new Error("Failed to clear schema registry");
+      await refreshEvents();
       setActionStatus("Schema registry reset to defaults successfully.");
       setShowClearSchemaModal(false);
       setClearSchemaConfirmText("");
@@ -74,6 +78,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/hard-reset", { method: "POST" });
       if (!res.ok) throw new Error("Hard reset failed");
+      await refreshEvents();
       setActionStatus("Application has been hard reset to pristine state.");
       setShowHardModal(false);
       setHardConfirmText("");

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
+import PageLoader from "@/components/app/PageLoader";
+import { useEvents } from "@/components/app/EventsContext";
 import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
@@ -10,7 +12,8 @@ import {
   BarsH, 
   Empty,
   pct,
-  Heatmap
+  Heatmap,
+  num
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
@@ -55,7 +58,8 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
 
 export default function SizeAnalysisPage() {
   const { t } = useTweaks();
-  const [events, setEvents] = useState<Event[] | null>(null);
+  const { events: contextEvents, isLoading } = useEvents();
+  const events = contextEvents ? (contextEvents as any[]) : null;
   const [selectedSize, setSelectedSize] = useState("Fr16");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -80,11 +84,6 @@ export default function SizeAnalysisPage() {
   };
 
   useEffect(() => {
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((b) => setEvents(b.events ?? []))
-      .catch(() => setEvents([]));
-
     // Load stashed raw sheets if any are available in sessionStorage
     try {
       let activeId = sessionStorage.getItem("rais_active_session_id");
@@ -118,51 +117,36 @@ export default function SizeAnalysisPage() {
     const allPeriods = periodsIn(events, t.grain);
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
-    const trendScope: Scope = scope; // carries the stage filter into the trends
-
     const sizes = bySize(events, scope);
-    const orderedSizes = [...sizes].sort((a, b) => {
-      const an = parseInt(a.size.replace(/\D/g, ""), 10);
-      const bn = parseInt(b.size.replace(/\D/g, ""), 10);
-      return an - bn;
-    });
+    const trend = sizeTrend(events, scope, selectedSize);
 
-    const szTrend = sizeTrend(events, trendScope, selectedSize);
-
-    // Compute Size x Defect Heatmap matrix
-    const rejEvents = scopeEvents(events, scope).filter(
-      (e) => e.eventType === "rejection" && (e as any).size
-    );
+    // Pivot sizes for Heatmap
+    // rows = top defects, cols = sizes, matrix = 2D array
+    const activeSizes = ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"];
     const defects = byDefect(events, scope);
-    const topDefects = defects.slice(0, 8);
-    const heatRows = orderedSizes.map((s) => s.size);
-    const heatCols = topDefects.map((d) => d.label);
+    const topDefectLabels = defects.slice(0, 8).map(d => d.label);
 
-    const getDefectLabel = (code: string | null, raw: string) => {
-      if (!code) return raw;
-      return DISPOSAFE_REGISTRY.defects.find((d) => d.defectCode === code)?.label ?? code;
-    };
-
-    const heatMatrix = heatRows.map((size) => {
-      return heatCols.map((defectLabelStr) => {
-        const matchedEvents = rejEvents.filter((e) => {
-          if ((e as any).size !== size) return false;
-          const label = getDefectLabel((e as any).defectCode, (e as any).defectCodeRaw);
-          return label === defectLabelStr;
-        });
-        return matchedEvents.reduce((sum, e) => sum + ((e as any).quantity || 0), 0);
+    const heatMatrix = topDefectLabels.map(def => {
+      return activeSizes.map(sz => {
+        // sum quantity of events in scope for this size and defect
+        const matched = (scopeEvents(events, scope) as any[]).filter(
+          e => e.eventType === "rejection" &&
+               e.size === sz &&
+               (e.defectCodeRaw === def || e.defectCode === def)
+        );
+        return matched.reduce((s, e: any) => s + (e.quantity ?? 0), 0);
       });
     });
 
     return {
-      sizes: orderedSizes,
-      sizeTrend: szTrend,
-      heatRows,
-      heatCols,
+      sizes,
+      sizeTrend: trend,
+      heatRows: topDefectLabels,
+      heatCols: activeSizes,
       heatMatrix,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
-  }, [events, scope, selectedSize, t.grain]);
+  }, [events, scope, t.grain, selectedSize]);
 
   // Synchronize selected size with the available sizes dataset
   useEffect(() => {
@@ -186,9 +170,28 @@ export default function SizeAnalysisPage() {
           </p>
         </div>
 
-        {events === null && (
-          <div style={{ padding: 48, textAlign: "center", color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
-            Aggregating size quality records...
+        {isLoading && (
+          <PageLoader message="Aggregating size quality records..." minHeight="40vh" />
+        )}
+
+        {!isLoading && (!events || events.length === 0) && (
+          <div style={{ padding: "48px 24px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, marginBottom: 8, color: "var(--text)" }}>
+              No Data Available
+            </div>
+            <p className="muted" style={{ fontSize: 13, margin: "0 0 16px" }}>
+              Please upload monthly inspection workbooks in Staging &amp; Review to populate these metrics.
+            </p>
+            <a
+              href="/staging"
+              style={{
+                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12.5,
+                color: "var(--paper)", background: "var(--accent)", border: "none",
+                padding: "8px 16px", borderRadius: "var(--radius-md)", cursor: "pointer"
+              }}
+            >
+              Go to Staging &amp; Review →
+            </a>
           </div>
         )}
 
@@ -250,7 +253,7 @@ export default function SizeAnalysisPage() {
               </div>
 
               {hasLeft && m.heatMatrix && m.heatMatrix.length > 0 && (
-                <Card title="Size × Defect Correlation Heatmap" sub="rejected quantity by size vs defect category">
+                <Card title="Size × Defect Correlation Heatmap" sub="rejected quantity by size vs defect category" onClick={() => openModal("Size × Defect Correlation Heatmap", "Correlation matrix mapping rejected quantities across different catheter sizes (Fr10–Fr24) against active defect modes.", <div style={{ minHeight: 320, display: "flex", flexDirection: "column", justifyContent: "center" }}><Heatmap rows={m.heatRows} cols={m.heatCols} matrix={m.heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: num(m.sizes.reduce((s, x) => s + x.rejected, 0)) })}>
                   <Heatmap 
                     rows={m.heatRows} 
                     cols={m.heatCols} 

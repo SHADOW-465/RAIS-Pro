@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
+import PageLoader from "@/components/app/PageLoader";
+import { useEvents } from "@/components/app/EventsContext";
 import FloatingDetailModal from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
@@ -22,7 +24,8 @@ import type { StageRow } from "@/lib/analytics";
 
 export default function ProcessFlowPage() {
   const { t } = useTweaks();
-  const [events, setEvents] = useState<Event[] | null>(null);
+  const { events: contextEvents, isLoading } = useEvents();
+  const events = contextEvents ? (contextEvents as any[]) : null;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
@@ -34,13 +37,6 @@ export default function ProcessFlowPage() {
     setModalContent(content);
     setModalOpen(true);
   };
-
-  useEffect(() => {
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((b) => setEvents(b.events ?? []))
-      .catch(() => setEvents([]));
-  }, []);
 
   const scope: Scope = useMemo(
     () => resolveScope(events ?? [], t),
@@ -75,9 +71,28 @@ export default function ProcessFlowPage() {
           </p>
         </div>
 
-        {events === null && (
-          <div style={{ padding: 48, textAlign: "center", color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
-            Aggregating process pipeline metrics...
+        {isLoading && (
+          <PageLoader message="Aggregating process pipeline metrics..." minHeight="40vh" />
+        )}
+
+        {!isLoading && (!events || events.length === 0) && (
+          <div style={{ padding: "48px 24px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, marginBottom: 8, color: "var(--text)" }}>
+              No Data Available
+            </div>
+            <p className="muted" style={{ fontSize: 13, margin: "0 0 16px" }}>
+              Please upload monthly inspection workbooks in Staging &amp; Review to populate these metrics.
+            </p>
+            <a
+              href="/staging"
+              style={{
+                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12.5,
+                color: "var(--paper)", background: "var(--accent)", border: "none",
+                padding: "8px 16px", borderRadius: "var(--radius-md)", cursor: "pointer"
+              }}
+            >
+              Go to Staging &amp; Review →
+            </a>
           </div>
         )}
 

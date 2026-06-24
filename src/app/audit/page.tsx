@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useEvents } from "@/components/app/EventsContext";
 import AppShell from "@/components/app/AppShell";
 import { Card } from "@/components/app/widgets";
 import Icon from "@/components/editorial/Icon";
 
 export default function AuditPage() {
-  const [events, setEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { events: contextEvents, isLoading: loading } = useEvents();
+  const events = (contextEvents ?? []) as any[];
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
@@ -17,15 +18,6 @@ export default function AuditPage() {
   // Reset to first page whenever a filter/search changes.
   useEffect(() => { setPage(0); }, [searchQuery, typeFilter, stageFilter]);
 
-  useEffect(() => {
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((body) => {
-        setEvents(body.events ?? []);
-      })
-      .catch(console.warn)
-      .finally(() => setLoading(false));
-  }, []);
 
   // Compute stats for audit header
   const stats = useMemo(() => {

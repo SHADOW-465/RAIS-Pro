@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import { Card } from "@/components/app/widgets";
 import Icon from "@/components/editorial/Icon";
+import { useEvents } from "@/components/app/EventsContext";
 
 export default function ClearDataPage() {
   const router = useRouter();
+  const { refreshEvents } = useEvents();
   const [confirmText, setConfirmText] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -28,6 +30,7 @@ export default function ClearDataPage() {
       if (!res.ok) {
         throw new Error((await res.json().catch(() => ({}))).error ?? "Clear data failed.");
       }
+      await refreshEvents();
       setSuccess(true);
     } catch (e: any) {
       setError(e?.message ?? "Failed to clear transactional data.");

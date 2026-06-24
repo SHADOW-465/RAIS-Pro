@@ -21,8 +21,8 @@ const MODELS = {
 export type ModelBackend = "groq" | "nvidia" | "openrouter";
 
 // Default reliability order for free tiers: Groq is fastest + most reliable,
-// NVIDIA NIM next, OpenRouter (shared free pool) last.
-const DEFAULT_ORDER: readonly ModelBackend[] = ["groq", "nvidia", "openrouter"];
+// NVIDIA NIM next. OpenRouter is disabled due to free-tier model unavailability.
+const DEFAULT_ORDER: readonly ModelBackend[] = ["groq", "nvidia"];
 
 function keyFor(b: ModelBackend): string | undefined {
   if (b === "groq") return process.env.GROQ_API_KEY;
@@ -32,6 +32,7 @@ function keyFor(b: ModelBackend): string | undefined {
 }
 
 function isAvailable(b: ModelBackend): boolean {
+  if (b === "openrouter") return false; // OpenRouter free tier models are currently unavailable
   return !!keyFor(b);
 }
 

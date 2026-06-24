@@ -4,6 +4,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
+import { useEvents } from "@/components/app/EventsContext";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 
@@ -38,6 +39,7 @@ const DEFAULT_FIELDS: FieldDef[] = [
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function DataEntryPage() {
+  const { refreshEvents } = useEvents();
   const [activeTab, setActiveTab] = useState<"entry" | "ledger">("entry");
   const [date, setDate] = useState(today());
   const [hdr, setHdr] = useState({
@@ -542,6 +544,7 @@ export default function DataEntryPage() {
       setAttemptedSubmit(false);
       resetSpreadsheet();
       loadLedger();
+      refreshEvents().catch(console.error);
     } catch (e: any) {
       setError(e?.message ?? "Submit failed");
     } finally {
@@ -855,6 +858,7 @@ Assign another field as Rejected Quantity.`;
       
       setSuccess(`Record for ${rec.date} (${rec.shift}) has been deleted successfully.`);
       loadLedger();
+      refreshEvents().catch(console.error);
     } catch (e: any) {
       alert("Error deleting: " + e.message);
     }

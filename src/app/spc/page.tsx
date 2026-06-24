@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import AppShell from "@/components/app/AppShell";
+import PageLoader from "@/components/app/PageLoader";
+import { useEvents } from "@/components/app/EventsContext";
 import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
@@ -26,6 +28,8 @@ import {
   periodLabel,
   resolveScope,
   scopeEvents,
+  totalChecked,
+  totalRejected,
   type Scope
 } from "@/lib/analytics";
 
@@ -213,7 +217,8 @@ function XBarChart({ points, ucl, lcl, mean }: { points: any[]; ucl: number; lcl
 
 export default function SpcPage() {
   const { t } = useTweaks();
-  const [events, setEvents] = useState<Event[] | null>(null);
+  const { events: contextEvents, isLoading } = useEvents();
+  const events = contextEvents ? (contextEvents as any[]) : null;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
@@ -237,11 +242,6 @@ export default function SpcPage() {
   };
 
   useEffect(() => {
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((b) => setEvents(b.events ?? []))
-      .catch(() => setEvents([]));
-
     // Load stashed raw sheets if any are available in sessionStorage
     try {
       let activeId = sessionStorage.getItem("rais_active_session_id");
@@ -275,68 +275,67 @@ export default function SpcPage() {
     const allPeriods = periodsIn(events, t.grain);
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
-    const trendScope: Scope = scope; // carries the stage filter, so SPC charts per-stage
+    const tr = trend(events, scope);
 
-    const rate = rejectionRate(events, scope).value;
-    const tr = trend(events, trendScope, "rejectionRate");
-
-    const checkedTrend = trend(events, trendScope, "totalChecked");
-    const rejectedTrend = trend(events, trendScope, "totalRejected");
-
-    let totalChecked = 0;
-    let totalRejected = 0;
-    let count = 0;
-    for (let i = 0; i < checkedTrend.length; i++) {
-      totalChecked += checkedTrend[i].value;
-      totalRejected += rejectedTrend[i].value;
-      count++;
-    }
-
-    const mean = totalChecked > 0 ? totalRejected / totalChecked : 0.0291;
-    const avgN = count > 0 ? totalChecked / count : 1000;
+    // Compute SPC limits (UCL / Mean / LCL) based on historical rejection rates
+    // Mean = avg rejection rate, StdDev = sqrt(p * (1-p) / n) where n is average checked per period
+    const rates = tr.map((p) => p.value);
+    const mean = rates.reduce((sum, val) => sum + val, 0) / rates.length;
     
-    // Binomial p-chart standard deviation: sigma = sqrt( pbar * (1 - pbar) / nbar )
-    const stdDev = avgN > 0 && mean > 0 && mean < 1
-      ? Math.sqrt((mean * (1 - mean)) / avgN)
-      : 0.005;
+    // Sum total checked and total rejected in scope to get n
+    const checked = totalChecked(events, scope).value;
+    const rejected = totalRejected(events, scope).value;
+    const overallRate = checked > 0 ? rejected / checked : 0;
+    
+    const avgCheckedPerPeriod = checked / tr.length;
+    const stdDev = avgCheckedPerPeriod > 0 ? Math.sqrt((overallRate * (1 - overallRate)) / avgCheckedPerPeriod) : 0;
+    
+    const ucl = Math.min(1.0, overallRate + 3 * stdDev);
+    const lcl = Math.max(0.0, overallRate - 3 * stdDev);
 
-    const ucl = mean + 3 * stdDev;
-    const lcl = Math.max(0, mean - 3 * stdDev);
+    // Rule violations
+    let r1 = 0; // Out of UCL/LCL
+    let r2 = 0; // 9 consecutive points on same side of mean
+    let r3 = 0; // 6 consecutive points in trend
 
-    // Western Electric rules violations
-    let r1 = 0;
-    let r2 = 0;
-    let r3 = 0;
-    const values = tr.map((p) => p.value);
-
-    // Rule 1: Outside UCL/LCL limits
-    values.forEach((v) => {
-      if (v > ucl || v < lcl) r1++;
-    });
-
-    // Rule 2: 9 points on one side of center line
-    for (let i = 0; i <= values.length - 9; i++) {
-      const win = values.slice(i, i + 9);
-      if (win.every((v) => v > mean) || win.every((v) => v < mean)) r2++;
+    // Count Rule 1 violations
+    for (const r of rates) {
+      if (r > ucl || r < lcl) r1++;
     }
 
-    // Rule 3: 6 points steadily increasing or steadily decreasing
-    for (let i = 0; i <= values.length - 6; i++) {
-      const win = values.slice(i, i + 6);
-      let inc = true;
-      let dec = true;
-      for (let j = 1; j < win.length; j++) {
-        if (win[j] <= win[j - 1]) inc = false;
-        if (win[j] >= win[j - 1]) dec = false;
+    // Rule 2 check
+    let consecSameSide = 0;
+    let prevSide: "above" | "below" | null = null;
+    for (const r of rates) {
+      const currentSide = r >= overallRate ? "above" : "below";
+      if (currentSide === prevSide) {
+        consecSameSide++;
+        if (consecSameSide >= 9) r2++;
+      } else {
+        prevSide = currentSide;
+        consecSameSide = 1;
       }
-      if (inc || dec) r3++;
+    }
+
+    // Rule 3 check (6 points in a row steadily increasing or decreasing)
+    let consecTrend = 0;
+    let prevDiff = 0;
+    for (let i = 1; i < rates.length; i++) {
+      const diff = rates[i] - rates[i - 1];
+      const sameDirection = (diff > 0 && prevDiff > 0) || (diff < 0 && prevDiff < 0);
+      if (sameDirection) {
+        consecTrend++;
+        if (consecTrend >= 5) r3++; // 5 differences is 6 consecutive points
+      } else {
+        prevDiff = diff;
+        consecTrend = 1;
+      }
     }
 
     return {
-      rate,
       tr,
-      mean,
       ucl,
+      mean: overallRate,
       lcl,
       r1,
       r2,
@@ -357,9 +356,28 @@ export default function SpcPage() {
           </p>
         </div>
 
-        {events === null && (
-          <div style={{ padding: 48, textAlign: "center", color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
-            Running statistical analysis...
+        {isLoading && (
+          <PageLoader message="Running statistical analysis..." minHeight="40vh" />
+        )}
+
+        {!isLoading && (!events || events.length === 0) && (
+          <div style={{ padding: "48px 24px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, marginBottom: 8, color: "var(--text)" }}>
+              No Data Available
+            </div>
+            <p className="muted" style={{ fontSize: 13, margin: "0 0 16px" }}>
+              Please upload monthly inspection workbooks in Staging &amp; Review to populate these metrics.
+            </p>
+            <a
+              href="/staging"
+              style={{
+                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12.5,
+                color: "var(--paper)", background: "var(--accent)", border: "none",
+                padding: "8px 16px", borderRadius: "var(--radius-md)", cursor: "pointer"
+              }}
+            >
+              Go to Staging &amp; Review →
+            </a>
           </div>
         )}
 
@@ -372,7 +390,7 @@ export default function SpcPage() {
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2.2fr) minmax(0, 0.8fr)", gap: 20 }}>
-                <Card title={`X-Bar Control Chart (${t.grain.toUpperCase()} Rejection Rate)`} onClick={() => openModal("Control Chart", modalText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+                <Card title={`X-Bar Control Chart (${t.grain.toUpperCase()} Rejection Rate)`} onClick={() => openModal("Control Chart", modalText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.mean) })}>
                   <XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} />
                 </Card>
 

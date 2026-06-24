@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
+import { useEvents } from "@/components/app/EventsContext";
 import { Card } from "@/components/app/widgets";
 import Icon from "@/components/editorial/Icon";
 import {
@@ -16,18 +17,8 @@ import {
 import type { Event } from "@/lib/store/types";
 
 export default function ReportsPage() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((body) => {
-        setEvents(body.events ?? []);
-      })
-      .catch(console.warn)
-      .finally(() => setLoading(false));
-  }, []);
+  const { events: contextEvents, isLoading } = useEvents();
+  const events = contextEvents ?? [];
 
   const m = useMemo(() => {
     if (events.length === 0) return null;
@@ -273,7 +264,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Printable Report Wrapper */}
-        {loading ? (
+        {isLoading ? (
           <div style={{ padding: 48, textAlign: "center", color: "var(--text-3)", fontFamily: "var(--font-mono)" }} className="no-print">
             Compiling report statistics...
           </div>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { TweaksProvider } from "@/components/editorial/TweaksContext";
+import { EventsProvider } from "@/components/app/EventsContext";
 
 export const metadata: Metadata = {
   title: "RAIS Pro — Rejection Diagnostic",
@@ -29,7 +30,9 @@ export default function RootLayout({
           }}
         />
         <TweaksProvider>
-          {children}
+          <EventsProvider>
+            {children}
+          </EventsProvider>
         </TweaksProvider>
       </body>
     </html>

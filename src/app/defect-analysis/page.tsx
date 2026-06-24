@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
+import PageLoader from "@/components/app/PageLoader";
+import { useEvents } from "@/components/app/EventsContext";
 import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import {
@@ -54,7 +56,8 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
 
 export default function DefectAnalysisPage() {
   const { t } = useTweaks();
-  const [events, setEvents] = useState<Event[] | null>(null);
+  const { events: contextEvents, isLoading } = useEvents();
+  const events = contextEvents ? (contextEvents as any[]) : null;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
@@ -78,11 +81,6 @@ export default function DefectAnalysisPage() {
   };
 
   useEffect(() => {
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((b) => setEvents(b.events ?? []))
-      .catch(() => setEvents([]));
-
     // Load stashed raw sheets if any are available in sessionStorage
     try {
       let activeId = sessionStorage.getItem("rais_active_session_id");
@@ -116,14 +114,12 @@ export default function DefectAnalysisPage() {
     const allPeriods = periodsIn(events, t.grain);
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
-    const trendScope: Scope = scope; // carries the stage filter into the trends
-
     const defects = byDefect(events, scope);
-    const dt = defectTrend(events, trendScope, 5);
+    const trend = defectTrend(events, scope);
 
     return {
       defects,
-      defectTrend: dt,
+      defectTrend: trend,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
   }, [events, scope, t.grain]);
@@ -142,9 +138,28 @@ export default function DefectAnalysisPage() {
           </p>
         </div>
 
-        {events === null && (
-          <div style={{ padding: 48, textAlign: "center", color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
-            Aggregating defect logs...
+        {isLoading && (
+          <PageLoader message="Aggregating defect logs..." minHeight="40vh" />
+        )}
+
+        {!isLoading && (!events || events.length === 0) && (
+          <div style={{ padding: "48px 24px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, marginBottom: 8, color: "var(--text)" }}>
+              No Data Available
+            </div>
+            <p className="muted" style={{ fontSize: 13, margin: "0 0 16px" }}>
+              Please upload monthly inspection workbooks in Staging &amp; Review to populate these metrics.
+            </p>
+            <a
+              href="/staging"
+              style={{
+                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12.5,
+                color: "var(--paper)", background: "var(--accent)", border: "none",
+                padding: "8px 16px", borderRadius: "var(--radius-md)", cursor: "pointer"
+              }}
+            >
+              Go to Staging &amp; Review →
+            </a>
           </div>
         )}
 
@@ -185,10 +200,10 @@ export default function DefectAnalysisPage() {
             </div>
             {hasLeft && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: 20, alignItems: "start" }}>
-                <Card title="Defect Share">
+                <Card title="Defect Share" onClick={() => openModal("Defect Share", "Relative percentage contribution of each defect category to total rejections.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={donutData} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(donutData.reduce((s, d) => s + d.value, 0)) })}>
                   <Donut data={donutData} />
                 </Card>
-                <Card title={`Defect Hotspots (${grainLabel})`} sub="rejected qty by defect × period">
+                <Card title={`Defect Hotspots (${grainLabel})`} sub="rejected qty by defect × period" onClick={() => openModal(`Defect Hotspots (${grainLabel})`, "Distribution of rejected quantities across defect categories and production periods.", <div style={{ minHeight: 320, display: "flex", flexDirection: "column", justifyContent: "center" }}><Heatmap rows={heatRows} cols={heatCols} matrix={heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
                   <Heatmap rows={heatRows} cols={heatCols} matrix={heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} />
                 </Card>
               </div>

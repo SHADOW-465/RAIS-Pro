@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
+import { useEvents } from "@/components/app/EventsContext";
 import InsightSlide from "@/components/InsightSlide";
 import { getDeviceId } from "@/lib/device-id";
 import type { DashboardConfig, InsightSlide as InsightSlideType } from "@/types/dashboard";
@@ -58,6 +59,9 @@ function ChatContent() {
   const [activeConfig, setActiveConfig] = useState<DashboardConfig | null>(null);
   const [activeSummary, setActiveSummary] = useState("");
 
+  const { events: contextEvents } = useEvents();
+  const events = useMemo(() => contextEvents ?? [], [contextEvents]);
+
   const threadEndRef = useRef<HTMLDivElement>(null);
 
   // Setup Device ID
@@ -78,66 +82,60 @@ function ChatContent() {
 
   // Load Ledger Data
   useEffect(() => {
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((body) => {
-        const events = (body.events ?? []) as Event[];
-        if (events.length > 0) {
-          const scope = { grain: "month" as const };
-          const rate = rejectionRate(events, scope).value;
-          const rejected = totalRejected(events, scope).value;
-          const checked = totalChecked(events, scope).value;
-          const fpyVal = fpy(events, scope).value;
-          const stages = byStage(events, scope);
-          const defects = byDefect(events, scope);
-          const tr = trend(events, scope, "rejectionRate");
-          const copqRes = copq(events, scope);
-          const savings = savingsOpportunity(events, scope);
-          const trust = trustScore(events, scope);
+    if (events.length > 0) {
+      const scope = { grain: "month" as const };
+      const rate = rejectionRate(events, scope).value;
+      const rejected = totalRejected(events, scope).value;
+      const checked = totalChecked(events, scope).value;
+      const fpyVal = fpy(events, scope).value;
+      const stages = byStage(events, scope);
+      const defects = byDefect(events, scope);
+      const tr = trend(events, scope, "rejectionRate");
+      const copqRes = copq(events, scope);
+      const savings = savingsOpportunity(events, scope);
+      const trust = trustScore(events, scope);
 
-          const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
-          const rupee = (n: number) => `₹${(n / 100000).toFixed(2)}L`;
-          const num = (n: number) => n.toLocaleString();
+      const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
+      const rupee = (n: number) => `₹${(n / 100000).toFixed(2)}L`;
+      const num = (n: number) => n.toLocaleString();
 
-          const computedConfig: DashboardConfig = {
-            dashboardTitle: "Live Staging Ledger",
-            executiveSummary: `Overall rejection rate is ${pct(rate)}. Visual Inspection contributes the highest rejection volume.`,
-            kpis: [
-              { label: "Rejection Rate", value: pct(rate), unit: "", trend: 0, context: "YTD average" },
-              { label: "Total Rejections", value: num(rejected), unit: "", trend: 0, context: "YTD total" },
-              { label: "First Pass Yield (FPY)", value: pct(fpyVal), unit: "", trend: 0, context: "YTD FPY" },
-              { label: "COPQ (This Month)", value: rupee(copqRes?.value ?? 0), unit: "", trend: 0, context: "Month total" },
-              { label: "Savings Opportunity", value: rupee(savings ?? 0), unit: "", trend: 0, context: "Annual Potential" },
-            ],
-            charts: [
-              {
-                title: "Rejection Rate Trend",
-                type: "line",
-                data: {
-                  labels: tr.map((p) => p.label),
-                  datasets: [{ label: "Rejection Rate", data: tr.map((p) => p.value) }],
-                },
-              },
-            ],
-            insights: [
-              `Total production checked is ${num(checked)} units.`,
-              `Discrepancy count stands at ${num(rejected)} rejected.`,
-            ],
-            recommendations: [],
-            alerts: [],
-            sections: [],
-          };
+      const computedConfig: DashboardConfig = {
+        dashboardTitle: "Live Staging Ledger",
+        executiveSummary: `Overall rejection rate is ${pct(rate)}. Visual Inspection contributes the highest rejection volume.`,
+        kpis: [
+          { label: "Rejection Rate", value: pct(rate), unit: "", trend: 0, context: "YTD average" },
+          { label: "Total Rejections", value: num(rejected), unit: "", trend: 0, context: "YTD total" },
+          { label: "First Pass Yield (FPY)", value: pct(fpyVal), unit: "", trend: 0, context: "YTD FPY" },
+          { label: "COPQ (This Month)", value: rupee(copqRes?.value ?? 0), unit: "", trend: 0, context: "Month total" },
+          { label: "Savings Opportunity", value: rupee(savings ?? 0), unit: "", trend: 0, context: "Annual Potential" },
+        ],
+        charts: [
+          {
+            title: "Rejection Rate Trend",
+            type: "line",
+            data: {
+              labels: tr.map((p) => p.label),
+              datasets: [{ label: "Rejection Rate", data: tr.map((p) => p.value) }],
+            },
+          },
+        ],
+        insights: [
+          `Total production checked is ${num(checked)} units.`,
+          `Discrepancy count stands at ${num(rejected)} rejected.`,
+        ],
+        recommendations: [],
+        alerts: [],
+        sections: [],
+      };
 
-          setLedgerConfig(computedConfig);
-          setLedgerSummary(JSON.stringify(computedConfig.insights));
+      setLedgerConfig(computedConfig);
+      setLedgerSummary(JSON.stringify(computedConfig.insights));
 
-          // Default active context is ledger
-          setActiveConfig(computedConfig);
-          setActiveSummary(JSON.stringify(computedConfig.insights));
-        }
-      })
-      .catch(console.warn);
-  }, []);
+      // Default active context is ledger
+      setActiveConfig(computedConfig);
+      setActiveSummary(JSON.stringify(computedConfig.insights));
+    }
+  }, [events]);
 
   // Update active context configuration when selection changes
   const handleContextChange = async (contextId: string) => {

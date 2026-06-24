@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Icon, { type IconName } from "@/components/editorial/Icon";
 import { useTweaks } from "@/components/editorial/TweaksContext";
+import { useEvents } from "@/components/app/EventsContext";
 
 export type NavKey =
   | "dashboard" | "data-entry" | "staging" | "stage" | "size" | "defect"
@@ -99,6 +100,8 @@ export default function AppShell({
 
   const suggestedGrain = mounted ? getSuggestedGrain() : "month";
 
+  const { events } = useEvents();
+
   useEffect(() => {
     setMounted(true);
     fetch("/api/schema")
@@ -109,37 +112,34 @@ export default function AppShell({
       .catch(() => {
         setIsConfigured(true);
       });
-
-    fetch("/api/events")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.events && data.events.length > 0) {
-          const dates = data.events.map((e: any) => e.occurredOn.start).sort();
-          const min = dates[0];
-          const max = dates[dates.length - 1];
-          setDateMinMax({ min, max });
-
-          // Auto-suggest grain on initial load if preset is all
-          if (t.datePreset === "all") {
-            const d1 = new Date(min + "T00:00:00Z");
-            const d2 = new Date(max + "T00:00:00Z");
-            const days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
-            let suggested: "day" | "week" | "month" | "fy" = "month";
-            if (days < 90) {
-              suggested = "day";
-            } else if (days < 365) {
-              suggested = "week";
-            } else if (days <= 1095) {
-              suggested = "month";
-            } else {
-              suggested = "fy";
-            }
-            setTweak("grain", suggested);
-          }
-        }
-      })
-      .catch((err) => console.error("Failed to load events for date range calculation", err));
   }, []);
+
+  useEffect(() => {
+    if (events && events.length > 0) {
+      const dates = events.map((e: any) => e.occurredOn.start).sort();
+      const min = dates[0];
+      const max = dates[dates.length - 1];
+      setDateMinMax({ min, max });
+
+      // Auto-suggest grain on initial load if preset is all
+      if (t.datePreset === "all") {
+        const d1 = new Date(min + "T00:00:00Z");
+        const d2 = new Date(max + "T00:00:00Z");
+        const days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
+        let suggested: "day" | "week" | "month" | "fy" = "month";
+        if (days < 90) {
+          suggested = "day";
+        } else if (days < 365) {
+          suggested = "week";
+        } else if (days <= 1095) {
+          suggested = "month";
+        } else {
+          suggested = "fy";
+        }
+        setTweak("grain", suggested);
+      }
+    }
+  }, [events, t.datePreset, setTweak]);
 
   const lastDateSettingsRef = useRef({ preset: t.datePreset, from: t.dateFrom, to: t.dateTo });
 
@@ -195,11 +195,9 @@ export default function AppShell({
     if (exporting) return;
     setExporting(true);
     try {
-      const res = await fetch("/api/events");
-      const body = await res.json();
-      const events: any[] = body.events ?? [];
+      const exportEvents = events ?? [];
       const { buildAuditPackage } = await import("@/lib/audit-package");
-      const { blob, fileName } = await buildAuditPackage(events, { grain: "month" });
+      const { blob, fileName } = await buildAuditPackage(exportEvents, { grain: "month" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

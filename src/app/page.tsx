@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
+import { useEvents } from "@/components/app/EventsContext";
 import Icon from "@/components/editorial/Icon";
 import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
@@ -24,6 +25,7 @@ import {
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import PageLoader from "@/components/app/PageLoader";
 import ParetoChart from "@/components/ParetoChart";
 import { safeBolden } from "@/components/Dashboard";
 import { calculatePareto } from "@/lib/dashboard-builder";
@@ -86,11 +88,11 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
 }
 
 export default function Dashboard() {
-  const { t } = useTweaks();
   const router = useRouter();
-  const [events, setEvents] = useState<Event[] | null>(null);
+  const { t } = useTweaks();
+  const { events, isLoading } = useEvents();
   const [selectedSize, setSelectedSize] = useState("Fr16");
-  const [targetRej, setTargetRej] = useState(0.10);
+  const [targetRej, setTargetRej] = useState<number>(0.03);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
@@ -114,11 +116,6 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((b) => setEvents(b.events ?? []))
-      .catch(() => setEvents([]));
-    
     // Load target rejection rate from settings/localStorage
     setTargetRej(getTargetRejectionRate());
 
@@ -373,12 +370,10 @@ export default function Dashboard() {
 
   return (
     <AppShell active="dashboard" trustScore={m?.trust.pct ?? null} statusCounts={{ anomalies: 0, alerts: 0, capa: 0, overdue: 0 }} dateRange={m?.latestPeriodLabel}>
-      {events === null && (
-        <div style={{ padding: 120, textAlign: "center", color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
-          Initializing the intelligence ledger...
-        </div>
+      {isLoading && (
+        <PageLoader message="Initializing the intelligence ledger..." minHeight="60vh" />
       )}
-      {events !== null && events.length === 0 && (
+      {!isLoading && events && events.length === 0 && (
         <div style={{ padding: "72px 32px", textAlign: "center" }}>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 12 }}>
             No data yet

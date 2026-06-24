@@ -6,6 +6,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
+import { useEvents } from "@/components/app/EventsContext";
 import { Card, Empty } from "@/components/app/widgets";
 import UploadZone from "@/components/UploadZone";
 import Icon from "@/components/editorial/Icon";
@@ -15,6 +16,7 @@ import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 
 export default function StagingPage() {
   const router = useRouter();
+  const { refreshEvents } = useEvents();
   const [ingestionId] = useState(() => globalThis.crypto?.randomUUID?.() ?? `ing-${Date.now()}`);
   const [records, setRecords] = useState<StageDayRecord[]>([]);
   const [fileName, setFileName] = useState("");
@@ -470,6 +472,7 @@ export default function StagingPage() {
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Publish failed");
       const r = await res.json();
       setDone({ inserted: r.inserted, deduped: r.deduped });
+      refreshEvents().catch(console.error);
     } catch (e: any) { 
       setError(e?.message ?? "Publish failed"); 
     } finally { 
