@@ -43,6 +43,10 @@ export default function StagingPage() {
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
   const [isMasterMode, setIsMasterMode] = useState(false);
 
+  // New Column Mapping Carryover
+  const [newColumns, setNewColumns] = useState<{ stageId: string; colName: string; type: string }[]>([]);
+  const [confirmMappings, setConfirmMappings] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     fetch("/api/schema")
       .then(res => res.json())
@@ -157,6 +161,47 @@ export default function StagingPage() {
       }
 
       setExtractedSchema(firstSchema);
+      
+      // Detect new columns introduced by this upload compared to registry
+      const regToCompare = activeRegistry || DISPOSAFE_REGISTRY;
+      if (firstSchema && regToCompare) {
+        const newCols: { stageId: string; colName: string; type: string }[] = [];
+        firstSchema.stages.forEach((extractedStage: any) => {
+          const activeStage = regToCompare.stages.find((s: any) => s.stageId === extractedStage.stageId);
+          if (activeStage) {
+            // Retrieve active fields, fallback to default schema fields
+            const activeFields = activeStage.fields || [
+              { name: "Checked Qty" },
+              { name: "Good Qty" },
+              { name: "Rework Qty" },
+              { name: "Rejected Qty" }
+            ];
+            const activeFieldNames = activeFields.map((f: any) => f.name.toLowerCase());
+            
+            extractedStage.fields.forEach((f: any) => {
+              // Ignore standard structural fields
+              if (f.role === "date" || f.name.startsWith("__EMPTY")) return;
+              if (!activeFieldNames.includes(f.name.toLowerCase())) {
+                newCols.push({
+                  stageId: extractedStage.stageId,
+                  colName: f.name,
+                  type: f.type === "number" ? "number" : "text"
+                });
+              }
+            });
+          }
+        });
+        setNewColumns(newCols);
+        
+        const initialConfirm: Record<string, boolean> = {};
+        newCols.forEach((c) => {
+          initialConfirm[`${c.stageId}|${c.colName}`] = true;
+        });
+        setConfirmMappings(initialConfirm);
+      } else {
+        setNewColumns([]);
+      }
+
       if (allRawSheets.length > 0) setRawSheetsData(allRawSheets);
       setRecords(classifiedRecords);
       setFileName(files.length === 1 ? files[0].name : `${files.length} files`);
@@ -354,6 +399,60 @@ export default function StagingPage() {
   async function publish() {
     setBusy(true); setError(null);
     try {
+      const approvedNewCols = newColumns.filter(c => confirmMappings[`${c.stageId}|${c.colName}`]);
+      const regToUpdate = activeRegistry || DISPOSAFE_REGISTRY;
+      
+      if (approvedNewCols.length > 0 && regToUpdate) {
+        // Clone registry stages and inject new fields
+        const updatedStages = regToUpdate.stages.map((stage: any) => {
+          const defaultFields = [
+            { name: "Checked Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" },
+            { name: "Good Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
+            { name: "Rework Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
+            { name: "Rejected Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" }
+          ];
+          const fields = stage.fields ? [...stage.fields] : [...defaultFields];
+          
+          approvedNewCols.forEach((newCol) => {
+            if (newCol.stageId === stage.stageId) {
+              const alreadyExists = fields.some(f => f.name.toLowerCase() === newCol.colName.toLowerCase());
+              if (!alreadyExists) {
+                fields.push({
+                  name: newCol.colName,
+                  type: newCol.type as any,
+                  required: false,
+                  addAs: "column",
+                  appliesTo: "selected",
+                  selectedStages: [stage.stageId]
+                });
+              }
+            }
+          });
+          return {
+            ...stage,
+            fields
+          };
+        });
+
+        // Save new schema config
+        const regRes = await fetch("/api/schema", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            registry: {
+              ...regToUpdate,
+              stages: updatedStages
+            }
+          })
+        });
+
+        if (!regRes.ok) throw new Error("Failed to update registry schema with new custom fields");
+        const regData = await regRes.json();
+        if (regData.registry) {
+          setActiveRegistry(regData.registry);
+        }
+      }
+
       const res = await fetch("/api/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -362,7 +461,11 @@ export default function StagingPage() {
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Publish failed");
       const r = await res.json();
       setDone({ inserted: r.inserted, deduped: r.deduped });
-    } catch (e: any) { setError(e?.message ?? "Publish failed"); } finally { setBusy(false); }
+    } catch (e: any) { 
+      setError(e?.message ?? "Publish failed"); 
+    } finally { 
+      setBusy(false); 
+    }
   }
 
   const dq = [
@@ -455,6 +558,39 @@ export default function StagingPage() {
               </div>
             </div>
           </Card>
+
+          {/* New Column Mappings Card */}
+          {newColumns.length > 0 && (
+            <Card title="New Column Mappings Detected" sub="These columns will be added to the registry schema upon publishing.">
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {newColumns.map((c) => {
+                  const key = `${c.stageId}|${c.colName}`;
+                  const isConfirmed = !!confirmMappings[key];
+                  return (
+                    <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--surface-2)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isConfirmed} 
+                          onChange={(e) => setConfirmMappings(prev => ({ ...prev, [key]: e.target.checked }))}
+                          style={{ width: 15, height: 15, cursor: "pointer" }}
+                        />
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{c.colName}</div>
+                          <div style={{ fontSize: 10, color: "var(--text-3)" }}>
+                            Stage: {activeRegistry?.stages?.find((s: any) => s.stageId === c.stageId)?.label || c.stageId} (Type: {c.type})
+                          </div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 10, background: "color-mix(in srgb, var(--accent) 14%, transparent)", color: "var(--accent)", padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>
+                        New Custom Field
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
 
           {/* ─── Invalid-row Error Navigator ─────────────────────────────────── */}
           {invalidRows.length > 0 && (

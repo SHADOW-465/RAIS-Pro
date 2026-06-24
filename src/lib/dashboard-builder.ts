@@ -126,6 +126,14 @@ export function metricsToKpis(result: MetricsResult): KPI[] {
 
 // ── 4. metrics → charts ──────────────────────────────────────────────────────
 
+const STAGE_LABELS: Record<string, string> = {
+  visual: "Visual Inspection",
+  "eye-punching": "Eye Punching",
+  balloon: "Balloon Testing",
+  "valve-integrity": "Valve Integrity",
+  final: "Final Inspection",
+};
+
 export function metricsToCharts(result: MetricsResult): Chart[] {
   const charts: Chart[] = [];
 
@@ -136,7 +144,7 @@ export function metricsToCharts(result: MetricsResult): Chart[] {
       type: "bar",
       description: "Where in the inspection funnel units are lost.",
       data: {
-        labels: stages.map((s) => s.stage),
+        labels: stages.map((s) => STAGE_LABELS[s.stage] || s.stage),
         datasets: [
           {
             label: "Rejection rate %",

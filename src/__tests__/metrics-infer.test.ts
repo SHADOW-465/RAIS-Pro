@@ -60,20 +60,20 @@ test("assembly funnel: stage grouping + derived/ignore roles + stageOrder", () =
   expect(g.isSummary).toBe(false);
 
   expect(roleOf(g, "VISUAL QTY")).toBe("stage_checked");
-  expect(stageOf(g, "VISUAL QTY")).toBe("Visual");
+  expect(stageOf(g, "VISUAL QTY")).toBe("visual");
   expect(roleOf(g, "VISUAL ACPT QTY")).toBe("stage_accepted");
   expect(roleOf(g, "REJ QTY")).toBe("stage_rejected");
-  expect(stageOf(g, "REJ QTY")).toBe("Visual");
+  expect(stageOf(g, "REJ QTY")).toBe("visual");
 
   expect(roleOf(g, "REJ %")).toBe("ignore");
 
   expect(roleOf(g, "BALLOON CHKD QTY")).toBe("stage_checked");
-  expect(stageOf(g, "BALLOON CHKD QTY")).toBe("Balloon");
+  expect(stageOf(g, "BALLOON CHKD QTY")).toBe("balloon");
   expect(roleOf(g, "REJ QTY (2)")).toBe("stage_rejected");
-  expect(stageOf(g, "REJ QTY (2)")).toBe("Balloon");
+  expect(stageOf(g, "REJ QTY (2)")).toBe("balloon");
 
   expect(roleOf(g, "VALVE INT CHKD QTY")).toBe("stage_checked");
-  expect(stageOf(g, "VALVE INT CHKD QTY")).toBe("Valve Integrity");
+  expect(stageOf(g, "VALVE INT CHKD QTY")).toBe("valve-integrity");
   expect(roleOf(g, "VALVE INTY REJ Qty")).toBe("stage_rejected");
 
   expect(roleOf(g, "FINAL CHECKED QTY")).toBe("derived_total");
@@ -81,7 +81,7 @@ test("assembly funnel: stage grouping + derived/ignore roles + stageOrder", () =
   expect(roleOf(g, "TOTAL REJ QTY")).toBe("derived_total");
   expect(roleOf(g, "FINAL REJ %")).toBe("ignore");
 
-  expect(g.stageOrder).toEqual(["Visual", "Balloon", "Valve Integrity"]);
+  expect(g.stageOrder).toEqual(["visual", "balloon", "valve-integrity"]);
 });
 
 test("assembly Nov-Jan shape: Eye Punching is the entry stage", () => {
@@ -100,12 +100,12 @@ test("assembly Nov-Jan shape: Eye Punching is the entry stage", () => {
   ]);
   const g = inferSheetGraph(s);
   expect(g.reportType).toBe("assembly");
-  expect(g.stageOrder[0]).toBe("Eye Punching");
-  expect(stageOf(g, "EYE PUNCHING QTY")).toBe("Eye Punching");
+  expect(g.stageOrder[0]).toBe("eye-punching");
+  expect(stageOf(g, "EYE PUNCHING QTY")).toBe("eye-punching");
   expect(roleOf(g, "EYE PUNCHING QTY")).toBe("stage_checked");
   expect(roleOf(g, "EYE PUNCHING ACPT")).toBe("stage_accepted");
-  expect(stageOf(g, "REJ QTY")).toBe("Eye Punching");
-  expect(stageOf(g, "REJ QTY (2)")).toBe("Visual");
+  expect(stageOf(g, "REJ QTY")).toBe("eye-punching");
+  expect(stageOf(g, "REJ QTY (2)")).toBe("visual");
 });
 
 // ─── synthetic BALLOON & VALVE ──────────────────────────────────────────────────
@@ -130,16 +130,16 @@ test("balloon_valve: two stages + reason_count columns", () => {
   const g = inferSheetGraph(s);
   expect(g.reportType).toBe("balloon_valve");
   expect(roleOf(g, "CHECKED QTY")).toBe("stage_checked");
-  expect(stageOf(g, "CHECKED QTY")).toBe("Stage 1");
+  expect(stageOf(g, "CHECKED QTY")).toBe("balloon");
   expect(roleOf(g, "REJ. QTY")).toBe("stage_rejected");
   expect(roleOf(g, "REJ. %")).toBe("ignore");
   expect(roleOf(g, "STRUCK BALLOON")).toBe("reason_count");
   expect(roleOf(g, "LEAKAGE")).toBe("reason_count");
   expect(roleOf(g, "CHECKED QTY (2)")).toBe("stage_checked");
-  expect(stageOf(g, "CHECKED QTY (2)")).toBe("Stage 2");
+  expect(stageOf(g, "CHECKED QTY (2)")).toBe("valve-integrity");
   expect(roleOf(g, "HOLD QTY (2)")).toBe("stage_hold");
   expect(roleOf(g, "THIN SPOD")).toBe("reason_count");
-  expect(g.stageOrder).toEqual(["Stage 1", "Stage 2"]);
+  expect(g.stageOrder).toEqual(["balloon", "valve-integrity"]);
 });
 
 // ─── synthetic SHOPFLOOR ────────────────────────────────────────────────────────
@@ -200,7 +200,7 @@ test("visual batch sheet: REC QTY entry stage 'Overall'", () => {
   ]);
   const g = inferSheetGraph(s);
   expect(roleOf(g, "REC. QTY")).toBe("stage_checked");
-  expect(stageOf(g, "REC. QTY")).toBe("Overall");
+  expect(stageOf(g, "REC. QTY")).toBe("overall");
   expect(roleOf(g, "ACCEPT QTY")).toBe("stage_accepted");
   expect(roleOf(g, "HOLD QTY")).toBe("stage_hold");
   expect(roleOf(g, "REJ. QTY")).toBe("stage_rejected");
@@ -249,9 +249,9 @@ test("real ASSEMBLY APRIL roles via parser", () => {
   const g = inferSheetGraph(apr);
   expect(g.reportType).toBe("assembly");
   expect(roleOf(g, "VISUAL QTY")).toBe("stage_checked");
-  expect(stageOf(g, "VISUAL QTY")).toBe("Visual");
+  expect(stageOf(g, "VISUAL QTY")).toBe("visual");
   expect(roleOf(g, "REJ QTY")).toBe("stage_rejected");
   expect(roleOf(g, "TOTAL REJ QTY")).toBe("derived_total");
   expect(roleOf(g, "REJ %")).toBe("ignore");
-  expect(g.stageOrder[0]).toBe("Visual");
+  expect(g.stageOrder[0]).toBe("visual");
 });

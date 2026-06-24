@@ -12,6 +12,13 @@ function slugify(s: string): string {
     .replace(/-+$/, '');
 }
 
+const DEFAULT_FIELDS = [
+  { name: "Checked Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" },
+  { name: "Good Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
+  { name: "Rework Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
+  { name: "Rejected Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" }
+];
+
 export async function GET(req: NextRequest) {
   try {
     const db = createServerClient();
@@ -24,19 +31,34 @@ export async function GET(req: NextRequest) {
     if (error) throw error;
 
     if (data) {
+      const enrichedStages = (data.stages || []).map((stage: any) => ({
+        ...stage,
+        fields: stage.fields || DEFAULT_FIELDS
+      }));
       return NextResponse.json({
         registry: {
           clientId: data.client_id,
           registryVersion: data.registry_version,
           fiscalYearStartMonth: data.fiscal_year_start_month,
-          stages: data.stages,
-          defects: data.defects,
+          stages: enrichedStages,
+          defects: data.defects || [],
         },
         configured: true
       });
     }
 
-    return NextResponse.json({ registry: DISPOSAFE_REGISTRY, configured: false });
+    const defaultEnrichedStages = DISPOSAFE_REGISTRY.stages.map((stage: any) => ({
+      ...stage,
+      fields: stage.fields || DEFAULT_FIELDS
+    }));
+
+    return NextResponse.json({
+      registry: {
+        ...DISPOSAFE_REGISTRY,
+        stages: defaultEnrichedStages
+      },
+      configured: false
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? "Failed to load registry" }, { status: 500 });
   }
@@ -45,51 +67,28 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { schema } = body as { schema: any };
+    const payload = body.registry || body.schema;
 
-    if (!schema || !Array.isArray(schema.stages)) {
+    if (!payload || !Array.isArray(payload.stages)) {
       return NextResponse.json({ error: "Invalid schema payload." }, { status: 400 });
     }
 
-    // Translate dynamic ExtractedSchema into ClientRegistry structure
-    const stages = schema.stages.map((stage: any, sIdx: number) => {
-      const stageId = stage.stageId || slugify(stage.label);
-      // Automatically link stage flow upstream relationships
-      const upstream = sIdx > 0 ? [schema.stages[sIdx - 1].stageId || slugify(schema.stages[sIdx - 1].label)] : [];
+    const stages = payload.stages.map((stage: any, sIdx: number) => {
+      const stageId = stage.stageId || slugify(stage.label || stage.name);
+      const upstream = stage.upstream || (sIdx > 0 ? [payload.stages[sIdx - 1].stageId || slugify(payload.stages[sIdx - 1].label || payload.stages[sIdx - 1].name)] : []);
+      const fields = stage.fields || DEFAULT_FIELDS;
+
       return {
         stageId,
-        label: stage.label,
-        effectiveFrom: null,
-        effectiveTo: null,
+        label: stage.label || stage.name,
+        fields,
         upstream,
+        effectiveFrom: stage.effectiveFrom || null,
+        effectiveTo: stage.effectiveTo || null,
       };
     });
 
-    // Map defect columns across all stages
-    const defectsMap = new Map<string, { defectCode: string; label: string; aliases: string[]; stages: string[] }>();
-    schema.stages.forEach((stage: any) => {
-      const stageId = stage.stageId || slugify(stage.label);
-      stage.fields.forEach((field: any) => {
-        if (field.role === "defect") {
-          const code = field.name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-          const existing = defectsMap.get(code);
-          if (existing) {
-            if (!existing.stages.includes(stageId)) {
-              existing.stages.push(stageId);
-            }
-          } else {
-            defectsMap.set(code, {
-              defectCode: code,
-              label: field.name,
-              aliases: [field.name, code],
-              stages: [stageId],
-            });
-          }
-        }
-      });
-    });
-
-    const defects = Array.from(defectsMap.values());
+    const defects = payload.defects || DISPOSAFE_REGISTRY.defects;
 
     const db = createServerClient();
     const { error } = await db.from("registries").upsert({

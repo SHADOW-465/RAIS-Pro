@@ -107,11 +107,11 @@ function isReasonToken(name: string): boolean {
 // CHKD QTY" contains neither, but we match on specific prefixes.
 function stageNameFromChecked(name: string): string | null {
   const b = baseName(name).toLowerCase();
-  if (/^eye punching qty/.test(b)) return "Eye Punching";
-  if (/^visual\s*qty/.test(b)) return "Visual";
-  if (/^valve int(y)?\s*chkd/.test(b) || /^valve int\s*chkd/.test(b)) return "Valve Integrity";
-  if (/^balloon chkd qty/.test(b)) return "Balloon";
-  if (/^rec\.?\s*qty/.test(b)) return "Overall";
+  if (/^eye punching qty/.test(b)) return "eye-punching";
+  if (/^visual\s*qty/.test(b)) return "visual";
+  if (/^valve int(y)?\s*chkd/.test(b) || /^valve int\s*chkd/.test(b)) return "valve-integrity";
+  if (/^balloon chkd qty/.test(b)) return "balloon";
+  if (/^rec\.?\s*qty/.test(b)) return "overall";
   return null;
 }
 
@@ -129,7 +129,7 @@ export function inferSheetGraph(summary: SheetSummary): SheetGraph {
   const stageOrder: string[] = [];
   let currentStage: string | null = null; // open stage for trailing accept/rej/hold
 
-  // For balloon, CHECKED QTY columns open generic "Stage N" stages.
+  // For balloon, CHECKED QTY columns open generic stages.
   let balloonStageCounter = 0;
 
   // Once a TOTAL/FINAL aggregate column appears (assembly), every subsequent
@@ -192,7 +192,7 @@ export function inferSheetGraph(summary: SheetSummary): SheetGraph {
       let stageName = openedStage;
       if (reportType === "balloon_valve") {
         balloonStageCounter += 1;
-        stageName = `Stage ${balloonStageCounter}`;
+        stageName = balloonStageCounter === 1 ? "balloon" : "valve-integrity";
       }
       currentStage = stageName;
       if (!stageOrder.includes(stageName)) stageOrder.push(stageName);
@@ -203,7 +203,7 @@ export function inferSheetGraph(summary: SheetSummary): SheetGraph {
     // 6. balloon generic "CHECKED QTY" opener (no descriptive prefix)
     if (reportType === "balloon_valve" && /^checked\s*qty/.test(lower)) {
       balloonStageCounter += 1;
-      const stageName = `Stage ${balloonStageCounter}`;
+      const stageName = balloonStageCounter === 1 ? "balloon" : "valve-integrity";
       currentStage = stageName;
       if (!stageOrder.includes(stageName)) stageOrder.push(stageName);
       mappings.push({ column: name, role: "stage_checked", stage: stageName });

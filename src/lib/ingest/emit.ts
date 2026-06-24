@@ -53,6 +53,7 @@ export interface StageDayRecord {
   extractedBy: string;       // "heuristic" | "llm:<model>" | "direct-entry"
   ingestionId: string;
   comment?: string | null;
+  customFields?: Record<string, any>;
 }
 
 const SCHEMA_VERSION = "1.0.0";
@@ -100,9 +101,10 @@ function envelope(rec: StageDayRecord, cells: string[], header: string, formulaT
 /** Emit all canonical events for one stage-day record. Pure (modulo recordedAt). */
 export function emitStageDay(rec: StageDayRecord, reg?: z.infer<typeof ClientRegistry>): Event[] {
   const out: Event[] = [];
+  const customFields = rec.customFields || {};
 
   if (rec.checked && Number.isInteger(rec.checked.value) && rec.checked.value >= 0) {
-    const payload = { stageId: rec.stageId, quantity: rec.checked.value, unit: "pcs" as const, batchNo: null, size: rec.size ?? null };
+    const payload = { stageId: rec.stageId, quantity: rec.checked.value, unit: "pcs" as const, batchNo: null, size: rec.size ?? null, customFields };
     const env = envelope(rec, [rec.checked.cell], rec.checked.header, null, null);
     const eventId = hashEvent({ eventType: "production", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
     out.push(ProductionEvent.parse({ eventId, eventType: "production", ...env, ...payload }));
@@ -110,7 +112,7 @@ export function emitStageDay(rec: StageDayRecord, reg?: z.infer<typeof ClientReg
 
   const inspection = (sv: SourcedValue | null, disposition: "rejected" | "accepted" | "rework") => {
     if (!sv || !Number.isInteger(sv.value) || sv.value < 0) return;
-    const payload = { stageId: rec.stageId, disposition, quantity: sv.value, unit: "pcs" as const, batchNo: null, size: rec.size ?? null };
+    const payload = { stageId: rec.stageId, disposition, quantity: sv.value, unit: "pcs" as const, batchNo: null, size: rec.size ?? null, customFields };
     const env = envelope(rec, [sv.cell], sv.header, null, null);
     const eventId = hashEvent({ eventType: "inspection", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
     out.push(InspectionEvent.parse({ eventId, eventType: "inspection", ...env, ...payload }));
@@ -129,6 +131,7 @@ export function emitStageDay(rec: StageDayRecord, reg?: z.infer<typeof ClientReg
       unit: "pcs" as const,
       batchNo: null,
       size: rec.size ?? null,
+      customFields,
     };
     const env = envelope(rec, [d.cell], d.raw, null, null);
     const eventId = hashEvent({ eventType: "rejection", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
@@ -142,6 +145,7 @@ export function emitStageDay(rec: StageDayRecord, reg?: z.infer<typeof ClientReg
       aggregation: "daily" as const,
       aboutStageId: rec.stageId,
       aboutDefectCode: null,
+      customFields,
     };
     const env = envelope(rec, [rec.statedPct.cell], "REJ %", rec.statedPct.formula, rec.statedPct.value);
     const eventId = hashEvent({ eventType: "aggregate-claim", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
@@ -164,6 +168,7 @@ export function emitStageDay(rec: StageDayRecord, reg?: z.infer<typeof ClientReg
       author: "steward" as const,
       findingId: null,
       verdict: null,
+      customFields,
     };
     const eventId = hashEvent({ eventType: "annotation", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
     out.push(AnnotationEvent.parse({ eventId, eventType: "annotation", ...env, ...payload }));

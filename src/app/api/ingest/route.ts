@@ -25,6 +25,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No records to ingest." }, { status: 400 });
     }
 
+    const isDirectEntry = records.some(r => r.extractedBy === "direct-entry");
+    if (isDirectEntry) {
+      const date = records[0].occurredOn.start;
+      const shift = records[0].source.sheet;
+      
+      const db = createServerClient();
+      const { data: rows } = await db
+        .from("events")
+        .select("event_id, occurred_on, provenance, is_direct_entry")
+        .eq("is_direct_entry", true);
+
+      const toDelete = (rows || []).filter(e => 
+        e.occurred_on?.start === date && 
+        e.provenance?.sheet === shift
+      );
+
+      const ids = toDelete.map(e => e.event_id);
+      
+      if (ids.length > 0) {
+        const { error: delErr } = await db.from("events").delete().in("event_id", ids);
+        if (delErr) throw delErr;
+      }
+    }
+
     // Attach comments to records (keyed by stageId or by row index)
     const recordsWithComments = records.map((r, idx) => {
       const comment = body.comments?.[r.stageId] || body.comments?.[idx.toString()] || null;

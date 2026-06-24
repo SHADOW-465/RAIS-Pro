@@ -81,6 +81,7 @@ const envelopeFields = {
   extractedBy: z.string().min(1), // "heuristic" | "llm:<model-id>"
   recordedAt: z.string().datetime(),
   supersededBy: z.string().nullable(), // set only via Correction
+  customFields: z.record(z.string(), z.any()).optional(),
 };
 
 /* ------------------------------------------------------------------ */

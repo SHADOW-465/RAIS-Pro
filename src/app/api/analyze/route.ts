@@ -57,10 +57,12 @@ function translateMappingToGraph(
 
     let stage = null;
     if (col.targetStage) {
-      if (col.targetStage === "Visual Inspection") stage = "Visual";
-      else if (col.targetStage === "Balloon Testing") stage = "Balloon";
-      else if (col.targetStage === "Final Inspection") stage = "Final";
-      else stage = col.targetStage;
+      if (col.targetStage === "Visual Inspection" || col.targetStage === "Visual") stage = "visual";
+      else if (col.targetStage === "Balloon Testing" || col.targetStage === "Balloon") stage = "balloon";
+      else if (col.targetStage === "Final Inspection" || col.targetStage === "Final") stage = "final";
+      else if (col.targetStage === "Eye Punching") stage = "eye-punching";
+      else if (col.targetStage === "Valve Integrity") stage = "valve-integrity";
+      else stage = col.targetStage.toLowerCase().trim().replace(/\s+/g, '-');
 
       if (role.startsWith("stage_")) {
         stageOrderSet.add(stage);

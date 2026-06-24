@@ -23,6 +23,8 @@ export default function SettingsPage() {
   // Administrative Reset States
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearConfirmText, setClearConfirmText] = useState("");
+  const [showClearSchemaModal, setShowClearSchemaModal] = useState(false);
+  const [clearSchemaConfirmText, setClearSchemaConfirmText] = useState("");
   const [showHardModal, setShowHardModal] = useState(false);
   const [hardConfirmText, setHardConfirmText] = useState("");
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -40,6 +42,26 @@ export default function SettingsPage() {
       setClearConfirmText("");
     } catch (e: any) {
       setActionStatus("Error: " + (e.message ?? "Purge failed"));
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleClearSchema = async () => {
+    if (clearSchemaConfirmText !== "RESET") return;
+    setBusyAction("clear-schema");
+    setActionStatus(null);
+    try {
+      const res = await fetch("/api/clear-schema", { method: "POST" });
+      if (!res.ok) throw new Error("Failed to clear schema registry");
+      setActionStatus("Schema registry reset to defaults successfully.");
+      setShowClearSchemaModal(false);
+      setClearSchemaConfirmText("");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (e: any) {
+      setActionStatus("Error: " + (e.message ?? "Failed to clear schema"));
     } finally {
       setBusyAction(null);
     }
@@ -365,19 +387,19 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
-                {/* Hard factory reset */}
+                {/* Clear schema registry */}
                 <div style={{ border: "1.5px solid var(--status-bad)", borderRadius: "var(--radius-md)", padding: 16, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14, background: "color-mix(in srgb, var(--status-bad) 4%, transparent)" }}>
                   <div>
-                    <h4 style={{ margin: "0 0 6px 0", fontSize: 14, fontWeight: 700, color: "var(--status-bad)" }}>Hard Factory Reset</h4>
+                    <h4 style={{ margin: "0 0 6px 0", fontSize: 14, fontWeight: 700, color: "var(--status-bad)" }}>Clear Schema Registry</h4>
                     <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-3)", lineHeight: "1.5" }}>
-                      Drops all production records AND deletes the master workbook schema definitions. Locks the cockpit until a new master sheet is re-ingested.
+                      Removes all custom-defined fields and custom inspection stages. Resets the schema registry back to the default layout. Keeps base configurations.
                     </p>
                   </div>
                   <button 
-                    onClick={() => { setShowHardModal(true); setActionStatus(null); }}
+                    onClick={() => { setShowClearSchemaModal(true); setActionStatus(null); }}
                     style={{ ...btnPrimary, background: "var(--status-bad)", color: "#fff", width: "100%", padding: "8px 16px" }}
                   >
-                    Reset System to Pristine
+                    Clear Schema Registry
                   </button>
                 </div>
               </div>
@@ -436,40 +458,40 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Hard reset confirmation modal */}
-      {showHardModal && (
+      {/* Clear schema confirmation modal */}
+      {showClearSchemaModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "500px", display: "flex", flexDirection: "column", color: "var(--ink)" }}>
             <div style={{ padding: "20px 24px", borderBottom: "2px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: 0, color: "var(--status-bad)" }}>Hard Factory Reset Confirmation</h3>
-              <button onClick={() => setShowHardModal(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--text-2)" }}>&times;</button>
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: 0, color: "var(--status-bad)" }}>Clear Schema Registry Confirmation</h3>
+              <button onClick={() => setShowClearSchemaModal(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--text-2)" }}>&times;</button>
             </div>
             <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
               <p style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.5, margin: 0 }}>
-                This drops all production history, findings, AND deletes the active master workbook schema layout. <strong>The app cockpit will lock until a new master workbook is uploaded.</strong>
+                This removes all custom fields and custom inspection stages. Your master schema registry will be reset back to the default configuration.
               </p>
               <div style={{ background: "color-mix(in srgb, var(--status-bad) 10%, transparent)", border: "1.5px solid var(--status-bad)", borderRadius: "var(--radius-md)", padding: 12, fontSize: 12, color: "var(--status-bad)", fontWeight: 700 }}>
-                CRITICAL WARNING: This completely wipes out the system configuration. All custom forms and dashboards will be disabled.
+                CRITICAL WARNING: This will reset custom fields in all stages. Direct entry tables will reload to base default fields.
               </div>
               <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>Type RESET to confirm:</span>
                 <input 
                   type="text" 
-                  value={hardConfirmText} 
-                  onChange={(e) => setHardConfirmText(e.target.value)} 
+                  value={clearSchemaConfirmText} 
+                  onChange={(e) => setClearSchemaConfirmText(e.target.value)} 
                   placeholder="RESET" 
                   style={{ ...inpStyle, fontFamily: "var(--font-mono)", textAlign: "center", textTransform: "uppercase" }} 
                 />
               </label>
             </div>
             <div style={{ padding: "14px 20px", borderTop: "1.5px solid var(--border)", background: "var(--surface-2)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button onClick={() => setShowHardModal(false)} style={btnGhost}>Cancel</button>
+              <button onClick={() => setShowClearSchemaModal(false)} style={btnGhost}>Cancel</button>
               <button 
-                onClick={handleHardReset} 
-                disabled={hardConfirmText !== "RESET" || busyAction === "hard"} 
-                style={{ ...btnPrimary, background: "var(--status-bad)", color: "#fff", opacity: hardConfirmText === "RESET" ? 1 : 0.5 }}
+                onClick={handleClearSchema} 
+                disabled={clearSchemaConfirmText !== "RESET" || busyAction === "clear-schema"} 
+                style={{ ...btnPrimary, background: "var(--status-bad)", color: "#fff", opacity: clearSchemaConfirmText === "RESET" ? 1 : 0.5 }}
               >
-                {busyAction === "hard" ? "Resetting..." : "Yes, Delete Everything"}
+                {busyAction === "clear-schema" ? "Resetting..." : "Yes, Reset Registry"}
               </button>
             </div>
           </div>
