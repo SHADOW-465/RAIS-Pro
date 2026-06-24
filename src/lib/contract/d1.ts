@@ -88,12 +88,24 @@ const envelopeFields = {
 /* Registries (per-client versioned config, not events)                 */
 /* ------------------------------------------------------------------ */
 
+export const StageCapture = z.enum(["checked", "accepted", "hold", "rejected"]);
+
 export const StageDef = z.object({
   stageId: z.string().min(1),
   label: z.string().min(1),
-  effectiveFrom: z.string().nullable(), // ISO date; eye-punching = "2025-11-01"
+  effectiveFrom: z.string().nullable(),
   effectiveTo: z.string().nullable(),
-  upstream: z.array(z.string()), // stageIds; declared flow for D2 DAG checks
+  upstream: z.array(z.string()),
+  // NEW: entry/analytics metadata. Optional so existing persisted registries
+  // (which lack these) still parse; readers default them.
+  sizeWise: z.boolean().optional(),                 // render a size row per registry.sizes
+  captures: z.array(StageCapture).optional(),       // which quantity columns this stage tracks
+  isQualityGate: z.boolean().optional(),            // true for the 4 rejection inspection stages
+});
+
+export const SizeDef = z.object({
+  sizeId: z.string().min(1),   // canonical "Fr16" (matches parse-size-wise output)
+  label: z.string().min(1),    // "16 FR"
 });
 
 export const DefectDef = z.object({
@@ -106,10 +118,11 @@ export const DefectDef = z.object({
 export const ClientRegistry = z.object({
   clientId: z.string().min(1),
   registryVersion: z.string().min(1),
-  fiscalYearStartMonth: z.number().int().min(1).max(12), // Disposafe: 4 (April)
+  fiscalYearStartMonth: z.number().int().min(1).max(12),
   stages: z.array(StageDef).min(1),
   defects: z.array(DefectDef),
-  costConfig: z.lazy(() => CostConfig).nullable(), // §cost — optional, user-supplied
+  sizes: z.array(SizeDef).default([]), // NEW: French-size dimension
+  costConfig: z.lazy(() => CostConfig).nullable(),
 });
 
 /**
