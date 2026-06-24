@@ -9,7 +9,6 @@ export async function GET(req: NextRequest) {
     const { data: rows, error } = await db
       .from("events")
       .select("*")
-      .eq("is_direct_entry", true)
       .order("recorded_at", { ascending: false });
 
     if (error) throw error;
@@ -41,6 +40,8 @@ export async function GET(req: NextRequest) {
       const size = customFields.size || firstEvent.provenance?.size || "";
       const batch = customFields.batch || firstEvent.provenance?.batch || "";
       const notes = customFields.notes || "";
+      const isDirect = firstEvent.provenance?.is_direct_entry === true;
+      const source = isDirect ? "Direct Entry" : (firstEvent.provenance?.file || "Upload");
 
       // Reconstruct stage-wise field values
       const stageData: Record<string, Record<string, any>> = {};
@@ -81,7 +82,8 @@ export async function GET(req: NextRequest) {
         size,
         batch,
         notes,
-        stageData
+        stageData,
+        source
       };
     });
 
@@ -106,8 +108,7 @@ export async function DELETE(req: NextRequest) {
     // First select events to delete to get their IDs
     const { data: rows, error: selectError } = await db
       .from("events")
-      .select("event_id, occurred_on, provenance, is_direct_entry")
-      .eq("is_direct_entry", true);
+      .select("event_id, occurred_on, provenance, is_direct_entry");
 
     if (selectError) throw selectError;
 

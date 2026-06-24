@@ -84,11 +84,40 @@ export default function DataEntryPage() {
     dropdownOptions: []
   });
 
-  // Load registry and ledger records on mount
+  // Load registry, ledger records, and prefilled header fields on mount
   useEffect(() => {
     loadRegistry();
     loadLedger();
+    if (typeof window !== "undefined") {
+      const savedOperator = localStorage.getItem("rais_hdr_operator");
+      const savedSupervisor = localStorage.getItem("rais_hdr_supervisor");
+      const savedMachine = localStorage.getItem("rais_hdr_machine");
+      const savedProduct = localStorage.getItem("rais_hdr_product");
+      const savedSize = localStorage.getItem("rais_hdr_size");
+      const savedBatch = localStorage.getItem("rais_hdr_batch");
+      const savedShift = localStorage.getItem("rais_hdr_shift");
+      
+      setHdr((prev) => ({
+        shift: savedShift !== null ? savedShift : prev.shift,
+        operator: savedOperator !== null ? savedOperator : prev.operator,
+        supervisor: savedSupervisor !== null ? savedSupervisor : prev.supervisor,
+        machine: savedMachine !== null ? savedMachine : prev.machine,
+        product: savedProduct !== null ? savedProduct : prev.product,
+        size: savedSize !== null ? savedSize : prev.size,
+        batch: savedBatch !== null ? savedBatch : prev.batch
+      }));
+    }
   }, []);
+
+  const updateHdrField = (field: keyof typeof hdr, val: string) => {
+    setHdr((prev) => {
+      const next = { ...prev, [field]: val };
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`rais_hdr_${field}`, val);
+      }
+      return next;
+    });
+  };
 
   const loadRegistry = async () => {
     try {
@@ -815,7 +844,9 @@ Assign another field as Rejected Quantity.`;
   };
 
   const handleDeleteLedgerRecord = async (rec: any) => {
-    if (!confirm(`Are you sure you want to delete the manual entry record for ${rec.date} (${rec.shift})?`)) return;
+    const isDirect = rec.source === "Direct Entry";
+    const recordType = isDirect ? "manual entry record" : `uploaded record (${rec.source})`;
+    if (!confirm(`Are you sure you want to delete the ${recordType} for ${rec.date} (${rec.shift})?`)) return;
     try {
       const res = await fetch(`/api/manual-entries?date=${rec.date}&shift=${rec.shift}`, {
         method: "DELETE"
@@ -838,6 +869,7 @@ Assign another field as Rejected Quantity.`;
         return (
           rec.date.includes(query) ||
           rec.shift.toLowerCase().includes(query) ||
+          (rec.source || "").toLowerCase().includes(query) ||
           rec.operator.toLowerCase().includes(query) ||
           rec.supervisor.toLowerCase().includes(query) ||
           rec.machine.toLowerCase().includes(query) ||
@@ -1019,7 +1051,7 @@ Assign another field as Rejected Quantity.`;
               </label>
               <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
                 Shift
-                <select value={hdr.shift} onChange={(e) => setHdr({ ...hdr, shift: e.target.value })} style={{ ...inp, width: 140 }}>
+                <select value={hdr.shift} onChange={(e) => updateHdrField("shift", e.target.value)} style={{ ...inp, width: 140 }}>
                   <option>Day Shift</option>
                   <option>Night Shift</option>
                 </select>
@@ -1033,24 +1065,24 @@ Assign another field as Rejected Quantity.`;
                   <input 
                     style={{ ...inp, borderColor: attemptedSubmit && !hdr.operator.trim() ? "var(--status-bad)" : "var(--border)" }} 
                     value={hdr.operator} 
-                    onChange={(e) => setHdr({ ...hdr, operator: e.target.value })} 
+                    onChange={(e) => updateHdrField("operator", e.target.value)} 
                     placeholder="Required" 
                   />
                 </Field>
                 <Field label="Supervisor">
-                  <input style={inp} value={hdr.supervisor} onChange={(e) => setHdr({ ...hdr, supervisor: e.target.value })} placeholder="Supervisor name" />
+                  <input style={inp} value={hdr.supervisor} onChange={(e) => updateHdrField("supervisor", e.target.value)} placeholder="Supervisor name" />
                 </Field>
                 <Field label="Product">
-                  <input style={inp} value={hdr.product} onChange={(e) => setHdr({ ...hdr, product: e.target.value })} />
+                  <input style={inp} value={hdr.product} onChange={(e) => updateHdrField("product", e.target.value)} />
                 </Field>
                 <Field label="Size (French)">
-                  <input style={inp} value={hdr.size} onChange={(e) => setHdr({ ...hdr, size: e.target.value })} />
+                  <input style={inp} value={hdr.size} onChange={(e) => updateHdrField("size", e.target.value)} />
                 </Field>
                 <Field label="Machine">
-                  <input style={inp} value={hdr.machine} onChange={(e) => setHdr({ ...hdr, machine: e.target.value })} />
+                  <input style={inp} value={hdr.machine} onChange={(e) => updateHdrField("machine", e.target.value)} />
                 </Field>
                 <Field label="Batch / Lot No.">
-                  <input style={inp} value={hdr.batch} onChange={(e) => setHdr({ ...hdr, batch: e.target.value })} placeholder="e.g. LOT-123" />
+                  <input style={inp} value={hdr.batch} onChange={(e) => updateHdrField("batch", e.target.value)} placeholder="e.g. LOT-123" />
                 </Field>
               </div>
             </Section>
@@ -1192,7 +1224,7 @@ Assign another field as Rejected Quantity.`;
         /* Data Ledger / Entry History View */
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, margin: 0 }}>Manual Entry Ledger</h2>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, margin: 0 }}>Data Entry & Ingest Ledger</h2>
             <div style={{ position: "relative", width: 300 }}>
               <input 
                 type="text" 
@@ -1204,12 +1236,13 @@ Assign another field as Rejected Quantity.`;
               <span style={{ position: "absolute", right: 10, top: 8, color: "var(--text-3)" }}>🔍</span>
             </div>
           </div>
-
+ 
           <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.03em", borderBottom: "1.5px solid var(--border-strong)" }}>
                 <th style={{ ...th, cursor: "pointer" }} onClick={() => toggleSort("date")}>Date {ledgerSort.col === "date" ? (ledgerSort.desc ? "▼" : "▲") : ""}</th>
-                <th style={{ ...th, cursor: "pointer" }} onClick={() => toggleSort("shift")}>Shift {ledgerSort.col === "shift" ? (ledgerSort.desc ? "▼" : "▲") : ""}</th>
+                <th style={{ ...th, cursor: "pointer" }} onClick={() => toggleSort("shift")}>Shift/Sheet {ledgerSort.col === "shift" ? (ledgerSort.desc ? "▼" : "▲") : ""}</th>
+                <th style={{ ...th, cursor: "pointer" }} onClick={() => toggleSort("source")}>Source {ledgerSort.col === "source" ? (ledgerSort.desc ? "▼" : "▲") : ""}</th>
                 <th style={{ ...th, cursor: "pointer" }} onClick={() => toggleSort("operator")}>Operator {ledgerSort.col === "operator" ? (ledgerSort.desc ? "▼" : "▲") : ""}</th>
                 <th style={{ ...th, cursor: "pointer" }} onClick={() => toggleSort("machine")}>Machine {ledgerSort.col === "machine" ? (ledgerSort.desc ? "▼" : "▲") : ""}</th>
                 <th style={{ ...th, cursor: "pointer" }} onClick={() => toggleSort("product")}>Product {ledgerSort.col === "product" ? (ledgerSort.desc ? "▼" : "▲") : ""}</th>
@@ -1222,8 +1255,8 @@ Assign another field as Rejected Quantity.`;
             <tbody>
               {filteredLedger.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ ...td, textAlign: "center", padding: 24, color: "var(--text-3)" }}>
-                    No manual entry records found matching search.
+                  <td colSpan={10} style={{ ...td, textAlign: "center", padding: 24, color: "var(--text-3)" }}>
+                    No manual or uploaded entry records found matching search.
                   </td>
                 </tr>
               ) : (
@@ -1236,11 +1269,23 @@ Assign another field as Rejected Quantity.`;
                     rej += Number(sData["Rejected Qty"]) || 0;
                   });
                   const rate = chk ? (rej / chk) * 100 : 0;
-
+ 
                   return (
                     <tr key={idx} style={{ borderBottom: "1px solid var(--border)", background: idx % 2 === 0 ? "transparent" : "var(--surface-2)" }}>
                       <td style={{ ...td, fontWeight: 700 }}>{rec.date}</td>
                       <td style={td}>{rec.shift}</td>
+                      <td style={td}>
+                        <span style={{ 
+                          fontSize: 11, 
+                          padding: "2px 6px", 
+                          borderRadius: 4, 
+                          background: rec.source === "Direct Entry" ? "var(--accent-weak)" : "var(--surface-3)", 
+                          color: rec.source === "Direct Entry" ? "var(--accent-text)" : "var(--text-2)",
+                          fontWeight: 600
+                        }}>
+                          {rec.source}
+                        </span>
+                      </td>
                       <td style={td}>{rec.operator}</td>
                       <td style={td}>{rec.machine}</td>
                       <td style={td}>{rec.product} ({rec.size})</td>
@@ -1281,7 +1326,7 @@ Assign another field as Rejected Quantity.`;
       {/* SCHEMA REGISTRY CONFIGURATION MODAL */}
       {showSchemaModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "800px", display: "flex", flexDirection: "column", color: "var(--ink)", maxHeight: "90vh" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-3)", width: "100%", maxWidth: "800px", display: "flex", flexDirection: "column", color: "var(--text)", maxHeight: "90vh" }}>
             <div style={{ padding: "16px 20px", borderBottom: "2px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: 0 }}>Manage Registry Data Schema</h3>
               <button onClick={() => setShowSchemaModal(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--text-2)" }}>&times;</button>
@@ -1293,14 +1338,14 @@ Assign another field as Rejected Quantity.`;
                   {schemaError}
                 </div>
               )}
-
+ 
               {/* Column/Field Definition Editor Subsection */}
               {editingColName !== null && (
                 <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
                   <h4 style={{ margin: "0 0 10px 0", fontSize: 13, fontWeight: 700 }}>
                     {editingColName === "__new__" ? "Add New Column / Field" : `Configure Field: ${editingColName}`}
                   </h4>
-                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr auto auto", gap: 10, alignItems: "end", marginBottom: 12 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 10, alignItems: "end", marginBottom: 12 }}>
                     <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       <span className="muted" style={{ fontSize: 10, fontWeight: 600 }}>Field Name</span>
                       <input 
@@ -1324,22 +1369,6 @@ Assign another field as Rejected Quantity.`;
                         <option value="dropdown">Dropdown</option>
                         <option value="boolean">Boolean (Checkbox)</option>
                       </select>
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontSize: 12, height: 28 }}>
-                      <input 
-                        type="checkbox" 
-                        checked={!!colDraft.required} 
-                        onChange={(e) => setColDraft({ ...colDraft, required: e.target.checked })} 
-                      />
-                      <span>Required?</span>
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontSize: 12, height: 28 }}>
-                      <input 
-                        type="checkbox" 
-                        checked={!!colDraft.isDefect} 
-                        onChange={(e) => setColDraft({ ...colDraft, isDefect: e.target.checked, type: e.target.checked ? "number" : colDraft.type })} 
-                      />
-                      <span>Is Defect?</span>
                     </label>
                   </div>
 
