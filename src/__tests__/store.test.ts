@@ -199,9 +199,12 @@ describe("MemoryEventStore", () => {
 
 // ── Registry ─────────────────────────────────────────────────────────────
 describe("Disposafe registry (rejection-only)", () => {
-  test("has the 5 rejection stages in flow order", () => {
-    expect(DISPOSAFE_REGISTRY.stages.map((s) => s.stageId)).toEqual([
-      "visual", "eye-punching", "balloon", "valve-integrity", "final",
+  test("has the quality-gate stages in flow order", () => {
+    const gates = DISPOSAFE_REGISTRY.stages
+      .filter((s) => s.isQualityGate)
+      .map((s) => s.stageId);
+    expect(gates).toEqual([
+      "visual", "balloon", "valve-integrity", "final",
     ]);
   });
 

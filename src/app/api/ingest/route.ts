@@ -180,6 +180,7 @@ export async function POST(req: NextRequest) {
           fiscalYearStartMonth: regRow.fiscal_year_start_month,
           stages: regRow.stages,
           defects: regRow.defects,
+          sizes: regRow.sizes || [],
           costConfig: regRow.cost_config || null,
         };
       }
