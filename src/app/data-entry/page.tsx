@@ -36,11 +36,15 @@ const DEFAULT_FIELDS: FieldDef[] = [
   { name: "Rejected Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" }
 ];
 
+const CAPTURE_LABEL: Record<string, string> = { checked: "Checked", accepted: "Accept", hold: "Hold", rejected: "Reject" };
+const CAPTURE_FIELD: Record<string, string> = { checked: "Checked Qty", accepted: "Good Qty", hold: "Rework Qty", rejected: "Rejected Qty" };
+
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function DataEntryPage() {
   const { refreshEvents } = useEvents();
   const [activeTab, setActiveTab] = useState<"entry" | "ledger">("entry");
+  const [activeStageId, setActiveStageId] = useState<string | null>(null);
   const [date, setDate] = useState(today());
   const [hdr, setHdr] = useState({
     shift: "Day Shift",
@@ -156,155 +160,46 @@ export default function DataEntryPage() {
       .map((s: any) => s.stageId);
   }, [activeRegistry, date]);
 
-  // Construct stable, sorted fields list for columns
-  const sortedFieldNames = useMemo(() => {
-    const defaultOrder = ["Checked Qty", "Good Qty", "Rework Qty", "Rejected Qty"];
-    const allFieldsMap = new Map<string, any>();
-    activeRegistry.stages.forEach((s: any) => {
-      (s.fields || DEFAULT_FIELDS).forEach((f: any) => {
-        if (!allFieldsMap.has(f.name)) {
-          allFieldsMap.set(f.name, f);
-        }
-      });
-    });
-    return Array.from(allFieldsMap.keys()).sort((a, b) => {
-      const ia = defaultOrder.indexOf(a);
-      const ib = defaultOrder.indexOf(b);
-      if (ia !== -1 && ib !== -1) return ia - ib;
-      if (ia !== -1) return -1;
-      if (ib !== -1) return 1;
-      return a.localeCompare(b);
-    });
-  }, [activeRegistry]);
+  const sizes: { sizeId: string; label: string }[] = useMemo(
+    () => activeRegistry.sizes && activeRegistry.sizes.length ? activeRegistry.sizes : [],
+    [activeRegistry]
+  );
 
-  // Handle spreadsheet updates
-  const updateCell = (stageId: string, colName: string, val: string) => {
+  // Default the active stage tab to the first date-active quality gate, else first stage.
+  useEffect(() => {
+    if (activeStageId && stageIds.includes(activeStageId)) return;
+    const firstGate = stageIds.find((id: string) =>
+      activeRegistry.stages.find((s: any) => s.stageId === id)?.isQualityGate);
+    setActiveStageId(firstGate ?? stageIds[0] ?? null);
+  }, [stageIds, activeStageId, activeRegistry]);
+
+  const activeStage = useMemo(
+    () => activeRegistry.stages.find((s: any) => s.stageId === activeStageId) || null,
+    [activeRegistry, activeStageId]
+  );
+
+  const activeCaptures: string[] = useMemo(
+    () => activeStage?.captures ?? ["checked", "accepted", "hold", "rejected"],
+    [activeStage]
+  );
+
+  const activeDefects = useMemo(
+    () => (activeRegistry.defects || []).filter((d: any) => d.stages.includes(activeStageId)),
+    [activeRegistry, activeStageId]
+  );
+
+  const isSizeWise = !!activeStage?.sizeWise && sizes.length > 0;
+  // Grid row keys: one per size for size-wise stages, else a single synthetic row.
+  const gridRowKeys: string[] = isSizeWise ? sizes.map(s => s.sizeId) : ["__line__"];
+
+  // rows: `${stageId}|${rowKey}` -> fieldName -> value
+  const cellKey = (stageId: string, rowKey: string) => `${stageId}|${rowKey}`;
+
+  const updateCell = (stageId: string, rowKey: string, colName: string, val: string) => {
     setRows((prev) => ({
       ...prev,
-      [stageId]: {
-        ...(prev[stageId] || {}),
-        [colName]: val
-      }
+      [cellKey(stageId, rowKey)]: { ...(prev[cellKey(stageId, rowKey)] || {}), [colName]: val },
     }));
-  };
-
-  // Keyboard navigation handler inside the grid
-  const handleKeyDown = (e: React.KeyboardEvent, rIdx: number, cIdx: number) => {
-    let nextRow = rIdx;
-    let nextCol = cIdx;
-    
-    if (e.key === "Tab") {
-      e.preventDefault();
-      if (e.shiftKey) {
-        nextCol = cIdx - 1;
-        if (nextCol < 0) {
-          nextCol = sortedFieldNames.length - 1;
-          nextRow = rIdx - 1;
-        }
-      } else {
-        nextCol = cIdx + 1;
-        if (nextCol >= sortedFieldNames.length) {
-          nextCol = 0;
-          nextRow = rIdx + 1;
-        }
-      }
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (e.shiftKey) {
-        nextRow = rIdx - 1;
-      } else {
-        nextRow = rIdx + 1;
-      }
-    } else if (e.key === "ArrowUp") {
-      nextRow = rIdx - 1;
-    } else if (e.key === "ArrowDown") {
-      nextRow = rIdx + 1;
-    } else if (e.key === "ArrowLeft") {
-      const target = e.target as HTMLInputElement;
-      if (target.selectionStart === 0 || target.type === "select-one" || target.type === "checkbox") {
-        nextCol = cIdx - 1;
-      }
-    } else if (e.key === "ArrowRight") {
-      const target = e.target as HTMLInputElement;
-      if (target.selectionEnd === target.value?.length || target.type === "select-one" || target.type === "checkbox") {
-        nextCol = cIdx + 1;
-      }
-    }
-
-    if (nextRow !== rIdx || nextCol !== cIdx) {
-      const nextEl = document.querySelector(`[data-cell-row="${nextRow}"][data-cell-col="${nextCol}"]`) as HTMLElement;
-      if (nextEl) {
-        nextEl.focus();
-      }
-    }
-  };
-
-  // Clipboard Paste TSV parser
-  const handlePaste = (e: React.ClipboardEvent, startRowIdx: number, startColName: string) => {
-    const text = e.clipboardData.getData("text");
-    if (!text) return;
-
-    const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
-    if (lines.length === 0) return;
-
-    if (text.includes("\t") || lines.length > 1) {
-      e.preventDefault();
-      
-      setRows((prev) => {
-        const nextRows = { ...prev };
-        
-        lines.forEach((line, rOffset) => {
-          const rowIdx = startRowIdx + rOffset;
-          if (rowIdx >= stageIds.length) return;
-          const stageId = stageIds[rowIdx];
-          const cells = line.split("\t");
-
-          cells.forEach((cellVal, cOffset) => {
-            const startColIdx = sortedFieldNames.indexOf(startColName);
-            const colIdx = startColIdx + cOffset;
-            if (colIdx >= sortedFieldNames.length) return;
-            const colName = sortedFieldNames[colIdx];
-
-            // Verify if field applies to this stage
-            const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
-            const fields = stage?.fields || DEFAULT_FIELDS;
-            const fieldDef = fields.find((f: any) => f.name === colName);
-            
-            if (fieldDef) {
-              nextRows[stageId] = {
-                ...(nextRows[stageId] || {}),
-                [colName]: cellVal.trim()
-              };
-            }
-          });
-        });
-        
-        return nextRows;
-      });
-    }
-  };
-
-  // Column Fill Down helper
-  const handleFillDown = (colName: string) => {
-    if (stageIds.length === 0) return;
-    const firstStageId = stageIds[0];
-    const firstVal = rows[firstStageId]?.[colName] ?? "";
-    
-    setRows((prev) => {
-      const nextRows = { ...prev };
-      stageIds.forEach((stageId: string) => {
-        const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
-        const fields = stage?.fields || DEFAULT_FIELDS;
-        const fieldDef = fields.find((f: any) => f.name === colName);
-        if (fieldDef) {
-          nextRows[stageId] = {
-            ...(nextRows[stageId] || {}),
-            [colName]: firstVal
-          };
-        }
-      });
-      return nextRows;
-    });
   };
 
   // KPI live calculations (Flexible Data Model)
@@ -319,24 +214,24 @@ export default function DataEntryPage() {
       const r = rows[stageId] || {};
       const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
       const fields = stage?.fields || DEFAULT_FIELDS;
-      
-      const checkedField = fields.find((f: any) => 
+
+      const checkedField = fields.find((f: any) =>
         /^(checked qty|checked quantity|input|input qty|input quantity)$/i.test(f.name)
       );
-      const rejectedField = fields.find((f: any) => 
+      const rejectedField = fields.find((f: any) =>
         /^(rejected qty|rejected quantity|rejected|reject qty|rejection qty|rejection quantity)$/i.test(f.name)
       );
-      const goodField = fields.find((f: any) => 
+      const goodField = fields.find((f: any) =>
         /^(good qty|good quantity|good)$/i.test(f.name)
       );
-      const reworkField = fields.find((f: any) => 
+      const reworkField = fields.find((f: any) =>
         /^(rework qty|rework quantity|rework)$/i.test(f.name)
       );
 
       const cVal = checkedField ? Number(r[checkedField.name]) || 0 : 0;
       const rVal = rejectedField ? Number(r[rejectedField.name]) || 0 : 0;
       const rwVal = reworkField ? Number(r[reworkField.name]) || 0 : 0;
-      
+
       let gVal = 0;
       if (goodField) {
         hasGoodField = true;
@@ -354,15 +249,7 @@ export default function DataEntryPage() {
     const rejPct = checked ? (rejected / checked) * 100 : 0;
     const fpy = checked ? (good / checked) * 100 : 0;
 
-    return {
-      checked,
-      rejected,
-      good,
-      rework,
-      rejPct,
-      fpy,
-      hasGoodField
-    };
+    return { checked, rejected, good, rework, rejPct, fpy, hasGoodField };
   }, [rows, stageIds, activeRegistry]);
 
   // Smart validation checks on Submit
@@ -370,52 +257,18 @@ export default function DataEntryPage() {
     const errs: string[] = [];
     if (!hdr.operator.trim()) errs.push("Operator name is required.");
 
-    let missingCheckedAny = false;
-    let missingRejectedAny = false;
-
     stageIds.forEach((stageId: string) => {
       const r = rows[stageId] || {};
       const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
       const fields = stage?.fields || DEFAULT_FIELDS;
       const name = stage?.label || stageId;
 
-      const checkedField = fields.find((f: any) => 
+      const checkedField = fields.find((f: any) =>
         /^(checked qty|checked quantity|input|input qty|input quantity)$/i.test(f.name)
       );
-      if (checkedField) {
-        const val = r[checkedField.name];
-        if (val === undefined || val === "") {
-          missingCheckedAny = true;
-          if (checkedField.required) {
-            errs.push(`${name}: ${checkedField.name} is required.`);
-          }
-        }
-      } else {
-        missingCheckedAny = true;
-      }
-
-      const rejectedField = fields.find((f: any) => 
+      const rejectedField = fields.find((f: any) =>
         /^(rejected qty|rejected quantity|rejected|reject qty|rejection qty|rejection quantity)$/i.test(f.name)
       );
-      if (rejectedField) {
-        const val = r[rejectedField.name];
-        if (val === undefined || val === "") {
-          missingRejectedAny = true;
-          if (rejectedField.required) {
-            errs.push(`${name}: ${rejectedField.name} is required.`);
-          }
-        }
-      } else {
-        missingRejectedAny = true;
-      }
-
-      fields.forEach((field: any) => {
-        if (field === checkedField || field === rejectedField) return;
-        const val = r[field.name];
-        if (field.required && (val === undefined || val === "")) {
-          errs.push(`${name}: ${field.name} is required.`);
-        }
-      });
 
       const cVal = checkedField ? Number(r[checkedField.name]) : null;
       const rVal = rejectedField ? Number(r[rejectedField.name]) : null;
@@ -423,13 +276,6 @@ export default function DataEntryPage() {
         errs.push(`${name}: Rejected Qty (${rVal}) cannot exceed Checked Qty (${cVal}).`);
       }
     });
-
-    if (missingCheckedAny) {
-      errs.push("Yield cannot be calculated because Checked Quantity is unavailable.");
-    }
-    if (missingRejectedAny) {
-      errs.push("Rejection Rate cannot be calculated because Rejected Quantity is unavailable.");
-    }
 
     return errs;
   }, [rows, stageIds, hdr.operator, activeRegistry]);
@@ -440,24 +286,24 @@ export default function DataEntryPage() {
       const r = rows[stageId] || {};
       const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
       const fields = stage?.fields || DEFAULT_FIELDS;
-      
-      const checkedField = fields.find((f: any) => 
+
+      const checkedField = fields.find((f: any) =>
         /^(checked qty|checked quantity|input|input qty|input quantity)$/i.test(f.name)
       );
-      const rejectedField = fields.find((f: any) => 
+      const rejectedField = fields.find((f: any) =>
         /^(rejected qty|rejected quantity|rejected|reject qty|rejection qty|rejection quantity)$/i.test(f.name)
       );
-      const goodField = fields.find((f: any) => 
+      const goodField = fields.find((f: any) =>
         /^(good qty|good quantity|good)$/i.test(f.name)
       );
-      const reworkField = fields.find((f: any) => 
+      const reworkField = fields.find((f: any) =>
         /^(rework qty|rework quantity|rework)$/i.test(f.name)
       );
 
       const cVal = checkedField && r[checkedField.name] !== "" ? Number(r[checkedField.name]) : null;
       const rVal = rejectedField && r[rejectedField.name] !== "" ? Number(r[rejectedField.name]) : null;
       const rwVal = reworkField && r[reworkField.name] !== "" ? Number(r[reworkField.name]) : null;
-      
+
       let gVal = null;
       if (goodField && r[goodField.name] !== "") {
         gVal = Number(r[goodField.name]);
@@ -806,7 +652,7 @@ Assign another field as Rejected Quantity.`;
       batch: rec.batch
     });
     setNotes(rec.notes || "");
-    
+
     // Unpack stage data
     const nextRows: Record<string, Record<string, string>> = {};
     Object.entries(rec.stageData).forEach(([stageId, data]: [string, any]) => {
@@ -832,7 +678,7 @@ Assign another field as Rejected Quantity.`;
       batch: rec.batch
     });
     setNotes(rec.notes || "");
-    
+
     // Unpack stage data
     const nextRows: Record<string, Record<string, string>> = {};
     Object.entries(rec.stageData).forEach(([stageId, data]: [string, any]) => {
@@ -906,81 +752,6 @@ Assign another field as Rejected Quantity.`;
       col,
       desc: prev.col === col ? !prev.desc : true
     }));
-  };
-
-  // Helper renderer for spreadsheet cell inputs
-  const renderSpreadsheetInput = (stageId: string, field: FieldDef, rIdx: number, cIdx: number) => {
-    const value = rows[stageId]?.[field.name] ?? "";
-
-    if (field.type === "boolean") {
-      return (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
-          <input 
-            type="checkbox"
-            checked={value === "true" || (value as any) === true}
-            onChange={(e) => updateCell(stageId, field.name, e.target.checked ? "true" : "false")}
-            onKeyDown={(e) => handleKeyDown(e, rIdx, cIdx)}
-            data-cell-row={rIdx}
-            data-cell-col={cIdx}
-            style={{ width: 16, height: 16, cursor: "pointer" }}
-          />
-        </div>
-      );
-    }
-
-    if (field.type === "dropdown") {
-      const options = field.dropdownOptions || [];
-      return (
-        <select
-          value={value}
-          onChange={(e) => updateCell(stageId, field.name, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, rIdx, cIdx)}
-          data-cell-row={rIdx}
-          data-cell-col={cIdx}
-          style={{ ...inp, width: "100%", padding: "4px 6px", height: 28 }}
-        >
-          <option value="">--</option>
-          {options.map((opt: string) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
-      );
-    }
-
-    if (field.type === "date") {
-      return (
-        <input 
-          type="date"
-          value={value}
-          onChange={(e) => updateCell(stageId, field.name, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, rIdx, cIdx)}
-          data-cell-row={rIdx}
-          data-cell-col={cIdx}
-          style={{ ...inp, width: "100%", padding: "4px 6px", height: 28 }}
-        />
-      );
-    }
-
-    return (
-      <input 
-        type={field.type === "number" ? "number" : "text"}
-        value={value}
-        onChange={(e) => updateCell(stageId, field.name, e.target.value)}
-        onKeyDown={(e) => handleKeyDown(e, rIdx, cIdx)}
-        onPaste={(e) => handlePaste(e, rIdx, field.name)}
-        data-cell-row={rIdx}
-        data-cell-col={cIdx}
-        placeholder={field.required ? "Req" : ""}
-        style={{ 
-          ...inp, 
-          width: "100%", 
-          padding: "4px 6px", 
-          height: 28,
-          fontFamily: field.type === "number" ? "var(--font-mono)" : "inherit",
-          textAlign: field.type === "number" ? "right" : "left"
-        }}
-      />
-    );
   };
 
   // State flag for global busy states (e.g. saving registry)
@@ -1091,64 +862,54 @@ Assign another field as Rejected Quantity.`;
               </div>
             </Section>
 
-            {/* Dynamic spreadsheet grid */}
-            <Section title="Spreadsheet Data Entry Grid">
+            {/* Stage-tab + size-aware entry grid */}
+            <Section title={`${activeStage?.label ?? "Stage"} — Data Entry`}>
+              {/* Stage tab bar (date-active stages) */}
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
+                {stageIds.map((id: string) => {
+                  const s = activeRegistry.stages.find((st: any) => st.stageId === id);
+                  const on = id === activeStageId;
+                  return (
+                    <button key={id} onClick={() => setActiveStageId(id)}
+                      style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border-strong)",
+                        background: on ? "var(--accent)" : "var(--surface-2)",
+                        color: on ? "var(--text-invert)" : "var(--text-2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                      {s?.label ?? id}
+                    </button>
+                  );
+                })}
+              </div>
+
               <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)", marginBottom: 12 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
-                    <tr style={{ color: "var(--text-3)", background: "var(--surface-2)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1.5px solid var(--border-strong)" }}>
-                      <th style={{ ...eth, textAlign: "left", width: 180 }}>Stage</th>
-                      {sortedFieldNames.map(fName => (
-                        <th key={fName} style={eth}>
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                            <span>{fName}</span>
-                            <button 
-                              onClick={() => handleFillDown(fName)} 
-                              title="Copy top cell value down to all stages"
-                              style={{ 
-                                fontSize: 9, 
-                                background: "var(--surface-3)", 
-                                border: "1px solid var(--border)", 
-                                borderRadius: 4, 
-                                padding: "2px 6px", 
-                                cursor: "pointer", 
-                                color: "var(--text-2)",
-                                fontWeight: 700
-                              }}
-                            >
-                              Fill Down
-                            </button>
-                          </div>
-                        </th>
-                      ))}
+                    <tr style={{ color: "var(--text-3)", background: "var(--surface-2)", fontSize: 10, textTransform: "uppercase", borderBottom: "1.5px solid var(--border-strong)" }}>
+                      <th style={{ ...eth, textAlign: "left", width: 120 }}>{isSizeWise ? "Size" : "Line"}</th>
+                      {activeCaptures.map(c => <th key={c} style={eth}>{CAPTURE_LABEL[c]}</th>)}
+                      {activeDefects.map((d: any) => <th key={d.defectCode} style={eth} title={d.label}>{d.defectCode}</th>)}
                     </tr>
                   </thead>
                   <tbody>
-                    {stageIds.map((stageId: string, rIdx: number) => {
+                    {gridRowKeys.map((rowKey) => {
+                      const label = isSizeWise ? (sizes.find(s => s.sizeId === rowKey)?.label ?? rowKey) : "Whole line";
+                      const cells = rows[cellKey(activeStageId!, rowKey)] || {};
                       return (
-                        <tr key={stageId} style={{ borderBottom: "1px solid var(--border)" }}>
-                           <td style={{ ...etd, textAlign: "left", fontWeight: 700, background: "var(--surface)" }}>
-                            {activeRegistry.stages.find((s: any) => s.stageId === stageId)?.label || stageId}
-                           </td>
-                          {sortedFieldNames.map((colName, cIdx) => {
-                            const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
-                            const fields = stage?.fields || DEFAULT_FIELDS;
-                            const fieldDef = fields.find((f: any) => f.name === colName);
-                            
-                            if (!fieldDef) {
-                              return (
-                                <td key={colName} style={{ ...etd, background: "var(--surface-2)", color: "var(--text-3)", textAlign: "center" }}>
-                                  —
-                                </td>
-                              );
-                            }
-
-                            return (
-                              <td key={colName} style={{ ...etd, padding: "3px 4px" }}>
-                                {renderSpreadsheetInput(stageId, fieldDef, rIdx, cIdx)}
-                              </td>
-                            );
-                          })}
+                        <tr key={rowKey} style={{ borderBottom: "1px solid var(--border)" }}>
+                          <td style={{ ...etd, textAlign: "left", fontWeight: 700, background: "var(--surface)" }}>{label}</td>
+                          {activeCaptures.map(c => (
+                            <td key={c} style={{ ...etd, padding: "3px 4px" }}>
+                              <input type="number" value={cells[CAPTURE_FIELD[c]] ?? ""}
+                                onChange={(e) => updateCell(activeStageId!, rowKey, CAPTURE_FIELD[c], e.target.value)}
+                                style={{ ...inp, width: "100%", padding: "4px 6px", height: 28, fontFamily: "var(--font-mono)", textAlign: "right" }} />
+                            </td>
+                          ))}
+                          {activeDefects.map((d: any) => (
+                            <td key={d.defectCode} style={{ ...etd, padding: "3px 4px" }}>
+                              <input type="number" value={cells[d.label] ?? ""}
+                                onChange={(e) => updateCell(activeStageId!, rowKey, d.label, e.target.value)}
+                                style={{ ...inp, width: "100%", padding: "4px 6px", height: 28, fontFamily: "var(--font-mono)", textAlign: "right" }} />
+                            </td>
+                          ))}
                         </tr>
                       );
                     })}
@@ -1156,7 +917,7 @@ Assign another field as Rejected Quantity.`;
                 </table>
               </div>
               <p className="muted" style={{ fontSize: 11, margin: 0 }}>
-                💡 <strong>Excel Grid Integration</strong>: You can copy cells in Excel, click any cell here, and paste (Ctrl+V) to ingest rows instantly. Use Tab/Enter to navigate.
+                💡 Enter per-{isSizeWise ? "size" : "line"} quantities for <strong>{activeStage?.label}</strong>. Switch stages with the tabs above; each stage saves its own rows.
               </p>
             </Section>
 
