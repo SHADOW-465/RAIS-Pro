@@ -202,155 +202,99 @@ export default function DataEntryPage() {
     }));
   };
 
-  // KPI live calculations (Flexible Data Model)
+  // KPI live calculations (across every stage × row)
   const totals = useMemo(() => {
-    let checked = 0;
-    let rejected = 0;
-    let good = 0;
-    let rework = 0;
-    let hasGoodField = false;
-
-    stageIds.forEach((stageId: string) => {
-      const r = rows[stageId] || {};
+    let checked = 0, rejected = 0, good = 0, rework = 0; let hasGoodField = false;
+    for (const stageId of stageIds) {
       const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
-      const fields = stage?.fields || DEFAULT_FIELDS;
-
-      const checkedField = fields.find((f: any) =>
-        /^(checked qty|checked quantity|input|input qty|input quantity)$/i.test(f.name)
-      );
-      const rejectedField = fields.find((f: any) =>
-        /^(rejected qty|rejected quantity|rejected|reject qty|rejection qty|rejection quantity)$/i.test(f.name)
-      );
-      const goodField = fields.find((f: any) =>
-        /^(good qty|good quantity|good)$/i.test(f.name)
-      );
-      const reworkField = fields.find((f: any) =>
-        /^(rework qty|rework quantity|rework)$/i.test(f.name)
-      );
-
-      const cVal = checkedField ? Number(r[checkedField.name]) || 0 : 0;
-      const rVal = rejectedField ? Number(r[rejectedField.name]) || 0 : 0;
-      const rwVal = reworkField ? Number(r[reworkField.name]) || 0 : 0;
-
-      let gVal = 0;
-      if (goodField) {
-        hasGoodField = true;
-        gVal = Number(r[goodField.name]) || 0;
-      } else {
-        gVal = Math.max(0, cVal - rVal);
+      const stageSizeWise = !!stage?.sizeWise && sizes.length > 0;
+      const rowKeys = stageSizeWise ? sizes.map((s) => s.sizeId) : ["__line__"];
+      for (const rowKey of rowKeys) {
+        const c = rows[cellKey(stageId, rowKey)] || {};
+        const cVal = Number(c["Checked Qty"]) || 0;
+        const rVal = Number(c["Rejected Qty"]) || 0;
+        const rwVal = Number(c["Rework Qty"]) || 0;
+        let gVal: number;
+        if (c["Good Qty"] !== undefined && c["Good Qty"] !== "") { hasGoodField = true; gVal = Number(c["Good Qty"]) || 0; }
+        else gVal = Math.max(0, cVal - rVal - rwVal);
+        checked += cVal; rejected += rVal; good += gVal; rework += rwVal;
       }
-
-      checked += cVal;
-      rejected += rVal;
-      good += gVal;
-      rework += rwVal;
-    });
-
+    }
     const rejPct = checked ? (rejected / checked) * 100 : 0;
     const fpy = checked ? (good / checked) * 100 : 0;
-
     return { checked, rejected, good, rework, rejPct, fpy, hasGoodField };
-  }, [rows, stageIds, activeRegistry]);
+  }, [rows, stageIds, activeRegistry, sizes]);
 
   // Smart validation checks on Submit
   const blockingErrors = useMemo(() => {
     const errs: string[] = [];
     if (!hdr.operator.trim()) errs.push("Operator name is required.");
-
-    stageIds.forEach((stageId: string) => {
-      const r = rows[stageId] || {};
+    for (const stageId of stageIds) {
       const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
-      const fields = stage?.fields || DEFAULT_FIELDS;
       const name = stage?.label || stageId;
-
-      const checkedField = fields.find((f: any) =>
-        /^(checked qty|checked quantity|input|input qty|input quantity)$/i.test(f.name)
-      );
-      const rejectedField = fields.find((f: any) =>
-        /^(rejected qty|rejected quantity|rejected|reject qty|rejection qty|rejection quantity)$/i.test(f.name)
-      );
-
-      const cVal = checkedField ? Number(r[checkedField.name]) : null;
-      const rVal = rejectedField ? Number(r[rejectedField.name]) : null;
-      if (cVal !== null && rVal !== null && rVal > cVal) {
-        errs.push(`${name}: Rejected Qty (${rVal}) cannot exceed Checked Qty (${cVal}).`);
-      }
-    });
-
-    return errs;
-  }, [rows, stageIds, hdr.operator, activeRegistry]);
-
-  // Build canonical ingestion payload records
-  const buildRecords = (ingestionId: string): StageDayRecord[] => {
-    return stageIds.map((stageId: string) => {
-      const r = rows[stageId] || {};
-      const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
-      const fields = stage?.fields || DEFAULT_FIELDS;
-
-      const checkedField = fields.find((f: any) =>
-        /^(checked qty|checked quantity|input|input qty|input quantity)$/i.test(f.name)
-      );
-      const rejectedField = fields.find((f: any) =>
-        /^(rejected qty|rejected quantity|rejected|reject qty|rejection qty|rejection quantity)$/i.test(f.name)
-      );
-      const goodField = fields.find((f: any) =>
-        /^(good qty|good quantity|good)$/i.test(f.name)
-      );
-      const reworkField = fields.find((f: any) =>
-        /^(rework qty|rework quantity|rework)$/i.test(f.name)
-      );
-
-      const cVal = checkedField && r[checkedField.name] !== "" ? Number(r[checkedField.name]) : null;
-      const rVal = rejectedField && r[rejectedField.name] !== "" ? Number(r[rejectedField.name]) : null;
-      const rwVal = reworkField && r[reworkField.name] !== "" ? Number(r[reworkField.name]) : null;
-
-      let gVal = null;
-      if (goodField && r[goodField.name] !== "") {
-        gVal = Number(r[goodField.name]);
-      } else if (cVal !== null && rVal !== null) {
-        gVal = Math.max(0, cVal - rVal);
-      }
-
-      const defects = fields
-        .filter((f: any) => f.isDefect)
-        .map((f: any) => ({
-          raw: f.name,
-          value: Number(r[f.name]) || 0,
-          cell: `ENTRY!${stageId}.${f.name}`
-        }))
-        .filter((d: any) => d.value > 0);
-
-      const customFieldsObj: Record<string, any> = {
-        operator: hdr.operator,
-        supervisor: hdr.supervisor,
-        machine: hdr.machine,
-        product: hdr.product,
-        size: hdr.size,
-        batch: hdr.batch,
-        notes: notes
-      };
-
-      fields.forEach((f: any) => {
-        if (f !== checkedField && f !== rejectedField && f !== goodField && f !== reworkField && !f.isDefect) {
-          customFieldsObj[f.name] = r[f.name];
+      const stageSizeWise = !!stage?.sizeWise && sizes.length > 0;
+      const rowKeys = stageSizeWise ? sizes.map((s) => s.sizeId) : ["__line__"];
+      for (const rowKey of rowKeys) {
+        const c = rows[cellKey(stageId, rowKey)] || {};
+        const cVal = c["Checked Qty"] !== undefined && c["Checked Qty"] !== "" ? Number(c["Checked Qty"]) : null;
+        const rVal = c["Rejected Qty"] !== undefined && c["Rejected Qty"] !== "" ? Number(c["Rejected Qty"]) : null;
+        if (cVal !== null && rVal !== null && rVal > cVal) {
+          const sizeLbl = stageSizeWise ? ` (${sizes.find(s => s.sizeId === rowKey)?.label})` : "";
+          errs.push(`${name}${sizeLbl}: Rejected (${rVal}) cannot exceed Checked (${cVal}).`);
         }
-      });
+      }
+    }
+    return errs;
+  }, [rows, stageIds, hdr.operator, activeRegistry, sizes]);
 
-      return {
-        occurredOn: { kind: "day" as const, start: date, end: date },
-        stageId,
-        source: { file: "Manual Entry", fileHash: `manual-${date}-${hdr.shift}`, sheet: hdr.shift, tableId: "entry" },
-        checked: cVal !== null ? { value: cVal, cell: `ENTRY!${stageId}.checked`, header: checkedField?.name || "Checked Qty" } : null,
-        acceptedGood: gVal !== null ? { value: gVal, cell: `ENTRY!${stageId}.good`, header: goodField?.name || "Good Qty" } : null,
-        rework: rwVal !== null ? { value: rwVal, cell: `ENTRY!${stageId}.rework`, header: reworkField?.name || "Rework Qty" } : null,
-        rejected: rVal !== null ? { value: rVal, cell: `ENTRY!${stageId}.rejected`, header: rejectedField?.name || "Rejected Qty" } : null,
-        defects,
-        statedPct: null,
-        extractedBy: "direct-entry",
-        ingestionId,
-        customFields: customFieldsObj
-      };
-    }).filter((r: StageDayRecord) => r.checked?.value != null || r.rejected?.value != null);
+  // Build canonical ingestion payload records — one per (stage, size).
+  const buildRecords = (ingestionId: string): StageDayRecord[] => {
+    const out: StageDayRecord[] = [];
+    for (const stageId of stageIds) {
+      const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
+      const captures: string[] = stage?.captures ?? ["checked", "accepted", "hold", "rejected"];
+      const stageSizeWise = !!stage?.sizeWise && sizes.length > 0;
+      const rowKeys = stageSizeWise ? sizes.map((s) => s.sizeId) : ["__line__"];
+      const stageDefects = (activeRegistry.defects || []).filter((d: any) => d.stages.includes(stageId));
+
+      for (const rowKey of rowKeys) {
+        const cells = rows[cellKey(stageId, rowKey)] || {};
+        const num = (f: string) => (cells[f] !== undefined && cells[f] !== "" ? Number(cells[f]) : null);
+        const cVal = captures.includes("checked") ? num("Checked Qty") : null;
+        const rVal = captures.includes("rejected") ? num("Rejected Qty") : null;
+        const rwVal = captures.includes("hold") ? num("Rework Qty") : null;
+        let gVal = captures.includes("accepted") ? num("Good Qty") : null;
+        if (gVal === null && cVal !== null && rVal !== null) gVal = Math.max(0, cVal - rVal - (rwVal ?? 0));
+
+        const defects = stageDefects
+          .map((d: any) => ({ raw: d.label, value: Number(cells[d.label]) || 0, cell: `ENTRY!${stageId}.${rowKey}.${d.defectCode}` }))
+          .filter((d: any) => d.value > 0);
+
+        // skip empty rows
+        if (cVal === null && rVal === null && defects.length === 0) continue;
+
+        const size = stageSizeWise ? rowKey : null;
+        out.push({
+          occurredOn: { kind: "day" as const, start: date, end: date },
+          stageId,
+          size,
+          source: { file: "Manual Entry", fileHash: `manual-${date}-${hdr.shift}`, sheet: hdr.shift, tableId: "entry" },
+          checked: cVal !== null ? { value: cVal, cell: `ENTRY!${stageId}.${rowKey}.checked`, header: "Checked Qty" } : null,
+          acceptedGood: gVal !== null ? { value: gVal, cell: `ENTRY!${stageId}.${rowKey}.good`, header: "Good Qty" } : null,
+          rework: rwVal !== null ? { value: rwVal, cell: `ENTRY!${stageId}.${rowKey}.rework`, header: "Rework Qty" } : null,
+          rejected: rVal !== null ? { value: rVal, cell: `ENTRY!${stageId}.${rowKey}.rejected`, header: "Rejected Qty" } : null,
+          defects,
+          statedPct: null,
+          extractedBy: "direct-entry",
+          ingestionId,
+          customFields: {
+            operator: hdr.operator, supervisor: hdr.supervisor, machine: hdr.machine,
+            product: hdr.product, size: size ?? hdr.size, batch: hdr.batch, notes,
+          },
+        });
+      }
+    }
+    return out;
   };
 
   async function submit() {
@@ -653,13 +597,12 @@ Assign another field as Rejected Quantity.`;
     });
     setNotes(rec.notes || "");
 
-    // Unpack stage data
+    // Unpack stage data (ledger groups by stage; load into the whole-line slot)
     const nextRows: Record<string, Record<string, string>> = {};
     Object.entries(rec.stageData).forEach(([stageId, data]: [string, any]) => {
-      nextRows[stageId] = {};
-      Object.entries(data).forEach(([fName, val]) => {
-        nextRows[stageId][fName] = String(val ?? "");
-      });
+      const k = `${stageId}|__line__`;
+      nextRows[k] = {};
+      Object.entries(data).forEach(([fName, val]) => { nextRows[k][fName] = String(val ?? ""); });
     });
     setRows(nextRows);
     setActiveTab("entry");
@@ -679,13 +622,12 @@ Assign another field as Rejected Quantity.`;
     });
     setNotes(rec.notes || "");
 
-    // Unpack stage data
+    // Unpack stage data (ledger groups by stage; load into the whole-line slot)
     const nextRows: Record<string, Record<string, string>> = {};
     Object.entries(rec.stageData).forEach(([stageId, data]: [string, any]) => {
-      nextRows[stageId] = {};
-      Object.entries(data).forEach(([fName, val]) => {
-        nextRows[stageId][fName] = String(val ?? "");
-      });
+      const k = `${stageId}|__line__`;
+      nextRows[k] = {};
+      Object.entries(data).forEach(([fName, val]) => { nextRows[k][fName] = String(val ?? ""); });
     });
     setRows(nextRows);
     setActiveTab("entry");
