@@ -4,6 +4,7 @@ import type { StageDayRecord } from "@/lib/ingest/emit";
 export type SourceFamily =
   | "size-wise"
   | "assembly-daily"
+  | "daily-activity"
   | "rejection-analysis"
   | "stage-report"
   | "cumulative";
@@ -13,6 +14,7 @@ export const PRECEDENCE: Record<SourceFamily, number> = {
   "size-wise": 40,
   "assembly-daily": 30,
   "rejection-analysis": 30,
+  "daily-activity": 25,
   "stage-report": 20,
   "cumulative": 0,
 };
@@ -31,7 +33,7 @@ export function routeFamily(file: string): SourceFamily | null {
   // match — routing it there would silently misparse. It is also redundant for
   // counts (size-wise is authoritative for Visual/Balloon/Valve; rejection-
   // analysis covers Final). Skip it until a dedicated parser exists.
-  if (/daily activity/.test(f)) return null;
+  if (/daily activity/.test(f)) return "daily-activity";
   if (/assembly/.test(f)) return "assembly-daily";
   if (/rejection analysis/.test(f)) return "rejection-analysis";
   if (/visual inspection report|balloon & valve integrity inspection/i.test(f)) return "stage-report";

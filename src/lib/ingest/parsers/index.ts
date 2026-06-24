@@ -4,9 +4,11 @@ import { routeFamily } from "./types";
 import { parseAssemblyDaily } from "./parse-assembly-daily";
 import { parseRejectionAnalysis } from "./parse-rejection-analysis";
 import { parseSizeWise } from "./parse-size-wise";
+import { parseDailyActivity } from "./parse-daily-activity";
 
 export { dedupeByPrecedence } from "./dedupe";
 export { reconcileConflicts } from "./reconcile";
+export { parseDailyActivity } from "./parse-daily-activity";
 export { parseAssemblyDaily } from "./parse-assembly-daily";
 export { parseRejectionAnalysis } from "./parse-rejection-analysis";
 export { parseSizeWise } from "./parse-size-wise";
@@ -33,6 +35,9 @@ export function recordsFromBuffer(buf: Buffer | ArrayBuffer, fileName: string): 
   }
   if (family === "rejection-analysis") {
     return parseRejectionAnalysis(buf, name);
+  }
+  if (family === "daily-activity") {
+    return parseDailyActivity(buf, name).records.map((record) => ({ record, family }));
   }
   if (family === "size-wise" || family === "stage-report") {
     return parseSizeWise(buf, fileName).map((record) => ({ record, family }));

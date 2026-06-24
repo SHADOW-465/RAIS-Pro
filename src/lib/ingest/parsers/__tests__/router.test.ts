@@ -10,4 +10,8 @@ describe("routeFamily", () => {
     expect(routeFamily("1 APRIL 26.xlsx")).toBe("size-wise");
     expect(routeFamily("10 JANUARY 2027.xlsx")).toBe("size-wise");
   });
+
+  it("routes Daily Activity Report to daily-activity", () => {
+    expect(routeFamily("DAILY ACTIVITY REPORT 2026.xlsx")).toBe("daily-activity");
+  });
 });
