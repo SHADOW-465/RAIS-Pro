@@ -20,6 +20,9 @@ describe("parseSizeWise", () => {
       expect(valve.length).toBeGreaterThan(0);
       expect(records.every(r => r.occurredOn.start.startsWith("2026-04-"))).toBe(true);
       expect(records.every(r => r.size != null)).toBe(true);
+      // ACCEPT and HOLD are now captured (previously dropped).
+      const withAccept = records.filter(r => r.acceptedGood != null);
+      expect(withAccept.length).toBeGreaterThan(0);
     });
   }
 
@@ -30,6 +33,8 @@ describe("parseSizeWise", () => {
       expect(records.every(r => r.stageId === "visual")).toBe(true);
       expect(records.every(r => r.occurredOn.start.startsWith("2026-04-"))).toBe(true);
       expect(records.every(r => r.size != null)).toBe(true);
+      const visualWithAccept = records.filter(r => r.acceptedGood != null);
+      expect(visualWithAccept.length).toBeGreaterThan(0);
     });
   }
 });

@@ -61,11 +61,15 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
       // Balloon columns: DATE (0), CHECKED QTY (3), ACCEPT QTY (4), REJ. QTY (6), defects: 8, 9, 10, 11
       // Valve columns: DATE (0), CHECKED QTY (15), ACCEPT QTY (16), REJ. QTY (18), defects: 20, 21, 22, 23, 24
       const bCheckedIdx = 3;
+      const bAcceptIdx = 4;
+      const bHoldIdx = 5;
       const bRejectedIdx = 6;
       const bDefectStart = 8;
       const bDefectLabels = ["STRUCK BALLOON", "BALLOON BURST", "LEAKAGE", "OTHERS"];
 
       const vCheckedIdx = 15;
+      const vAcceptIdx = 16;
+      const vHoldIdx = 17;
       const vRejectedIdx = 18;
       const vDefectStart = 20;
       const vDefectLabels = ["LEAKAGE", "90-10", "BUBBLE", "THIN SPOT", "OTHERS"];
@@ -97,8 +101,8 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
             size,
             source: { file, fileHash: "local", sheet: sheetName, tableId: "valve-balloon-row" },
             checked: { value: Math.round(bChecked), cell: `${sheetName}!${String.fromCharCode(65 + bCheckedIdx)}${i + 1}`, header: "CHECKED QTY" },
-            acceptedGood: null,
-            rework: null,
+            acceptedGood: !isNaN(Number(row[bAcceptIdx])) ? { value: Math.round(Number(row[bAcceptIdx])), cell: `${sheetName}!${String.fromCharCode(65 + bAcceptIdx)}${i + 1}`, header: "ACCEPT QTY" } : null,
+            rework: !isNaN(Number(row[bHoldIdx])) ? { value: Math.round(Number(row[bHoldIdx])), cell: `${sheetName}!${String.fromCharCode(65 + bHoldIdx)}${i + 1}`, header: "HOLD QTY" } : null,
             rejected: { value: Math.round(bRej || 0), cell: `${sheetName}!${String.fromCharCode(65 + bRejectedIdx)}${i + 1}`, header: "REJ. QTY" },
             defects,
             statedPct: null,
@@ -128,8 +132,8 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
             size,
             source: { file, fileHash: "local", sheet: sheetName, tableId: "valve-integrity-row" },
             checked: { value: Math.round(vChecked), cell: `${sheetName}!${String.fromCharCode(65 + vCheckedIdx)}${i + 1}`, header: "CHECKED QTY" },
-            acceptedGood: null,
-            rework: null,
+            acceptedGood: !isNaN(Number(row[vAcceptIdx])) ? { value: Math.round(Number(row[vAcceptIdx])), cell: `${sheetName}!${String.fromCharCode(65 + vAcceptIdx)}${i + 1}`, header: "ACCEPT QTY" } : null,
+            rework: !isNaN(Number(row[vHoldIdx])) ? { value: Math.round(Number(row[vHoldIdx])), cell: `${sheetName}!${String.fromCharCode(65 + vHoldIdx)}${i + 1}`, header: "HOLD QTY" } : null,
             rejected: { value: Math.round(vRej || 0), cell: `${sheetName}!${String.fromCharCode(65 + vRejectedIdx)}${i + 1}`, header: "REJ. QTY" },
             defects,
             statedPct: null,
@@ -181,6 +185,11 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
       const startDefectIdx = headers.indexOf("REASON FOR REJECTION") >= 0
         ? headers.indexOf("REASON FOR REJECTION") + 1
         : rejectedIdx + 2;
+      const acceptIdx = headers.indexOf("ACCEPT QTY") >= 0 ? headers.indexOf("ACCEPT QTY")
+                       : headers.indexOf("A GRADE") >= 0 ? headers.indexOf("A GRADE")
+                       : -1;
+      const holdIdx = headers.indexOf("HOLD QTY") >= 0 ? headers.indexOf("HOLD QTY")
+                     : headers.indexOf("HOLD") >= 0 ? headers.indexOf("HOLD") : -1;
 
       for (let i = headerRowIdx + 1; i < rows.length; i++) {
         const row = rows[i];
@@ -211,8 +220,8 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
           size,
           source: { file, fileHash: "local", sheet: sheetName, tableId: "size-row" },
           checked: !isNaN(chk) ? { value: Math.round(chk), cell: `${sheetName}!${String.fromCharCode(65 + checkedIdx)}${i + 1}`, header: headers[checkedIdx] } : null,
-          acceptedGood: null,
-          rework: null,
+          acceptedGood: acceptIdx >= 0 && !isNaN(Number(row[acceptIdx])) ? { value: Math.round(Number(row[acceptIdx])), cell: `${sheetName}!${String.fromCharCode(65 + acceptIdx)}${i + 1}`, header: headers[acceptIdx] } : null,
+          rework: holdIdx >= 0 && !isNaN(Number(row[holdIdx])) ? { value: Math.round(Number(row[holdIdx])), cell: `${sheetName}!${String.fromCharCode(65 + holdIdx)}${i + 1}`, header: headers[holdIdx] } : null,
           rejected: !isNaN(rej) ? { value: Math.round(rej), cell: `${sheetName}!${String.fromCharCode(65 + rejectedIdx)}${i + 1}`, header: headers[rejectedIdx] } : null,
           defects,
           statedPct: null,
