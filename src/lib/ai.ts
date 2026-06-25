@@ -16,23 +16,31 @@ const MODELS = {
   groq:       { main: "llama-3.3-70b-versatile",       fast: "llama-3.1-8b-instant" },
   nvidia:     { main: "meta/llama-3.3-70b-instruct",   fast: "meta/llama-3.1-8b-instruct" },
   openrouter: { main: "meta-llama/llama-3.3-70b-instruct:free", fast: "meta-llama/llama-3.1-8b-instruct:free" },
+  // On-prem appliance: a local Ollama instance. Default to a small, fast,
+  // JSON-capable model; override per-deployment via OLLAMA_MODEL[_FAST].
+  ollama:     { main: "qwen2.5:3b",                    fast: "qwen2.5:3b" },
 } as const;
 
-export type ModelBackend = "groq" | "nvidia" | "openrouter";
+export type ModelBackend = "groq" | "nvidia" | "openrouter" | "ollama";
 
 // Default reliability order for free tiers: Groq is fastest + most reliable,
 // NVIDIA NIM next. OpenRouter is disabled due to free-tier model unavailability.
-const DEFAULT_ORDER: readonly ModelBackend[] = ["groq", "nvidia"];
+// Ollama is appended LAST so configured cloud backends stay preferred; setting
+// RAIS_AI_BACKEND=ollama moves it to the front (on-prem appliance mode).
+const DEFAULT_ORDER: readonly ModelBackend[] = ["groq", "nvidia", "ollama"];
 
 function keyFor(b: ModelBackend): string | undefined {
   if (b === "groq") return process.env.GROQ_API_KEY;
   if (b === "nvidia") return process.env.NVIDIA_API_KEY;
   if (b === "openrouter") return process.env.OPENROUTER_API_KEY;
+  // Ollama needs no API key; its base URL presence acts as the "key".
+  if (b === "ollama") return process.env.OLLAMA_BASE_URL;
   return undefined;
 }
 
 function isAvailable(b: ModelBackend): boolean {
   if (b === "openrouter") return false; // OpenRouter free tier models are currently unavailable
+  if (b === "ollama") return !!process.env.OLLAMA_BASE_URL;
   return !!keyFor(b);
 }
 
@@ -69,6 +77,19 @@ export function resolveModel(backend: ModelBackend, fast: boolean): LanguageMode
     const main = process.env.OPENROUTER_MODEL ?? MODELS.openrouter.main;
     const f = process.env.OPENROUTER_MODEL_FAST ?? MODELS.openrouter.fast;
     return router.chat(fast ? f : main, { maxTokens: 2000 });
+  }
+
+  if (backend === "ollama") {
+    // Local Ollama exposes an OpenAI-compatible API at <base>/v1. No real key is
+    // required, but the SDK insists on one — pass a placeholder.
+    const provider = createOpenAICompatible({
+      name: "ollama",
+      apiKey: "ollama",
+      baseURL: `${process.env.OLLAMA_BASE_URL}/v1`,
+    });
+    const main = process.env.OLLAMA_MODEL ?? MODELS.ollama.main;
+    const f = process.env.OLLAMA_MODEL_FAST ?? MODELS.ollama.fast;
+    return provider.chatModel(fast ? f : main);
   }
 
   throw new Error(`Unsupported backend: ${backend}`);
@@ -123,6 +144,6 @@ export async function tryModels<T>(
 
 function noBackendError(): Error {
   return new Error(
-    "No AI backend is configured. Set GROQ_API_KEY, NVIDIA_API_KEY, or OPENROUTER_API_KEY in .env.local.",
+    "No AI backend is configured. Set GROQ_API_KEY, NVIDIA_API_KEY, OPENROUTER_API_KEY, or OLLAMA_BASE_URL in .env.local.",
   );
 }
