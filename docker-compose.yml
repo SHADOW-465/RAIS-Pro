@@ -1,0 +1,110 @@
+# RAIS / MO!D on-prem appliance — single-box deployment.
+#
+#   caddy   → TLS reverse proxy, the ONLY service that publishes ports
+#   app     → Next.js standalone server (your code + analysis engine)
+#   db      → Postgres (the plant's quality data, on their disk)
+#   ollama  → local LLM (zero egress)
+#
+# Nothing here needs inbound internet. Bring it up with:  docker compose up -d
+# See docs/DEPLOYMENT.md for the full runbook.
+
+name: rais
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # persists the internal CA + certs
+      - caddy_config:/config
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-rais.local}
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [rais_net]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rais-app:${APP_VERSION:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Wire the app to the in-network services (override-safe).
+      DATABASE_URL: ${DATABASE_URL:-postgres://rais:${POSTGRES_PASSWORD}@db:5432/rais}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      RAIS_AI_BACKEND: ${RAIS_AI_BACKEND:-ollama}
+      NEXT_TELEMETRY_DISABLED: "1"
+    expose:
+      - "3000"               # internal only — reached via caddy, never published
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [rais_net]
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rais}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-rais}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Auto-runs on FIRST init only (empty data dir). Generated in Stage B.
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rais} -d ${POSTGRES_DB:-rais}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [rais_net]
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama   # model weights persist across restarts
+    expose:
+      - "11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [rais_net]
+    # ── GPU (optional) ──────────────────────────────────────────────────────
+    # Uncomment to give Ollama an NVIDIA GPU (needs nvidia-container-toolkit on
+    # the host). CPU-only works fine with a small model (see .env.template).
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  pgdata:
+  ollama_models:
+  caddy_data:
+  caddy_config:
+
+networks:
+  rais_net:
+    driver: bridge

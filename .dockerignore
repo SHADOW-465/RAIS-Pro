@@ -1,0 +1,27 @@
+# Keep the build context small and keep secrets/source out of image layers.
+node_modules
+.next
+.git
+.github
+npm-debug.log*
+
+# Local env + secrets — never bake into an image
+.env
+.env.*
+!.env.template
+
+# Dev-only / non-shippable
+docs
+scratch
+graphify-out
+_legacy_trash
+ANALYTICAL DATA
+DATA
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
+jest.config.ts
+jest.setup.ts
+README.md
+AGENTS.md
+CLAUDE.md

@@ -1,0 +1,44 @@
+# Caddy reverse proxy for the RAIS / MO!D appliance.
+#
+# TLS even on the LAN. Two common modes:
+#
+#  1) IP / hostname with NO public DNS (typical air-gapped shop floor):
+#     Caddy issues a cert from its OWN internal CA (`tls internal`). Browsers
+#     will warn until the operator trusts Caddy's root CA once (the root is at
+#     the `caddy_data` volume: /data/caddy/pki/authorities/local/root.crt).
+#
+#  2) A real internal domain with an internal ACME CA: replace `tls internal`
+#     with your CA config. Out of scope for the default appliance.
+#
+# APP_DOMAIN comes from .env (default rais.local). Using a site address of
+# `{$APP_DOMAIN}` also serves on the box's IP because we bind :443 below.
+
+{
+	# No public ACME — we never reach the internet. Use the internal CA only.
+	# (Removing the global email/ACME avoids any outbound cert attempts.)
+	auto_https disable_redirects
+}
+
+# Serve HTTPS on the LAN. Reachable as https://<box-ip>/ or https://{$APP_DOMAIN}/
+https://{$APP_DOMAIN}, https:// {
+	tls internal
+
+	encode zstd gzip
+
+	# Proxy everything to the Next.js app (internal service name "app").
+	reverse_proxy app:3000
+
+	# Basic hardening headers.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+}
+
+# Redirect plain HTTP → HTTPS.
+http:// {
+	redir https://{host}{uri} permanent
+}
