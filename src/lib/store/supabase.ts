@@ -328,7 +328,7 @@ export class SupabaseRulebookStore implements RulebookStore {
       
     if (error) throw error;
     
-    return (rows || []).map((r) => ({
+    return (rows || []).map((r: any) => ({
       rulebookRuleId: r.rulebook_rule_id,
       ruleVersion: r.rule_version,
       findingId: r.finding_id,

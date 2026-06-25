@@ -113,12 +113,12 @@ export async function DELETE(req: NextRequest) {
 
     if (selectError) throw selectError;
 
-    const toDelete = (rows || []).filter(e => 
-      e.occurred_on?.start === date && 
+    const toDelete = (rows || []).filter((e: any) =>
+      e.occurred_on?.start === date &&
       e.provenance?.sheet === shift
     );
 
-    const ids = toDelete.map(e => e.event_id);
+    const ids = toDelete.map((e: any) => e.event_id);
     
     if (ids.length > 0) {
       const { error: deleteError } = await db

@@ -36,12 +36,12 @@ export async function POST(req: NextRequest) {
         .select("event_id, occurred_on, provenance, is_direct_entry")
         .eq("is_direct_entry", true);
 
-      const toDelete = (rows || []).filter(e => 
-        e.occurred_on?.start === date && 
+      const toDelete = (rows || []).filter((e: any) =>
+        e.occurred_on?.start === date &&
         e.provenance?.sheet === shift
       );
 
-      const ids = toDelete.map(e => e.event_id);
+      const ids = toDelete.map((e: any) => e.event_id);
       
       if (ids.length > 0) {
         const { error: delErr } = await db.from("events").delete().in("event_id", ids);

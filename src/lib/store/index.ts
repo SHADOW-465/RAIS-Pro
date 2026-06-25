@@ -18,7 +18,7 @@ export interface Stores {
   events: EventStore;
   findings: FindingStore;
   rulebook: RulebookStore;
-  backend: "supabase" | "memory";
+  backend: "supabase" | "postgres" | "memory";
 }
 
 // Module-level singletons so memory state survives across API calls in a
@@ -26,21 +26,29 @@ export interface Stores {
 const g = globalThis as unknown as { __moidStores?: Stores };
 
 /**
- * Durable by default: use Supabase whenever a project URL + a key are present.
- * `MOID_STORE=memory` forces the in-RAM store (tests, throwaway dev). Setting
- * `MOID_STORE=supabase` also works but is no longer required.
+ * Durable by default: use the DB-backed stores whenever a database is
+ * configured — either on-prem Postgres (`DATABASE_URL`) or hosted Supabase
+ * (project URL + a key). The `Supabase*Store` classes talk to whichever the
+ * server client resolves to. `MOID_STORE=memory` forces the in-RAM store
+ * (tests, throwaway dev).
  */
-export function shouldUseSupabase(): boolean {
+export function usesDatabase(): boolean {
   if ((process.env.MOID_STORE || "").toLowerCase() === "memory") return false;
+  if (process.env.DATABASE_URL) return true;
   return !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
     !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
+/** @deprecated kept for backwards compat — prefer {@link usesDatabase}. */
+export function shouldUseSupabase(): boolean {
+  return usesDatabase();
 }
 
 export function getStores(): Stores {
   if (g.__moidStores) return g.__moidStores;
 
-  if (shouldUseSupabase()) {
-    // Lazy require so the demo doesn't need supabase installed/typed to run memory mode.
+  if (usesDatabase()) {
+    // Lazy require so the demo doesn't need the DB adapter typed to run memory mode.
     const {
       SupabaseEventStore,
       SupabaseRulebookStore,
@@ -52,7 +60,7 @@ export function getStores(): Stores {
       events,
       rulebook,
       findings: new SupabaseFindingStore(rulebook),
-      backend: "supabase",
+      backend: process.env.DATABASE_URL ? "postgres" : "supabase",
     };
     seedStore(events);
   } else {
