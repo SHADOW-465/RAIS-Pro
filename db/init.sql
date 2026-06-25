@@ -43,6 +43,16 @@ CREATE TABLE IF NOT EXISTS insight_slides (
 );
 CREATE INDEX IF NOT EXISTS slides_session_id_idx ON insight_slides (session_id, created_at ASC);
 
+-- ── Legacy analyze-flow dashboards (kept so /api/sessions + the data-reset ────
+-- routes keep working). FK-references sessions(id) above.
+CREATE TABLE IF NOT EXISTS dashboards (
+  id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id    uuid REFERENCES sessions(id) ON DELETE CASCADE,
+  analysis_json jsonb NOT NULL,
+  metadata_json jsonb,
+  created_at    timestamptz DEFAULT now()
+);
+
 -- ── Raw uploaded files (durable archive) ─────────────────────────────────────
 CREATE TABLE IF NOT EXISTS raw_files (
   file_hash   text PRIMARY KEY,

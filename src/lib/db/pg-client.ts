@@ -28,6 +28,13 @@ export function getPool(): Pool {
     throw new Error("DATABASE_URL is not set");
   }
   _pool = new Pool({ connectionString });
+  // A long-running appliance server must not crash when an idle pooled client's
+  // connection is dropped (e.g. Postgres restart, network blip). Without a
+  // listener, `pg` re-emits that as an uncaught 'error' and takes the process
+  // down. Log and let the pool recycle the client.
+  _pool.on("error", (err) => {
+    console.error("[pg] idle client error:", err);
+  });
   return _pool;
 }
 
