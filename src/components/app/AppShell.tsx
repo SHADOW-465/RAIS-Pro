@@ -66,6 +66,7 @@ export default function AppShell({
   const [analyticsExpanded] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
+  const [viewStages, setViewStages] = useState<{ id: string; label: string }[]>([]);
   const [dateMinMax, setDateMinMax] = useState<{ min: string; max: string } | null>(null);
 
   const getSuggestedGrain = (): "day" | "week" | "month" | "fy" => {
@@ -108,6 +109,8 @@ export default function AppShell({
       .then((res) => res.json())
       .then((data) => {
         setIsConfigured(data.configured !== false);
+        const gates = (data.registry?.stages || []).filter((s: any) => s.isQualityGate ?? true);
+        setViewStages(gates.map((s: any) => ({ id: s.stageId, label: s.label })));
       })
       .catch(() => {
         setIsConfigured(true);
@@ -439,7 +442,7 @@ export default function AppShell({
               View
             </span>
             <div style={{ display: "flex", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: 2, background: "var(--surface-2)", alignItems: "center" }}>
-              {VIEW_OPTIONS.map((v) => {
+              {[{ id: "cumulative", label: "Cumulative" }, ...(viewStages.length ? viewStages : VIEW_OPTIONS.slice(1))].map((v) => {
                 const active = t.stageView === v.id;
                 return (
                   <button
