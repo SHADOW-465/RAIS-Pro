@@ -37,7 +37,6 @@ const NAV: NavItem[] = [
   { key: "audit", label: "Audit Trail", icon: "search", href: "/audit" },
   { key: "schema", label: "Data Schema", icon: "split", href: "/schema" },
   { key: "settings", label: "Settings", icon: "external", href: "/settings" },
-  { key: "clear-data", label: "Clear Data", icon: "x", href: "/clear-data" },
 ];
 
 // Global stage scope. "cumulative" = all stages combined; the rest scope every

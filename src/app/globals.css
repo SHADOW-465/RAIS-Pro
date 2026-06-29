@@ -571,4 +571,15 @@ input:focus-visible, textarea:focus-visible, button:focus-visible {
 .loader-bar:nth-child(4) { animation-delay: 0.55s !important; }
 .loader-bar:nth-child(5) { animation-delay: 0.7s !important; }
 
+/* =========================================================
+   Button Click Micro-interactions
+   ========================================================= */
+button:not(:disabled), .btn:not(:disabled) {
+  transition: transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+button:active:not(:disabled), .btn:active:not(:disabled) {
+  transform: scale(0.96) !important;
+}
+
 

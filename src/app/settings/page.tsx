@@ -21,6 +21,7 @@ export default function SettingsPage() {
   });
 
   const [saved, setSaved] = useState(false);
+  const [resetSaved, setResetSaved] = useState(false);
 
   // Administrative Reset States
   const [showClearModal, setShowClearModal] = useState(false);
@@ -33,7 +34,7 @@ export default function SettingsPage() {
   const [actionStatus, setActionStatus] = useState<string | null>(null);
 
   const handleClearTransactions = async () => {
-    if (clearConfirmText !== "CLEAR") return;
+    if (clearConfirmText.trim().toUpperCase() !== "CLEAR") return;
     setBusyAction("clear");
     setActionStatus(null);
     try {
@@ -51,7 +52,7 @@ export default function SettingsPage() {
   };
 
   const handleClearSchema = async () => {
-    if (clearSchemaConfirmText !== "RESET") return;
+    if (clearSchemaConfirmText.trim().toUpperCase() !== "RESET") return;
     setBusyAction("clear-schema");
     setActionStatus(null);
     try {
@@ -168,6 +169,8 @@ export default function SettingsPage() {
       "valve-integrity": "0.90",
       "final": "1.00",
     });
+    setResetSaved(true);
+    setTimeout(() => setResetSaved(false), 1500);
   };
 
   return (
@@ -413,11 +416,26 @@ export default function SettingsPage() {
 
           {/* Bottom Actions */}
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, borderTop: "1px solid var(--border)", paddingTop: 20 }}>
-            <button onClick={handleReset} style={btnGhost}>
-              Reset to Defaults
+            <button 
+              onClick={handleReset} 
+              style={{
+                ...btnGhost,
+                color: resetSaved ? "var(--status-good)" : "var(--text-2)",
+                borderColor: resetSaved ? "var(--status-good)" : "var(--border)",
+                transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
+              }}
+            >
+              {resetSaved ? "✓ Values Reset" : "Reset to Defaults"}
             </button>
-            <button onClick={handleSave} style={btnPrimary}>
-              Save Configurations
+            <button 
+              onClick={handleSave} 
+              style={{
+                ...btnPrimary,
+                background: saved ? "var(--status-good)" : "var(--accent)",
+                transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
+              }}
+            >
+              {saved ? "✓ Configurations Saved" : "Save Configurations"}
             </button>
           </div>
         </div>
@@ -443,18 +461,18 @@ export default function SettingsPage() {
                 <input 
                   type="text" 
                   value={clearConfirmText} 
-                  onChange={(e) => setClearConfirmText(e.target.value)} 
+                  onChange={(e) => setClearConfirmText(e.target.value.toUpperCase())} 
                   placeholder="CLEAR" 
                   style={{ ...inpStyle, fontFamily: "var(--font-mono)", textAlign: "center", textTransform: "uppercase" }} 
                 />
               </label>
             </div>
             <div style={{ padding: "14px 20px", borderTop: "1.5px solid var(--border)", background: "var(--surface-2)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button onClick={() => setShowClearModal(false)} style={btnGhost}>Cancel</button>
+              <button onClick={() => setShowClearModal(false)} style={{ ...btnGhost, transition: "all 0.2s ease" }}>Cancel</button>
               <button 
                 onClick={handleClearTransactions} 
-                disabled={clearConfirmText !== "CLEAR" || busyAction === "clear"} 
-                style={{ ...btnPrimary, background: "var(--status-bad)", color: "#fff", opacity: clearConfirmText === "CLEAR" ? 1 : 0.5 }}
+                disabled={clearConfirmText.trim().toUpperCase() !== "CLEAR" || busyAction === "clear"} 
+                style={{ ...btnPrimary, background: "var(--status-bad)", color: "#fff", opacity: clearConfirmText.trim().toUpperCase() === "CLEAR" ? 1 : 0.5, transition: "all 0.2s ease" }}
               >
                 {busyAction === "clear" ? "Clearing..." : "Yes, Purge Data"}
               </button>
@@ -483,18 +501,18 @@ export default function SettingsPage() {
                 <input 
                   type="text" 
                   value={clearSchemaConfirmText} 
-                  onChange={(e) => setClearSchemaConfirmText(e.target.value)} 
+                  onChange={(e) => setClearSchemaConfirmText(e.target.value.toUpperCase())} 
                   placeholder="RESET" 
                   style={{ ...inpStyle, fontFamily: "var(--font-mono)", textAlign: "center", textTransform: "uppercase" }} 
                 />
               </label>
             </div>
             <div style={{ padding: "14px 20px", borderTop: "1.5px solid var(--border)", background: "var(--surface-2)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button onClick={() => setShowClearSchemaModal(false)} style={btnGhost}>Cancel</button>
+              <button onClick={() => setShowClearSchemaModal(false)} style={{ ...btnGhost, transition: "all 0.2s ease" }}>Cancel</button>
               <button 
                 onClick={handleClearSchema} 
-                disabled={clearSchemaConfirmText !== "RESET" || busyAction === "clear-schema"} 
-                style={{ ...btnPrimary, background: "var(--status-bad)", color: "#fff", opacity: clearSchemaConfirmText === "RESET" ? 1 : 0.5 }}
+                disabled={clearSchemaConfirmText.trim().toUpperCase() !== "RESET" || busyAction === "clear-schema"} 
+                style={{ ...btnPrimary, background: "var(--status-bad)", color: "#fff", opacity: clearSchemaConfirmText.trim().toUpperCase() === "RESET" ? 1 : 0.5, transition: "all 0.2s ease" }}
               >
                 {busyAction === "clear-schema" ? "Resetting..." : "Yes, Reset Registry"}
               </button>
