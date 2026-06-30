@@ -16,7 +16,8 @@ const SIZE_NAME_RE = /^\s*\d{1,2}\s*fr\b|^fr\s*\d{1,2}\b|\bsize\b/i;
 const SHORT_CODE_RE = /^[A-Z0-9/]{1,6}$/;
 
 function looksSerialDate(nums: number[]): boolean {
-  return nums.length >= 2 && nums.every((n) => n >= 40000 && n <= 60000);
+  // Mirrors parser.ts looksSerialDate (>=3) to avoid the two date heuristics desyncing.
+  return nums.length >= 3 && nums.every((n) => n >= 40000 && n <= 60000);
 }
 
 /** Decide a column's value-type from its non-empty sampled cells. */
@@ -46,6 +47,10 @@ function dominantFormulaClass(
     tally[fc.kind] += 1;
     if (!sample[fc.kind]) sample[fc.kind] = fc;
   });
+  // Tie-break precedence is intentional and follows Object.keys insertion order:
+  // external-link > vertical-aggregate > row-derived. When a column mixes formula
+  // kinds equally, prefer treating it as a linked raw value over an ad-hoc derived
+  // guess (safer: never silently drops a measure).
   let best: string | null = null;
   for (const k of Object.keys(tally)) {
     if (tally[k] > 0 && (best === null || tally[k] > tally[best])) best = k;
@@ -72,6 +77,11 @@ function classifyRole(
 
   // Explicit measure words win before the generic short-code → defect rule, so
   // "REJ QTY" / "REC. QTY" stay measures rather than being read as reason codes.
+  // Measure-words are checked before the short-code → defect rule so "REJ QTY" /
+  // "HOLD QTY" stay measures. A consequence: a BARE one-word reason code that is
+  // also a measure-word (e.g. a column literally named "REJ") resolves to measure.
+  // In this corpus those are genuinely dispositions, not defect codes; the deferred
+  // LLM refinement pass (spec component [B]) disambiguates any true exceptions.
   if (MEASURE_NAME_RE.test(name) && type === "number") return "measure";
 
   // Defect: a short uppercase reason code carrying numeric tallies.
@@ -87,7 +97,10 @@ function classifyRole(
 export function profileColumn(table: ProfilingTable, index: number): ColumnProfile {
   const name = (table.header[index] ?? "").trim();
   const colLetter = table.colLetters[index] ?? "";
-  const cells = table.rows.map((r) => r[index]).filter(Boolean) as ProfilingCell[];
+  // Keep cells 1:1 with their row index so dominantFormulaClass can reconstruct
+  // each cell's true sheet row (firstDataRow + idx). A missing cell becomes empty
+  // rather than shifting every subsequent index.
+  const cells: ProfilingCell[] = table.rows.map((r) => r[index] ?? { value: "", formula: null });
   const nonEmpty = cells.filter((c) => c.value !== "" && c.value != null);
   const cardinality = new Set(nonEmpty.map((c) => String(c.value))).size;
   const type = columnType(cells, name);

@@ -39,4 +39,12 @@ describe("classifyFormula", () => {
   it("ignores a leading equals sign", () => {
     expect(classifyFormula("=SUM(B6:B10)", "B", 11).kind).toBe("vertical-aggregate");
   });
+
+  it("classifies a same-row horizontal SUM range as row-derived", () => {
+    expect(classifyFormula("SUM(D9:O9)", "P", 9).kind).toBe("row-derived");
+  });
+
+  it("still classifies a multi-row single-column SUM as vertical-aggregate", () => {
+    expect(classifyFormula("SUM(B6:B10)", "B", 11).kind).toBe("vertical-aggregate");
+  });
 });

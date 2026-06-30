@@ -20,6 +20,7 @@ const SKIP_SHEET_RE = /^\s*(formate|format|yearly|annual|cumul|summary|total|con
  * xlsx — keeps the profiler core pure.
  */
 export function buildProfilingTables(data: ArrayBuffer | Buffer, _fileName: string): ProfilingTable[] {
+  // _fileName is reserved for source provenance — consumed by the dataset registry (Plan 3).
   const wb = XLSX.read(data, { cellFormula: true });
   const tables: ProfilingTable[] = [];
 

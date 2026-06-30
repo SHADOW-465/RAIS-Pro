@@ -69,4 +69,14 @@ describe("profileTable", () => {
     const { columns } = profileTable(t);
     expect(columns.find((c) => c.name === "BATCH")!.role).toBe("dimension");
   });
+
+  it("classifies a horizontal-SUM total column as derived", () => {
+    const t = table(
+      ["DATE", "REC. QTY", "TOTAL DEFECTS"],
+      ["A", "C", "P"],
+      [[cell("2025-06-01"), cell(500), cell(7, "SUM(D9:O9)")]],
+    );
+    const { columns } = profileTable(t);
+    expect(columns.find((c) => c.name === "TOTAL DEFECTS")!.role).toBe("derived");
+  });
 });

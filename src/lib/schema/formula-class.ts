@@ -32,9 +32,15 @@ export function classifyFormula(
     return { kind: "external-link", ref: m ? m[0] : f };
   }
 
-  // 2. Vertical aggregate range, e.g. SUM(B6:B10).
-  const range = f.match(/\$?[A-Z]{1,3}\$?\d+\s*:\s*\$?[A-Z]{1,3}\$?\d+/);
-  if (range) return { kind: "vertical-aggregate", range: range[0] };
+  // 2. A range. A same-ROW range (e.g. SUM(D9:O9)) is a horizontal row total →
+  //    derived. A multi-row range in one column (e.g. SUM(B6:B10)) is a vertical
+  //    subtotal artefact → vertical-aggregate.
+  const range = f.match(/\$?([A-Z]{1,3})\$?(\d+)\s*:\s*\$?([A-Z]{1,3})\$?(\d+)/);
+  if (range) {
+    const [, c1, r1, , r2] = range;
+    if (r1 === r2) return { kind: "row-derived", refs: [c1, range[3]] };
+    return { kind: "vertical-aggregate", range: range[0] };
+  }
 
   // 3. Same-row references to OTHER columns → derived.
   const refRe = /\$?([A-Z]{1,3})\$?(\d+)/g;
