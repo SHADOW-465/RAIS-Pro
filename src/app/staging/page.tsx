@@ -94,16 +94,16 @@ export default function StagingPage() {
       // Never blocks or throws into the existing upload/review flow.
       void (async () => {
         try {
-          const { datasetsFromWorkbooks } = await import("@/lib/dataset/from-workbooks");
+          const { datasetsWithRowsFromWorkbooks } = await import("@/lib/dataset/from-workbooks");
           const inputs = await Promise.all(
             files.map(async (f) => ({ fileName: f.name, data: await f.arrayBuffer() })),
           );
-          const datasets = datasetsFromWorkbooks(inputs);
+          const { datasets, rows } = datasetsWithRowsFromWorkbooks(inputs);
           if (datasets.length > 0) {
             await fetch("/api/datasets", {
               method: "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({ datasets }),
+              body: JSON.stringify({ datasets, rows }),
             }).catch(() => {}); // best-effort; never surfaces to the user in this plan
           }
         } catch {
