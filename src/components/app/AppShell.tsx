@@ -66,6 +66,7 @@ export default function AppShell({
   const [exporting, setExporting] = useState(false);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
   const [viewStages, setViewStages] = useState<{ id: string; label: string }[]>([]);
+  const [datasetTabs, setDatasetTabs] = useState<{ id: string; label: string }[]>([]);
   const [dateMinMax, setDateMinMax] = useState<{ min: string; max: string } | null>(null);
 
   const getSuggestedGrain = (): "day" | "week" | "month" | "fy" => {
@@ -113,6 +114,21 @@ export default function AppShell({
       })
       .catch(() => {
         setIsConfigured(true);
+      });
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/datasets")
+      .then((res) => res.json())
+      .then((data) => {
+        const list = (data.datasets ?? []) as { id: string; title: string }[];
+        // Prefix with "dataset:" so these ids can never collide with a legacy
+        // stageId (which are short kebab-case strings like "visual"), and so
+        // page.tsx can cheaply tell the two kinds of tab apart.
+        setDatasetTabs(list.map((d) => ({ id: `dataset:${d.id}`, label: d.title })));
+      })
+      .catch(() => {
+        // best-effort — the existing stage tabs still render fine without this
       });
   }, []);
 
@@ -441,7 +457,7 @@ export default function AppShell({
               View
             </span>
             <div style={{ display: "flex", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: 2, background: "var(--surface-2)", alignItems: "center" }}>
-              {[{ id: "cumulative", label: "Cumulative" }, ...(viewStages.length ? viewStages : VIEW_OPTIONS.slice(1))].map((v) => {
+              {[{ id: "cumulative", label: "Cumulative" }, ...(viewStages.length ? viewStages : VIEW_OPTIONS.slice(1)), ...datasetTabs].map((v) => {
                 const active = t.stageView === v.id;
                 return (
                   <button
