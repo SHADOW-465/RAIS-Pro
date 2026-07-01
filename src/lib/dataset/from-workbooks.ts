@@ -14,6 +14,23 @@ export interface DatasetsWithRows {
   rows: DatasetRow[];
 }
 
+/** Build a collision-safe key per non-meta column: if two columns normalize to the
+ * same name within this table (e.g. differing only by case/whitespace), suffix
+ * the later ones by column letter so neither's values are silently overwritten.
+ * This does NOT change Dataset.columns/the schema signature — only how row
+ * VALUES are keyed for extraction. */
+function rowValueKeys(nonMetaCols: { name: string; colLetter: string }[]): Map<number, string> {
+  const seen = new Map<string, number>(); // normalized name -> count seen so far
+  const keys = new Map<number, string>(); // column array index -> extraction key
+  nonMetaCols.forEach((col, i) => {
+    const base = normalizeName(col.name);
+    const count = seen.get(base) ?? 0;
+    seen.set(base, count + 1);
+    keys.set(i, count === 0 ? base : `${base} (${col.colLetter})`);
+  });
+  return keys;
+}
+
 /** Same grouping as datasetsFromWorkbooks, but also extracts every non-meta
  *  column's value for every row (uncapped — see buildProfilingTables maxRows),
  *  tagged with the Dataset id they belong to. */
@@ -45,14 +62,16 @@ export function datasetsWithRowsFromWorkbooks(files: WorkbookInput[]): DatasetsW
     const datasetId = idFor.get(`${inp.fileName}::${inp.sheetName}`);
     if (!datasetId) continue; // should not happen; grouping covers every input
     const nonMetaCols = inp.columns.filter((c) => c.role !== "meta");
+    const keys = rowValueKeys(nonMetaCols);
     inp.rowsRaw.forEach((cells, rowIndex) => {
       const values: Record<string, string | number | null> = {};
-      for (const col of nonMetaCols) {
+      nonMetaCols.forEach((col, i) => {
         const raw = cells[col.index]?.value;
         // Key by the same normalized name used in Dataset.columns (computeSignature
-        // lowercases/trims), so a row's values line up with its dataset's column list.
-        values[normalizeName(col.name)] = raw === "" || raw === undefined ? null : (raw as string | number);
-      }
+        // lowercases/trims), disambiguated by column letter on within-table collisions
+        // so a same-normalized-name later column never silently overwrites an earlier one.
+        values[keys.get(i)!] = raw === "" || raw === undefined ? null : (raw as string | number);
+      });
       const allEmpty = Object.values(values).every((v) => v === null);
       if (allEmpty) return; // skip fully-blank rows (e.g. trailing sheet padding)
       rows.push({ datasetId, fileName: inp.fileName, sheetName: inp.sheetName, rowIndex, values });

@@ -28,7 +28,8 @@ export function buildProfilingTables(
   _fileName: string,
   opts: { maxRows?: number } = {},
 ): ProfilingTable[] {
-  // _fileName is reserved for source provenance — consumed by the dataset registry (Plan 3).
+  // _fileName is unused here — callers (e.g. src/lib/dataset/from-workbooks.ts)
+  // already track fileName separately alongside each returned ProfilingTable.
   const maxRows = opts.maxRows ?? DEFAULT_MAX_SAMPLE_ROWS;
   const wb = XLSX.read(data, { cellFormula: true });
   const tables: ProfilingTable[] = [];

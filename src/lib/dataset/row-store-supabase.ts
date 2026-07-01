@@ -45,15 +45,22 @@ export class SupabaseRowStore implements RowStore {
   }
 
   async forDataset(datasetId: string): Promise<DatasetRow[]> {
-    const { data, error } = await this.client
-      .from("dataset_rows")
-      .select("*")
-      .eq("dataset_id", datasetId)
-      .order("file_name")
-      .order("sheet_name")
-      .order("row_index");
-    if (error) throw error;
-    return (data ?? []).map(fromRow);
+    const PAGE = 1000;
+    const out: DatasetRow[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await this.client
+        .from("dataset_rows")
+        .select("*")
+        .eq("dataset_id", datasetId)
+        .order("file_name")
+        .order("sheet_name")
+        .order("row_index")
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      out.push(...(data ?? []).map(fromRow));
+      if (!data || data.length < PAGE) break;
+    }
+    return out;
   }
 
   async clear(): Promise<void> {

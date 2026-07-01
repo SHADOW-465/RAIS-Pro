@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import * as XLSX from "xlsx";
 import { datasetsFromWorkbooks, datasetsWithRowsFromWorkbooks } from "../from-workbooks";
 
 const DIR = path.join(process.cwd(), "ANALYTICAL DATA", "REJECTION ANALYSIS 2025-26");
@@ -40,5 +41,39 @@ maybe("datasetsFromWorkbooks (real corpus)", () => {
       const allowed = colsById.get(r.datasetId)!;
       for (const key of Object.keys(r.values)) expect(allowed.has(key)).toBe(true);
     }
+  });
+});
+
+describe("datasetsWithRowsFromWorkbooks (synthetic collision case)", () => {
+  it("keeps distinct values for two columns that normalize to the same name (case/whitespace-only difference)", () => {
+    // "Rej %" and "REJ %" both normalize to "rej %" via normalizeName. Without
+    // collision-safe keys, the second column's values would silently overwrite
+    // the first's for every row.
+    const header = ["DATE", "Rej %", "REJ %"];
+    const data = [
+      header,
+      ["2025-04-01", 5, 9],
+      ["2025-04-02", 6, 10],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "SHEET1");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+    const { rows } = datasetsWithRowsFromWorkbooks([{ fileName: "collision.xlsx", data: buf }]);
+    expect(rows.length).toBeGreaterThan(0);
+
+    // Both distinct source values must be present somewhere in each row's values,
+    // under two DIFFERENT keys — neither silently overwritten by the other.
+    for (const r of rows) {
+      const numericValues = Object.values(r.values).filter((v) => typeof v === "number");
+      expect(new Set(Object.keys(r.values)).size).toBe(Object.keys(r.values).length); // no duplicate keys (trivially true for an object, but documents intent)
+      expect(numericValues.length).toBeGreaterThanOrEqual(2);
+    }
+    // Specifically: row 0 should carry both 5 and 9; row 1 should carry both 6 and 10.
+    const row0 = rows.find((r) => r.rowIndex === 0)!;
+    const row1 = rows.find((r) => r.rowIndex === 1)!;
+    expect(Object.values(row0.values)).toEqual(expect.arrayContaining([5, 9]));
+    expect(Object.values(row1.values)).toEqual(expect.arrayContaining([6, 10]));
   });
 });

@@ -35,7 +35,10 @@ export async function POST(req: NextRequest) {
       if (!Array.isArray(rows)) {
         return NextResponse.json({ error: "rows must be an array when provided." }, { status: 400 });
       }
-      const invalidRow = rows.find((r) => !r?.datasetId || !r?.fileName || !r?.sheetName || typeof r?.values !== "object");
+      const invalidRow = rows.find(
+        (r) => !r?.datasetId || !r?.fileName || !r?.sheetName ||
+          r?.values === null || typeof r?.values !== "object" || Array.isArray(r?.values),
+      );
       if (invalidRow) {
         return NextResponse.json({ error: "Malformed row: datasetId, fileName, sheetName, values are required." }, { status: 400 });
       }
