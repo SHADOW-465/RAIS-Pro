@@ -84,6 +84,27 @@ describe("buildGenericDashboard", () => {
     expect(d.kpis[0].total).toBe(5);
   });
 
+  it("dedupes same-name columns within a role so a name collision renders one tile, not two identical ones", () => {
+    // Simulates two raw headers ("REJ %" / "Rej %") that both normalized to the
+    // same Dataset.columns name — SchemaSignatureColumn has no column letter to
+    // disambiguate, so the builder must not produce two KPIs both reading the
+    // same value under the hood.
+    const colliding: Dataset = {
+      ...dataset,
+      columns: [
+        { role: "dimension-date", name: "date" },
+        { role: "measure", name: "count" },
+        { role: "measure", name: "count" }, // duplicate name, same role
+      ],
+    };
+    const collidingRows: DatasetRow[] = [
+      { datasetId: "ds1", fileName: "a.xlsx", sheetName: "S", rowIndex: 0, values: { date: "2025-04-01", count: 7 } },
+    ];
+    const d = buildGenericDashboard(colliding, collidingRows);
+    expect(d.kpis).toHaveLength(1);
+    expect(d.kpis[0].total).toBe(7);
+  });
+
   it("treats non-numeric / null measure values as 0 rather than throwing or producing NaN", () => {
     const withGaps: DatasetRow[] = [
       row("2025-04-01", 100, 10, "6FR", 3, 2),

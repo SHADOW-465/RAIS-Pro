@@ -44,6 +44,27 @@ function humanize(name: string): string {
   return name.trim().replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/** Drop same-name duplicates within a role group, keeping the first occurrence.
+ *
+ *  Why this exists: `SchemaSignatureColumn` (Dataset.columns) carries only
+ *  {role, name} — no column letter — so it cannot express that two DIFFERENT
+ *  raw headers in one sheet normalized to the same name (e.g. "REJ %" vs
+ *  "Rej %"). Row storage (src/lib/dataset/from-workbooks.ts) disambiguates that
+ *  case by suffixing the second occurrence's VALUE key with its column letter,
+ *  but that suffix isn't reconstructable here. Without this dedupe, such a
+ *  dataset would render two identical-looking KPI/breakdown/Pareto entries that
+ *  both read the SAME (first) column's value — not a crash, but a confusing
+ *  duplicate tile, and the second column's real (safely-stored) values would
+ *  never surface in this dashboard. Deduping caps the damage to "one tile is
+ *  the first column's data" rather than "two identical wrong-looking tiles".
+ *  Fully resolving this would require threading column letters through
+ *  SchemaSignatureColumn (a Plan 2 change) — out of scope here; flagged as a
+ *  known follow-up. */
+function dedupeByName<T extends { name: string }>(cols: T[]): T[] {
+  const seen = new Set<string>();
+  return cols.filter((c) => (seen.has(c.name) ? false : (seen.add(c.name), true)));
+}
+
 /** Builds a generic, schema-agnostic dashboard from a Dataset's persisted rows.
  *  Deterministic pure arithmetic — no AI, no I/O. Every measure column becomes
  *  a KPI; every dimension column becomes a breakdown; defect columns become one
@@ -51,9 +72,9 @@ function humanize(name: string): string {
  *  never throws on a dataset that lacks dates, dimensions, or defects. */
 export function buildGenericDashboard(dataset: Dataset, rows: DatasetRow[]): GenericDashboard {
   const dateCol = dataset.columns.find((c) => c.role === "dimension-date");
-  const measureCols = dataset.columns.filter((c) => c.role === "measure");
-  const dimensionCols = dataset.columns.filter((c) => c.role === "dimension");
-  const defectCols = dataset.columns.filter((c) => c.role === "defect");
+  const measureCols = dedupeByName(dataset.columns.filter((c) => c.role === "measure"));
+  const dimensionCols = dedupeByName(dataset.columns.filter((c) => c.role === "dimension"));
+  const defectCols = dedupeByName(dataset.columns.filter((c) => c.role === "defect"));
 
   const rowDates: (string | null)[] = dateCol ? rows.map((r) => toLocalISODate(r.values[dateCol.name])) : rows.map(() => null);
   const validDates = rowDates.filter((d): d is string => d != null).sort();
