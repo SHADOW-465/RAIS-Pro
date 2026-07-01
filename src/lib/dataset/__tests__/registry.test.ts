@@ -35,4 +35,14 @@ describe("groupIntoDatasets", () => {
     const b = [a[2], a[0], a[1]];
     expect(groupIntoDatasets(b)).toEqual(groupIntoDatasets(a));
   });
+
+  it("keeps two different schemas separate even if their hash collides", () => {
+    const sigA = { hash: "deadbeef", columns: [{ role: "measure" as const, name: "qty" }] };
+    const sigB = { hash: "deadbeef", columns: [{ role: "measure" as const, name: "count" }] }; // same hash, different basis
+    const a: ProfiledTableInput = { fileName: "a.xlsx", sheetName: "S", signature: sigA, columns: [], rowCount: 3 };
+    const b: ProfiledTableInput = { fileName: "b.xlsx", sheetName: "S", signature: sigB, columns: [], rowCount: 4 };
+    const ds = groupIntoDatasets([a, b]);
+    expect(ds).toHaveLength(2);
+    expect(new Set(ds.map((d) => d.id)).size).toBe(2); // ids must differ despite the same hash
+  });
 });

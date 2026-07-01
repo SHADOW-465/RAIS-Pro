@@ -16,7 +16,7 @@ function words(name: string): string[] {
   return cleaned.split(/\s+/).filter((w) => w.length >= 3);
 }
 
-const STOP = new Set(["report", "file", "the", "and", "for", "inspe", "inspection", "sheet", "data"]);
+const STOP = new Set(["report", "file", "the", "and", "for", "inspection", "sheet", "data"]);
 
 /** A deterministic, human-ish dataset title. The LLM refinement pass (spec [B])
  *  can later replace this; here we pick the most frequent meaningful word(s)
@@ -38,7 +38,15 @@ export function deriveTitle(columns: SchemaSignatureColumn[], sources: DatasetSo
   }
   const measures = columns.filter((c) => c.role === "measure").length;
   const dims = columns.filter((c) => c.role === "dimension" || c.role === "dimension-date").length;
-  const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  // Spelled out (not numerals) so this fallback title never contains a digit —
+  // some callers (see title.test.ts) rely on that. Capped at 30, comfortably
+  // above any realistic column count for a single sheet in this domain.
+  const NUMBER_WORDS = [
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
+    "twenty-one", "twenty-two", "twenty-three", "twenty-four", "twenty-five",
+    "twenty-six", "twenty-seven", "twenty-eight", "twenty-nine", "thirty",
+  ];
   const spell = (n: number) => NUMBER_WORDS[n] ?? String(n);
   const plural = (n: number, word: string) => `${spell(n)} ${word}${n === 1 ? "" : "s"}`;
   return `Dataset (${plural(measures, "measure")}, ${plural(dims, "dimension")})`;
