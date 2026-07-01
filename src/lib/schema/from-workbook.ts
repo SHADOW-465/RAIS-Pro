@@ -8,7 +8,7 @@ import {
 } from "@/lib/parser";
 import type { ProfilingCell, ProfilingTable } from "./types";
 
-const MAX_SAMPLE_ROWS = 60;
+const DEFAULT_MAX_SAMPLE_ROWS = 60;
 
 /** Sheets that are templates or rollups, not primary data — skipped. */
 const SKIP_SHEET_RE = /^\s*(formate|format|yearly|annual|cumul|summary|total|config|settings)\b/i;
@@ -18,9 +18,18 @@ const SKIP_SHEET_RE = /^\s*(formate|format|yearly|annual|cumul|summary|total|con
  * header-detection helpers and reading per-cell formulas (cell.f) so the
  * profiler can use the formula dependency graph. The ONLY file here that touches
  * xlsx — keeps the profiler core pure.
+ *
+ * By default samples up to DEFAULT_MAX_SAMPLE_ROWS rows per sheet — plenty for
+ * role/type CLASSIFICATION. Pass `opts.maxRows` to read more (e.g. uncapped row
+ * extraction for a dashboard, which must not silently truncate later months).
  */
-export function buildProfilingTables(data: ArrayBuffer | Buffer, _fileName: string): ProfilingTable[] {
+export function buildProfilingTables(
+  data: ArrayBuffer | Buffer,
+  _fileName: string,
+  opts: { maxRows?: number } = {},
+): ProfilingTable[] {
   // _fileName is reserved for source provenance — consumed by the dataset registry (Plan 3).
+  const maxRows = opts.maxRows ?? DEFAULT_MAX_SAMPLE_ROWS;
   const wb = XLSX.read(data, { cellFormula: true });
   const tables: ProfilingTable[] = [];
 
@@ -38,7 +47,7 @@ export function buildProfilingTables(data: ArrayBuffer | Buffer, _fileName: stri
     const colLetters = normalizedHeader.map((_, i) => colIndexToLabel(i));
     const firstDataRow = dataStartIndex + 1; // 1-based sheet row of rows[0]
 
-    const dataRows = rawRows.slice(dataStartIndex, dataStartIndex + MAX_SAMPLE_ROWS);
+    const dataRows = rawRows.slice(dataStartIndex, dataStartIndex + maxRows);
     const rows: ProfilingCell[][] = dataRows.map((row, rIdx) =>
       normalizedHeader.map((_, cIdx) => {
         const value = row[cIdx] ?? "";

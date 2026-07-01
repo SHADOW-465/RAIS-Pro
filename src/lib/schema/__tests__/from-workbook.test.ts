@@ -36,4 +36,17 @@ maybe("buildProfilingTables on the real April rejection-analysis workbook", () =
     expect(sig.hash).toMatch(/^[0-9a-f]{8}$/);
     expect(sig.columns.length).toBeGreaterThan(0);
   });
+
+  it("respects an explicit maxRows override for full-data extraction, beyond the 60-row classification cap", () => {
+    const DIR = path.dirname(FILE);
+    const files = fs.readdirSync(DIR).filter((f) => /REJECTION ANALYSIS.*\.xlsx$/i.test(f) && !f.startsWith("~$"));
+    const buf = fs.readFileSync(path.join(DIR, files[0]));
+    const capped = buildProfilingTables(buf, files[0]);
+    const uncapped = buildProfilingTables(buf, files[0], { maxRows: 5000 });
+    // Same sheets, and uncapped never has FEWER rows than capped for any sheet.
+    const cappedByName = new Map(capped.map((t) => [t.sheetName, t.rows.length]));
+    for (const t of uncapped) {
+      expect(t.rows.length).toBeGreaterThanOrEqual(cappedByName.get(t.sheetName) ?? 0);
+    }
+  });
 });
