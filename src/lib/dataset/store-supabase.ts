@@ -1,6 +1,7 @@
 import { createServerClient } from "@/lib/supabase";
 import type { Dataset } from "./types";
 import type { DatasetStore } from "./store";
+import { sortDatasets } from "./store";
 
 interface DatasetRow {
   id: string;
@@ -9,6 +10,7 @@ interface DatasetRow {
   columns: Dataset["columns"];
   sources: Dataset["sources"];
   total_rows: number;
+  updated_at: string;
 }
 
 function toRow(d: Dataset): DatasetRow {
@@ -19,6 +21,7 @@ function toRow(d: Dataset): DatasetRow {
     columns: d.columns,
     sources: d.sources,
     total_rows: d.totalRows,
+    updated_at: new Date().toISOString(),
   };
 }
 
@@ -33,6 +36,9 @@ function fromRow(r: DatasetRow): Dataset {
   };
 }
 
+// No chunking/pagination here (unlike SupabaseEventStore): datasets are expected
+// in the tens, each with one representative column-set, not high-volume events.
+// Revisit with chunk()/`.range()` (see ./batch, SupabaseEventStore) if that changes.
 export class SupabaseDatasetStore implements DatasetStore {
   private get client() {
     return createServerClient();
@@ -48,9 +54,7 @@ export class SupabaseDatasetStore implements DatasetStore {
   async list(): Promise<Dataset[]> {
     const { data, error } = await this.client.from("datasets").select("*");
     if (error) throw error;
-    return (data ?? []).map(fromRow).sort(
-      (a, b) => b.totalRows - a.totalRows || a.title.localeCompare(b.title),
-    );
+    return sortDatasets((data ?? []).map(fromRow));
   }
 
   async clear(): Promise<void> {

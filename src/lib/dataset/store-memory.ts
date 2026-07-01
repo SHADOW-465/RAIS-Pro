@@ -1,5 +1,6 @@
 import type { Dataset } from "./types";
 import type { DatasetStore } from "./store";
+import { sortDatasets } from "./store";
 
 export class MemoryDatasetStore implements DatasetStore {
   private byId = new Map<string, Dataset>();
@@ -9,9 +10,7 @@ export class MemoryDatasetStore implements DatasetStore {
   }
 
   async list(): Promise<Dataset[]> {
-    return [...this.byId.values()].sort(
-      (a, b) => b.totalRows - a.totalRows || a.title.localeCompare(b.title),
-    );
+    return sortDatasets([...this.byId.values()]);
   }
 
   async clear(): Promise<void> {

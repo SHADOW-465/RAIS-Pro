@@ -10,3 +10,8 @@ export interface DatasetStore {
   /** Remove all — mirrors the app's existing "clear data" affordance. */
   clear(): Promise<void>;
 }
+
+/** Shared list() ordering for every adapter: largest datasets first, ties broken by title. */
+export function sortDatasets(datasets: Dataset[]): Dataset[] {
+  return [...datasets].sort((a, b) => b.totalRows - a.totalRows || a.title.localeCompare(b.title));
+}

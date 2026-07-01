@@ -19,6 +19,10 @@ export async function POST(req: NextRequest) {
     if (!datasets || !Array.isArray(datasets) || datasets.length === 0) {
       return NextResponse.json({ error: "No datasets provided." }, { status: 400 });
     }
+    const invalid = datasets.find((d) => !d?.id || !d?.title || !Array.isArray(d?.sources));
+    if (invalid) {
+      return NextResponse.json({ error: "Malformed dataset: id, title, and sources are required." }, { status: 400 });
+    }
     const store = getDatasetStore();
     await store.upsert(datasets);
     return NextResponse.json({ success: true, count: datasets.length });
