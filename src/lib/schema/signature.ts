@@ -11,7 +11,10 @@ export function stableHash(s: string): string {
   return h.toString(16).padStart(8, "0");
 }
 
-function normalizeName(name: string): string {
+/** Exported so other modules (e.g. dataset row extraction) can key values by
+ *  the same normalized column name used in Dataset.columns, without duplicating
+ *  the normalization rule. */
+export function normalizeName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
