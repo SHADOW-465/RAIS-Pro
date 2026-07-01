@@ -90,6 +90,27 @@ export default function StagingPage() {
       if (!files || files.length === 0) return;
       setBusy(true);
 
+      // Fire-and-forget: profile the same buffers for the new Dataset system.
+      // Never blocks or throws into the existing upload/review flow.
+      void (async () => {
+        try {
+          const { datasetsFromWorkbooks } = await import("@/lib/dataset/from-workbooks");
+          const inputs = await Promise.all(
+            files.map(async (f) => ({ fileName: f.name, data: await f.arrayBuffer() })),
+          );
+          const datasets = datasetsFromWorkbooks(inputs);
+          if (datasets.length > 0) {
+            await fetch("/api/datasets", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ datasets }),
+            }).catch(() => {}); // best-effort; never surfaces to the user in this plan
+          }
+        } catch {
+          // best-effort; the existing upload/review pipeline is unaffected either way
+        }
+      })();
+
       const { recordsFromBuffer, dedupeByPrecedence } = await import("@/lib/ingest/parsers");
       const { extractSchemaFromWorkbook, classifyWithSchema, extractSizesFromWorkbook } = await import("@/lib/ingest/schema-extractor");
       const { parseExcelFilesWithRaw } = await import("@/lib/parser");
