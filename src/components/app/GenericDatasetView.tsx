@@ -20,15 +20,23 @@ export default function GenericDatasetView({ datasetId }: { datasetId: string })
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [rows, setRows] = useState<DatasetRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setDataset(null);
     setRows(null);
     setError(null);
+    setLoaded(false);
     Promise.all([
-      fetch("/api/datasets").then((r) => r.json()),
-      fetch(`/api/datasets?datasetId=${encodeURIComponent(datasetId)}`).then((r) => r.json()),
+      fetch("/api/datasets").then((r) => {
+        if (!r.ok) throw new Error(`Failed to load datasets (${r.status})`);
+        return r.json();
+      }),
+      fetch(`/api/datasets?datasetId=${encodeURIComponent(datasetId)}`).then((r) => {
+        if (!r.ok) throw new Error(`Failed to load dataset rows (${r.status})`);
+        return r.json();
+      }),
     ])
       .then(([listJson, rowsJson]) => {
         if (cancelled) return;
@@ -38,6 +46,9 @@ export default function GenericDatasetView({ datasetId }: { datasetId: string })
       })
       .catch((err) => {
         if (!cancelled) setError(err?.message ?? "Failed to load dataset");
+      })
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -45,7 +56,10 @@ export default function GenericDatasetView({ datasetId }: { datasetId: string })
   }, [datasetId]);
 
   if (error) return <Empty label={`Could not load this dataset: ${error}`} />;
-  if (!dataset || rows === null) return <PageLoader message="Loading dataset..." minHeight="40vh" />;
+  if (!loaded) return <PageLoader message="Loading dataset..." minHeight="40vh" />;
+  if (!dataset || rows === null) {
+    return <Empty label="This dataset no longer exists — it may have been cleared. Try refreshing the View list." />;
+  }
 
   const d = buildGenericDashboard(dataset, rows);
   const trendKpis = d.kpis.filter((k) => k.trend.length > 0);
