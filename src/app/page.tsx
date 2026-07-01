@@ -27,6 +27,7 @@ import type { Event } from "@/lib/store/types";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import PageLoader from "@/components/app/PageLoader";
 import ParetoChart from "@/components/ParetoChart";
+import GenericDatasetView from "@/components/app/GenericDatasetView";
 import { safeBolden } from "@/components/Dashboard";
 import { calculatePareto } from "@/lib/dashboard-builder";
 import {
@@ -399,17 +400,21 @@ export default function Dashboard() {
       {m && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {activeView !== "cumulative" ? (
-            <StationView
-              events={events!}
-              stageId={activeView}
-              label={STAGE_LABELS[activeView] ?? activeView}
-              scope={m.snapshotScope}
-              trendScope={m.trendScope}
-              grainLabel={grainLabel}
-              targetRej={targetRej}
-              openModal={openModal}
-              srcRows={srcRows}
-            />
+            activeView.startsWith("dataset:") ? (
+              <GenericDatasetView datasetId={activeView.slice("dataset:".length)} />
+            ) : (
+              <StationView
+                events={events!}
+                stageId={activeView}
+                label={STAGE_LABELS[activeView] ?? activeView}
+                scope={m.snapshotScope}
+                trendScope={m.trendScope}
+                grainLabel={grainLabel}
+                targetRej={targetRej}
+                openModal={openModal}
+                srcRows={srcRows}
+              />
+            )
           ) : (
           <>
           {/* Row 1: Intelligence cockpit */}
