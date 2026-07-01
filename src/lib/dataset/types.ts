@@ -28,3 +28,14 @@ export interface ProfiledTableInput {
   columns: ColumnProfile[];
   rowCount: number;
 }
+
+/** One data row's non-meta column values, as actually read from a source sheet.
+ *  This is the ground truth a generic dashboard computes KPIs/trends from. Meta
+ *  columns (remarks, serials) are excluded — they carry no analytical signal. */
+export interface DatasetRow {
+  datasetId: string;
+  fileName: string;
+  sheetName: string;
+  rowIndex: number; // 0-based, stable within (fileName, sheetName) across re-uploads
+  values: Record<string, string | number | null>; // column name -> raw value
+}
