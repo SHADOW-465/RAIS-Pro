@@ -29,7 +29,7 @@ import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import PageLoader from "@/components/app/PageLoader";
 import ParetoChart from "@/components/ParetoChart";
 import GenericDatasetView from "@/components/app/GenericDatasetView";
-import { safeBolden } from "@/components/Dashboard";
+import { safeBolden } from "@/components/app/widgets";
 import { calculatePareto } from "@/lib/dashboard-builder";
 import {
   rejectionRate,

@@ -12,7 +12,7 @@ import {
   Donut,
 } from "@/components/editorial/EditorialCharts";
 import type { InsightSlide as InsightSlideType, InsightChart } from "@/types/dashboard";
-import { safeBolden } from "./Dashboard";
+import { safeBolden } from "@/components/app/widgets";
 
 interface InsightSlideProps {
   slide: InsightSlideType;

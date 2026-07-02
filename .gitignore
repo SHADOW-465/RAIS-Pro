@@ -93,3 +93,7 @@ src/graphify-out/
 .playwright-mcp/
 phase1-*.jpeg
 phase2-*.jpeg
+
+# tool artifacts
+.playwright-mcp/
+.superpowers/

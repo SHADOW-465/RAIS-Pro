@@ -6,7 +6,6 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
 import InsightSlide from "@/components/InsightSlide";
-import { getDeviceId } from "@/lib/device-id";
 import type { DashboardConfig, InsightSlide as InsightSlideType } from "@/types/dashboard";
 import type { Event } from "@/lib/store/types";
 import {
@@ -42,9 +41,6 @@ function ChatContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q");
 
-  const [deviceId, setDeviceId] = useState("");
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [selectedContext, setSelectedContext] = useState("ledger");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -54,8 +50,6 @@ function ChatContent() {
   const [activeSlide, setActiveSlide] = useState<InsightSlideType | null>(null);
 
   // Loaded context configuration & summaries
-  const [ledgerConfig, setLedgerConfig] = useState<DashboardConfig | null>(null);
-  const [ledgerSummary, setLedgerSummary] = useState("");
   const [activeConfig, setActiveConfig] = useState<DashboardConfig | null>(null);
   const [activeSummary, setActiveSummary] = useState("");
 
@@ -63,22 +57,6 @@ function ChatContent() {
   const events = useMemo(() => contextEvents ?? [], [contextEvents]);
 
   const threadEndRef = useRef<HTMLDivElement>(null);
-
-  // Setup Device ID
-  useEffect(() => {
-    setDeviceId(getDeviceId());
-  }, []);
-
-  // Fetch Ingestion Sessions
-  useEffect(() => {
-    if (!deviceId) return;
-    fetch(`/api/sessions?deviceId=${encodeURIComponent(deviceId)}`)
-      .then((r) => r.json())
-      .then((body) => {
-        setSessions(body.sessions ?? []);
-      })
-      .catch(console.warn);
-  }, [deviceId]);
 
   // Load Ledger Data
   useEffect(() => {
@@ -128,39 +106,10 @@ function ChatContent() {
         sections: [],
       };
 
-      setLedgerConfig(computedConfig);
-      setLedgerSummary(JSON.stringify(computedConfig.insights));
-
-      // Default active context is ledger
       setActiveConfig(computedConfig);
       setActiveSummary(JSON.stringify(computedConfig.insights));
     }
   }, [events]);
-
-  // Update active context configuration when selection changes
-  const handleContextChange = async (contextId: string) => {
-    setSelectedContext(contextId);
-    setError(null);
-
-    if (contextId === "ledger") {
-      setActiveConfig(ledgerConfig);
-      setActiveSummary(ledgerSummary);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/sessions/${contextId}?deviceId=${encodeURIComponent(deviceId)}`);
-      if (!res.ok) throw new Error("Failed to load session details");
-      const body = await res.json();
-      setActiveConfig(body.session.dashboard as DashboardConfig);
-      setActiveSummary(body.session.data_summary || "");
-    } catch (err: any) {
-      setError(err.message ?? "Could not load session context.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Scroll to bottom
   const scrollToBottom = () => {
@@ -197,7 +146,6 @@ function ChatContent() {
           question,
           dataSummary: activeSummary,
           currentConfig: activeConfig,
-          sessionId: selectedContext === "ledger" ? undefined : selectedContext,
         }),
       });
 
@@ -216,10 +164,7 @@ function ChatContent() {
           throw new Error("Model returned empty slide structure.");
         }
 
-        const slide: InsightSlideType = {
-          ...s,
-          sessionId: selectedContext === "ledger" ? "" : selectedContext,
-        };
+        const slide: InsightSlideType = { ...s, sessionId: "" };
 
         raisMsg = {
           id: `rais-${Date.now()}`,
@@ -232,14 +177,6 @@ function ChatContent() {
         // Automatically focus/preview this slide
         setActiveSlide(slide);
 
-        // Save slide if in session
-        if (selectedContext !== "ledger") {
-          fetch(`/api/sessions/${selectedContext}/slides`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ deviceId, slide }),
-          }).catch(console.warn);
-        }
       } else {
         raisMsg = {
           id: `rais-${Date.now()}`,
@@ -290,19 +227,7 @@ function ChatContent() {
               <span className="eyebrow accent" style={{ fontWeight: 700 }}>Ask RAIS</span>
               <span className="muted" style={{ fontSize: 10.5 }}>Ask quality questions about production sheets</span>
             </div>
-            <select
-              value={selectedContext}
-              onChange={(e) => handleContextChange(e.target.value)}
-              style={selectStyle}
-              disabled={loading}
-            >
-              <option value="ledger">Staging Ledger (All Data)</option>
-              {sessions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title} ({new Date(s.created_at).toLocaleDateString()})
-                </option>
-              ))}
-            </select>
+            <span className="eyebrow muted" style={{ fontSize: 10.5 }}>Staging Ledger (All Data)</span>
           </div>
 
           {/* Messages list */}
@@ -525,19 +450,6 @@ function ChatMarkdown({ text }: { text: string }) {
   flushBullets();
   return <div>{blocks}</div>;
 }
-
-const selectStyle: React.CSSProperties = {
-  padding: "6px 10px",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border-strong)",
-  background: "var(--bg)",
-  color: "var(--text)",
-  fontSize: "12.5px",
-  fontWeight: 600,
-  outline: "none",
-  cursor: "pointer",
-  maxWidth: 240
-};
 
 const chipStyle: React.CSSProperties = {
   padding: "4px 10px",

@@ -892,3 +892,35 @@ export function Heatmap({ rows, cols, matrix, fmt }: { rows: string[]; cols: str
     </div>
   );
 }
+
+// Bolds numbers / lot / line references inside narrative text.
+export function safeBolden(text: string): React.ReactNode {
+  const regex = /([0-9]+(?:\.[0-9]+)?%?(?:\s*pt)?|LOT-[A-Z0-9-]+|Line-\d+|Line\s\d+)/g;
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.match(regex)) {
+          return (
+            <strong
+              key={i}
+              className="num"
+              style={{
+                fontWeight: 700,
+                padding: "2px 4px",
+                background: "var(--surface-3)",
+                color: "var(--text)",
+                borderRadius: "3px",
+                border: "1px solid var(--border)",
+                fontSize: "12px",
+              }}
+            >
+              {part}
+            </strong>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
