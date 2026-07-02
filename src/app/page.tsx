@@ -18,7 +18,8 @@ import {
   ProcessFlow, 
   GaugeChart,
   AuditVerificationTable,
-  pct, 
+  StageSizeHeatmap,
+  pct,
   rupee,
   num,
   Donut
@@ -31,17 +32,18 @@ import GenericDatasetView from "@/components/app/GenericDatasetView";
 import { safeBolden } from "@/components/Dashboard";
 import { calculatePareto } from "@/lib/dashboard-builder";
 import {
-  rejectionRate, 
-  totalRejected, 
-  totalChecked, 
-  fpy, 
-  byStage, 
-  trend, 
-  stageTrend, 
+  rejectionRate,
+  totalRejected,
+  totalChecked,
+  fpy,
+  byStage,
+  trend,
+  stageTrend,
   weeklyTrend,
-  byDefect, 
-  defectTrend, 
+  byDefect,
+  defectTrend,
   bySize,
+  stageBySize,
   scopeEvents,
   resolveScope,
   type Scope,
@@ -188,6 +190,7 @@ export default function Dashboard() {
       return an - bn;
     });
 
+    const stageSize = stageBySize(events, scope);
     const weekly = weeklyTrend(events, trendScope);
     const copqRes = copq(events, scope);
     const savings = savingsOpportunity(events, scope);
@@ -213,13 +216,14 @@ export default function Dashboard() {
       rejected, 
       checked, 
       fpy: fpyVal, 
-      stages: orderedStages, 
-      defects, 
-      tr, 
+      stages: orderedStages,
+      defects,
+      tr,
       stageTrend: st,
-      defectTrend: dt, 
-      sizes: orderedSizes, 
-      weekly, 
+      defectTrend: dt,
+      sizes: orderedSizes,
+      stageSize,
+      weekly,
       copq: copqRes?.value ?? 0,
       savings: savings ?? 0,
       trust, 
@@ -367,7 +371,54 @@ export default function Dashboard() {
     };
   }, [m]);
 
-  const worstStageByRejs = m ? [...m.stages].sort((a, b) => b.rejected - a.rejected)[0]?.label ?? "Visual Inspection" : "Visual Inspection";
+  const worstStageRow = m ? [...m.stages].sort((a, b) => b.rejected - a.rejected)[0] ?? null : null;
+  const worstStageByRejs = worstStageRow?.label ?? "Visual Inspection";
+
+  /** Per-KPI drill-down narrative: What happened / Why / Cost impact / [Evidence
+   *  is the existing View Source table, wired separately] / Recommended action.
+   *  All figures come from `m` — already-computed, already-sorted selectors —
+   *  and `recommendations` (filtered to the ONE most relevant line per metric). */
+  const kpiNarrative = (metric: "rate" | "fpy" | "copq" | "bottleneck", whatHappened: string): string[] => {
+    if (!m) return [whatHappened];
+    const lines: string[] = [`What happened: ${whatHappened}`];
+
+    const topStage = [...m.stages].sort((a, b) => b.rejected - a.rejected)[0];
+    const topDefect = m.defects[0];
+    const topSize = [...m.sizes].sort((a, b) => b.rejRate - a.rejRate)[0];
+    const whyParts: string[] = [];
+    if (topStage && topStage.rejected > 0) {
+      whyParts.push(`${topStage.label} (${topStage.contributionPct.toFixed(1)}% of total rejections)`);
+    }
+    if (topDefect && topDefect.rejected > 0) {
+      whyParts.push(`${topDefect.label} defects (${topDefect.pct.toFixed(1)}% of rejections)`);
+    }
+    if (topSize && topSize.rejRate > 0) {
+      whyParts.push(`size ${topSize.size} (${(topSize.rejRate * 100).toFixed(1)}% rejection rate)`);
+    }
+    lines.push(
+      whyParts.length > 0
+        ? `Why: driven mainly by ${whyParts.join(", ")}.`
+        : "Why: no single stage, size, or defect stands out as the dominant driver this period."
+    );
+
+    if (metric === "copq") {
+      lines.push(`Cost impact: this IS the cost-of-poor-quality figure — ${rupee(m.copq)} for the period, against an annual savings opportunity of ${rupee(m.savings)}.`);
+    } else {
+      lines.push(`Cost impact: this period's rejections carry an estimated ${rupee(m.copq)} in cost of poor quality (COPQ).`);
+    }
+
+    let action = "Upload quality records to generate action items.";
+    if (metric === "bottleneck" && topStage && topStage.rejected > 0) {
+      action = `Audit quality gates and operator logs at ${topStage.label} stage (rejection rate: ${(topStage.rejRate * 100).toFixed(1)}%).`;
+    } else if (metric === "copq") {
+      action = `Achieving target quality limits offers up to ${rupee(m.savings)} in annual recoverable opportunity — prioritize the highest-rejection stage first.`;
+    } else if (recommendations.length > 0) {
+      action = recommendations[0];
+    }
+    lines.push(`Recommended action: ${action}`);
+
+    return lines;
+  };
 
   return (
     <AppShell active="dashboard" trustScore={m?.trust.pct ?? null} statusCounts={{ anomalies: 0, alerts: 0, capa: 0, overdue: 0 }} dateRange={m?.latestPeriodLabel}>
@@ -421,22 +472,99 @@ export default function Dashboard() {
             )
           ) : (
           <>
-          {/* Row 1: Intelligence cockpit */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.3fr 0.9fr 0.9fr", gap: 16 }}>
+          {/* Overview strip: 5 large traffic-light tiles — the fixed investigation
+              order (Rejection Rate → FPY → COPQ → Top Bottleneck → Quality Status).
+              Every value is already computed in `m`; this is reordering/relabeling,
+              not new math. Clicking any of the first 4 opens the 5-part drill-down
+              narrative (what/why/cost/evidence/action) via kpiNarrative(). */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
+            <Kpi
+              primary
+              label="Rejection Rate"
+              value={pct(m.rate)}
+              sub={stats.rateDiff}
+              tone={m.rate > targetRej ? "bad" : "good"}
+              spark={m.tr}
+              onClick={() => openModal(
+                `${grainLabel} Rejection Rate — Drill-down`,
+                kpiNarrative("rate", `The rejection rate stands at ${pct(m.rate)}, compared to the target of ${pct(targetRej)} (${stats.rateDiff}).`),
+                <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>,
+                { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) },
+              )}
+            />
+            <Kpi
+              primary
+              label="First Pass Yield (FPY)"
+              value={pct(m.fpy)}
+              sub={stats.fpyDiff}
+              tone={m.fpy >= (1 - targetRej) ? "good" : "bad"}
+              spark={m.tr}
+              onClick={() => openModal(
+                `${grainLabel} First Pass Yield — Drill-down`,
+                kpiNarrative("fpy", `First Pass Yield stands at ${pct(m.fpy)} for the latest period (${stats.fpyDiff}).`),
+                <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: 1 - p.value }))} fmt={pct} /></div>,
+                { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.fpy) },
+              )}
+            />
+            <Kpi
+              primary
+              label="COPQ / Cost Impact"
+              value={rupee(m.copq)}
+              sub={stats.copqDiff}
+              tone="warn"
+              spark={m.tr}
+              onClick={() => openModal(
+                `${grainLabel} COPQ — Drill-down`,
+                kpiNarrative("copq", `COPQ stands at ${rupee(m.copq)} for this period (${stats.copqDiff}).`),
+                <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>,
+                { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) },
+              )}
+            />
+            <Kpi
+              primary
+              label="Top Bottleneck"
+              value={worstStageByRejs}
+              sub={worstStageRow ? `${pct(worstStageRow.rejRate)} rejection rate` : "—"}
+              tone={worstStageRow && worstStageRow.rejRate > targetRej ? "bad" : "warn"}
+              onClick={() => openModal(
+                `${worstStageByRejs} — Drill-down`,
+                kpiNarrative("bottleneck", `${worstStageByRejs} is the top bottleneck stage, contributing ${num(worstStageRow?.rejected ?? 0)} rejections (${worstStageRow ? pct(worstStageRow.rejRate) : "—"} rejection rate).`),
+                <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>,
+                { rows: srcRows({ stageId: worstStageRow?.stageId, types: ["production", "inspection"] }), value: worstStageRow ? pct(worstStageRow.rejRate) : "—" },
+              )}
+            />
+            <Kpi
+              primary
+              label="Quality Status"
+              value={m.status.state.toUpperCase()}
+              sub={m.status.reason}
+              tone={m.status.state === "ok" ? "good" : "warn"}
+              onClick={() => openModal(
+                "Quality Status",
+                `Overall production status is flagged as ${m.status.state.toUpperCase()} due to current rejection rates. ${m.status.reason}`,
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0" }}><div style={{ width: 54, height: 54, borderRadius: "50%", background: m.status.state === "ok" ? "var(--positive-weak)" : "var(--warning-weak)", display: "grid", placeItems: "center", color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)", marginBottom: 12 }}><Icon name={m.status.state === "ok" ? "check" : "alert"} size={30} stroke={2} /></div><div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)" }}>{m.status.state.toUpperCase()}</div><p className="muted" style={{ fontSize: 13, textAlign: "center", marginTop: 6 }}>{m.status.reason}</p></div>,
+              )}
+            />
+          </div>
+
+          {/* AI Executive Summary + Recommended Actions — the narrative summary of
+              the whole page, demoted below the Overview strip so it no longer
+              competes with the KPI tiles for top billing. */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <Card title="AI Executive Summary">
               <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.75 }}>
                 {exec.map((bullet, i) => {
                   const colors = ["var(--accent)", "var(--positive)", "var(--critical)", "var(--warning)", "#C8421C"];
                   return (
                     <li key={i} style={{ listStyleType: "none", position: "relative", paddingLeft: 4, marginBottom: 6 }}>
-                      <span style={{ 
-                        position: "absolute", 
-                        left: -16, 
-                        top: 8, 
-                        width: 6, 
-                        height: 6, 
-                        borderRadius: "50%", 
-                        background: colors[i % colors.length] 
+                      <span style={{
+                        position: "absolute",
+                        left: -16,
+                        top: 8,
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: colors[i % colors.length]
                       }} />
                       {safeBolden(bullet)}
                     </li>
@@ -454,49 +582,6 @@ export default function Dashboard() {
                 ))}
               </ul>
             </Card>
-
-            <Card title={`${grainLabel} COPQ Impact`} onClick={() => openModal(`${grainLabel} COPQ Impact`, `COPQ reaches ${rupee(m.copq)} this period. ${stats.copqDiff}. Material waste and tooling downtime are major drivers.`, <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={Math.min(m.copq / 100000, 10)} label={rupee(m.copq)} subtext={stats.copqDiff} /></div>)}>
-              <GaugeChart value={Math.min(m.copq / 100000, 10)} label={rupee(m.copq)} subtext={stats.copqDiff} />
-            </Card>
-
-            <Card title="Quality Status" onClick={() => openModal("Quality Status", `Overall production status is flagged as ${m.status.state.toUpperCase()} due to current rejection rates.`, <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0" }}><div style={{ width: 54, height: 54, borderRadius: "50%", background: m.status.state === "ok" ? "var(--positive-weak)" : "var(--warning-weak)", display: "grid", placeItems: "center", color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)", marginBottom: 12 }}><Icon name={m.status.state === "ok" ? "check" : "alert"} size={30} stroke={2} /></div><div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)" }}>{m.status.state.toUpperCase()}</div><p className="muted" style={{ fontSize: 13, textAlign: "center", marginTop: 6 }}>{m.status.reason}</p></div>)}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: "12px 0" }}>
-                <div 
-                  style={{ 
-                    width: 44, 
-                    height: 44, 
-                    borderRadius: "50%", 
-                    background: m.status.state === "ok" ? "var(--positive-weak)" : "var(--warning-weak)", 
-                    display: "grid", 
-                    placeItems: "center", 
-                    color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)", 
-                    marginBottom: 8 
-                  }}
-                >
-                  <Icon name={m.status.state === "ok" ? "check" : "alert"} size={24} stroke={2} />
-                </div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: m.status.state === "ok" ? "var(--positive)" : "var(--warning)" }}>
-                  {m.status.state.toUpperCase()}
-                </div>
-                <div className="muted" style={{ fontSize: 12, marginTop: 4, textAlign: "center" }}>
-                  {m.status.reason}
-                </div>
-                <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700 }}>
-                  <span style={{ color: "var(--accent)" }}>
-                    View Details →
-                  </span>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Row 2: KPI Strip */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
-            <Kpi primary label="Rejection Rate" value={pct(m.rate)} sub={stats.rateDiff} tone={m.rate > targetRej ? "bad" : "good"} spark={m.tr} onClick={() => openModal(`${grainLabel} Rejection Rate Trend`, `The rejection rate stands at ${pct(m.rate)}, compared to the target of ${pct(targetRej)}.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })} />
-            <Kpi label="Total Rejections" value={num(m.rejected)} sub={stats.rejDiff} tone="bad" spark={m.tr} onClick={() => openModal(`${grainLabel} Total Rejections Trend`, `Total rejections stand at ${num(m.rejected)} this period. ${worstStageByRejs} represents the highest contributing volume.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} fmt={num} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected) })} />
-            <Kpi label="First Pass Yield (FPY)" value={pct(m.fpy)} sub={stats.fpyDiff} tone={m.fpy >= (1 - targetRej) ? "good" : "bad"} spark={m.tr} onClick={() => openModal(`${grainLabel} FPY Trend`, `First Pass Yield stands at ${pct(m.fpy)} for the latest period.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: 1 - p.value }))} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.fpy) })} />
-            <Kpi label="COPQ (This Period)" value={rupee(m.copq)} sub={stats.copqDiff} tone="warn" spark={m.tr} onClick={() => openModal(`${grainLabel} Cost of Poor Quality (COPQ) Trend`, `COPQ stands at ${rupee(m.copq)} for this period (${stats.copqDiff}).`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })} />
-            <Kpi label="Savings Opportunity" value={rupee(m.savings)} sub="◆ Annual Potential" tone="good" spark={m.tr} onClick={() => openModal("Savings Opportunity Projections", `Achieving target quality limits offers up to ${rupee(m.savings)} in annual recoverable opportunity.`, <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} fmt={pct} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.savings) })} />
           </div>
 
           {/* Row 2: Trends */}
@@ -528,6 +613,22 @@ export default function Dashboard() {
               </div>
             );
           })()}
+
+          {/* Row 3b: Stage x Size heatmap — "where are problems concentrated".
+              Degrades to an honest empty-state when no size dimension exists in
+              the ingested data (e.g. rejection-analysis-only sheets). */}
+          <Card
+            title="Stage x Size Concentration"
+            sub="rejection rate by stage and catheter size"
+            onClick={m.stageSize.length > 0 ? () => openModal(
+              "Stage x Size Concentration",
+              "Rejection rate for every stage x size combination present in the selected period — darker/warmer cells indicate where quality problems concentrate.",
+              <div style={{ minHeight: 200 }}><StageSizeHeatmap cells={m.stageSize} /></div>,
+              { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? `${(Math.max(...m.stageSize.map(c => c.rejRate)) * 100).toFixed(1)}%` : "—" },
+            ) : undefined}
+          >
+            <StageSizeHeatmap cells={m.stageSize} />
+          </Card>
 
           {/* Row 4: Process Flow & Defect Trend */}
           {(() => {

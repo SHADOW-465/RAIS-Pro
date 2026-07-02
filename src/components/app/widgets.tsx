@@ -748,6 +748,63 @@ export function AuditVerificationTable({
 
 const cth: React.CSSProperties = { padding: "6px 8px", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" };
 const ctd: React.CSSProperties = { padding: "8px 8px", color: "var(--text)" };
+
+/** Stage x Size rejection-rate heatmap — "where are problems concentrated".
+ *  Cell background interpolates across the existing tone-weak CSS variables
+ *  (positive-weak → warning-weak → critical-weak); text uses the matching
+ *  strong tone. Honest empty-state when no size-tagged data exists (the
+ *  Cumulative dataset's rejection-analysis sheets carry no size dimension). */
+export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLabel: string; size: string; rejRate: number; rejected: number }[] }) {
+  if (cells.length === 0) {
+    return <Empty label="No size-tagged data available for this period — stage x size concentration needs the size-wise books (Visual / Valve Integrity) ingested." />;
+  }
+  const stages = [...new Set(cells.map((c) => c.stageId))].map((id) => cells.find((c) => c.stageId === id)!.stageLabel);
+  const stageIds = [...new Set(cells.map((c) => c.stageId))];
+  const sizes = [...new Set(cells.map((c) => c.size))].sort();
+  const maxRate = Math.max(...cells.map((c) => c.rejRate), 1e-6);
+
+  const toneFor = (rate: number): { bg: string; fg: string } => {
+    const t = rate / maxRate; // 0..1 relative to the worst cell this period
+    if (t < 0.34) return { bg: "var(--positive-weak)", fg: "var(--positive)" };
+    if (t < 0.67) return { bg: "var(--warning-weak)", fg: "var(--warning)" };
+    return { bg: "var(--critical-weak)", fg: "var(--critical)" };
+  };
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <thead>
+          <tr>
+            <th style={{ ...cth, textAlign: "left", color: "var(--text-3)" }}>Stage \ Size</th>
+            {sizes.map((sz) => (
+              <th key={sz} style={{ ...cth, textAlign: "center", color: "var(--text-3)" }}>{sz}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {stageIds.map((stageId, i) => (
+            <tr key={stageId}>
+              <td style={{ ...ctd, fontWeight: 700 }}>{stages[i]}</td>
+              {sizes.map((sz) => {
+                const cell = cells.find((c) => c.stageId === stageId && c.size === sz);
+                if (!cell) {
+                  return <td key={sz} style={{ ...ctd, textAlign: "center", color: "var(--text-3)" }}>—</td>;
+                }
+                const tone = toneFor(cell.rejRate);
+                return (
+                  <td key={sz} style={{ ...ctd, textAlign: "center", background: tone.bg, color: tone.fg, fontWeight: 700, fontFamily: "var(--font-mono)", borderRadius: "var(--radius-sm)" }}>
+                    {(cell.rejRate * 100).toFixed(1)}%
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
 export const rupee = (n: number) => `₹ ${(n / 100000).toFixed(2)} Lakhs`;
 export const num = (n: number) => n.toLocaleString("en-IN");
