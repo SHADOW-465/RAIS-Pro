@@ -121,16 +121,29 @@ export default function AppShell({
     fetch("/api/datasets")
       .then((res) => res.json())
       .then((data) => {
-        const list = (data.datasets ?? []) as { id: string; title: string }[];
+        const list = (data.datasets ?? []) as { id: string; title: string; recognizedStageId?: string | null }[];
+        // A dataset recognized as a stage that already has a legacy View tab
+        // would duplicate it — hide those; the legacy tab remains the entry
+        // point for recognized stages (its rich StationView), while
+        // unrecognized datasets keep their generic tabs.
+        const legacyIds = new Set(
+          (viewStages.length ? viewStages : VIEW_OPTIONS.slice(1)).map((v) => v.id),
+        );
         // Prefix with "dataset:" so these ids can never collide with a legacy
         // stageId (which are short kebab-case strings like "visual"), and so
         // page.tsx can cheaply tell the two kinds of tab apart.
-        setDatasetTabs(list.map((d) => ({ id: `dataset:${d.id}`, label: d.title })));
+        setDatasetTabs(
+          list
+            .filter((d) => !d.recognizedStageId || !legacyIds.has(d.recognizedStageId))
+            .map((d) => ({ id: `dataset:${d.id}`, label: d.title })),
+        );
       })
       .catch(() => {
         // best-effort — the existing stage tabs still render fine without this
       });
-  }, []);
+    // viewStages loads from its own async fetch; re-filter when it arrives so
+    // the two fetches' completion order doesn't change which tabs are hidden.
+  }, [viewStages]);
 
   useEffect(() => {
     if (events && events.length > 0) {
