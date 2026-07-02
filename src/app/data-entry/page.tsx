@@ -7,6 +7,7 @@ import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { StageDayRecord } from "@/lib/ingest/emit";
+import DatasetEntryForm from "@/components/DatasetEntryForm";
 
 interface FieldDef {
   name: string;
@@ -43,7 +44,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function DataEntryPage() {
   const { refreshEvents } = useEvents();
-  const [activeTab, setActiveTab] = useState<"entry" | "ledger">("entry");
+  const [activeTab, setActiveTab] = useState<"entry" | "ledger" | "custom">("entry");
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
   const [date, setDate] = useState(today());
   const [hdr, setHdr] = useState({
@@ -703,12 +704,12 @@ Assign another field as Rejected Quantity.`;
     <AppShell active="data-entry">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 4 }}>
-          <button 
-            onClick={() => setActiveTab("entry")} 
-            style={{ 
-              padding: "8px 16px", 
-              border: "none", 
-              borderRadius: "8px 0 0 8px", 
+          <button
+            onClick={() => setActiveTab("entry")}
+            style={{
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "8px 0 0 8px",
               background: activeTab === "entry" ? "var(--accent)" : "var(--surface-2)",
               color: activeTab === "entry" ? "var(--text-invert)" : "var(--text-2)",
               fontWeight: 700,
@@ -718,12 +719,12 @@ Assign another field as Rejected Quantity.`;
           >
             New Data Entry
           </button>
-          <button 
-            onClick={() => { setActiveTab("ledger"); loadLedger(); }} 
-            style={{ 
-              padding: "8px 16px", 
-              border: "none", 
-              borderRadius: "0 8px 8px 0", 
+          <button
+            onClick={() => { setActiveTab("ledger"); loadLedger(); }}
+            style={{
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "0",
               background: activeTab === "ledger" ? "var(--accent)" : "var(--surface-2)",
               color: activeTab === "ledger" ? "var(--text-invert)" : "var(--text-2)",
               fontWeight: 700,
@@ -732,6 +733,21 @@ Assign another field as Rejected Quantity.`;
             }}
           >
             Entry History / Data Ledger
+          </button>
+          <button
+            onClick={() => setActiveTab("custom")}
+            style={{
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "0 8px 8px 0",
+              background: activeTab === "custom" ? "var(--accent)" : "var(--surface-2)",
+              color: activeTab === "custom" ? "var(--text-invert)" : "var(--text-2)",
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer"
+            }}
+          >
+            Custom Datasets
           </button>
         </div>
 
@@ -757,7 +773,9 @@ Assign another field as Rejected Quantity.`;
         </div>
       )}
 
-      {activeTab === "entry" ? (
+      {activeTab === "custom" ? (
+        <DatasetEntryForm />
+      ) : activeTab === "entry" ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20 }}>
           {/* Main workspace */}
           <div>
