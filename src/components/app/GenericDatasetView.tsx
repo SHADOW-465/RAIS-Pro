@@ -1,17 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, Kpi, LineChart, BarsH, Empty } from "@/components/app/widgets";
+import { Empty } from "@/components/app/widgets";
 import PageLoader from "@/components/app/PageLoader";
-import ParetoChart from "@/components/ParetoChart";
-import { calculatePareto } from "@/lib/dashboard-builder";
+import GenericDashboardBody from "@/components/app/GenericDashboardBody";
 import { buildGenericDashboard } from "@/lib/dataset/dashboard";
 import { toStageRecords } from "@/lib/dataset/to-stage-records";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import { useEvents } from "@/components/app/EventsContext";
 import type { Dataset, DatasetRow } from "@/lib/dataset/types";
-
-const fmtNum = (n: number) => Math.round(n).toLocaleString("en-IN");
 
 /** Renders any persisted Dataset generically — KPIs from measure columns, a
  *  trend per KPI when a date dimension exists, breakdowns per dimension column,
@@ -98,95 +95,24 @@ export default function GenericDatasetView({ datasetId }: { datasetId: string })
   }
 
   const d = buildGenericDashboard(dataset, rows);
-  const trendKpis = d.kpis.filter((k) => k.trend.length > 0);
-  const hasPareto = !!d.defectPareto && d.defectPareto.length > 0;
-  // widgets.tsx's Kpi/LineChart consume @/lib/analytics's SeriesPoint, which
-  // carries a `period` key (used for grain-aware label thinning) alongside
-  // {label, value}. buildGenericDashboard's trend points are {label, value}
-  // only (no calendar-grain concept for an arbitrary Dataset), so adapt here
-  // rather than widen the shared widget type for this one caller.
-  const toWidgetSeries = (pts: { label: string; value: number }[]) =>
-    pts.map((p) => ({ period: p.label, label: p.label, value: p.value }));
 
   const stageLabel = dataset.recognizedStageId
     ? DISPOSAFE_REGISTRY.stages.find((s) => s.stageId === dataset.recognizedStageId)?.label ?? dataset.recognizedStageId
     : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {stageLabel && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
-          border: "1px solid var(--border-strong)", borderRadius: "var(--radius-md)",
-          background: "var(--surface-2)", padding: "10px 14px",
-        }}>
-          <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-2)" }}>
-            Recognized as: <span style={{ color: "var(--accent)" }}>{stageLabel}</span>
-          </span>
-          <button
-            onClick={() => publishToCumulative(dataset, rows)}
-            disabled={publishing}
-            style={{
-              fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12,
-              cursor: publishing ? "wait" : "pointer", color: "var(--paper)",
-              background: "var(--accent)", border: "none", padding: "6px 14px",
-              borderRadius: "var(--radius-sm)", opacity: publishing ? 0.6 : 1,
-            }}
-          >
-            {publishing ? "Publishing…" : "Publish to Cumulative Dashboard →"}
-          </button>
-          {publishMsg && (
-            <span style={{ fontSize: 12, fontWeight: 600, color: publishMsg.tone === "ok" ? "var(--positive)" : "var(--critical)" }}>
-              {publishMsg.text}
-            </span>
-          )}
-        </div>
-      )}
-      {d.kpis.length === 0 ? (
-        <Empty label="This dataset has no measure columns to summarize — it may be a derived or summary sheet." />
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(d.kpis.length, 5)}, 1fr)`, gap: 16 }}>
-          {d.kpis.map((k) => (
-            <Kpi key={k.columnName} label={k.label} value={fmtNum(k.total)} spark={k.trend.length ? toWidgetSeries(k.trend) : undefined} />
-          ))}
-        </div>
-      )}
-
-      {trendKpis.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
-          {trendKpis.map((k) => (
-            <Card key={k.columnName} title={`${k.label} — Trend`}>
-              <LineChart points={toWidgetSeries(k.trend)} fmt={fmtNum} />
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {d.breakdowns.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
-          {d.breakdowns.map((b) => (
-            <Card key={b.columnName} title={`${b.label} Breakdown`}>
-              <BarsH rows={b.bars} fmt={fmtNum} />
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {hasPareto && (
-        <Card title="Defect Pareto">
-          <ParetoChart
-            analysis={
-              calculatePareto(d.defectPareto!) || {
-                items: [],
-                totalDefects: 0,
-                vitalFewCount: 0,
-                vitalFewContribution: 0,
-                criticalAreaText: "No defect data available.",
-              }
+    <GenericDashboardBody
+      d={d}
+      publishBanner={
+        stageLabel
+          ? {
+              stageLabel,
+              publishing,
+              onPublish: () => publishToCumulative(dataset, rows),
+              message: publishMsg,
             }
-          />
-        </Card>
-      )}
-    </div>
+          : undefined
+      }
+    />
   );
 }
