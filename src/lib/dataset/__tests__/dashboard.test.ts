@@ -106,6 +106,24 @@ describe("buildGenericDashboard", () => {
     expect(d.kpis[0].total).toBe(7);
   });
 
+  it("excludes dateless subtotal/marker rows from KPI totals when a date column exists", () => {
+    // Real corpus sheets end with a =SUM month-total row (empty date cell) and
+    // contain "SUNDAY" marker rows — including them exactly doubles the total.
+    const withTotalRow: DatasetRow[] = [
+      row("2025-04-01", 100, 10, "6FR", 3, 2),
+      row("2025-04-02", 200, 20, "8FR", 5, 0),
+      { ...row("", 0, 0, "", 0, 0), values: { date: "", "quantity checked": 300, rejection: 30, size: "", coag: 8, sd: 2 } }, // TOTAL row
+      { ...row("", 0, 0, "", 0, 0), values: { date: "SUNDAY", "quantity checked": null, rejection: null, size: "", coag: 0, sd: 0 } },
+    ];
+    const d = buildGenericDashboard(dataset, withTotalRow);
+    expect(d.kpis.find((k) => k.columnName === "quantity checked")!.total).toBe(300);
+    expect(d.kpis.find((k) => k.columnName === "rejection")!.total).toBe(30);
+    expect(d.defectPareto).toEqual([
+      { label: "Coag", value: 8 },
+      { label: "Sd", value: 2 },
+    ]);
+  });
+
   it("treats non-numeric / null measure values as 0 rather than throwing or producing NaN", () => {
     const withGaps: DatasetRow[] = [
       row("2025-04-01", 100, 10, "6FR", 3, 2),

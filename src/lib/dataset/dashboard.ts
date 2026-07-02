@@ -76,15 +76,25 @@ export function buildGenericDashboard(dataset: Dataset, rows: DatasetRow[]): Gen
   const dimensionCols = dedupeByName(dataset.columns.filter((c) => c.role === "dimension"));
   const defectCols = dedupeByName(dataset.columns.filter((c) => c.role === "defect"));
 
-  const rowDates: (string | null)[] = dateCol ? rows.map((r) => toLocalISODate(r.values[dateCol.name])) : rows.map(() => null);
-  const validDates = rowDates.filter((d): d is string => d != null).sort();
+  const allRowDates: (string | null)[] = dateCol ? rows.map((r) => toLocalISODate(r.values[dateCol.name])) : rows.map(() => null);
+  const validDates = allRowDates.filter((d): d is string => d != null).sort();
   const dateRange = validDates.length > 0 ? { from: validDates[0], to: validDates[validDates.length - 1] } : null;
 
+  // When the table has a date axis, only date-bearing rows are DATA rows.
+  // Sheets in this corpus end with subtotal rows (=SUM over the month) and
+  // marker rows ("SUNDAY") whose date cell is empty/non-date — summing them
+  // alongside the daily rows exactly doubles every KPI. This also keeps the
+  // KPI totals consistent with the trend and the publish path, which already
+  // skip dateless rows. Without a date column there is no such signal, so all
+  // rows count.
+  const dataRows = dateCol ? rows.filter((_, i) => allRowDates[i] != null) : rows;
+  const rowDates: (string | null)[] = dateCol ? allRowDates.filter((d) => d != null) : allRowDates;
+
   const kpis: GenericKpi[] = measureCols.map((col) => {
-    const total = rows.reduce((sum, r) => sum + toNumber(r.values[col.name]), 0);
+    const total = dataRows.reduce((sum, r) => sum + toNumber(r.values[col.name]), 0);
     const byDate = new Map<string, number>();
     if (dateCol) {
-      rows.forEach((r, i) => {
+      dataRows.forEach((r, i) => {
         const d = rowDates[i];
         if (!d) return;
         byDate.set(d, (byDate.get(d) ?? 0) + toNumber(r.values[col.name]));
@@ -97,7 +107,7 @@ export function buildGenericDashboard(dataset: Dataset, rows: DatasetRow[]): Gen
   const primaryMeasure = measureCols[0];
   const breakdowns: GenericBreakdown[] = dimensionCols.map((col) => {
     const byValue = new Map<string, number>();
-    for (const r of rows) {
+    for (const r of dataRows) {
       const key = String(r.values[col.name] ?? "—");
       const add = primaryMeasure ? toNumber(r.values[primaryMeasure.name]) : 1;
       byValue.set(key, (byValue.get(key) ?? 0) + add);
@@ -109,7 +119,7 @@ export function buildGenericDashboard(dataset: Dataset, rows: DatasetRow[]): Gen
   let defectPareto: { label: string; value: number }[] | null = null;
   if (defectCols.length > 0) {
     const items = defectCols
-      .map((col) => ({ label: humanize(col.name), value: rows.reduce((sum, r) => sum + toNumber(r.values[col.name]), 0) }))
+      .map((col) => ({ label: humanize(col.name), value: dataRows.reduce((sum, r) => sum + toNumber(r.values[col.name]), 0) }))
       .filter((x) => x.value > 0)
       .sort((a, b) => b.value - a.value);
     defectPareto = items.length > 0 ? items : null;
