@@ -6,6 +6,9 @@ import PageLoader from "@/components/app/PageLoader";
 import ParetoChart from "@/components/ParetoChart";
 import { calculatePareto } from "@/lib/dashboard-builder";
 import { buildGenericDashboard } from "@/lib/dataset/dashboard";
+import { toStageRecords } from "@/lib/dataset/to-stage-records";
+import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { useEvents } from "@/components/app/EventsContext";
 import type { Dataset, DatasetRow } from "@/lib/dataset/types";
 
 const fmtNum = (n: number) => Math.round(n).toLocaleString("en-IN");
@@ -17,10 +20,43 @@ const fmtNum = (n: number) => Math.round(n).toLocaleString("en-IN");
  *  Fetches its own data (dataset metadata + rows) so it stays fully decoupled
  *  from AppShell's tab list, which only needs id/title to render the tab. */
 export default function GenericDatasetView({ datasetId }: { datasetId: string }) {
+  const { refreshEvents } = useEvents();
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [rows, setRows] = useState<DatasetRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishMsg, setPublishMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+
+  async function publishToCumulative(ds: Dataset, dsRows: DatasetRow[]) {
+    setPublishing(true);
+    setPublishMsg(null);
+    try {
+      const ingestionId = globalThis.crypto?.randomUUID?.() ?? `ing-${Date.now()}`;
+      const records = toStageRecords(ds, dsRows, ingestionId);
+      if (records.length === 0) {
+        setPublishMsg({ tone: "err", text: "Nothing to publish — no rows with a valid date." });
+        return;
+      }
+      const res = await fetch("/api/ingest", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ingestionId, fileName: ds.title, records }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? `Ingest failed (${res.status})`);
+      const issues = (json.issues ?? []).length;
+      setPublishMsg({
+        tone: "ok",
+        text: `Published ${records.length} records — ${json.inserted} new, ${json.deduped} already present${issues ? `, ${issues} clarification${issues === 1 ? "" : "s"} raised` : ""}.`,
+      });
+      refreshEvents();
+    } catch (err: unknown) {
+      setPublishMsg({ tone: "err", text: err instanceof Error ? err.message : "Publish failed" });
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -72,8 +108,40 @@ export default function GenericDatasetView({ datasetId }: { datasetId: string })
   const toWidgetSeries = (pts: { label: string; value: number }[]) =>
     pts.map((p) => ({ period: p.label, label: p.label, value: p.value }));
 
+  const stageLabel = dataset.recognizedStageId
+    ? DISPOSAFE_REGISTRY.stages.find((s) => s.stageId === dataset.recognizedStageId)?.label ?? dataset.recognizedStageId
+    : null;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {stageLabel && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          border: "1px solid var(--border-strong)", borderRadius: "var(--radius-md)",
+          background: "var(--surface-2)", padding: "10px 14px",
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-2)" }}>
+            Recognized as: <span style={{ color: "var(--accent)" }}>{stageLabel}</span>
+          </span>
+          <button
+            onClick={() => publishToCumulative(dataset, rows)}
+            disabled={publishing}
+            style={{
+              fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12,
+              cursor: publishing ? "wait" : "pointer", color: "var(--paper)",
+              background: "var(--accent)", border: "none", padding: "6px 14px",
+              borderRadius: "var(--radius-sm)", opacity: publishing ? 0.6 : 1,
+            }}
+          >
+            {publishing ? "Publishing…" : "Publish to Cumulative Dashboard →"}
+          </button>
+          {publishMsg && (
+            <span style={{ fontSize: 12, fontWeight: 600, color: publishMsg.tone === "ok" ? "var(--positive)" : "var(--critical)" }}>
+              {publishMsg.text}
+            </span>
+          )}
+        </div>
+      )}
       {d.kpis.length === 0 ? (
         <Empty label="This dataset has no measure columns to summarize — it may be a derived or summary sheet." />
       ) : (
