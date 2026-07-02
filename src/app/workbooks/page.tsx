@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
+import Pill from "@/components/editorial/Pill";
 import { Empty } from "@/components/app/widgets";
 import PageLoader from "@/components/app/PageLoader";
 import GenericDashboardBody from "@/components/app/GenericDashboardBody";
@@ -27,6 +28,7 @@ interface SheetNode {
   datasetId: string;
   recognizedStageId: string | null;
   displayLabel: string;
+  rowCount: number;
 }
 
 interface FileNode {
@@ -57,6 +59,7 @@ function buildTree(datasets: Dataset[]): FileNode[] {
         datasetId: ds.id,
         recognizedStageId: ds.recognizedStageId,
         displayLabel: ds.recognizedStageId ? stageLabelFor(ds.recognizedStageId) : src.sheetName,
+        rowCount: src.rowCount,
       });
       byFile.set(src.fileName, list);
     }
@@ -192,7 +195,8 @@ export default function WorkbooksPage() {
     <AppShell active="workbooks">
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 800, margin: "0 0 4px", color: "var(--text)" }}>
+          <span className="eyebrow accent" style={{ fontWeight: 700 }}>Workbook Explorer</span>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 800, margin: "2px 0 4px", color: "var(--text)" }}>
             Workbooks
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
@@ -231,6 +235,12 @@ export default function WorkbooksPage() {
               />
             </div>
 
+            {!error && datasets !== null && filteredTree.length > 0 && (
+              <span className="eyebrow muted" style={{ padding: "2px 4px 0" }}>
+                Files · {filteredTree.length}
+              </span>
+            )}
+
             {error && <Empty label={`Could not load workbooks: ${error}`} />}
             {!error && datasets === null && <PageLoader message="Loading workbooks…" minHeight="20vh" />}
             {!error && datasets !== null && filteredTree.length === 0 && (
@@ -242,19 +252,24 @@ export default function WorkbooksPage() {
               const isFileSelected = selection?.level === "file" && selection.fileName === f.fileName;
               return (
                 <div key={f.fileName}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <button
                       onClick={() => toggleFile(f.fileName)}
                       title={isExpanded ? "Collapse" : "Expand"}
-                      style={{ background: "transparent", border: "none", cursor: "pointer", padding: 4, display: "flex", color: "var(--text-3)" }}
+                      style={{ background: "transparent", border: "none", cursor: "pointer", padding: 4, display: "flex", color: "var(--text-3)", transition: "transform 0.15s ease", transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)" }}
                     >
-                      <Icon name={isExpanded ? "chevron-up" : "chevron-down"} size={12} />
+                      <Icon name="chevron-down" size={12} />
                     </button>
                     <button
+                      className="tree-item"
                       onClick={() => selectFile(f.fileName)}
                       title={f.fileName}
                       style={{
                         flex: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        minWidth: 0,
                         textAlign: "left",
                         background: isFileSelected ? "var(--accent-weak)" : "transparent",
                         color: isFileSelected ? "var(--accent)" : "var(--text)",
@@ -264,21 +279,25 @@ export default function WorkbooksPage() {
                         fontSize: 12.5,
                         fontWeight: isFileSelected ? 700 : 600,
                         cursor: "pointer",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
                       }}
                     >
-                      <Icon name="folder" size={12} style={{ marginRight: 6, verticalAlign: -2 }} />
-                      {f.fileName}
+                      <Icon name="folder" size={12} style={{ flexShrink: 0 }} />
+                      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.fileName}</span>
+                      <span style={{ flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, color: isFileSelected ? "var(--accent)" : "var(--text-3)", background: isFileSelected ? "transparent" : "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-pill)", padding: "1px 7px" }}>
+                        {f.sheets.length}
+                      </span>
                     </button>
                   </div>
 
                   {isExpanded && (
-                    <div style={{ marginLeft: 24, display: "flex", flexDirection: "column" }}>
+                    <div style={{ marginLeft: 13, paddingLeft: 10, borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 1 }}>
                       <button
+                        className="tree-item"
                         onClick={() => selectFile(f.fileName)}
                         style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 7,
                           textAlign: "left",
                           background: isFileSelected ? "var(--accent-weak)" : "transparent",
                           color: isFileSelected ? "var(--accent)" : "var(--text-2)",
@@ -290,16 +309,22 @@ export default function WorkbooksPage() {
                           cursor: "pointer",
                         }}
                       >
-                        Overview ({f.sheets.length} sheet{f.sheets.length === 1 ? "" : "s"})
+                        <Icon name="table" size={10} style={{ flexShrink: 0, opacity: 0.7 }} />
+                        Overview
                       </button>
                       {f.sheets.map((s) => {
                         const isSheetSelected = selection?.level === "sheet" && selection.fileName === f.fileName && selection.sheetName === s.sheetName;
                         return (
                           <button
                             key={s.sheetName}
+                            className="tree-item"
                             onClick={() => selectSheet(f.fileName, s.sheetName, s.datasetId)}
-                            title={s.sheetName}
+                            title={s.recognizedStageId ? `${s.sheetName} — recognized as ${s.displayLabel}` : s.sheetName}
                             style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 7,
+                              minWidth: 0,
                               textAlign: "left",
                               background: isSheetSelected ? "var(--accent-weak)" : "transparent",
                               color: isSheetSelected ? "var(--accent)" : "var(--text-2)",
@@ -309,12 +334,11 @@ export default function WorkbooksPage() {
                               fontSize: 12,
                               fontWeight: isSheetSelected ? 700 : 500,
                               cursor: "pointer",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
                             }}
                           >
-                            {s.displayLabel}
+                            <span style={{ flexShrink: 0, width: 6, height: 6, borderRadius: "50%", background: s.recognizedStageId ? "var(--accent)" : "var(--text-3)", opacity: s.recognizedStageId ? 1 : 0.5 }} />
+                            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.displayLabel}</span>
+                            <span style={{ flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-3)" }}>{s.rowCount.toLocaleString("en-IN")}</span>
                           </button>
                         );
                       })}
@@ -358,7 +382,23 @@ export default function WorkbooksPage() {
             )}
 
             {!selection && tree.length > 0 && (
-              <Empty label="Pick a workbook on the left — a file for its overview, or a sheet for its dashboard." />
+              <div style={{
+                border: "2px dashed var(--border)",
+                borderRadius: "var(--radius-lg)",
+                padding: "72px 32px",
+                textAlign: "center",
+              }}>
+                <div style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--surface-2)", display: "grid", placeItems: "center", color: "var(--text-3)", margin: "0 auto 16px" }}>
+                  <Icon name="folder" size={22} />
+                </div>
+                <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, margin: "0 0 6px", color: "var(--text)" }}>
+                  Pick a workbook to explore
+                </h3>
+                <p className="muted" style={{ fontSize: 13, lineHeight: 1.6, margin: "0 auto", maxWidth: 380 }}>
+                  Select a file on the left for its full overview, or drill into a single sheet
+                  for its dashboard. Every chart here is a live filter over the same ledger.
+                </p>
+              </div>
             )}
 
             {selection?.level === "sheet" && (
@@ -411,8 +451,20 @@ function SheetDashboard({ selection, dataset, rows, loading, publishing, publish
     : null;
 
   return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 800, margin: 0, color: "var(--text)" }}>
+          {selection.sheetName}
+        </h2>
+        {stageLabel && <Pill tone="accent">{stageLabel}</Pill>}
+        <span className="muted" style={{ fontSize: 11.5, fontFamily: "var(--font-mono)" }}>
+          {sheetRows.length.toLocaleString("en-IN")} rows
+        </span>
+      </div>
     <GenericDashboardBody
       d={d}
+      dataset={dataset}
+      rows={sheetRows}
       caption={`Source: ${selection.fileName} → ${selection.sheetName}`}
       publishBanner={
         stageLabel
@@ -420,6 +472,7 @@ function SheetDashboard({ selection, dataset, rows, loading, publishing, publish
           : undefined
       }
     />
+    </div>
   );
 }
 
@@ -459,11 +512,19 @@ function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDataset
           : null;
         return (
           <div key={datasetId} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, margin: 0, color: "var(--text)" }}>
-              {dataset.title}
-            </h2>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+              <h2 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, margin: 0, color: "var(--text)" }}>
+                {dataset.title}
+              </h2>
+              {stageLabel && <Pill tone="accent">{stageLabel}</Pill>}
+              <span className="muted" style={{ fontSize: 11.5, fontFamily: "var(--font-mono)" }}>
+                {fileRows.length.toLocaleString("en-IN")} rows
+              </span>
+            </div>
             <GenericDashboardBody
               d={d}
+              dataset={dataset}
+              rows={fileRows}
               publishBanner={
                 stageLabel
                   ? { stageLabel, publishing, onPublish: () => onPublish(dataset, fileRows), message: publishMsg }

@@ -18,6 +18,8 @@ export function sizeTrend(events: Event[], scope: Scope, size: string): SeriesPo
       period: p,
       label: periodLabel(p),
       value: checked > 0 ? rejected / checked : 0,
+      rejected,
+      checked,
     };
   });
 }

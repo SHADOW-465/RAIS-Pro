@@ -841,10 +841,10 @@ Assign another field as Rejected Quantity.`;
               </div>
 
               <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)", marginBottom: 12 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <table style={{ width: "max-content", minWidth: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: 13 }}>
                   <thead>
                     <tr style={{ color: "var(--text-3)", background: "var(--surface-2)", fontSize: 10, textTransform: "uppercase", borderBottom: "1.5px solid var(--border-strong)" }}>
-                      <th style={{ ...eth, textAlign: "left", width: 120 }}>{isSizeWise ? "Size" : "Line"}</th>
+                      <th style={{ ...eth, textAlign: "left", minWidth: 96, position: "sticky", left: 0, zIndex: 2, background: "var(--surface-2)" }}>{isSizeWise ? "Size" : "Line"}</th>
                       {activeCaptures.map(c => <th key={c} style={eth}>{CAPTURE_LABEL[c]}</th>)}
                       {activeDefects.map((d: any) => <th key={d.defectCode} style={eth} title={d.label}>{d.defectCode}</th>)}
                     </tr>
@@ -855,19 +855,19 @@ Assign another field as Rejected Quantity.`;
                       const cells = rows[cellKey(activeStageId!, rowKey)] || {};
                       return (
                         <tr key={rowKey} style={{ borderBottom: "1px solid var(--border)" }}>
-                          <td style={{ ...etd, textAlign: "left", fontWeight: 700, background: "var(--surface)" }}>{label}</td>
+                          <td style={{ ...etd, textAlign: "left", fontWeight: 700, background: "var(--surface)", position: "sticky", left: 0, zIndex: 1 }}>{label}</td>
                           {activeCaptures.map(c => (
                             <td key={c} style={{ ...etd, padding: "3px 4px" }}>
-                              <input type="number" value={cells[CAPTURE_FIELD[c]] ?? ""}
+                              <input type="number" inputMode="numeric" value={cells[CAPTURE_FIELD[c]] ?? ""}
                                 onChange={(e) => updateCell(activeStageId!, rowKey, CAPTURE_FIELD[c], e.target.value)}
-                                style={{ ...inp, width: "100%", padding: "4px 6px", height: 28, fontFamily: "var(--font-mono)", textAlign: "right" }} />
+                                style={{ ...inp, width: 84, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right" }} />
                             </td>
                           ))}
                           {activeDefects.map((d: any) => (
                             <td key={d.defectCode} style={{ ...etd, padding: "3px 4px" }}>
-                              <input type="number" value={cells[d.label] ?? ""}
+                              <input type="number" inputMode="numeric" value={cells[d.label] ?? ""}
                                 onChange={(e) => updateCell(activeStageId!, rowKey, d.label, e.target.value)}
-                                style={{ ...inp, width: "100%", padding: "4px 6px", height: 28, fontFamily: "var(--font-mono)", textAlign: "right" }} />
+                                style={{ ...inp, width: 64, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right" }} />
                             </td>
                           ))}
                         </tr>

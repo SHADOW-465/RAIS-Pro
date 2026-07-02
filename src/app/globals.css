@@ -362,6 +362,27 @@ input:focus-visible, textarea:focus-visible, button:focus-visible {
   padding: var(--pad-card);
 }
 
+/* Numeric entry: type digits, no spinner chrome */
+input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Detail-modal entrance: blurred backdrop fade + panel rise */
+@keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.975); }
+  to { opacity: 1; transform: none; }
+}
+.modal-backdrop {
+  animation: backdrop-in 0.2s ease-out both;
+  backdrop-filter: blur(7px) saturate(0.9);
+  -webkit-backdrop-filter: blur(7px) saturate(0.9);
+}
+.modal-panel { animation: modal-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+.tree-item { transition: background 0.12s ease; }
+.tree-item:hover { background: var(--surface-2); }
+
 .card-hover {
   transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.25s ease !important;
 }

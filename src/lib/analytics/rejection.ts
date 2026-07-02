@@ -136,7 +136,7 @@ export function byStage(events: Event[], scope: Scope, registry: Registry = DISP
     .filter((r) => r.checked > 0 || r.rejected > 0);
 }
 
-export interface SeriesPoint { period: string; label: string; value: number }
+export interface SeriesPoint { period: string; label: string; value: number; rejected?: number; checked?: number }
 
 type MetricFn = (events: Event[], scope: Scope) => MetricValue;
 const METRICS: Record<string, MetricFn> = { rejectionRate, totalRejected, totalChecked, fpy };
@@ -149,11 +149,18 @@ export function trend(events: Event[], scope: Scope, metric: keyof typeof METRIC
   return periods.map((p) => {
     const bucket = ev.filter((e) => periodKey(e.occurredOn.start, scope.grain) === p);
     // run the metric on the bucket with an unfiltered scope (already scoped)
-    return { period: p, label: periodLabel(p), value: fn(bucket, { grain: scope.grain }).value };
+    const sub = { grain: scope.grain };
+    return {
+      period: p,
+      label: periodLabel(p),
+      value: fn(bucket, sub).value,
+      rejected: totalRejected(bucket, sub).value,
+      checked: totalChecked(bucket, sub).value,
+    };
   });
 }
 
-export interface StageTrendPoint { period: string; label: string; perStage: Record<string, number> }
+export interface StageTrendPoint { period: string; label: string; perStage: Record<string, number>; counts?: Record<string, { rejected: number; checked: number }> }
 
 /** Per-stage rejection-rate series over time. */
 export function stageTrend(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): StageTrendPoint[] {
@@ -162,11 +169,13 @@ export function stageTrend(events: Event[], scope: Scope, registry: Registry = D
   return periods.map((p) => {
     const bucket = ev.filter((e) => periodKey(e.occurredOn.start, scope.grain) === p);
     const perStage: Record<string, number> = {};
+    const counts: Record<string, { rejected: number; checked: number }> = {};
     for (const s of registry.stages) {
       const a = aggregate(bucket.filter((e) => "stageId" in e && (e as any).stageId === s.stageId));
       perStage[s.stageId] = a.checked > 0 ? a.rejected / a.checked : 0;
+      counts[s.stageId] = { rejected: a.rejected, checked: a.checked };
     }
-    return { period: p, label: periodLabel(p), perStage };
+    return { period: p, label: periodLabel(p), perStage, counts };
   });
 }
 
@@ -191,7 +200,13 @@ export function cumulativeStageTrend(
 ): StageTrendPoint[] {
   return stageTrend(events, scope, registry).map((pt) => {
     const total = registry.stages.reduce((sum, s) => sum + (pt.perStage[s.stageId] ?? 0), 0);
-    return { ...pt, perStage: { ...pt.perStage, [CUM_TOTAL_KEY]: total } };
+    const totRej = registry.stages.reduce((sum, s) => sum + (pt.counts?.[s.stageId]?.rejected ?? 0), 0);
+    const totChk = registry.stages.reduce((sum, s) => sum + (pt.counts?.[s.stageId]?.checked ?? 0), 0);
+    return {
+      ...pt,
+      perStage: { ...pt.perStage, [CUM_TOTAL_KEY]: total },
+      counts: { ...(pt.counts ?? {}), [CUM_TOTAL_KEY]: { rejected: totRej, checked: totChk } },
+    };
   });
 }
 

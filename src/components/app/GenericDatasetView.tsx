@@ -103,6 +103,8 @@ export default function GenericDatasetView({ datasetId }: { datasetId: string })
   return (
     <GenericDashboardBody
       d={d}
+      dataset={dataset}
+      rows={rows}
       publishBanner={
         stageLabel
           ? {

@@ -101,6 +101,19 @@ export default function FloatingDetailModal({
     }
   }, [isOpen]);
 
+  // Escape closes; page behind stays put (scroll lock) while open.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, onClose]);
+
   const hasSource = !!sourceRows && sourceRows.length > 0;
   // Cap drawn rows so huge ledgers stay legible; beams only to visible rows.
   const visibleRows = (sourceRows ?? []).slice(0, 60);
@@ -177,11 +190,12 @@ export default function FloatingDetailModal({
 
   return (
     <div
-      style={{ position: "fixed", inset: 0, backgroundColor: "rgba(18,16,14,0.62)", zIndex: 1000, display: "grid", placeItems: "center", padding: 16 }}
+      className="modal-backdrop"
+      style={{ position: "fixed", inset: 0, backgroundColor: "rgba(18,16,14,0.55)", zIndex: 1000, display: "grid", placeItems: "center", padding: 16 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="fade-up"
+        className="modal-panel"
         style={{
           width: "98vw",
           maxWidth: showSource ? 1640 : 1320,
@@ -193,6 +207,7 @@ export default function FloatingDetailModal({
           flexDirection: "column",
           maxHeight: "96vh",
           overflow: "hidden",
+          transition: "max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
         }}
       >
         {/* Title bar — slim */}

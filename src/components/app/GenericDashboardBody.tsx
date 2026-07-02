@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Card, Kpi, LineChart, BarsH, Empty } from "@/components/app/widgets";
 import ParetoChart from "@/components/ParetoChart";
+import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { calculatePareto } from "@/lib/dashboard-builder";
 import type { GenericDashboard } from "@/lib/dataset/dashboard";
+import type { Dataset, DatasetRow } from "@/lib/dataset/types";
 
 const fmtNum = (n: number) => Math.round(n).toLocaleString("en-IN");
 
@@ -22,6 +25,24 @@ export interface PublishBannerProps {
   message: { tone: "ok" | "err"; text: string } | null;
 }
 
+/** Every persisted DatasetRow that feeds `columnName` — the audit trail for a
+ *  generic-dashboard tile. `cell` is the sheet row (rowIndex is 0-based). */
+function columnSourceRows(dataset: Dataset, rows: DatasetRow[], columnName: string, label: string): SourceRow[] {
+  const dateCol = dataset.columns.find((c) => c.role === "dimension-date")?.name;
+  return rows
+    .filter((r) => r.values[columnName] != null && r.values[columnName] !== "")
+    .map((r) => ({
+      date: dateCol ? String(r.values[dateCol] ?? "—") : "—",
+      stage: dataset.title,
+      size: null,
+      type: label,
+      qty: typeof r.values[columnName] === "number" ? (r.values[columnName] as number) : String(r.values[columnName]),
+      file: r.fileName,
+      sheet: r.sheetName,
+      cell: `${r.sheetName}!R${r.rowIndex + 1}`,
+    }));
+}
+
 /** Renders one GenericDashboard's KPIs / trends / breakdowns / defect Pareto —
  *  the shared presentational core of GenericDatasetView, reused by the
  *  /workbooks L2 (file/section) and L3 (sheet) views so both render the exact
@@ -33,18 +54,48 @@ export interface PublishBannerProps {
  *  cheap provenance for workbook-scoped views). `publishBanner`, when given,
  *  renders the existing "Recognized as: ... / Publish to Cumulative Dashboard"
  *  banner — optional so callers that don't want a publish action (e.g. a
- *  read-only section) can omit it. */
+ *  read-only section) can omit it.
+ *
+ *  When `dataset` + `rows` are provided, every tile becomes clickable and
+ *  opens the same FloatingDetailModal used on the main dashboard — enlarged
+ *  chart plus a "View Source" trace to the exact file/sheet/row each number
+ *  came from. Omit them for a static render. */
 export default function GenericDashboardBody({
   d,
   caption,
   publishBanner,
+  dataset,
+  rows,
 }: {
   d: GenericDashboard;
   caption?: string;
   publishBanner?: PublishBannerProps;
+  dataset?: Dataset;
+  rows?: DatasetRow[];
 }) {
   const trendKpis = d.kpis.filter((k) => k.trend.length > 0);
   const hasPareto = !!d.defectPareto && d.defectPareto.length > 0;
+  const auditable = !!dataset && !!rows && rows.length > 0;
+
+  const [modal, setModal] = useState<{
+    title: string;
+    insight: string | string[];
+    content: React.ReactNode;
+    source?: { rows: SourceRow[]; value: string };
+  } | null>(null);
+
+  const openAudit = (
+    title: string,
+    columnName: string,
+    label: string,
+    value: string,
+    content: React.ReactNode,
+    insight: string | string[],
+  ) => {
+    if (!auditable) return;
+    const src = columnSourceRows(dataset!, rows!, columnName, label);
+    setModal({ title, insight, content, source: src.length ? { rows: src, value } : undefined });
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -88,7 +139,22 @@ export default function GenericDashboardBody({
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(d.kpis.length, 5)}, 1fr)`, gap: 20 }}>
           {d.kpis.map((k) => (
-            <Kpi key={k.columnName} label={k.label} value={fmtNum(k.total)} spark={k.trend.length ? toWidgetSeries(k.trend) : undefined} />
+            <Kpi
+              key={k.columnName}
+              label={k.label}
+              value={fmtNum(k.total)}
+              spark={k.trend.length ? toWidgetSeries(k.trend) : undefined}
+              onClick={auditable ? () => openAudit(
+                k.label,
+                k.columnName,
+                k.label,
+                fmtNum(k.total),
+                k.trend.length > 1
+                  ? <LineChart points={toWidgetSeries(k.trend)} fmt={fmtNum} />
+                  : <Empty label="No date column in this sheet — value is a straight column total." />,
+                `Total ${k.label} is ${fmtNum(k.total)}, summed from the "${k.columnName}" column of the staged sheet rows. Open View Source for the exact rows.`,
+              ) : undefined}
+            />
           ))}
         </div>
       )}
@@ -96,7 +162,18 @@ export default function GenericDashboardBody({
       {trendKpis.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
           {trendKpis.map((k) => (
-            <Card key={k.columnName} title={`${k.label} — Trend`}>
+            <Card
+              key={k.columnName}
+              title={`${k.label} — Trend`}
+              onClick={auditable ? () => openAudit(
+                `${k.label} — Trend`,
+                k.columnName,
+                k.label,
+                fmtNum(k.total),
+                <LineChart points={toWidgetSeries(k.trend)} fmt={fmtNum} />,
+                `${k.trend.length} periods plotted; total ${fmtNum(k.total)}. Every point is a per-date sum of the "${k.columnName}" column.`,
+              ) : undefined}
+            >
               <LineChart points={toWidgetSeries(k.trend)} fmt={fmtNum} />
             </Card>
           ))}
@@ -106,7 +183,18 @@ export default function GenericDashboardBody({
       {d.breakdowns.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
           {d.breakdowns.map((b) => (
-            <Card key={b.columnName} title={`${b.label} Breakdown`}>
+            <Card
+              key={b.columnName}
+              title={`${b.label} Breakdown`}
+              onClick={auditable ? () => openAudit(
+                `${b.label} Breakdown`,
+                b.columnName,
+                b.label,
+                b.bars.length ? `${b.bars[0].label}: ${fmtNum(b.bars[0].value)}` : "—",
+                <BarsH rows={b.bars} fmt={fmtNum} />,
+                `Rows grouped by the "${b.columnName}" column — ${b.bars.length} distinct values.`,
+              ) : undefined}
+            >
               <BarsH rows={b.bars} fmt={fmtNum} />
             </Card>
           ))}
@@ -114,7 +202,30 @@ export default function GenericDashboardBody({
       )}
 
       {hasPareto && (
-        <Card title="Defect Pareto">
+        <Card
+          title="Defect Pareto"
+          onClick={auditable ? () => {
+            // Pareto aggregates many defect columns; trace every defect-role column.
+            const defectCols = dataset!.columns.filter((c) => c.role === "defect");
+            const src = defectCols.flatMap((c) => columnSourceRows(dataset!, rows!, c.name, c.name));
+            const total = d.defectPareto!.reduce((s, x) => s + x.value, 0);
+            setModal({
+              title: "Defect Pareto",
+              insight: `${fmtNum(total)} defect units across ${d.defectPareto!.length} defect classes, read from ${defectCols.length} defect columns in the staged sheet.`,
+              content: (
+                <ParetoChart
+                  analysis={
+                    calculatePareto(d.defectPareto!) || {
+                      items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0,
+                      criticalAreaText: "No defect data available.",
+                    }
+                  }
+                />
+              ),
+              source: src.length ? { rows: src, value: fmtNum(total) } : undefined,
+            });
+          } : undefined}
+        >
           <ParetoChart
             analysis={
               calculatePareto(d.defectPareto!) || {
@@ -127,6 +238,19 @@ export default function GenericDashboardBody({
             }
           />
         </Card>
+      )}
+
+      {modal && (
+        <FloatingDetailModal
+          isOpen
+          onClose={() => setModal(null)}
+          title={modal.title}
+          insight={modal.insight}
+          sourceRows={modal.source?.rows}
+          primaryValue={modal.source?.value}
+        >
+          {modal.content}
+        </FloatingDetailModal>
       )}
     </div>
   );

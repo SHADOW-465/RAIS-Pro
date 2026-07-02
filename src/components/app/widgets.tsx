@@ -402,6 +402,8 @@ export function LineChart({
             rows={[
               { label: "Metric", value: activeMetric },
               { label: "Value", value: fmt(points[hover].value), color },
+              ...(points[hover].rejected != null ? [{ label: "Rejected", value: num(points[hover].rejected!) }] : []),
+              ...(points[hover].checked ? [{ label: "Checked", value: num(points[hover].checked!) }] : []),
               { label: "Stage", value: activeStage }
             ]} 
           />
@@ -578,7 +580,11 @@ export function MultiLine({
             below={y(maxValAtHover) < H * 0.32}
             title={data[hover].label}
             rows={[...stages]
-              .map((s, si) => ({ label: s.label.split(" ")[0], value: fmtVal(data[hover].perStage[s.stageId] ?? 0), color: color(si), raw: data[hover].perStage[s.stageId] ?? 0 }))
+              .map((s, si) => {
+                const c = data[hover].counts?.[s.stageId];
+                const exact = c && c.checked > 0 ? ` · ${num(c.rejected)}/${num(c.checked)}` : "";
+                return { label: s.label.split(" ")[0], value: fmtVal(data[hover].perStage[s.stageId] ?? 0) + exact, color: color(si), raw: data[hover].perStage[s.stageId] ?? 0 };
+              })
               .sort((a, b) => b.raw - a.raw)
               .map(({ label, value, color }) => ({ label, value, color }))}
           />
@@ -847,7 +853,8 @@ export function Donut({
           <div key={i} onMouseEnter={() => setHover(i)} style={{ display: "flex", alignItems: "center", gap: 10, opacity: hover == null || hover === i ? 1 : 0.5 }}>
             <span style={{ width: fontSize - 3, height: fontSize - 3, borderRadius: 2, background: col(i), flexShrink: 0 }} />
             <span style={{ color: "var(--text-2)", minWidth: fontSize * 8 }}>{d.label}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{((d.value / total) * 100).toFixed(1)}%</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{f(d.value)}</span>
+            <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-2)" }}>({((d.value / total) * 100).toFixed(1)}%)</span>
           </div>
         ))}
       </div>

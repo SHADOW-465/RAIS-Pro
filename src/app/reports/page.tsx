@@ -675,7 +675,7 @@ export default function ReportsPage() {
               disabled={events.length === 0}
               className="btn primary shadow"
             >
-              <Icon name="print" size={13} /> Print Forensic Book (24 Pages)
+              <Icon name="print" size={13} /> Print Forensic Book
             </button>
           </div>
         </div>
@@ -689,7 +689,19 @@ export default function ReportsPage() {
           <div className="py-20 text-center text-muted border border-dashed border-hairline rounded-lg no-print">
             No active quality logs. Ingest FBC sheets in the Staging & Review page to compile the compliance book.
           </div>
-        ) : (
+        ) : (() => {
+          // ponytail: stages with zero records are dropped from the book instead of
+          // printing "No records present" pages; all page numbers derive from this list.
+          const reportStages = STAGES.filter((stage) => {
+            const pts = m.stageDataMap[stage.id]?.points ?? [];
+            if (stage.eventStageId === "visual") return pts.length > 0 || m.visualDefectsPareto.length > 0;
+            if (stage.eventStageId === "valve-integrity") return pts.length > 0 || m.quarantineLog.length > 0;
+            return pts.length > 0;
+          });
+          const totalPages = 2 + reportStages.length * 2 + 6;
+          const tail = 2 + reportStages.length * 2; // last stage page number
+          const pg = (n: number) => String(n).padStart(2, "0");
+          return (
           <div className="print-report-container flex flex-col gap-0">
 
             {/* PAGE 1: TITLE, GOVERNANCE & DOCUMENT CONTROL */}
@@ -755,7 +767,7 @@ export default function ReportsPage() {
               {/* Page Footer */}
               <div className="flex justify-between items-center text-[8px] text-gray-400 font-mono border-t border-gray-100 pt-2 mt-auto">
                 <span>DISPOSAFE QUALITY ASSURANCE SYSTEM</span>
-                <span className="font-bold">PAGE 01 OF 24</span>
+                <span className="font-bold">PAGE 01 OF {pg(totalPages)}</span>
                 <span>CONFIDENTIAL / PRINTED ON {new Date().toLocaleDateString()}</span>
               </div>
             </div>
@@ -832,14 +844,14 @@ export default function ReportsPage() {
 
               <div className="flex justify-between items-center text-[8px] text-gray-400 font-mono border-t border-gray-100 pt-2 mt-auto">
                 <span>DISPOSAFE QUALITY ASSURANCE SYSTEM</span>
-                <span className="font-bold">PAGE 02 OF 24</span>
+                <span className="font-bold">PAGE 02 OF {pg(totalPages)}</span>
                 <span>CONFIDENTIAL / INGESTION LEDGER COMPILER</span>
               </div>
             </div>
 
 
             {/* STAGE ANALYTICS LOOP PAGES (Pages 3 to 18) */}
-            {STAGES.map((stage, sIdx) => {
+            {reportStages.map((stage, sIdx) => {
               const pageIdxEven = (sIdx + 1) * 2 + 1; // Page 3, 5, 7, 9, 11, 13, 15, 17
               const pageIdxOdd = (sIdx + 1) * 2 + 2;  // Page 4, 6, 8, 10, 12, 14, 16, 18
               const data = m.stageDataMap[stage.id];
@@ -890,7 +902,7 @@ export default function ReportsPage() {
                     
                     <div className="flex justify-between items-center text-[8px] text-gray-400 font-mono border-t border-gray-100 pt-2 mt-auto">
                       <span>DISPOSAFE QUALITY ASSURANCE SYSTEM</span>
-                      <span className="font-bold">PAGE {String(pageIdxEven).padStart(2, "0")} OF 24</span>
+                      <span className="font-bold">PAGE {pg(pageIdxEven)} OF {pg(totalPages)}</span>
                       <span>STAGE CODE: {stage.eventStageId.toUpperCase()}</span>
                     </div>
                   </div>
@@ -1060,7 +1072,7 @@ export default function ReportsPage() {
 
                     <div className="flex justify-between items-center text-[8px] text-gray-400 font-mono border-t border-gray-100 pt-2 mt-auto">
                       <span>DISPOSAFE QUALITY ASSURANCE SYSTEM</span>
-                      <span className="font-bold">PAGE {String(pageIdxOdd).padStart(2, "0")} OF 24</span>
+                      <span className="font-bold">PAGE {pg(pageIdxOdd)} OF {pg(totalPages)}</span>
                       <span>STAGE CODE: {stage.eventStageId.toUpperCase()}</span>
                     </div>
                   </div>
@@ -1076,7 +1088,7 @@ export default function ReportsPage() {
             <div className="pdf-page-wrapper">
               <div className="page-content-wrapper">
                 <h2 className="text-lg font-black text-gray-900 border-b-2 border-gray-900 pb-2 mb-4 uppercase">
-                  19. Global Plant Defect Profile Bubble Matrix
+                  {pg(tail + 1)}. Global Plant Defect Profile Bubble Matrix
                 </h2>
                 
                 <GlobalDefectMatrix
@@ -1096,7 +1108,7 @@ export default function ReportsPage() {
               
               <div className="flex justify-between items-center text-[8px] text-gray-400 font-mono border-t border-gray-100 pt-2 mt-auto">
                 <span>DISPOSAFE QUALITY ASSURANCE SYSTEM</span>
-                <span className="font-bold">PAGE 19 OF 24</span>
+                <span className="font-bold">PAGE {pg(tail + 1)} OF {pg(totalPages)}</span>
                 <span>GLOBAL CORRELATION MODULE</span>
               </div>
             </div>
@@ -1106,7 +1118,7 @@ export default function ReportsPage() {
             <div className="pdf-page-wrapper">
               <div className="page-content-wrapper">
                 <h2 className="text-lg font-black text-gray-900 border-b-2 border-gray-900 pb-2 mb-4 uppercase">
-                  20. Size Distribution Defect Register
+                  {pg(tail + 2)}. Size Distribution Defect Register
                 </h2>
 
                 <h3 className="text-xs font-bold text-gray-800 uppercase mb-2">Defect Distribution by Catheter French Size</h3>
@@ -1168,7 +1180,7 @@ export default function ReportsPage() {
 
               <div className="flex justify-between items-center text-[8px] text-gray-400 font-mono border-t border-gray-100 pt-2 mt-auto">
                 <span>DISPOSAFE QUALITY ASSURANCE SYSTEM</span>
-                <span className="font-bold">PAGE 20 OF 24</span>
+                <span className="font-bold">PAGE {pg(tail + 2)} OF {pg(totalPages)}</span>
                 <span>SIZE-WISE ANALYSIS REGISTER</span>
               </div>
             </div>
@@ -1178,7 +1190,7 @@ export default function ReportsPage() {
             <div className="pdf-page-wrapper">
               <div className="page-content-wrapper">
                 <h2 className="text-lg font-black text-gray-900 border-b-2 border-gray-900 pb-2 mb-4 uppercase">
-                  21. Ingestion Lineage &amp; File Custody Inventory
+                  {pg(tail + 3)}. Ingestion Lineage &amp; File Custody Inventory
                 </h2>
 
                 <h3 className="text-xs font-bold text-gray-800 uppercase mb-2">Original Document Custody Ledger</h3>
@@ -1234,7 +1246,7 @@ export default function ReportsPage() {
 
               <div className="flex justify-between items-center text-[8px] text-gray-400 font-mono border-t border-gray-100 pt-2 mt-auto">
                 <span>DISPOSAFE QUALITY ASSURANCE SYSTEM</span>
-                <span className="font-bold">PAGE 21 OF 24</span>
+                <span className="font-bold">PAGE {pg(tail + 3)} OF {pg(totalPages)}</span>
                 <span>DATA INTEGRITY LINEAGE</span>
               </div>
             </div>
@@ -1244,7 +1256,7 @@ export default function ReportsPage() {
             <div className="pdf-page-wrapper">
               <div className="page-content-wrapper">
                 <h2 className="text-lg font-black text-gray-900 border-b-2 border-gray-900 pb-2 mb-4 uppercase">
-                  22. Data Overrides &amp; Adjudication Register
+                  {pg(tail + 4)}. Data Overrides &amp; Adjudication Register
                 </h2>
 
                 <h3 className="text-xs font-bold text-gray-800 uppercase mb-2">Human Override &amp; Corrections Log Journal</h3>
@@ -1291,7 +1303,7 @@ export default function ReportsPage() {
 
               <div className="flex justify-between items-center text-[8px] text-gray-400 font-mono border-t border-gray-100 pt-2 mt-auto">
                 <span>DISPOSAFE QUALITY ASSURANCE SYSTEM</span>
-                <span className="font-bold">PAGE 22 OF 24</span>
+                <span className="font-bold">PAGE {pg(tail + 4)} OF {pg(totalPages)}</span>
                 <span>CHANGE CONTROL PROTOCOL</span>
               </div>
             </div>
@@ -1301,7 +1313,7 @@ export default function ReportsPage() {
             <div className="pdf-page-wrapper">
               <div className="page-content-wrapper">
                 <h2 className="text-lg font-black text-gray-900 border-b-2 border-gray-900 pb-2 mb-4 uppercase">
-                  23. Corrective &amp; Preventive Action (CAPA) Index
+                  {pg(tail + 5)}. Corrective &amp; Preventive Action (CAPA) Index
                 </h2>
 
                 <h3 className="text-xs font-bold text-gray-800 uppercase mb-2">Compliance CAPA Matrix</h3>
@@ -1363,13 +1375,13 @@ export default function ReportsPage() {
 
               <div className="flex justify-between items-center text-[8px] text-gray-400 font-mono border-t border-gray-100 pt-2 mt-auto">
                 <span>DISPOSAFE QUALITY ASSURANCE SYSTEM</span>
-                <span className="font-bold">PAGE 23 OF 24</span>
+                <span className="font-bold">PAGE {pg(tail + 5)} OF {pg(totalPages)}</span>
                 <span>CORRECTIVE ACTION COMPLIANCE</span>
               </div>
             </div>
 
 
-            {/* PAGE 24: Regulatory Sign-Off Vault & Cryptographic Footprint */}
+            {/* FINAL PAGE: Regulatory Sign-Off Vault & Cryptographic Footprint */}
             <div className="pdf-page-wrapper">
               <div className="page-content-wrapper flex flex-col justify-between h-full py-6">
                 
@@ -1433,13 +1445,14 @@ export default function ReportsPage() {
 
               <div className="flex justify-between items-center text-[8px] text-gray-400 font-mono border-t border-gray-100 pt-2 mt-auto">
                 <span>DISPOSAFE QUALITY ASSURANCE SYSTEM</span>
-                <span className="font-bold">PAGE 24 OF 24</span>
+                <span className="font-bold">PAGE {pg(tail + 6)} OF {pg(totalPages)}</span>
                 <span>REGULATORY COMPLIANCE LOCK Vault</span>
               </div>
             </div>
 
           </div>
-        )}
+          );
+        })()}
       </div>
     </AppShell>
   );
