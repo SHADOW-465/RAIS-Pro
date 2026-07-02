@@ -122,28 +122,35 @@ export default function AppShell({
       .then((res) => res.json())
       .then((data) => {
         const list = (data.datasets ?? []) as { id: string; title: string; recognizedStageId?: string | null }[];
-        // A dataset recognized as a stage that already has a legacy View tab
-        // would duplicate it — hide those; the legacy tab remains the entry
-        // point for recognized stages (its rich StationView), while
-        // unrecognized datasets keep their generic tabs.
+        // A recognized dataset duplicates a legacy stage tab only once that
+        // stage actually HAS event data (i.e. the dataset was published, or the
+        // stage was fed by the classic pipeline). Until then the dataset tab is
+        // the ONLY place its data — and its Publish action — can be seen, so it
+        // must stay visible; it self-hides after publishing lands events.
         const legacyIds = new Set(
           (viewStages.length ? viewStages : VIEW_OPTIONS.slice(1)).map((v) => v.id),
         );
+        const stagesWithData = new Set((events ?? []).map((e: any) => e.stageId).filter(Boolean));
         // Prefix with "dataset:" so these ids can never collide with a legacy
         // stageId (which are short kebab-case strings like "visual"), and so
         // page.tsx can cheaply tell the two kinds of tab apart.
         setDatasetTabs(
           list
-            .filter((d) => !d.recognizedStageId || !legacyIds.has(d.recognizedStageId))
+            .filter(
+              (d) =>
+                !d.recognizedStageId ||
+                !legacyIds.has(d.recognizedStageId) ||
+                !stagesWithData.has(d.recognizedStageId),
+            )
             .map((d) => ({ id: `dataset:${d.id}`, label: d.title })),
         );
       })
       .catch(() => {
         // best-effort — the existing stage tabs still render fine without this
       });
-    // viewStages loads from its own async fetch; re-filter when it arrives so
-    // the two fetches' completion order doesn't change which tabs are hidden.
-  }, [viewStages]);
+    // viewStages / events each load asynchronously; re-filter when either
+    // arrives so fetch completion order doesn't change which tabs are hidden.
+  }, [viewStages, events]);
 
   useEffect(() => {
     if (events && events.length > 0) {

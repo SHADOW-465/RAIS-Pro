@@ -374,7 +374,13 @@ export default function Dashboard() {
       {isLoading && (
         <PageLoader message="Initializing the intelligence ledger..." minHeight="60vh" />
       )}
-      {!isLoading && events && events.length === 0 && (
+      {/* Dataset views read from the dataset store, not the event ledger — they
+          must render even when zero events exist (e.g. a fresh upload whose
+          recognized data hasn't been published to Cumulative yet). */}
+      {!isLoading && activeView.startsWith("dataset:") && (
+        <GenericDatasetView datasetId={activeView.slice("dataset:".length)} />
+      )}
+      {!isLoading && !activeView.startsWith("dataset:") && events && events.length === 0 && (
         <div style={{ padding: "72px 32px", textAlign: "center" }}>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 12 }}>
             No data yet
@@ -397,12 +403,10 @@ export default function Dashboard() {
         </div>
       )}
 
-      {m && (
+      {m && !activeView.startsWith("dataset:") && (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {activeView !== "cumulative" ? (
-            activeView.startsWith("dataset:") ? (
-              <GenericDatasetView datasetId={activeView.slice("dataset:".length)} />
-            ) : (
+            (
               <StationView
                 events={events!}
                 stageId={activeView}
