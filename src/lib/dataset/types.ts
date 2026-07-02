@@ -18,6 +18,9 @@ export interface Dataset {
   columns: SchemaSignatureColumn[]; // the shared (role, name) basis
   sources: DatasetSource[];         // sorted, stable
   totalRows: number;                // sum of sampled source rowCounts
+  /** Known Disposafe stage this dataset was recognized as (labeling only —
+   *  never triggers auto-ingestion), or null when unrecognized. */
+  recognizedStageId: string | null;
 }
 
 /** A profiled table ready to be grouped. */
