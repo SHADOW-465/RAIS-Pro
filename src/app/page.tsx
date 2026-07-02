@@ -324,6 +324,47 @@ export default function Dashboard() {
     return list.slice(0, 4);
   }, [m, targetRej]);
 
+  /** C2: pair each `recommendations` string with a severity chip + evidence line
+   *  for the action-card rendering, WITHOUT inventing new numbers — severity is
+   *  derived by re-matching the recommendation against the same `m.stages` /
+   *  `m.defects` / `m.sizes` rows it was built from and comparing against
+   *  `targetRej`, the same threshold already used for Kpi `tone` above (e.g.
+   *  `tone={m.rate > targetRej ? "bad" : "good"}`). Evidence is the metric value
+   *  that triggered the line, already present in `m`. */
+  const recommendationCards = useMemo(() => {
+    if (!m) return recommendations.map((text) => ({ text, tone: "warn" as const, evidence: null as string | null }));
+
+    return recommendations.map((text) => {
+      const stageMatch = m.stages.find((s) => text.includes(s.label));
+      if (stageMatch) {
+        return {
+          text,
+          tone: (stageMatch.rejRate > targetRej ? "bad" : "warn") as "bad" | "warn",
+          evidence: `${stageMatch.label}: ${pct(stageMatch.rejRate)} rejection rate vs ${pct(targetRej)} target`,
+        };
+      }
+      const defectMatch = m.defects.find((d) => text.includes(d.label));
+      if (defectMatch) {
+        return {
+          text,
+          tone: "warn" as const,
+          evidence: `${defectMatch.label}: ${defectMatch.pct.toFixed(1)}% of all rejections`,
+        };
+      }
+      const sizeMatch = m.sizes.find((s) => text.includes(s.size));
+      if (sizeMatch) {
+        return {
+          text,
+          tone: (sizeMatch.rejRate > targetRej ? "bad" : "warn") as "bad" | "warn",
+          evidence: `Size ${sizeMatch.size}: ${pct(sizeMatch.rejRate)} rejection rate vs ${pct(targetRej)} target`,
+        };
+      }
+      // Fallback / default lines (SOP training, maintenance logs, upload prompts) —
+      // no rejection-rate breach implied, so these read as informational, not urgent.
+      return { text, tone: "info" as const, evidence: null as string | null };
+    });
+  }, [m, recommendations, targetRej]);
+
   const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
 
   const stats = useMemo(() => {
@@ -373,6 +414,27 @@ export default function Dashboard() {
 
   const worstStageRow = m ? [...m.stages].sort((a, b) => b.rejected - a.rejected)[0] ?? null : null;
   const worstStageByRejs = worstStageRow?.label ?? "Visual Inspection";
+
+  /** C3: reshape `exec`'s bullet lines into "Executive Brief" form — a bolded
+   *  headline (the first/most severe `exec` line, unchanged text) plus labeled
+   *  Impact / Primary driver / Recommendation rows. Every value here is already
+   *  computed in `m` / `recommendations` — this only relabels/restructures the
+   *  existing bullets, it invents nothing. Falls back to plain bullets when
+   *  `exec` is sparse (<3 lines) so it never looks broken with little data. */
+  const execBrief = useMemo(() => {
+    if (!m || exec.length < 3) return null;
+    const primaryDriver = worstStageRow
+      ? `${worstStageRow.label} (${pct(worstStageRow.rejRate)} rejection rate, ${worstStageRow.contributionPct.toFixed(1)}% of total)`
+      : m.defects.length > 0
+        ? `${m.defects[0].label} (${m.defects[0].pct.toFixed(1)}% of all rejections)`
+        : null;
+    return {
+      headline: exec[0],
+      impact: rupee(m.copq),
+      primaryDriver,
+      recommendation: recommendations[0] ?? null,
+    };
+  }, [m, exec, worstStageRow, recommendations]);
 
   /** Per-KPI drill-down narrative: What happened / Why / Cost impact / [Evidence
    *  is the existing View Source table, wired separately] / Recommended action.
@@ -552,35 +614,88 @@ export default function Dashboard() {
               competes with the KPI tiles for top billing. */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <Card title="AI Executive Summary">
-              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.75 }}>
-                {exec.map((bullet, i) => {
-                  const colors = ["var(--accent)", "var(--positive)", "var(--critical)", "var(--warning)", "#C8421C"];
-                  return (
-                    <li key={i} style={{ listStyleType: "none", position: "relative", paddingLeft: 4, marginBottom: 6 }}>
-                      <span style={{
-                        position: "absolute",
-                        left: -16,
-                        top: 8,
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        background: colors[i % colors.length]
-                      }} />
-                      {safeBolden(bullet)}
-                    </li>
-                  );
-                })}
-              </ul>
+              {execBrief ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 800, lineHeight: 1.4 }}>
+                    {safeBolden(execBrief.headline)}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, lineHeight: 1.6 }}>
+                    <BriefRow label="Impact" value={execBrief.impact} />
+                    {execBrief.primaryDriver && <BriefRow label="Primary driver" value={execBrief.primaryDriver} />}
+                    {execBrief.recommendation && <BriefRow label="Recommendation" value={execBrief.recommendation} />}
+                  </div>
+                </div>
+              ) : (
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.75 }}>
+                  {exec.map((bullet, i) => {
+                    const colors = ["var(--accent)", "var(--positive)", "var(--critical)", "var(--warning)", "#C8421C"];
+                    return (
+                      <li key={i} style={{ listStyleType: "none", position: "relative", paddingLeft: 4, marginBottom: 6 }}>
+                        <span style={{
+                          position: "absolute",
+                          left: -16,
+                          top: 8,
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: colors[i % colors.length]
+                        }} />
+                        {safeBolden(bullet)}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </Card>
 
             <Card title="Recommended Actions (AI)">
-              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.75 }}>
-                {recommendations.map((rec, i) => (
-                  <li key={i} style={{ marginBottom: 6 }}>
-                    {safeBolden(rec)}
-                  </li>
-                ))}
-              </ul>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {recommendationCards.map((rec, i) => {
+                  const chipColor = rec.tone === "bad" ? "var(--critical)" : rec.tone === "warn" ? "var(--warning)" : "var(--positive)";
+                  const chipText = rec.tone === "bad" ? "Critical" : rec.tone === "warn" ? "Warning" : "Info";
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 5,
+                        padding: "10px 12px",
+                        background: "var(--surface-2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-md)",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <span
+                          style={{
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
+                            padding: "2px 8px",
+                            borderRadius: 5,
+                            color: chipColor,
+                            background: `color-mix(in srgb, ${chipColor} 14%, transparent)`,
+                          }}
+                        >
+                          {chipText}
+                        </span>
+                        <a
+                          href="/capa"
+                          style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}
+                        >
+                          Create CAPA →
+                        </a>
+                      </div>
+                      <div style={{ fontSize: 13, lineHeight: 1.6 }}>{safeBolden(rec.text)}</div>
+                      {rec.evidence && (
+                        <div className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>{rec.evidence}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </Card>
           </div>
 
@@ -763,6 +878,19 @@ export default function Dashboard() {
         {modalContent}
       </FloatingDetailModal>
     </AppShell>
+  );
+}
+
+/** C3: one labeled row in the Executive Brief card (Impact / Primary driver /
+ *  Recommendation). Presentational only — values are computed by the caller. */
+function BriefRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+      <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)", minWidth: 108, flexShrink: 0 }}>
+        {label}
+      </span>
+      <span style={{ fontSize: 13, color: "var(--text)" }}>{safeBolden(value)}</span>
+    </div>
   );
 }
 
