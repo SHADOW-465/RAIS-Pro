@@ -86,7 +86,7 @@ export default function GenericDashboardBody({
       {d.kpis.length === 0 ? (
         <Empty label="This dataset has no measure columns to summarize — it may be a derived or summary sheet." />
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(d.kpis.length, 5)}, 1fr)`, gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(d.kpis.length, 5)}, 1fr)`, gap: 20 }}>
           {d.kpis.map((k) => (
             <Kpi key={k.columnName} label={k.label} value={fmtNum(k.total)} spark={k.trend.length ? toWidgetSeries(k.trend) : undefined} />
           ))}

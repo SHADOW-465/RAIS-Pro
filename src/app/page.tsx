@@ -517,7 +517,7 @@ export default function Dashboard() {
       )}
 
       {m && !activeView.startsWith("dataset:") && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {activeView !== "cumulative" ? (
             (
               <StationView
@@ -539,7 +539,7 @@ export default function Dashboard() {
               Every value is already computed in `m`; this is reordering/relabeling,
               not new math. Clicking any of the first 4 opens the 5-part drill-down
               narrative (what/why/cost/evidence/action) via kpiNarrative(). */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 20 }}>
             <Kpi
               primary
               label="Rejection Rate"
@@ -612,7 +612,7 @@ export default function Dashboard() {
           {/* AI Executive Summary + Recommended Actions — the narrative summary of
               the whole page, demoted below the Overview strip so it no longer
               competes with the KPI tiles for top billing. */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
             <Card title="AI Executive Summary">
               {execBrief ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -700,7 +700,7 @@ export default function Dashboard() {
           </div>
 
           {/* Row 2: Trends */}
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 20 }}>
             <Card title={`Rejection Trend (${grainLabel})`} sub={`Target (${(targetRej * 100).toFixed(0)}%) & Mean`} onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
               <LineChart points={m.tr} target={targetRej} fmt={pct} mean />
             </Card>
@@ -714,7 +714,7 @@ export default function Dashboard() {
             const hasPareto = m.defects.length > 0;
             const gridTemplate = hasPareto ? "minmax(0, 1.8fr) minmax(0, 1.2fr)" : "minmax(0, 1fr)";
             return (
-              <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
                 {hasPareto && (
                   <Card title="Defect Pareto (All Stages)" onClick={() => openModal("Defect Pareto (All Stages)", "Six Sigma Pareto analysis highlighting the vital few defect categories responsible for most rejects.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
                     <ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} showTable={false} />
@@ -751,7 +751,7 @@ export default function Dashboard() {
             const row4Cols = hasDefectTrend ? "minmax(0, 1.2fr) minmax(0, 1.8fr)" : "minmax(0, 1fr)";
 
             return (
-              <div style={{ display: "grid", gridTemplateColumns: row4Cols, gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: row4Cols, gap: 20 }}>
                 <Card title="Process Flow Overview" onClick={() => openModal("Process Flow Overview", "Catheter assembly process flow indicating quality yields at each gate.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
                   <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                     <ProcessFlow rows={m.stages} />
@@ -785,7 +785,7 @@ export default function Dashboard() {
             ].filter(Boolean).join(" ");
 
             return (
-              <div style={{ display: "grid", gridTemplateColumns: row5Cols, gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: row5Cols, gap: 20 }}>
                 {hasSizeYtd && (
                   <Card title="Size-wise Rejection (YTD)" onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" })}>
                     <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100 }))} fmt={(n) => `${n.toFixed(1)}%`} />
@@ -930,8 +930,8 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
     { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data for this period." };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
         <Kpi primary label={`${label} — Rejection Rate`} value={pct(d.rate)} tone={d.rate > targetRej ? "bad" : "good"} spark={d.trend}
           onClick={() => openModal(`${label} — Rejection Rate`, `${label} rejection rate is ${pct(d.rate)} for the selected range.`, <div style={{ minHeight: 280, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection"] }), value: pct(d.rate) })} />
         <Kpi label="Quantity Checked" value={num(d.checked)} />

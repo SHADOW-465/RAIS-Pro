@@ -140,12 +140,13 @@ export function Kpi({
     >
       <div>
         <div className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>{label}</div>
-        <div style={{ 
-          fontFamily: "var(--font-mono)", 
-          fontSize: primary ? 28 : 22, 
-          fontWeight: 800, 
-          color, 
-          margin: "8px 0 2px" 
+        <div style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: primary ? 34 : 22,
+          fontWeight: 800,
+          color,
+          margin: "8px 0 2px",
+          letterSpacing: primary ? "-0.01em" : undefined,
         }}>{value}</div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 8 }}>
@@ -756,7 +757,7 @@ const ctd: React.CSSProperties = { padding: "8px 8px", color: "var(--text)" };
  *  Cumulative dataset's rejection-analysis sheets carry no size dimension). */
 export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLabel: string; size: string; rejRate: number; rejected: number }[] }) {
   if (cells.length === 0) {
-    return <Empty label="No size-tagged data available for this period — stage x size concentration needs the size-wise books (Visual / Valve Integrity) ingested." />;
+    return <Empty label="No size-tagged data for this period — upload and publish a size-wise sheet (Visual or Valve Integrity) to populate stage x size concentration." />;
   }
   const stages = [...new Set(cells.map((c) => c.stageId))].map((id) => cells.find((c) => c.stageId === id)!.stageLabel);
   const stageIds = [...new Set(cells.map((c) => c.stageId))];

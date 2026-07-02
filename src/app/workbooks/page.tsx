@@ -190,9 +190,9 @@ export default function WorkbooksPage() {
 
   return (
     <AppShell active="workbooks">
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 800, margin: "0 0 4px", color: "var(--text)" }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 800, margin: "0 0 4px", color: "var(--text)" }}>
             Workbooks
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
@@ -200,7 +200,7 @@ export default function WorkbooksPage() {
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 20, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 24, alignItems: "start" }}>
           {/* Left panel: search + tree */}
           <div style={{
             border: "1px solid var(--border)",
@@ -234,7 +234,7 @@ export default function WorkbooksPage() {
             {error && <Empty label={`Could not load workbooks: ${error}`} />}
             {!error && datasets === null && <PageLoader message="Loading workbooks…" minHeight="20vh" />}
             {!error && datasets !== null && filteredTree.length === 0 && (
-              <Empty label={query ? "No files or sheets match your search." : "No workbooks uploaded yet — upload one via Staging."} />
+              <Empty label={query ? "No files or sheets match your search." : "No workbooks uploaded yet — go to Staging & Review to upload a monthly inspection file (Visual, Valve Integrity, or Rejection Analysis) and it will appear here, sheet by sheet."} />
             )}
 
             {!error && filteredTree.map((f) => {
@@ -335,7 +335,10 @@ export default function WorkbooksPage() {
                 textAlign: "center",
                 color: "var(--text-2)",
               }}>
-                <p style={{ margin: "0 0 12px", fontSize: 14 }}>No workbooks have been uploaded yet.</p>
+                <p style={{ margin: "0 0 12px", fontSize: 14 }}>
+                  No workbooks have been uploaded yet. Upload a monthly inspection file — Visual, Valve Integrity, or
+                  Rejection Analysis — on Staging &amp; Review, and it will show up here as a browsable file → sheet tree.
+                </p>
                 <button
                   onClick={() => router.push("/staging")}
                   style={{
@@ -456,7 +459,7 @@ function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDataset
           : null;
         return (
           <div key={datasetId} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, margin: 0, color: "var(--text)" }}>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, margin: 0, color: "var(--text)" }}>
               {dataset.title}
             </h2>
             <GenericDashboardBody
