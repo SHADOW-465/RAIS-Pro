@@ -7,37 +7,70 @@ import { useTweaks } from "@/components/editorial/TweaksContext";
 import { useEvents } from "@/components/app/EventsContext";
 
 export type NavKey =
-  | "dashboard" | "data-entry" | "staging" | "stage" | "size" | "defect"
+  | "dashboard" | "workbooks" | "data-entry" | "staging" | "stage" | "size" | "defect"
   | "spc" | "process-flow" | "copq" | "reports" | "capa" | "ask" | "audit" | "schema" | "settings" | "clear-data";
 
-interface NavItem { 
-  key: NavKey; 
-  label: string; 
-  icon: IconName; 
-  href?: string; 
-  badge?: number; 
-  soon?: boolean; 
+interface NavItem {
+  key: NavKey;
+  label: string;
+  icon: IconName;
+  href?: string;
+  badge?: number;
+  soon?: boolean;
   indent?: boolean;
   aiBadge?: boolean;
 }
 
-const NAV: NavItem[] = [
-  { key: "dashboard", label: "Dashboard", icon: "table", href: "/" },
-  { key: "data-entry", label: "Data Entry", icon: "file", href: "/data-entry" },
-  { key: "staging", label: "Staging & Review", icon: "upload", href: "/staging", badge: 12 },
-  { key: "stage", label: "Stage Analysis", icon: "trend-up", href: "/stage-analysis" },
-  { key: "size", label: "Size Analysis", icon: "tally", href: "/size-analysis" },
-  { key: "defect", label: "Defect Analysis", icon: "spark", href: "/defect-analysis" },
-  { key: "spc", label: "SPC & Control Charts", icon: "trend-down", href: "/spc" },
-  { key: "process-flow", label: "Process Flow", icon: "split", href: "/process-flow" },
-  { key: "copq", label: "COPQ & Savings", icon: "lightning", href: "/copq" },
-  { key: "reports", label: "Reports", icon: "print", href: "/reports" },
-  { key: "capa", label: "CAPA & Actions", icon: "check", href: "/capa" },
-  { key: "ask", label: "Ask RAIS", icon: "comment", href: "/chat", aiBadge: true },
-  { key: "audit", label: "Audit Trail", icon: "search", href: "/audit" },
-  { key: "schema", label: "Data Schema", icon: "split", href: "/schema" },
-  { key: "settings", label: "Settings", icon: "external", href: "/settings" },
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: "Overview",
+    items: [
+      { key: "dashboard", label: "Dashboard", icon: "table", href: "/" },
+    ],
+  },
+  {
+    title: "Workbooks",
+    items: [
+      { key: "workbooks", label: "Workbooks", icon: "folder", href: "/workbooks" },
+    ],
+  },
+  {
+    title: "Data",
+    items: [
+      { key: "data-entry", label: "Data Entry", icon: "file", href: "/data-entry" },
+      { key: "staging", label: "Staging & Review", icon: "upload", href: "/staging", badge: 12 },
+    ],
+  },
+  {
+    title: "Analysis",
+    items: [
+      { key: "stage", label: "Stage Analysis", icon: "trend-up", href: "/stage-analysis" },
+      { key: "size", label: "Size Analysis", icon: "tally", href: "/size-analysis" },
+      { key: "defect", label: "Defect Analysis", icon: "spark", href: "/defect-analysis" },
+      { key: "spc", label: "SPC & Control Charts", icon: "trend-down", href: "/spc" },
+      { key: "process-flow", label: "Process Flow", icon: "split", href: "/process-flow" },
+      { key: "copq", label: "COPQ & Savings", icon: "lightning", href: "/copq" },
+    ],
+  },
+  {
+    title: "Management",
+    items: [
+      { key: "reports", label: "Reports", icon: "print", href: "/reports" },
+      { key: "capa", label: "CAPA & Actions", icon: "check", href: "/capa" },
+      { key: "ask", label: "Ask RAIS", icon: "comment", href: "/chat", aiBadge: true },
+      { key: "audit", label: "Audit Trail", icon: "search", href: "/audit" },
+      { key: "schema", label: "Data Schema", icon: "split", href: "/schema" },
+      { key: "settings", label: "Settings", icon: "external", href: "/settings" },
+    ],
+  },
 ];
+
+const NAV_COLLAPSE_KEY = "moid_nav_collapsed";
 
 // Global stage scope. "cumulative" = all stages combined; the rest scope every
 // screen (KPIs, trends, view-source, SPC) to a single inspection process.
@@ -62,11 +95,12 @@ export default function AppShell({
   const { t, setTweak } = useTweaks();
   const [mounted, setMounted] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
-  const [analyticsExpanded] = useState(true);
+  const [showViewMenu, setShowViewMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
   const [viewStages, setViewStages] = useState<{ id: string; label: string }[]>([]);
   const [datasetTabs, setDatasetTabs] = useState<{ id: string; label: string }[]>([]);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [dateMinMax, setDateMinMax] = useState<{ min: string; max: string } | null>(null);
 
   const getSuggestedGrain = (): "day" | "week" | "month" | "fy" => {
@@ -264,12 +298,67 @@ export default function AppShell({
     return () => window.removeEventListener("click", handler);
   }, [showPicker]);
 
+  // Load persisted sidebar section collapse state once on mount.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(NAV_COLLAPSE_KEY);
+      if (raw) setCollapsedSections(JSON.parse(raw));
+    } catch {
+      // ignore malformed/unavailable localStorage
+    }
+  }, []);
+
+  function toggleSection(title: string) {
+    setCollapsedSections((prev) => {
+      const next = { ...prev, [title]: !prev[title] };
+      try {
+        window.localStorage.setItem(NAV_COLLAPSE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore write failures (private browsing, quota, etc.)
+      }
+      return next;
+    });
+  }
+
+  // Close the View dropdown on outside click / Escape — same pattern as the
+  // Date Range picker above.
+  useEffect(() => {
+    if (!showViewMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".view-picker-container")) {
+        setShowViewMenu(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowViewMenu(false);
+    };
+    window.addEventListener("click", handleClick);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("click", handleClick);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [showViewMenu]);
+
   const isDark = t.theme === "dark";
   const toggleTheme = () => {
     setTweak("theme", isDark ? "light" : "dark");
   };
 
   const sc = statusCounts ?? {};
+
+  // Grouped View options — same three groups the plan specifies. "Stations"
+  // only includes stages that actually have event data (derived from the
+  // already-fetched `events`, mapped through viewStages for labels) so the
+  // dropdown never shows an empty station. Uses the exact same visibility
+  // filter as before for dataset tabs (computed in the effect above).
+  const stationCandidates = viewStages.length ? viewStages : VIEW_OPTIONS.slice(1);
+  const stagesWithData = new Set((events ?? []).map((e: any) => e.stageId).filter(Boolean));
+  const stationOptions = stationCandidates.filter((v) => stagesWithData.has(v.id));
+  const allViewOptions = [{ id: "cumulative", label: "Factory Overview" }, ...stationOptions, ...datasetTabs];
+  const currentView = allViewOptions.find((v) => v.id === t.stageView)
+    ?? { id: t.stageView, label: t.stageView === "cumulative" ? "Factory Overview" : t.stageView };
 
   return (
     <div style={{ 
@@ -322,88 +411,118 @@ export default function AppShell({
           </span>
         </div>
 
-        {/* nav links */}
+        {/* nav links — grouped into collapsible sections */}
         <nav style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }}>
-          {NAV.map((n) => {
-            const isActive = n.key === active;
-            const isAnalyticsChild = n.indent;
-            
-            if (isAnalyticsChild && !analyticsExpanded) return null;
-
-            // Render header item for Analytics group
-            if (n.key === "stage" && isAnalyticsChild && NAV.find(item => item.key === "stage")?.key === n.key) {
-              // We inject the Analytics group header before Stage Analysis
-            }
-
+          {NAV_SECTIONS.map((section) => {
+            const isCollapsed = !!collapsedSections[section.title];
             return (
-              <button key={n.key} disabled={n.soon}
-                onClick={() => {
-                  if (n.href) {
-                    router.push(n.href);
-                  }
-                }}
-                title={n.soon ? "Coming soon" : n.label}
-                style={{
-                  width: "100%", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  gap: 10, 
-                  padding: isAnalyticsChild ? "8px 16px 8px 32px" : "10px 16px",
-                  marginBottom: 2,
-                  background: isActive 
-                    ? "var(--accent-weak)" 
-                    : "transparent",
-                  borderRadius: "var(--radius-sm)",
-                  color: isActive 
-                    ? "var(--text)" 
-                    : n.soon 
-                      ? "var(--text-3)" 
-                      : "var(--text-2)",
-                  border: "none", 
-                  cursor: n.soon ? "default" : "pointer",
-                  fontSize: isAnalyticsChild ? 12.5 : 13.5, 
-                  fontWeight: isActive ? 600 : 500, 
-                  textAlign: "left",
-                  transition: "all 0.15s ease",
-                  position: "relative"
-                }}>
-                {isActive && (
-                  <div style={{
-                    position: "absolute",
-                    left: 0,
-                    top: "15%",
-                    height: "70%",
-                    width: 3,
-                    background: "#C8421C",
-                    borderRadius: "0 2px 2px 0"
-                  }} />
-                )}
-                <Icon name={n.icon} size={isAnalyticsChild ? 13 : 15} stroke={isActive ? 2 : 1.5} />
-                <span style={{ flex: 1 }}>{n.label}</span>
-                {n.badge ? (
-                  <span style={{ 
-                    background: "var(--critical)", 
-                    color: "#fff", 
-                    fontSize: 10, 
-                    borderRadius: "var(--radius-sm)", 
-                    padding: "2px 6px", 
+              <div key={section.title} style={{ marginBottom: 6 }}>
+                <button
+                  onClick={() => toggleSection(section.title)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 6,
+                    padding: "8px 16px 4px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span className="muted" style={{
+                    fontSize: 10,
                     fontWeight: 700,
-                    fontFamily: "var(--font-mono)" 
-                  }}>{n.badge}</span>
-                ) : null}
-                {n.aiBadge ? (
-                  <span style={{ 
-                    background: "var(--accent-weak)", 
-                    color: "var(--accent)", 
-                    fontSize: 9, 
-                    borderRadius: 4, 
-                    padding: "1px 5px", 
-                    fontWeight: 800,
-                    border: "1px solid var(--border)"
-                  }}>AI</span>
-                ) : null}
-                {n.soon ? <span className="muted" style={{ fontSize: 9 }}>soon</span> : null}
-              </button>
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: "var(--text-3)",
+                  }}>
+                    {section.title}
+                  </span>
+                  <Icon
+                    name={isCollapsed ? "chevron-down" : "chevron-up"}
+                    size={11}
+                    style={{ color: "var(--text-3)" }}
+                  />
+                </button>
+
+                {!isCollapsed && section.items.map((n) => {
+                  const isActive = n.key === active;
+                  const isAnalyticsChild = n.indent;
+
+                  return (
+                    <button key={n.key} disabled={n.soon}
+                      onClick={() => {
+                        if (n.href) {
+                          router.push(n.href);
+                        }
+                      }}
+                      title={n.soon ? "Coming soon" : n.label}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: isAnalyticsChild ? "8px 16px 8px 32px" : "10px 16px",
+                        marginBottom: 2,
+                        background: isActive
+                          ? "var(--accent-weak)"
+                          : "transparent",
+                        borderRadius: "var(--radius-sm)",
+                        color: isActive
+                          ? "var(--text)"
+                          : n.soon
+                            ? "var(--text-3)"
+                            : "var(--text-2)",
+                        border: "none",
+                        cursor: n.soon ? "default" : "pointer",
+                        fontSize: isAnalyticsChild ? 12.5 : 13.5,
+                        fontWeight: isActive ? 600 : 500,
+                        textAlign: "left",
+                        transition: "all 0.15s ease",
+                        position: "relative"
+                      }}>
+                      {isActive && (
+                        <div style={{
+                          position: "absolute",
+                          left: 0,
+                          top: "15%",
+                          height: "70%",
+                          width: 3,
+                          background: "#C8421C",
+                          borderRadius: "0 2px 2px 0"
+                        }} />
+                      )}
+                      <Icon name={n.icon} size={isAnalyticsChild ? 13 : 15} stroke={isActive ? 2 : 1.5} />
+                      <span style={{ flex: 1 }}>{n.label}</span>
+                      {n.badge ? (
+                        <span style={{
+                          background: "var(--critical)",
+                          color: "#fff",
+                          fontSize: 10,
+                          borderRadius: "var(--radius-sm)",
+                          padding: "2px 6px",
+                          fontWeight: 700,
+                          fontFamily: "var(--font-mono)"
+                        }}>{n.badge}</span>
+                      ) : null}
+                      {n.aiBadge ? (
+                        <span style={{
+                          background: "var(--accent-weak)",
+                          color: "var(--accent)",
+                          fontSize: 9,
+                          borderRadius: 4,
+                          padding: "1px 5px",
+                          fontWeight: 800,
+                          border: "1px solid var(--border)"
+                        }}>AI</span>
+                      ) : null}
+                      {n.soon ? <span className="muted" style={{ fontSize: 9 }}>soon</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
@@ -471,33 +590,79 @@ export default function AppShell({
           <Selector label="Plant" value="Disposable Baddi" />
           <Selector label="Line" value="FBC Line 1" />
 
-          {/* Global View (stage) selector — scopes the ENTIRE app to one process */}
-          <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
+          {/* Global View (stage) selector — scopes the ENTIRE app to one process.
+              Compact dropdown (styled like Date Range below) replacing the old
+              always-visible 13-button strip; grouped into Factory Overview /
+              Stations (live data only) / Uploaded Data. */}
+          <div className="view-picker-container" style={{ display: "flex", flexDirection: "column", textAlign: "left", position: "relative" }}>
             <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
               View
             </span>
-            <div style={{ display: "flex", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: 2, background: "var(--surface-2)", alignItems: "center" }}>
-              {[{ id: "cumulative", label: "Cumulative" }, ...(viewStages.length ? viewStages : VIEW_OPTIONS.slice(1)), ...datasetTabs].map((v) => {
-                const active = t.stageView === v.id;
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => setTweak("stageView", v.id)}
-                    style={{
-                      padding: "2px 9px",
-                      fontSize: 10,
-                      fontWeight: 700,
-                      borderRadius: 3,
-                      background: active ? "var(--accent)" : "transparent",
-                      color: active ? "var(--text-invert)" : "var(--text-2)",
-                      transition: "all 0.12s ease",
-                    }}
-                  >
-                    {v.label}
-                  </button>
-                );
-              })}
+            <div
+              onClick={(e) => { e.stopPropagation(); setShowViewMenu(!showViewMenu); }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12.5,
+                fontWeight: 600,
+                border: "1px solid var(--border-strong)",
+                borderRadius: "var(--radius-sm)",
+                padding: "4px 10px",
+                background: "var(--surface-2)",
+                cursor: "pointer",
+                minWidth: 140,
+              }}
+            >
+              <Icon name="table" size={12} style={{ color: "var(--text-3)" }} />
+              <span style={{ flex: 1 }}>{currentView.label}</span>
+              <Icon name="arrow-right" size={10} style={{ transform: "rotate(90deg)", color: "var(--text-3)" }} />
             </div>
+
+            {showViewMenu && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  marginTop: 6,
+                  background: "var(--surface)",
+                  border: "1px solid var(--border-strong)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "var(--shadow-lg)",
+                  padding: 8,
+                  zIndex: 200,
+                  width: 260,
+                  maxHeight: 420,
+                  overflowY: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <ViewMenuGroup
+                  label="Factory Overview"
+                  options={[{ id: "cumulative", label: "Factory Overview" }]}
+                  activeId={t.stageView}
+                  onSelect={(id) => { setTweak("stageView", id); setShowViewMenu(false); }}
+                />
+                <ViewMenuGroup
+                  label="Stations"
+                  options={stationOptions}
+                  emptyLabel="No stations have data yet"
+                  activeId={t.stageView}
+                  onSelect={(id) => { setTweak("stageView", id); setShowViewMenu(false); }}
+                />
+                <ViewMenuGroup
+                  label="Uploaded Data"
+                  options={datasetTabs}
+                  emptyLabel="No uploaded datasets yet"
+                  activeId={t.stageView}
+                  onSelect={(id) => { setTweak("stageView", id); setShowViewMenu(false); }}
+                />
+              </div>
+            )}
           </div>
 
           {/* D, W, M, FY Segmented Control */}
@@ -930,6 +1095,62 @@ export default function AppShell({
           />
         </div>
       </footer>
+    </div>
+  );
+}
+
+/** One labeled group of options inside the View dropdown panel. Renders
+ *  nothing (not even the header) when there are no options and no emptyLabel
+ *  was given, so the Factory Overview group (always exactly one option)
+ *  reads cleanly. */
+function ViewMenuGroup({ label, options, activeId, onSelect, emptyLabel }: {
+  label: string;
+  options: { id: string; label: string }[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  emptyLabel?: string;
+}) {
+  if (options.length === 0 && !emptyLabel) return null;
+  return (
+    <div>
+      <div style={{
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: "uppercase",
+        letterSpacing: "0.05em",
+        color: "var(--text-3)",
+        padding: "6px 8px 4px",
+      }}>
+        {label}
+      </div>
+      {options.length === 0 ? (
+        <div className="muted" style={{ fontSize: 11.5, padding: "4px 8px 8px" }}>{emptyLabel}</div>
+      ) : (
+        options.map((v) => {
+          const active = activeId === v.id;
+          return (
+            <button
+              key={v.id}
+              onClick={() => onSelect(v.id)}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "6px 8px",
+                fontSize: 12.5,
+                fontWeight: active ? 700 : 500,
+                background: active ? "var(--accent-weak)" : "transparent",
+                color: active ? "var(--accent)" : "var(--text)",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+              }}
+            >
+              {v.label}
+            </button>
+          );
+        })
+      )}
     </div>
   );
 }
