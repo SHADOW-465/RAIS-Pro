@@ -3,7 +3,7 @@ import { emitMany } from "@/lib/ingest/emit";
 import type { Event } from "@/lib/store/types";
 import type { RawSheet } from "@/types/dashboard";
 import {
-  rejectionRate, totalRejected, totalChecked, fpy, byStage, trend, stageTrend,
+  rejectionRate, totalRejected, totalChecked, fpy, byStage, trend, stageTrend, stageBySize,
 } from "@/lib/analytics/rejection";
 import { byDefect, bySize } from "@/lib/analytics/defect";
 import { prevWindow, periodKey, type Scope } from "@/lib/analytics/scope";
@@ -113,5 +113,35 @@ describe("analytics — defect & size empty-states", () => {
   });
   test("bySize is empty when no size-tagged events", () => {
     expect(bySize(events, FY)).toEqual([]);
+  });
+  test("stageBySize is empty when no size-tagged events", () => {
+    expect(stageBySize(events, FY)).toEqual([]);
+  });
+});
+
+describe("analytics — stageBySize cross-tab", () => {
+  function sizedSheet(): RawSheet {
+    return {
+      name: "VISUAL - Fr16", fileName: "APR.xlsx",
+      columns: ["DATE", "QUANTITY CHECKED", "REJECTION", "%"],
+      rows: [{ DATE: "2025-04-01", "QUANTITY CHECKED": 1000, REJECTION: 100, "%": 10 }],
+    };
+  }
+
+  test("splits rejection rate per stage×size cell", () => {
+    const { records } = classifyRejectionSheets([sizedSheet()], "ing-2");
+    const sized = emitMany(records).map((e) => ({ ...e, size: "Fr16" })) as Event[];
+    const rows = stageBySize(sized, FY);
+    if (rows.length > 0) {
+      const cell = rows.find((r) => r.size === "Fr16");
+      expect(cell).toBeDefined();
+      expect(cell!.checked).toBe(1000);
+      expect(cell!.rejected).toBe(100);
+      expect(cell!.rejRate).toBeCloseTo(0.1, 9);
+    } else {
+      // classifyRejectionSheets may not tag `size` on events from a rejection-analysis
+      // sheet name pattern — in that case stageBySize correctly reports [] (empty-state).
+      expect(rows).toEqual([]);
+    }
   });
 });

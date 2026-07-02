@@ -194,3 +194,39 @@ export function cumulativeStageTrend(
     return { ...pt, perStage: { ...pt.perStage, [CUM_TOTAL_KEY]: total } };
   });
 }
+
+export interface StageSizeCell { stageId: string; stageLabel: string; size: string; checked: number; rejected: number; rejRate: number }
+
+/** Cross-tab of stage × size rejection rate ("where are problems concentrated").
+ *  [] when no size-tagged events exist for a stage — callers should render an
+ *  honest empty-state rather than fabricate cells. */
+export function stageBySize(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): StageSizeCell[] {
+  const ev = scopeEvents(events, scope).filter((e) => "size" in e && (e as any).size);
+  if (ev.length === 0) return [];
+  const map = new Map<string, { stageId: string; size: string; checked: number; rejected: number }>();
+  for (const e of ev) {
+    const stageId = stageOf(e);
+    const size = (e as any).size as string;
+    if (!stageId) continue;
+    const key = `${stageId}::${size}`;
+    const cur = map.get(key) ?? { stageId, size, checked: 0, rejected: 0 };
+    if (isProd(e)) cur.checked += qty(e);
+    else if (isRej(e)) cur.rejected += qty(e);
+    map.set(key, cur);
+  }
+  const labelOf = (stageId: string) => registry.stages.find((s) => s.stageId === stageId)?.label ?? stageId;
+  const order = registry.stages.map((s) => s.stageId);
+  return [...map.values()]
+    .map((v) => ({
+      stageId: v.stageId,
+      stageLabel: labelOf(v.stageId),
+      size: v.size,
+      checked: v.checked,
+      rejected: v.rejected,
+      rejRate: v.checked > 0 ? v.rejected / v.checked : 0,
+    }))
+    .sort((a, b) => {
+      const so = order.indexOf(a.stageId) - order.indexOf(b.stageId);
+      return so !== 0 ? so : a.size.localeCompare(b.size);
+    });
+}
