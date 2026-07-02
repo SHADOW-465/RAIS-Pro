@@ -13,6 +13,7 @@ import Icon from "@/components/editorial/Icon";
 import { buildReviewRows, reviewSummary, applyEdit } from "@/lib/ingest/review";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import type { Dataset } from "@/lib/dataset/types";
 
 export default function StagingPage() {
   const router = useRouter();
@@ -25,6 +26,10 @@ export default function StagingPage() {
   const [done, setDone] = useState<{ inserted: number; deduped: number } | null>(null);
   const [extractedSchema, setExtractedSchema] = useState<any | null>(null);
   const [showSchemaModal, setShowSchemaModal] = useState(false);
+  // "MO!D understood your workbook" reveal — surfaces the silent Dataset-profiler
+  // result (already computed for the fire-and-forget /api/datasets POST below)
+  // instead of discarding it. Informational only; never gates Publish.
+  const [detectedSummary, setDetectedSummary] = useState<Dataset[] | null>(null);
   const [comments, setComments] = useState<Record<number, string>>({});
   const [editingCommentRow, setEditingCommentRow] = useState<number | null>(null);
   const [page, setPage] = useState(0);
@@ -85,7 +90,7 @@ export default function StagingPage() {
 
   async function handleUpload(files: File[]) {
     setError(null); setDone(null); setComments({}); setEditingCommentRow(null); setExtractedSchema(null);
-    setFocusedInvalidIdx(0); setExpandedFlagsRow(null); setRawSheetsData(null);
+    setFocusedInvalidIdx(0); setExpandedFlagsRow(null); setRawSheetsData(null); setDetectedSummary(null);
     try {
       if (!files || files.length === 0) return;
       setBusy(true);
@@ -100,6 +105,7 @@ export default function StagingPage() {
           );
           const { datasets, rows } = datasetsWithRowsFromWorkbooks(inputs);
           if (datasets.length > 0) {
+            setDetectedSummary(datasets); // surface to the C1 reveal panel (informational only)
             await fetch("/api/datasets", {
               method: "POST",
               headers: { "content-type": "application/json" },
@@ -749,6 +755,79 @@ export default function StagingPage() {
             </div>
           )}
 
+          {/* ─── C1: "MO!D understood your workbook" reveal panel ────────────────
+              Surfaces the silent Dataset-profiler result (already computed for the
+              fire-and-forget /api/datasets POST in handleUpload) instead of letting
+              it disappear. Purely informational — does not gate or alter the review
+              table / Publish flow below. */}
+          {detectedSummary && detectedSummary.length > 0 && (
+            <Card
+              title="MO!D understood your workbook"
+              sub={`${detectedSummary.length} sheet${detectedSummary.length !== 1 ? "s" : ""} recognized`}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {detectedSummary.map((ds) => {
+                  const { label: confLabel, tone: confTone, score } = datasetConfidence(ds);
+                  const semanticLabel = ds.recognizedStageId
+                    ? DISPOSAFE_REGISTRY.stages.find((s: any) => s.stageId === ds.recognizedStageId)?.label ?? ds.title
+                    : "General data";
+                  const counts = roleCounts(ds.columns);
+                  const parts: string[] = [];
+                  if (counts.measure) parts.push(`${counts.measure} measure${counts.measure !== 1 ? "s" : ""}`);
+                  if (counts.dimension || counts["dimension-date"]) {
+                    const dimTotal = counts.dimension + counts["dimension-date"];
+                    parts.push(`${dimTotal} dimension${dimTotal !== 1 ? "s" : ""}`);
+                  }
+                  if (counts.defect) parts.push(`${counts.defect} defect code${counts.defect !== 1 ? "s" : ""}`);
+                  if (counts.derived) parts.push(`${counts.derived} derived`);
+
+                  return (
+                    <div
+                      key={ds.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        padding: "10px 14px",
+                        background: "var(--surface-2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-md)",
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: 700, fontSize: 13.5, fontFamily: "var(--font-display)" }}>{semanticLabel}</span>
+                          <span style={{ fontSize: 10.5, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
+                            {ds.sources.map((s) => s.sheetName).join(", ")}
+                          </span>
+                        </div>
+                        <div className="muted" style={{ fontSize: 11.5, marginTop: 3 }}>
+                          {parts.length > 0 ? parts.join(" · ") : "No classifiable columns"} · {ds.totalRows.toLocaleString()} rows
+                        </div>
+                      </div>
+                      <span
+                        title={`Confidence score ${score.toFixed(2)} — see code comment in datasetConfidence() for the exact formula`}
+                        style={{
+                          flexShrink: 0,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "3px 10px",
+                          borderRadius: 6,
+                          color: confTone === "good" ? "var(--positive)" : confTone === "warn" ? "var(--warning)" : "var(--critical)",
+                          background: `color-mix(in srgb, ${confTone === "good" ? "var(--positive)" : confTone === "warn" ? "var(--warning)" : "var(--critical)"} 14%, transparent)`,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {confLabel}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
           <Card title="Staging Area (Verify & Approve Records)" sub={fileName || "no file yet"}>
             {rows.length === 0 ? <Empty label="Upload a file to review extracted, recomputed records here." /> : (
               <>
@@ -1190,6 +1269,48 @@ export default function StagingPage() {
       )}
     </AppShell>
   );
+}
+
+/** Count a Dataset's columns by role — the per-sheet role breakdown shown in the
+ *  C1 reveal panel (e.g. "3 measures · 1 dimension · 21 defect codes · 1 derived"). */
+function roleCounts(columns: Dataset["columns"]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const c of columns) counts[c.role] = (counts[c.role] ?? 0) + 1;
+  return {
+    measure: counts["measure"] ?? 0,
+    dimension: counts["dimension"] ?? 0,
+    "dimension-date": counts["dimension-date"] ?? 0,
+    defect: counts["defect"] ?? 0,
+    derived: counts["derived"] ?? 0,
+    meta: counts["meta"] ?? 0,
+  };
+}
+
+/** Deterministic confidence proxy for the C1 reveal panel — NOT an AI-invented
+ *  percentage. Formula:
+ *    nonOtherRoleFraction = columns whose role is classified as something
+ *      meaningful (i.e. NOT "meta" — Dataset.columns never actually contains
+ *      "meta" columns since computeSignature() already strips them, so this
+ *      term is 1.0 whenever a dataset was successfully profiled at all) divided
+ *      by total column count.
+ *    hasDate = at least one column has role "dimension-date" (a real time axis
+ *      was found, not just untyped columns).
+ *  score = nonOtherRoleFraction, with a small deterministic bonus (+0.1, capped
+ *      at 1.0) when hasDate is true — a dataset with a recognizable date axis is
+ *      more analyzable than one without, which is an honest, explainable signal
+ *      (not invented). Bands: ≥0.9 High (positive), ≥0.7 Medium (warning),
+ *      else Needs review (critical) — mirrors the tone thresholds already used
+ *      elsewhere in the app (Kpi tone prop / --positive/--warning/--critical). */
+function datasetConfidence(ds: Dataset): { score: number; label: string; tone: "good" | "warn" | "bad" } {
+  const cols = ds.columns;
+  if (cols.length === 0) return { score: 0, label: "Needs review", tone: "bad" };
+  const nonMetaCount = cols.filter((c) => c.role !== "meta").length;
+  const nonOtherRoleFraction = nonMetaCount / cols.length;
+  const hasDate = cols.some((c) => c.role === "dimension-date");
+  const score = Math.min(1, nonOtherRoleFraction + (hasDate ? 0.1 : 0));
+  if (score >= 0.9) return { score, label: "High", tone: "good" };
+  if (score >= 0.7) return { score, label: "Medium", tone: "warn" };
+  return { score, label: "Needs review", tone: "bad" };
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "good" | "warn" | "bad" }) {
