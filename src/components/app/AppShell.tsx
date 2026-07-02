@@ -1066,7 +1066,7 @@ export default function AppShell({
           <Status tone="var(--critical)" label="Active Alerts" value={`${sc.alerts ?? 0} Critical`} />
           <Status tone="var(--positive)" label="Pending CAPA" value={`${sc.capa ?? 0} Actions`} />
           <Status tone="var(--warning)" label="Overdue Actions" value={`${sc.overdue ?? 0}`} />
-          <Status tone="var(--accent)" label="Data Anomalies" value={`${sc.anomalies ?? 0}`} />
+          <Status tone="var(--warning)" label="Data Anomalies" value={`${sc.anomalies ?? 0}`} />
         </div>
         
         {/* Ask RAIS text input field */}
