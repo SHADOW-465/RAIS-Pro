@@ -1,28 +1,109 @@
 // src/lib/ingest/parsers/parse-daily-activity.ts
-// Fixed-column parser for the "DAILY ACTIVITY REPORT" — the whole-line daily
-// throughput log covering the full process chain. Column map (0-indexed) is
-// documented in docs/superpowers/plans/2026-06-25-fullfidelity-multistage-entry.md.
+// Template-aware parser for the "DAILY ACTIVITY REPORT" — the whole-line daily
+// throughput log covering the full process chain.
+//
+// The client's own template for this report changed mid-corpus: JAN25/FEB25
+// sheets use a 3-column block (CHKD/ACPT/REJ, no HOLD) for Visual/Balloon and
+// have no Final Inspection / Balloon Production sections at all; JULY25
+// onward (and the whole 2026 file) use a 4-column block (CHKD/ACPT/HOLD/REJ)
+// and add those two sections. A single hardcoded column map cannot be correct
+// for both — it silently reads one stage's column into another stage's field
+// (e.g. Balloon's CHKD QTY into Visual's REJ) on the sheets it wasn't built
+// from. So columns are resolved from each sheet's OWN two-row header (group
+// row: "VISUAL INSEPTION" etc; sub row: "CHKD QTY"/"ACPT QTY"/"HOLD"/"REJ")
+// instead of a fixed index map — genuinely template-aware, not position-aware.
 import * as xlsx from "xlsx";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { toLocalISODate } from "@/lib/ingest/date";
 
-interface StageCols { stageId: string; chk: number; acc: number | null; hold: number | null; rej: number | null; }
+interface StageCols { stageId: string; chk: number | null; acc: number | null; hold: number | null; rej: number | null; }
 
-const STAGES: StageCols[] = [
-  { stageId: "production",         chk: 2,  acc: 3,  hold: null, rej: 4 },
-  { stageId: "eye-punching",       chk: 5,  acc: 6,  hold: null, rej: 7 },
-  { stageId: "leaching",           chk: 8,  acc: null, hold: null, rej: null },
-  { stageId: "chlorination",       chk: 9,  acc: null, hold: null, rej: null },
-  { stageId: "hanging",            chk: 10, acc: null, hold: null, rej: null },
-  { stageId: "gauge",              chk: 11, acc: null, hold: null, rej: null },
-  { stageId: "trimming",           chk: 12, acc: null, hold: null, rej: null },
-  { stageId: "visual",             chk: 13, acc: 14, hold: 15, rej: 16 },
-  { stageId: "balloon",            chk: 17, acc: 18, hold: 19, rej: 20 },
-  { stageId: "valve-fixing",       chk: 21, acc: null, hold: null, rej: null },
-  { stageId: "valve-integrity",    chk: 22, acc: 23, hold: 24, rej: 25 },
-  { stageId: "final",              chk: 26, acc: 27, hold: 28, rej: 29 },
-  { stageId: "balloon-production", chk: 30, acc: 31, hold: null, rej: 32 },
+// Order matters: checked top-to-bottom, first full match wins. Each entry is
+// an AND of substrings rather than one exact phrase — the client's own sheets
+// misspell "INSPECTION" inconsistently across the corpus ("INSEPTION" in
+// early-2025 sheets, "INSPECTION" from July25 on), so matching hinges only on
+// the stage-name stem, never on how the suffix happens to be spelled that
+// month. "balloon-production" is listed before "balloon" so "BALLOON
+// PRODUCTION" claims it first; plain "BALOON INSEPTION" / "BALLOON
+// INSPECTION" then falls through to "balloon" since it lacks "production".
+const STAGE_PATTERNS: { stageId: string; all: RegExp[] }[] = [
+  { stageId: "production",         all: [/^production$/i] },
+  { stageId: "eye-punching",       all: [/eye/i, /punch/i] },
+  { stageId: "leaching",           all: [/^leaching$/i] },
+  { stageId: "chlorination",       all: [/chlorination/i] },
+  { stageId: "hanging",            all: [/^hanging$/i] },
+  { stageId: "gauge",              all: [/^ga?u?age$/i] },
+  { stageId: "trimming",           all: [/trimm/i] },
+  { stageId: "visual",             all: [/visual/i] },
+  { stageId: "balloon-production", all: [/b[ae]l+oon/i, /production/i] },
+  { stageId: "balloon",            all: [/b[ae]l+oon/i] },
+  { stageId: "valve-fixing",       all: [/valve/i, /fixing/i] },
+  { stageId: "valve-integrity",    all: [/valve/i, /integrity/i] },
+  { stageId: "final",              all: [/final/i] },
 ];
+
+const SUB_CHK = /^chkd\s*qty$|^actual$/i;
+const SUB_ACC = /^acpt\s*qty$|^accept/i;
+const SUB_HOLD = /^hold$/i;
+const SUB_REJ = /^rej$/i;
+
+const norm = (c: unknown): string => String(c ?? "").replace(/\s+/g, " ").trim();
+
+/** Non-empty cells of the group-header row, sorted by column — each one starts
+ *  a "section" that runs until the next non-empty cell (or row end). */
+function sections(groupRow: unknown[]): { col: number; text: string }[] {
+  const out: { col: number; text: string }[] = [];
+  groupRow.forEach((c, i) => { const t = norm(c); if (t) out.push({ col: i, text: t }); });
+  return out;
+}
+
+/** Resolve this sheet's actual stage->column map from its own header rows.
+ *  Stages absent from the sheet (e.g. Final/Balloon-Production pre-July25)
+ *  are simply not returned — never guessed. */
+function resolveStageColumns(groupRow: unknown[], subRow: unknown[], rowLen: number): StageCols[] {
+  const secs = sections(groupRow);
+  const out: StageCols[] = [];
+  for (let i = 0; i < secs.length; i++) {
+    const { col, text } = secs[i];
+    const match = STAGE_PATTERNS.find((p) => p.all.every((re) => re.test(text)));
+    if (!match) continue;
+    const end = i + 1 < secs.length ? secs[i + 1].col : rowLen;
+    const cols: StageCols = { stageId: match.stageId, chk: null, acc: null, hold: null, rej: null };
+    if (end - col <= 1) {
+      // single unlabeled value column (LEACHING, CHLORINATION, HANGING, GAUGE,
+      // TRIMMING, VALVE FIXING) — the group-header column itself is the count.
+      cols.chk = col;
+    } else {
+      for (let c = col; c < end; c++) {
+        const sub = norm(subRow[c]);
+        if (SUB_CHK.test(sub)) cols.chk = c;
+        else if (SUB_ACC.test(sub)) cols.acc = c;
+        else if (SUB_HOLD.test(sub)) cols.hold = c;
+        else if (SUB_REJ.test(sub)) cols.rej = c;
+      }
+    }
+    out.push(cols);
+  }
+  return out;
+}
+
+/** Find the {group header row, sub header row} pair within the first dozen
+ *  rows. The group row is whichever row matches the most distinct stage
+ *  patterns; the sub row is the very next row (it holds CHKD QTY/ACPT
+ *  QTY/HOLD/REJ, or is blank for single-column stages). Returns null if no
+ *  row plausibly matches — the sheet doesn't fit this template at all, so it
+ *  is skipped rather than guessed. */
+function findHeaderRows(rows: unknown[][]): { groupRowIdx: number; subRowIdx: number } | null {
+  const limit = Math.min(rows.length, 12);
+  let best = -1, bestScore = 0;
+  for (let i = 0; i < limit; i++) {
+    const row = rows[i] ?? [];
+    const score = sections(row).filter((s) => STAGE_PATTERNS.some((p) => p.all.every((re) => re.test(s.text)))).length;
+    if (score > bestScore) { bestScore = score; best = i; }
+  }
+  if (best < 0 || bestScore < 4) return null; // too few stage matches — not this template
+  return { groupRowIdx: best, subRowIdx: best + 1 };
+}
 
 const ROW_MARKER = /weekly|total|w\.?\s*report/i;
 const HOLIDAY = /sunday|holiday|off/i;
@@ -34,7 +115,6 @@ const intOrNull = (v: unknown): number | null => {
 };
 
 const cellRef = (col: number, row: number): string => {
-  // colIndexToLabel-equivalent for cols beyond Z (e.g. col 33 = "AH").
   let s = ""; let n = col;
   do { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; } while (n >= 0);
   return `${s}${row}`;
@@ -47,10 +127,21 @@ export function parseDailyActivity(buf: Buffer | ArrayBuffer, file: string): Dai
   const records: StageDayRecord[] = [];
 
   for (const sheet of wb.SheetNames) {
-    if (/yearly|summary|format/i.test(sheet)) continue;
+    // "yearly/summary/format" sheets are rollups, not daily data. "*weekly
+    // report*" sheets duplicate an already-present monthly sheet's dates
+    // wholesale (verified against the real corpus: "JAN WEEKLY REPORT 25-26"
+    // covers the exact same 31 days as "JAN 2026") — counting both doubles
+    // every stage's checked/rejected for that period.
+    if (/yearly|summary|format|weekly/i.test(sheet)) continue;
     const rows: any[][] = xlsx.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, defval: null, blankrows: false });
 
-    for (let i = 0; i < rows.length; i++) {
+    const headerRows = findHeaderRows(rows);
+    if (!headerRows) continue; // doesn't match this template — nothing to extract
+    const rowLen = Math.max(rows[headerRows.groupRowIdx]?.length ?? 0, rows[headerRows.subRowIdx]?.length ?? 0);
+    const stages = resolveStageColumns(rows[headerRows.groupRowIdx] ?? [], rows[headerRows.subRowIdx] ?? [], rowLen);
+    if (stages.length === 0) continue;
+
+    for (let i = headerRows.subRowIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!Array.isArray(row)) continue;
       const a = row[0];
@@ -64,8 +155,8 @@ export function parseDailyActivity(buf: Buffer | ArrayBuffer, file: string): Dai
       const sv = (val: number | null, col: number, header: string) =>
         val == null ? null : { value: val, cell: `${sheet}!${cellRef(col, r)}`, header };
 
-      for (const s of STAGES) {
-        const checked = sv(intOrNull(row[s.chk]), s.chk, "CHKD QTY");
+      for (const s of stages) {
+        const checked = s.chk != null ? sv(intOrNull(row[s.chk]), s.chk, "CHKD QTY") : null;
         const accepted = s.acc != null ? sv(intOrNull(row[s.acc]), s.acc, "ACPT QTY") : null;
         const hold = s.hold != null ? sv(intOrNull(row[s.hold]), s.hold, "HOLD") : null;
         const rejected = s.rej != null ? sv(intOrNull(row[s.rej]), s.rej, "REJ") : null;
