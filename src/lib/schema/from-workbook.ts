@@ -10,9 +10,6 @@ import type { ProfilingCell, ProfilingTable } from "./types";
 
 const DEFAULT_MAX_SAMPLE_ROWS = 60;
 
-/** Sheets that are templates or rollups, not primary data — skipped. */
-const SKIP_SHEET_RE = /^\s*(formate|format|yearly|annual|cumul|summary|total|config|settings)\b/i;
-
 /**
  * Build one ProfilingTable per data sheet of a workbook, reusing the existing
  * header-detection helpers and reading per-cell formulas (cell.f) so the
@@ -34,8 +31,10 @@ export function buildProfilingTables(
   const wb = XLSX.read(data, { cellFormula: true });
   const tables: ProfilingTable[] = [];
 
+  // Every sheet is profiled — no name-based skipping. Rollup/summary sheets
+  // become their own datasets in the explorer; they only affect the cumulative
+  // ledger if the user explicitly publishes them.
   for (const sheetName of wb.SheetNames) {
-    if (SKIP_SHEET_RE.test(sheetName)) continue;
     const ws = wb.Sheets[sheetName];
     if (!ws) continue;
 

@@ -5,7 +5,7 @@ import type { Event } from "@/lib/store/types";
 export function sizeTrend(events: Event[], scope: Scope, size: string): SeriesPoint[] {
   const allEvents = scopeEvents(events, scope);
   const ev = allEvents.filter((e) => "size" in e && (e as any).size === size);
-  const periods = periodsIn(allEvents, scope.grain);
+  const periods = periodsIn(allEvents, scope.grain, { from: scope.dateFrom, to: scope.dateTo });
   return periods.map((p) => {
     const bucket = ev.filter((e) => periodKey(e.occurredOn.start, scope.grain) === p);
     let checked = 0;

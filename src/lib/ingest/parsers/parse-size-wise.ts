@@ -39,7 +39,7 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
   if (isValve) {
     // Valve Integrity workbook: loop through detailed size sheets, e.g. 6FR, 8FR, etc.
     for (const sheetName of wb.SheetNames) {
-      const sizeMatch = sheetName.match(/^(\d+)FR$/i);
+      const sizeMatch = sheetName.match(/^\s*(\d+)\s*FR\.?\s*$/i);
       if (!sizeMatch) continue;
       const size = `Fr${sizeMatch[1]}`;
       const ws = wb.Sheets[sheetName];
@@ -146,7 +146,7 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
   } else {
     // Visual or other files: loop through size sheets (e.g. 10FR, 12FR, ...)
     for (const sheetName of wb.SheetNames) {
-      const sizeMatch = sheetName.match(/^(\d+)FR$/i);
+      const sizeMatch = sheetName.match(/^\s*(\d+)\s*FR\.?\s*$/i);
       if (!sizeMatch) continue;
       const size = `Fr${sizeMatch[1]}`;
       const ws = wb.Sheets[sheetName];

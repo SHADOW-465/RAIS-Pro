@@ -113,7 +113,7 @@ export function savingsOpportunity(events: Event[], scope: Scope): number | null
 
 export function copqTrend(events: Event[], scope: Scope): { period: string; label: string; value: number }[] {
   const ev = scopeEvents(events, scope);
-  const periods = periodsIn(ev, scope.grain);
+  const periods = periodsIn(ev, scope.grain, { from: scope.dateFrom, to: scope.dateTo });
   return periods.map((p) => {
     const bucket = ev.filter((e) => periodKey(e.occurredOn.start, scope.grain) === p);
     const costResult = copq(bucket, { grain: scope.grain });

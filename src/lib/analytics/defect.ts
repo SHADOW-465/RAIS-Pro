@@ -52,7 +52,7 @@ export function defectTrend(events: Event[], scope: Scope, topN = 5, registry: R
   const ev = scopeEvents(events, scope).filter((e) => e.eventType === "rejection");
   if (ev.length === 0) return [];
   const top = byDefect(events, scope, registry).slice(0, topN).map((d) => d.label);
-  const periods = periodsIn(ev, scope.grain);
+  const periods = periodsIn(ev, scope.grain, { from: scope.dateFrom, to: scope.dateTo });
   return periods.map((p) => {
     const bucket = ev.filter((e) => periodKey(e.occurredOn.start, scope.grain) === p);
     const perDefect: Record<string, number> = {};

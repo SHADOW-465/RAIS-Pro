@@ -1,5 +1,6 @@
 import type { Dataset, DatasetRow } from "./types";
 import { toLocalISODate } from "@/lib/ingest/date";
+import { calendarPeriods } from "@/lib/analytics/scope";
 
 export interface SeriesPoint {
   label: string;
@@ -100,7 +101,11 @@ export function buildGenericDashboard(dataset: Dataset, rows: DatasetRow[]): Gen
         byDate.set(d, (byDate.get(d) ?? 0) + toNumber(r.values[col.name]));
       });
     }
-    const trend = [...byDate.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([label, value]) => ({ label, value }));
+    // Complete daily timeline over the sheet's date range — days without
+    // records render as 0 instead of vanishing from the axis.
+    const trend = dateRange
+      ? calendarPeriods(dateRange.from, dateRange.to, "day").map((d) => ({ label: d, value: byDate.get(d) ?? 0 }))
+      : [];
     return { columnName: col.name, label: humanize(col.name), total, trend };
   });
 

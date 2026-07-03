@@ -145,7 +145,7 @@ const METRICS: Record<string, MetricFn> = { rejectionRate, totalRejected, totalC
 export function trend(events: Event[], scope: Scope, metric: keyof typeof METRICS = "rejectionRate"): SeriesPoint[] {
   const ev = scopeEvents(events, scope);
   const fn = METRICS[metric];
-  const periods = periodsIn(ev, scope.grain);
+  const periods = periodsIn(ev, scope.grain, { from: scope.dateFrom, to: scope.dateTo });
   return periods.map((p) => {
     const bucket = ev.filter((e) => periodKey(e.occurredOn.start, scope.grain) === p);
     // run the metric on the bucket with an unfiltered scope (already scoped)
@@ -165,7 +165,7 @@ export interface StageTrendPoint { period: string; label: string; perStage: Reco
 /** Per-stage rejection-rate series over time. */
 export function stageTrend(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): StageTrendPoint[] {
   const ev = scopeEvents(events, scope);
-  const periods = periodsIn(ev, scope.grain);
+  const periods = periodsIn(ev, scope.grain, { from: scope.dateFrom, to: scope.dateTo });
   return periods.map((p) => {
     const bucket = ev.filter((e) => periodKey(e.occurredOn.start, scope.grain) === p);
     const perStage: Record<string, number> = {};

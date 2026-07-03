@@ -169,6 +169,14 @@ export default function StagingPage() {
               p.record = { ...p.record, ingestionId, source: { ...p.record.source, fileHash } };
             }
             allPreceded.push(...preceded);
+            // Completeness: name any sheet the family parser did NOT consume so
+            // nothing disappears silently. (Every sheet still reaches the
+            // Workbooks explorer via the dataset pipeline above.)
+            const consumed = new Set(preceded.map((p: any) => p.record?.source?.sheet).filter(Boolean));
+            const unconsumed = wb.SheetNames.filter((n: string) => !consumed.has(n));
+            if (unconsumed.length > 0) {
+              skipped.push(`${file.name}: sheet${unconsumed.length === 1 ? "" : "s"} not ingested to the ledger (unrecognized layout — still browsable in Workbooks): ${unconsumed.join(", ")}`);
+            }
           } else {
             // Fallback: generic classifier for unrecognized layouts.
             let recs = classifyWithSchema(rawSheets, schema, ingestionId);
@@ -254,7 +262,7 @@ export default function StagingPage() {
             : "No records could be extracted — the file layout was not recognized."
         );
       }
-      if (skipped.length) setError(`Some files were skipped: ${skipped.join("; ")}`);
+      if (skipped.length) setError(`Ingestion completeness: ${skipped.join("; ")}`);
 
       // Jump to the page containing the first invalid row.
       const reviewedRows = buildReviewRows(classifiedRecords);

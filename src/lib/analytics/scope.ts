@@ -80,12 +80,34 @@ export function periodLabel(key: string): string {
   return key;
 }
 
-/** Chronologically sorted distinct period keys present in the events. */
-export function periodsIn(events: Event[], grain: Grain): string[] {
-  const keys = new Set<string>();
-  for (const e of events) keys.add(periodKey(e.occurredOn.start, grain));
-  const sorted = [...keys].sort();
-  return sorted;
+/** Every calendar period key between two ISO dates (inclusive), in order —
+ *  the shared timeline builder. Walks day by day so day/week/month/FY all fall
+ *  out of periodKey with no per-grain arithmetic. */
+export function calendarPeriods(fromIso: string, toIso: string, grain: Grain): string[] {
+  const out: string[] = [];
+  let last: string | null = null;
+  const end = Date.parse(`${toIso}T00:00:00Z`);
+  if (!Number.isFinite(end)) return out;
+  for (let t = Date.parse(`${fromIso}T00:00:00Z`); Number.isFinite(t) && t <= end; t += 86400000) {
+    const key = periodKey(new Date(t).toISOString().slice(0, 10), grain);
+    if (key !== last) {
+      out.push(key);
+      last = key;
+    }
+  }
+  return out;
+}
+
+/** Chronological period keys spanning the COMPLETE calendar range — never just
+ *  the periods that happen to have records, so charts keep uniform spacing and
+ *  empty periods stay visible. Bounds come from `range` (the selected date
+ *  window) when given, else from the events' min/max dates. */
+export function periodsIn(events: Event[], grain: Grain, range?: { from?: string; to?: string }): string[] {
+  const dates = events.map((e) => e.occurredOn.start).sort();
+  const from = range?.from ?? dates[0];
+  const to = range?.to ?? dates[dates.length - 1];
+  if (!from || !to) return [];
+  return calendarPeriods(from, to, grain);
 }
 
 export interface ScopeTweaks {

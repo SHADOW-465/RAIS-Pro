@@ -1,6 +1,8 @@
 // src/app/api/hard-reset/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
+import { getDatasetStore } from "@/lib/dataset/get-store";
+import { getRowStore } from "@/lib/dataset/get-row-store";
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,6 +29,16 @@ export async function POST(req: NextRequest) {
     await clearTable("ingestions", "ingestion_id");
     await clearTable("sessions", "id");
     await clearTable("dashboards", "id");
+
+    // Workbook explorer state (datasets + persisted rows) must die with the
+    // ledger — /workbooks reads these stores, not the events table.
+    try {
+      await getDatasetStore().clear();
+      await getRowStore().clear();
+    } catch (err) {
+      console.error("Error clearing dataset stores:", err);
+      errors.push({ table: "datasets/dataset_rows", error: err });
+    }
 
     // Also clear registries configuration
     const { error: regError } = await db

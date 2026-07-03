@@ -38,7 +38,7 @@ export function datasetsWithRowsFromWorkbooks(files: WorkbookInput[]): DatasetsW
   const inputs: (ProfiledTableInput & { rowsRaw: import("@/lib/schema/types").ProfilingCell[][] })[] = [];
 
   for (const f of files) {
-    for (const table of buildProfilingTables(f.data, f.fileName, { maxRows: 5000 })) {
+    for (const table of buildProfilingTables(f.data, f.fileName, { maxRows: Number.MAX_SAFE_INTEGER })) {
       const { columns } = profileTable(table);
       const signature = computeSignature(columns);
       inputs.push({

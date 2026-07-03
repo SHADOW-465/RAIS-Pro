@@ -70,11 +70,15 @@ describe("analytics — rejection selectors", () => {
     expect(visual.contributionPct).toBeCloseTo(((1054 + 828 + 451) / totalRej) * 100, 6);
   });
 
-  test("monthly trend buckets April vs May", () => {
+  test("monthly trend buckets April vs May over the full selected range", () => {
     const t = trend(events, FY, "totalRejected");
-    expect(t.map((p) => p.period)).toEqual(["2025-04", "2025-05"]);
+    // The axis spans the WHOLE selected FY window — empty months stay visible.
+    expect(t[0].period).toBe("2025-04");
+    expect(t[t.length - 1].period).toBe("2026-03");
+    expect(t).toHaveLength(12);
     expect(t.find((p) => p.period === "2025-04")!.value).toBe(1054 + 828 + 129);
     expect(t.find((p) => p.period === "2025-05")!.value).toBe(451);
+    expect(t.find((p) => p.period === "2025-06")!.value).toBe(0); // empty month, not dropped
   });
 
   test("stageTrend exposes per-stage rate per period", () => {
