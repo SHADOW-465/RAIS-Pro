@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RAIS-Pro - Executive Diagnostic Redesign</title>
+  <title>RAIS-Pro - Premium Diagnostic Cockpit</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
@@ -19,6 +19,7 @@
       
       --surface: #1E1B18;
       --surface-2: #24201D;
+      --surface-3: #302B27;
       --border: #2D2723;
       --border-strong: #3D352F;
       
@@ -45,6 +46,7 @@
       --ink: #1E1B18;
       --surface: #F0EAE1;
       --surface-2: #E8E0D5;
+      --surface-3: #DDD4C8;
       --border: #E5DDD2;
       --border-strong: #CDC3B5;
       --text: #1E1B18;
@@ -67,75 +69,377 @@
       width: 100vw;
       overflow: hidden;
       display: flex;
-      justify-content: center;
-      align-items: center;
       transition: background-color 0.4s ease, color 0.4s ease;
     }
 
-    /* Core Container - Limits width to feel like a premium printed report page */
-    .app-viewport {
-      width: 100%;
-      max-width: 1440px;
-      height: 100%;
+    /* Global Micro-transitions for interactive states */
+    button, a, select, input, textarea, tr, td, .kpi-card, .spc-chart-container {
+      transition: background-color 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+                  border-color 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+                  color 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+                  box-shadow 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+                  opacity 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+                  transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    /* Left Sidebar Navigation */
+    aside {
+      background-color: var(--paper);
+      border-right: 1.5px solid var(--border-strong);
       display: flex;
       flex-direction: column;
-      padding: 40px 60px;
+      height: 100%;
+      width: 240px;
+      flex-shrink: 0;
+      z-index: 10;
+      position: relative;
+      transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      overflow: hidden;
+    }
+
+    body.sidebar-collapsed aside {
+      width: 68px;
+    }
+
+    .sidebar-header {
+      padding: 20px 24px;
+      border-bottom: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+      flex-shrink: 0;
+      transition: padding 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    body.sidebar-collapsed .sidebar-header {
+      padding: 20px 14px;
+      justify-content: center;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow: hidden;
+      white-space: nowrap;
+      transition: opacity 0.2s, max-width 0.2s;
+      max-width: 160px;
+      opacity: 1;
+    }
+
+    body.sidebar-collapsed .logo-container {
+      max-width: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .logo-badge {
+      font-size: 10px;
+      font-weight: 800;
+      background: var(--accent);
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    /* Collapse/Expand Toggle Button */
+    .btn-toggle-sidebar {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+    }
+
+    .btn-toggle-sidebar:hover {
+      background-color: var(--surface-2);
+      color: var(--text);
+    }
+
+    /* Nav Links */
+    .nav-nav {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px 12px;
+    }
+
+    body.sidebar-collapsed .nav-nav {
+      padding: 20px 8px;
+    }
+
+    .nav-section-title {
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      padding: 12px 14px 6px;
+      overflow: hidden;
+      white-space: nowrap;
+      max-height: 30px;
+      opacity: 1;
+      transition: opacity 0.2s, max-height 0.2s, padding 0.3s;
+    }
+
+    body.sidebar-collapsed .nav-section-title {
+      max-height: 0;
+      opacity: 0;
+      padding: 0;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-radius: var(--radius-sm);
+      margin-bottom: 2px;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      border: none;
+      background: transparent;
+      overflow: hidden;
       position: relative;
     }
 
-    /* Clean Editorial Header */
+    body.sidebar-collapsed .nav-item {
+      justify-content: center;
+      padding: 12px 0;
+    }
+
+    .nav-item:hover {
+      background-color: var(--surface-2);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background-color: var(--accent-weak);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .nav-icon {
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .nav-label {
+      margin-left: 10px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      opacity: 1;
+      max-width: 160px;
+      transition: opacity 0.2s ease, max-width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), margin-left 0.25s;
+    }
+
+    body.sidebar-collapsed .nav-label {
+      opacity: 0;
+      max-width: 0;
+      margin-left: 0;
+      pointer-events: none;
+    }
+
+    .nav-badge-container {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      opacity: 1;
+      max-width: 50px;
+      transition: opacity 0.2s, max-width 0.2s;
+    }
+
+    body.sidebar-collapsed .nav-badge-container {
+      opacity: 0;
+      max-width: 0;
+      pointer-events: none;
+    }
+
+    .nav-badge {
+      font-size: 10px;
+      font-weight: 700;
+      background: var(--surface-3);
+      color: var(--text-muted);
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    .nav-badge.alert {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Collapsed Nav Section Dividers */
+    .collapsed-nav-divider {
+      height: 0;
+      border-top: 0px solid transparent;
+      margin: 0;
+      opacity: 0;
+      transition: opacity 0.2s, border-top-color 0.2s, height 0.2s, margin 0.2s;
+    }
+
+    body.sidebar-collapsed .collapsed-nav-divider {
+      height: 1px;
+      border-top: 1.5px solid var(--border);
+      margin: 12px 4px 6px;
+      opacity: 1;
+    }
+
+    /* Sidebar Footer: Data Trust Score */
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1.5px solid var(--border);
+      background: var(--surface-2);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+      transition: padding 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    body.sidebar-collapsed .sidebar-footer {
+      padding: 16px 8px;
+      align-items: center;
+    }
+
+    .trust-score-title {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      opacity: 1;
+      max-height: 20px;
+      transition: opacity 0.2s, max-height 0.2s;
+    }
+
+    body.sidebar-collapsed .trust-score-title {
+      opacity: 0;
+      max-height: 0;
+      pointer-events: none;
+    }
+
+    .trust-score-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .trust-score-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent-weak);
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .trust-score-details {
+      display: flex;
+      flex-direction: column;
+      opacity: 1;
+      max-width: 140px;
+      transition: opacity 0.2s, max-width 0.2s;
+    }
+
+    body.sidebar-collapsed .trust-score-details {
+      opacity: 0;
+      max-width: 0;
+      pointer-events: none;
+    }
+
+    .trust-score-percent {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .trust-score-label {
+      font-size: 9px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    /* Right Main Panel */
+    .main-viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    /* Header area */
     header {
+      background-color: var(--paper);
+      border-bottom: 1.5px solid var(--border-strong);
+      padding: 20px 48px;
       display: flex;
       justify-content: space-between;
-      align-items: flex-end;
-      margin-bottom: 48px;
-      border-bottom: 1.5px solid var(--border-strong);
-      padding-bottom: 24px;
+      align-items: center;
       flex-shrink: 0;
+      height: 72px;
     }
 
     .header-branding {
       display: flex;
       flex-direction: column;
-      gap: 6px;
     }
 
     .brand-meta {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--accent);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .brand-meta span {
-      background: var(--accent-weak);
-      padding: 2px 6px;
-      border-radius: var(--radius-sm);
-      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
     }
 
     .brand-title {
       font-family: var(--font-display);
-      font-size: 32px;
+      font-size: 24px;
       font-weight: 800;
-      line-height: 1.1;
-      letter-spacing: -0.01em;
+      color: var(--text);
+      line-height: 1.2;
     }
 
     .header-controls {
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 16px;
     }
 
-    /* Segmented Controls for Filters */
+    /* Segmented view controls */
     .segment-group {
       display: flex;
-      border: 1px solid var(--border-strong);
+      border: 1.5px solid var(--border-strong);
       background: var(--paper);
       padding: 3px;
       border-radius: var(--radius-md);
@@ -153,7 +457,6 @@
       padding: 6px 12px;
       cursor: pointer;
       border-radius: var(--radius-sm);
-      transition: all 0.2s;
     }
 
     .segment-btn.active {
@@ -161,52 +464,39 @@
       color: var(--text);
     }
 
-    .btn-circle {
+    .btn-theme {
       width: 32px;
       height: 32px;
       border-radius: 50%;
       border: 1.5px solid var(--border-strong);
-      background: var(--paper);
-      color: var(--text);
+      background: transparent;
+      color: var(--text-muted);
       display: grid;
       place-items: center;
       cursor: pointer;
-      transition: all 0.2s;
     }
 
-    .btn-circle:hover {
+    .btn-theme:hover {
       border-color: var(--accent);
-      background: var(--surface);
+      color: var(--text);
     }
 
-    /* Main Dashboard Layout Scrollable Area */
-    .dashboard-grid {
+    /* Main Content Dashboard View */
+    .dashboard-container {
       flex: 1;
       overflow-y: auto;
+      padding: 40px 48px;
       display: flex;
       flex-direction: column;
-      gap: 52px;
-      padding-right: 8px;
+      gap: 40px;
     }
 
-    /* Custom scrollbar for premium feel */
-    .dashboard-grid::-webkit-scrollbar {
-      width: 5px;
-    }
-    .dashboard-grid::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .dashboard-grid::-webkit-scrollbar-thumb {
-      background: var(--border-strong);
-      border-radius: var(--radius-sm);
-    }
-
-    /* Section 1: The Executive Ledger (Minimalist KPIs) */
-    .ledger-section {
+    /* Section 1: Executive Ledger KPIs */
+    .ledger-row {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       border-bottom: 1.5px solid var(--border);
-      padding-bottom: 40px;
+      padding-bottom: 32px;
     }
 
     .ledger-card {
@@ -215,13 +505,10 @@
       flex-direction: column;
       gap: 8px;
       cursor: pointer;
-      transition: opacity 0.2s;
       position: relative;
     }
 
-    .ledger-card:first-child {
-      padding-left: 0;
-    }
+    .ledger-card:first-child { padding-left: 0; }
 
     .ledger-card:not(:last-child)::after {
       content: "";
@@ -233,8 +520,12 @@
       background-color: var(--border-strong);
     }
 
+    .ledger-card:hover .ledger-value {
+      color: var(--accent);
+    }
+
     .ledger-label {
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -246,11 +537,10 @@
 
     .ledger-value {
       font-family: var(--font-mono);
-      font-size: 52px;
+      font-size: 48px;
       font-weight: 800;
       line-height: 1;
       color: var(--text);
-      letter-spacing: -0.02em;
     }
 
     .ledger-value.accented {
@@ -260,55 +550,46 @@
     .ledger-footer {
       font-size: 12px;
       color: var(--text-dim);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .ledger-footer strong {
-      color: var(--text-muted);
     }
 
     .ledger-link {
       color: var(--accent);
+      font-weight: 700;
       text-decoration: underline;
       text-underline-offset: 3px;
-      font-weight: 700;
-      font-size: 11.5px;
-      margin-top: 4px;
     }
 
-    /* Section 2: Split Layout (Minimalist SPC Chart + Narrative) */
-    .report-split {
+    /* Section 2: Split Chart & Narrative Layout */
+    .split-layout {
       display: grid;
       grid-template-columns: 1.6fr 1fr;
-      gap: 60px;
+      gap: 48px;
       align-items: start;
     }
 
-    .editorial-section-title {
+    .section-title {
       font-family: var(--font-display);
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 800;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       color: var(--text);
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
 
-    /* Minimalist SPC Chart Styling */
-    .spc-chart-container {
+    /* Minimalist SPC Chart Box */
+    .spc-chart-card {
       background: var(--paper);
-      border: 1px solid var(--border);
+      border: 1.5px solid var(--border);
       border-radius: var(--radius-md);
       padding: 24px;
     }
 
-    .spc-legend {
+    .chart-legend {
       display: flex;
-      gap: 20px;
-      font-size: 11px;
+      gap: 16px;
+      font-size: 10.5px;
       font-weight: 700;
       color: var(--text-muted);
       margin-bottom: 20px;
@@ -323,7 +604,7 @@
     }
 
     .legend-line {
-      width: 16px;
+      width: 14px;
       height: 2px;
     }
 
@@ -331,46 +612,40 @@
     .line-mean { border-top: 2px dashed var(--status-good); }
     .line-trend { height: 3px; background: var(--accent); }
 
-    /* Narrative Section */
-    .advisory-narrative {
+    /* Diagnostic Narrative */
+    .narrative-card {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
     }
 
-    .narrative-p {
+    .narrative-text {
       font-size: 13.5px;
       line-height: 1.65;
       color: var(--text-2);
-      text-align: justify;
-    }
-
-    .narrative-p strong {
-      color: var(--text);
-      font-weight: 700;
     }
 
     .narrative-highlight {
       background: var(--accent-weak);
       color: var(--accent);
-      padding: 0 4px;
+      padding: 1px 4px;
       font-weight: 700;
       font-family: var(--font-mono);
       font-size: 12.5px;
       border-radius: var(--radius-sm);
     }
 
-    /* Action Tracker (Minimalist CAPAs) */
-    .remediation-panel {
+    /* Remediation actions block */
+    .remediation-section {
       border-top: 1px solid var(--border-strong);
-      padding-top: 24px;
-      margin-top: 24px;
+      padding-top: 20px;
+      margin-top: 20px;
     }
 
     .remediation-list {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
 
     .remediation-item {
@@ -378,29 +653,24 @@
       justify-content: space-between;
       align-items: center;
       padding: 8px 0;
-      border-bottom: 1px dashed var(--border);
-    }
-
-    .remediation-left {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      border-bottom: 1.5px dashed var(--border);
     }
 
     .remediation-id {
       font-family: var(--font-mono);
-      font-size: 11px;
       font-weight: 800;
       color: var(--accent);
+      font-size: 11px;
     }
 
     .remediation-desc {
       font-size: 12.5px;
       color: var(--text-2);
+      margin-left: 10px;
     }
 
     .remediation-status {
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 800;
       letter-spacing: 0.05em;
       text-transform: uppercase;
@@ -411,7 +681,17 @@
     .status-alert { background: rgba(200,66,28,0.12); color: var(--status-bad); }
     .status-active { background: rgba(212,140,69,0.12); color: var(--status-warn); }
 
-    /* Trace Verification Modal (Refined slide-up modal) */
+    /* SPC Control chart lines */
+    .spc-ucl { stroke: var(--status-bad); stroke-dasharray: 4, 4; stroke-width: 1.5; }
+    .spc-mean { stroke: var(--status-good); stroke-dasharray: 6, 4; stroke-width: 1.5; }
+    .spc-lcl { stroke: var(--status-bad); stroke-dasharray: 4, 4; stroke-width: 1.5; }
+    .spc-trend { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+    .spc-node { fill: var(--paper); stroke: var(--accent); stroke-width: 2.5; cursor: pointer; transition: r 0.15s; }
+    .spc-node:hover { r: 6.5; }
+    .spc-node.oos { fill: var(--status-bad); stroke: var(--status-bad); }
+
+    /* Interactive sliding-up validation trace modal */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -419,11 +699,11 @@
       backdrop-filter: blur(8px);
       z-index: 100;
       display: flex;
-      align-items: flex-end; /* Slides up from bottom */
+      align-items: flex-end; /* slides up from the bottom */
       justify-content: center;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
 
     .modal-backdrop.open {
@@ -445,7 +725,7 @@
       flex-direction: column;
       overflow: hidden;
       transform: translateY(100%);
-      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
 
     .modal-backdrop.open .modal-panel {
@@ -463,7 +743,7 @@
 
     .modal-title {
       font-family: var(--font-display);
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 800;
     }
 
@@ -477,7 +757,6 @@
       position: relative;
     }
 
-    /* Modal Sidebar */
     .modal-sidebar {
       border: 1.5px solid var(--accent);
       border-radius: var(--radius-md);
@@ -489,7 +768,6 @@
       gap: 14px;
     }
 
-    /* Modal Data Grid Area */
     .modal-viewer {
       display: flex;
       flex-direction: column;
@@ -497,7 +775,7 @@
       height: 100%;
     }
 
-    /* Dropdown UI Redesign (Sleek selector block) */
+    /* Proposed dropdown select selector */
     .dropdown-container {
       display: flex;
       align-items: center;
@@ -553,7 +831,7 @@
       padding: 12px 14px;
       background: var(--surface-2);
       color: var(--text-muted);
-      font-size: 10px;
+      font-size: 10.5px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
@@ -591,7 +869,7 @@
       border: 1.5px solid var(--accent);
     }
 
-    /* Beams SVG Container */
+    /* Beams SVG lines overlay */
     .beams-svg {
       position: absolute;
       inset: 0;
@@ -619,10 +897,97 @@
 </head>
 <body>
 
-  <!-- Core App Viewport -->
-  <div class="app-viewport">
+  <!-- Left Sidebar Panel Navigation -->
+  <aside id="sidebarPanel">
+    <div class="sidebar-header">
+      <div class="logo-container">
+        <span class="logo-badge">RAIS</span>
+        <span class="logo-text">Pro</span>
+      </div>
+      
+      <!-- Sidebar collapse toggle button -->
+      <button class="btn-toggle-sidebar" id="sidebarToggle" title="Collapse sidebar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" id="toggleIcon">
+          <path d="M19 12H5M11 6l-6 6 6 6"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Navigation items links -->
+    <nav class="nav-nav">
+      
+      <div class="collapsed-nav-divider"></div>
+      <div class="nav-section-title">Overview</div>
+      <button class="nav-item active">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+        </span>
+        <span class="nav-label">Dashboard</span>
+      </button>
+
+      <div class="collapsed-nav-divider"></div>
+      <div class="nav-section-title">Workbooks</div>
+      <button class="nav-item">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        </span>
+        <span class="nav-label">Workbooks</span>
+      </button>
+
+      <div class="collapsed-nav-divider"></div>
+      <div class="nav-section-title">Data Ingest</div>
+      <button class="nav-item">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        </span>
+        <span class="nav-label">Data Entry</span>
+      </button>
+      <button class="nav-item">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        </span>
+        <span class="nav-label">Staging & Review</span>
+        <span class="nav-badge-container">
+          <span class="nav-badge alert">12</span>
+        </span>
+      </button>
+
+      <div class="collapsed-nav-divider"></div>
+      <div class="nav-section-title">Analysis</div>
+      <button class="nav-item">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+        </span>
+        <span class="nav-label">Stage Analysis</span>
+      </button>
+      <button class="nav-item">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+        </span>
+        <span class="nav-label">Settings</span>
+      </button>
+
+    </nav>
+
+    <!-- Sidebar footer trust score -->
+    <div class="sidebar-footer">
+      <div class="trust-score-title">Data Trust Score</div>
+      <div class="trust-score-row">
+        <div class="trust-score-circle">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <div class="trust-score-details">
+          <span class="trust-score-percent">98.4%</span>
+          <span class="trust-score-label">Excellent</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Main Panel -->
+  <div class="main-viewport">
     
-    <!-- Top Editorial Header -->
+    <!-- Top Header Bar -->
     <header>
       <div class="header-branding">
         <div class="brand-meta">
@@ -634,7 +999,6 @@
       </div>
       
       <div class="header-controls">
-        <!-- Segmented filter for views -->
         <div class="segment-group">
           <button class="segment-btn active" onclick="switchView('cumulative', this)">Cumulative</button>
           <button class="segment-btn" onclick="switchView('visual', this)">Visual</button>
@@ -642,8 +1006,7 @@
           <button class="segment-btn" onclick="switchView('valve', this)">Valve</button>
         </div>
 
-        <button class="btn-circle" id="themeBtn" aria-label="Toggle Theme">
-          <!-- Moon Icon -->
+        <button class="btn-theme" id="themeBtn" aria-label="Toggle Theme">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" id="themeIcon">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
@@ -651,11 +1014,11 @@
       </div>
     </header>
 
-    <!-- Scrollable Report Area -->
-    <div class="dashboard-grid">
+    <!-- Dashboard Content Area -->
+    <div class="dashboard-container">
       
-      <!-- Section 1: The Executive Ledger (KPIs) -->
-      <section class="ledger-section">
+      <!-- Section 1: Executive Ledger KPIs -->
+      <section class="ledger-row">
         <!-- Rejection Rate -->
         <div class="ledger-card" id="rejectionLedger">
           <span class="ledger-label">
@@ -687,18 +1050,18 @@
         </div>
       </section>
 
-      <!-- Section 2: Split Trend & Narrative -->
-      <section class="report-split">
+      <!-- Section 2: Split Chart & Narrative -->
+      <section class="split-layout">
         
-        <!-- Left: SPC Chart area -->
+        <!-- Left: SPC Chart container -->
         <div>
-          <div class="editorial-section-title">
+          <div class="section-title">
             <span>Statistical Process Control Chart</span>
             <span style="font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase;">1 Out-of-Spec (OOS) Event Detected</span>
           </div>
           
-          <div class="spc-chart-container">
-            <div class="spc-legend">
+          <div class="spc-chart-card">
+            <div class="chart-legend">
               <div class="legend-item">
                 <span class="legend-line line-ucl"></span>
                 <span>Upper Control Limit (UCL)</span>
@@ -713,39 +1076,39 @@
               </div>
             </div>
 
-            <!-- Minimalist SPC Control Chart SVG -->
+            <!-- SPC Control Chart SVG -->
             <svg width="100%" height="220" viewBox="0 0 700 220" style="background: transparent;">
-              <!-- Horizontal grid guides -->
+              <!-- Guides -->
               <line x1="40" y1="30" x2="660" y2="30" stroke="var(--border)" stroke-width="1"></line>
               <line x1="40" y1="80" x2="660" y2="80" stroke="var(--border)" stroke-width="1"></line>
               <line x1="40" y1="130" x2="660" y2="130" stroke="var(--border)" stroke-width="1"></line>
               <line x1="40" y1="180" x2="660" y2="180" stroke="var(--border)" stroke-width="1.5"></line>
 
-              <!-- Control Limit Lines -->
-              <line x1="40" y1="50" x2="660" y2="50" class="spc-line-ucl"></line>
-              <line x1="40" y1="110" x2="660" y2="110" class="spc-line-mean"></line>
-              <line x1="40" y1="155" x2="660" y2="155" class="spc-line-lcl"></line>
+              <!-- Limits -->
+              <line x1="40" y1="50" x2="660" y2="50" class="spc-ucl"></line>
+              <line x1="40" y1="110" x2="660" y2="110" class="spc-mean"></line>
+              <line x1="40" y1="155" x2="660" y2="155" class="spc-lcl"></line>
 
-              <!-- Data Trend Path -->
-              <path d="M 40 140 L 102 120 L 164 100 L 226 130 L 288 90 L 350 40 L 412 105 L 474 125 L 536 115 L 598 100 L 660 108" class="spc-line-trend"></path>
+              <!-- Trend path -->
+              <path d="M 40 140 L 102 120 L 164 100 L 226 130 L 288 90 L 350 40 L 412 105 L 474 125 L 536 115 L 598 100 L 660 108" class="spc-trend"></path>
 
-              <!-- Data Points -->
-              <circle cx="40" cy="140" r="3.5" class="spc-point"></circle>
-              <circle cx="102" cy="120" r="3.5" class="spc-point"></circle>
-              <circle cx="164" cy="100" r="3.5" class="spc-point"></circle>
-              <circle cx="226" cy="130" r="3.5" class="spc-point"></circle>
-              <circle cx="288" cy="90" r="3.5" class="spc-point"></circle>
+              <!-- Nodes -->
+              <circle cx="40" cy="140" r="3.5" class="spc-node"></circle>
+              <circle cx="102" cy="120" r="3.5" class="spc-node"></circle>
+              <circle cx="164" cy="100" r="3.5" class="spc-node"></circle>
+              <circle cx="226" cy="130" r="3.5" class="spc-node"></circle>
+              <circle cx="288" cy="90" r="3.5" class="spc-node"></circle>
               
-              <!-- OOS Flagged point -->
-              <circle cx="350" cy="40" r="5" class="spc-point out-of-spec"></circle>
+              <!-- OOS Node -->
+              <circle cx="350" cy="40" r="5" class="spc-node oos"></circle>
               
-              <circle cx="412" cy="105" r="3.5" class="spc-point"></circle>
-              <circle cx="474" cy="125" r="3.5" class="spc-point"></circle>
-              <circle cx="536" cy="115" r="3.5" class="spc-point"></circle>
-              <circle cx="598" cy="100" r="3.5" class="spc-point"></circle>
-              <circle cx="660" cy="108" r="3.5" class="spc-point"></circle>
+              <circle cx="412" cy="105" r="3.5" class="spc-node"></circle>
+              <circle cx="474" cy="125" r="3.5" class="spc-node"></circle>
+              <circle cx="536" cy="115" r="3.5" class="spc-node"></circle>
+              <circle cx="598" cy="100" r="3.5" class="spc-node"></circle>
+              <circle cx="660" cy="108" r="3.5" class="spc-node"></circle>
 
-              <!-- Labels -->
+              <!-- Axis Labels -->
               <text x="40" y="200" fill="var(--text-dim)" font-family="var(--font-sans)" font-size="9" text-anchor="middle">W14</text>
               <text x="164" y="200" fill="var(--text-dim)" font-family="var(--font-sans)" font-size="9" text-anchor="middle">W15</text>
               <text x="288" y="200" fill="var(--text-dim)" font-family="var(--font-sans)" font-size="9" text-anchor="middle">W16</text>
@@ -756,29 +1119,29 @@
           </div>
         </div>
 
-        <!-- Right: Diagnostic Narrative & Action Tracker -->
-        <div class="advisory-narrative">
-          <h2 class="editorial-section-title">Diagnostic Narrative</h2>
-          <p class="narrative-p">
+        <!-- Right: Diagnostic Narrative -->
+        <div class="narrative-card">
+          <h2 class="section-title">Diagnostic Narrative</h2>
+          <p class="narrative-text">
             Process deviations spiked in <strong style="color: var(--text);">Week 16</strong> to <span class="narrative-highlight">14.8%</span>, exceeding the Upper Control Limit (UCL) of 14.2%. Analysis of the underlying events reveals pressure drift anomalies during the sealing process of the <strong style="color: var(--text);">Balloon Inspection</strong> stage. 
           </p>
-          <p class="narrative-p">
+          <p class="narrative-text">
             Furthermore, operator logs identify <strong style="color: var(--text);">OP-012</strong> with a higher-than-average rejection rate, indicating a potential sensor calibration offset. Targeted validation is recommended.
           </p>
           
           <!-- Corrective actions -->
-          <div class="remediation-panel">
+          <div class="remediation-section">
             <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; letter-spacing: 0.05em;">Active Remediation Protocols</div>
             <div class="remediation-list">
               <div class="remediation-item">
-                <div class="remediation-left">
+                <div>
                   <span class="remediation-id">CAPA-482</span>
                   <span class="remediation-desc">Balloon stage pressure sensor recalibration</span>
                 </div>
                 <span class="remediation-status status-alert">OVERDUE</span>
               </div>
               <div class="remediation-item">
-                <div class="remediation-left">
+                <div>
                   <span class="remediation-id">CAPA-485</span>
                   <span class="remediation-desc">Vacuum intake gasket replacement</span>
                 </div>
@@ -795,15 +1158,15 @@
 
   <!-- Slide-up Trace Verification Modal -->
   <div class="modal-backdrop" id="traceModal">
-    <!-- SVG for dynamic connecting lines -->
+    <!-- SVG overlay containing trace connection lines -->
     <svg class="beams-svg" id="beamsOverlay"></svg>
 
     <div class="modal-panel">
       <!-- Modal Header -->
       <div class="modal-header">
         <div class="modal-title">Verification Ledger & Provenance Trace</div>
-        <button class="btn-circle" id="modalCloseBtn" style="border: none; background: transparent;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.5">
+        <button class="btn-theme" id="modalCloseBtn" style="border: none; background: transparent; color: var(--text-muted);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
@@ -813,9 +1176,9 @@
       <!-- Modal Body -->
       <div class="modal-body">
         
-        <!-- Left Column: Source Stats -->
+        <!-- Left Sidebar: Trace Source Summary -->
         <div class="modal-sidebar" id="modalSidebar">
-          <span class="eyebrow accent">Computed Value</span>
+          <span class="eyebrow accent" style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--accent); letter-spacing: 0.05em;">Computed Value</span>
           <div style="font-family: var(--font-mono); font-size: 38px; font-weight: 800; color: var(--accent); line-height: 1;">12.22%</div>
           <p style="font-size: 12px; line-height: 1.5; color: var(--text-muted);">
             Traced to <strong>1,660</strong> records across the uploaded spreadsheets.
@@ -830,10 +1193,10 @@
           </div>
         </div>
 
-        <!-- Right Column: Sheet viewer -->
+        <!-- Right Column: Raw Sheet Viewer -->
         <div class="modal-viewer">
           
-          <!-- Dropdown selector proposal -->
+          <!-- Proposed Dropdown Selector -->
           <div class="dropdown-container">
             <span class="dropdown-label">Active Sheet:</span>
             <select class="custom-select" id="sheetSelect">
@@ -843,7 +1206,7 @@
             </select>
           </div>
 
-          <!-- Table Viewport -->
+          <!-- Spreadsheet Table View -->
           <div class="table-viewport" id="tableViewport">
             <table id="sheetTable">
               <!-- Rendered via JS -->
@@ -918,19 +1281,39 @@
       }
     };
 
-    // View switcher (Cumulative, Visual, Balloon, Valve)
+    // Sidebar Collapsible Control
+    const sidebarPanel = document.getElementById("sidebarPanel");
+    const sidebarToggle = document.getElementById("sidebarToggle");
+    const toggleIcon = document.getElementById("toggleIcon");
+
+    sidebarToggle.addEventListener("click", () => {
+      document.body.classList.toggle("sidebar-collapsed");
+      const isCollapsed = document.body.classList.contains("sidebar-collapsed");
+      
+      // Update toggle icon and title tooltip
+      if (isCollapsed) {
+        sidebarToggle.setAttribute("title", "Expand sidebar");
+        toggleIcon.innerHTML = `<path d="M5 12h14M13 6l6 6-6 6"></path>`; // Arrow Right
+      } else {
+        sidebarToggle.setAttribute("title", "Collapse sidebar");
+        toggleIcon.innerHTML = `<path d="M19 12H5M11 6l-6 6 6 6"></path>`; // Arrow Left
+      }
+      
+      // Trigger SVG beams update since sidebar offset changes
+      setTimeout(drawBeams, 300);
+    });
+
+    // View selector mapping
     function switchView(viewName, buttonEl) {
-      // Toggle button class
       const buttons = buttonEl.parentNode.querySelectorAll(".segment-btn");
       buttons.forEach(btn => btn.classList.remove("active"));
       buttonEl.classList.add("active");
       
-      // Update period title or subtitle
       const periodLabel = document.getElementById("periodLabel");
       periodLabel.textContent = `Period: April 2025 (${viewName.toUpperCase()})`;
     }
 
-    // Modal Control Elements
+    // Modal elements
     const traceModal = document.getElementById("traceModal");
     const rejectionLedger = document.getElementById("rejectionLedger");
     const modalCloseBtn = document.getElementById("modalCloseBtn");
@@ -941,16 +1324,14 @@
     const beamsOverlay = document.getElementById("beamsOverlay");
     const modalSidebar = document.getElementById("modalSidebar");
 
-    // Theme elements
     const themeBtn = document.getElementById("themeBtn");
     const themeIcon = document.getElementById("themeIcon");
 
-    // Modal Sheet Render
+    // Modal sheet rendering
     function renderSheet(sheetKey) {
       const data = mockSheets[sheetKey];
       let html = "";
       
-      // Header
       html += "<thead><tr><th class='row-num-cell'>#</th>";
       data.columns.forEach(col => {
         const isHighlight = (col.letter === data.highlightCol);
@@ -961,7 +1342,6 @@
       });
       html += "</tr></thead>";
       
-      // Rows
       html += "<tbody>";
       data.rows.forEach((row, index) => {
         const rowNum = 14 + index;
@@ -979,12 +1359,10 @@
       html += "</tbody>";
       
       sheetTable.innerHTML = html;
-      
-      // Redraw trace beams
-      setTimeout(drawBeams, 80);
+      setTimeout(drawBeams, 100);
     }
 
-    // Trace Beams calculation (SVG)
+    // Modal beams alignment
     function drawBeams() {
       beamsOverlay.innerHTML = "";
       
@@ -1002,8 +1380,6 @@
         if (count >= 5) return;
         
         const cellRect = cell.getBoundingClientRect();
-        
-        // Skip cells currently scrolled out of view
         if (cellRect.top < viewportRect.top || cellRect.bottom > viewportRect.bottom) return;
         
         const endX = cellRect.left;
@@ -1017,13 +1393,12 @@
         line.setAttribute("y2", endY);
         
         line.style.animationDelay = (idx * 0.15) + "s";
-        
         beamsOverlay.appendChild(line);
         count++;
       });
     }
 
-    // Modal Triggers
+    // Modal toggling
     rejectionLedger.addEventListener("click", () => {
       traceModal.classList.add("open");
       renderSheet(sheetSelect.value);
@@ -1039,7 +1414,6 @@
       if (e.target === traceModal) hideModal();
     });
 
-    // Select change
     sheetSelect.addEventListener("change", (e) => {
       renderSheet(e.target.value);
     });
@@ -1047,19 +1421,16 @@
     tableViewport.addEventListener("scroll", drawBeams);
     window.addEventListener("resize", drawBeams);
 
-    // Theme Toggle
+    // Theme control
     themeBtn.addEventListener("click", () => {
       document.body.classList.toggle("light-theme");
       const isLight = document.body.classList.contains("light-theme");
       
       if (isLight) {
-        // Sun Icon
         themeIcon.innerHTML = `<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
       } else {
-        // Moon Icon
         themeIcon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
       }
-      
       setTimeout(drawBeams, 100);
     });
   </script>

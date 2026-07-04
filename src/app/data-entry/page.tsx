@@ -1071,8 +1071,15 @@ Assign another field as Rejected Quantity.`;
 
       {/* SCHEMA REGISTRY CONFIGURATION MODAL */}
       {showSchemaModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-3)", width: "100%", maxWidth: "800px", display: "flex", flexDirection: "column", color: "var(--text)", maxHeight: "90vh" }}>
+        <div 
+          className="modal-backdrop"
+          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(18,16,14,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSchemaModal(false); }}
+        >
+          <div 
+            className="modal-panel"
+            style={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-3)", width: "100%", maxWidth: "800px", display: "flex", flexDirection: "column", color: "var(--text)", maxHeight: "90vh" }}
+          >
             <div style={{ padding: "16px 20px", borderBottom: "2px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: 0 }}>Manage Registry Data Schema</h3>
               <button onClick={() => setShowSchemaModal(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--text-2)" }}>&times;</button>

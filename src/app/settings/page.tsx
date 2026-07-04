@@ -443,8 +443,15 @@ export default function SettingsPage() {
 
       {/* Clear transaction confirmation modal */}
       {showClearModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "500px", display: "flex", flexDirection: "column", color: "var(--ink)" }}>
+        <div 
+          className="modal-backdrop"
+          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(18,16,14,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowClearModal(false); }}
+        >
+          <div 
+            className="modal-panel"
+            style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "500px", display: "flex", flexDirection: "column", color: "var(--ink)" }}
+          >
             <div style={{ padding: "20px 24px", borderBottom: "2px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: 0 }}>Purge Transactions Confirmation</h3>
               <button onClick={() => setShowClearModal(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--text-2)" }}>&times;</button>
@@ -483,8 +490,15 @@ export default function SettingsPage() {
 
       {/* Clear schema confirmation modal */}
       {showClearSchemaModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "500px", display: "flex", flexDirection: "column", color: "var(--ink)" }}>
+        <div 
+          className="modal-backdrop"
+          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(18,16,14,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowClearSchemaModal(false); }}
+        >
+          <div 
+            className="modal-panel"
+            style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "500px", display: "flex", flexDirection: "column", color: "var(--ink)" }}
+          >
             <div style={{ padding: "20px 24px", borderBottom: "2px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: 0, color: "var(--status-bad)" }}>Clear Schema Registry Confirmation</h3>
               <button onClick={() => setShowClearSchemaModal(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--text-2)" }}>&times;</button>

@@ -24,6 +24,7 @@ export function ChartTip({ leftPx, topPx, below, title, rows }: {
       background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)",
       boxShadow: "0 6px 20px rgba(0,0,0,0.18)", padding: "8px 10px", pointerEvents: "none",
       zIndex: 30, minWidth: 130, whiteSpace: "nowrap",
+      transition: "left 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1)"
     }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: rows.length ? 5 : 0, fontFamily: "var(--font-sans)" }}>{title}</div>
       {rows.map((r, i) => (

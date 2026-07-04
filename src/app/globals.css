@@ -593,14 +593,77 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .loader-bar:nth-child(5) { animation-delay: 0.7s !important; }
 
 /* =========================================================
-   Button Click Micro-interactions
+   Button Click Micro-interactions & Global Transitions
    ========================================================= */
-button:not(:disabled), .btn:not(:disabled) {
-  transition: transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+button:not(:disabled), .btn:not(:disabled), a, select, input, textarea {
+  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1),
+              background-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
 }
 
 button:active:not(:disabled), .btn:active:not(:disabled) {
   transform: scale(0.96) !important;
 }
+
+/* Smooth layout and state transitions for tables, cells, list items and cards */
+.nav-item, 
+.segment-btn, 
+.card, 
+tr, 
+td, 
+aside, 
+main, 
+header {
+  transition: background-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+              transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Smooth fade-in overlay for the verification modal and slide-up dialog */
+.modal-backdrop {
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.modal-panel {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Premium micro-animations for dropdowns, panels, and staging logs */
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.975); }
+  to   { opacity: 1; transform: none; }
+}
+
+.dropdown-panel {
+  animation: dropdown-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-origin: top left;
+}
+
+@keyframes comment-box-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.comment-box-panel {
+  animation: comment-box-in 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); max-height: 0; }
+  to   { opacity: 1; transform: translateY(0); max-height: 300px; }
+}
+
+.expand-panel {
+  animation: slide-down 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  overflow: hidden;
+}
+
 
 

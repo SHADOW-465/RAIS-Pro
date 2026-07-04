@@ -382,10 +382,9 @@ export default function AppShell({
       background: "var(--bg)", 
       color: "var(--text)", 
       display: "grid", 
-      gridTemplateColumns: sidebarCollapsed ? "64px 1fr" : "240px 1fr", 
+      gridTemplateColumns: "auto 1fr", 
       gridTemplateRows: "70px 1fr 44px", 
-      gridTemplateAreas: `"side top" "side main" "side status"`,
-      transition: "grid-template-columns 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
+      gridTemplateAreas: `"side top" "side main" "side status"`
     }}>
       {/* Sidebar Navigation */}
       <aside style={{ 
@@ -397,41 +396,54 @@ export default function AppShell({
         position: "sticky", 
         top: 0, 
         height: "100vh",
-        zIndex: 100
+        zIndex: 100,
+        width: sidebarCollapsed ? "64px" : "240px",
+        transition: "width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
+        overflow: "hidden"
       }}>
         {/* logo and collapse toggle */}
         <div style={{ 
-          padding: sidebarCollapsed ? "20px 0" : "20px 18px", 
+          padding: sidebarCollapsed ? "20px 20px" : "20px 18px", 
           display: "flex", 
           alignItems: "center", 
-          justifyContent: sidebarCollapsed ? "center" : "space-between",
-          gap: 6, 
+          justifyContent: "flex-start",
           borderBottom: "1px solid var(--border)",
-          minHeight: "69px"
+          minHeight: "69px",
+          transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
+          overflow: "hidden"
         }}>
-          {!sidebarCollapsed && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ 
-                fontFamily: "var(--font-display)", 
-                fontWeight: 800, 
-                fontSize: 24, 
-                color: "var(--text)",
-                letterSpacing: "-0.03em"
-              }}>
-                MO<span style={{ color: "#C8421C" }}>!</span>D
-              </span>
-              <span className="muted" style={{ 
-                fontSize: 8.5, 
-                lineHeight: 1.15,
-                fontWeight: 500,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                marginLeft: 8
-              }}>
-                Manufacturing Operational<br />Intelligence &amp; Diagnostics
-              </span>
-            </div>
-          )}
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 6,
+            opacity: sidebarCollapsed ? 0 : 1,
+            maxWidth: sidebarCollapsed ? 0 : "172px",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+            marginRight: sidebarCollapsed ? 0 : 8,
+            flexShrink: 0,
+            transition: "opacity 0.2s ease, max-width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), margin-right 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
+          }}>
+            <span style={{ 
+              fontFamily: "var(--font-display)", 
+              fontWeight: 800, 
+              fontSize: 24, 
+              color: "var(--text)",
+              letterSpacing: "-0.03em"
+            }}>
+              MO<span style={{ color: "#C8421C" }}>!</span>D
+            </span>
+            <span className="muted" style={{ 
+              fontSize: 8.5, 
+              lineHeight: 1.15,
+              fontWeight: 500,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              marginLeft: 8
+            }}>
+              Manufacturing Operational<br />Intelligence &amp; Diagnostics
+            </span>
+          </div>
           <button 
             onClick={toggleSidebar}
             title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -444,7 +456,8 @@ export default function AppShell({
               placeItems: "center",
               padding: 4,
               borderRadius: "var(--radius-sm)",
-              transition: "background 0.2s"
+              transition: "background 0.2s",
+              flexShrink: 0
             }}
             onMouseOver={(e) => e.currentTarget.style.background = "var(--surface-3)"}
             onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
@@ -459,9 +472,22 @@ export default function AppShell({
             const isCollapsed = !!collapsedSections[section.title];
             return (
               <div key={section.title} style={{ marginBottom: 6 }}>
-                {sidebarCollapsed ? (
-                  <div style={{ height: 1, borderTop: "1px solid var(--border)", margin: "12px 4px 6px" }} />
-                ) : (
+                <div style={{ 
+                  height: sidebarCollapsed ? 1 : 0, 
+                  borderTop: sidebarCollapsed ? "1px solid var(--border)" : "0px solid transparent", 
+                  margin: sidebarCollapsed ? "12px 4px 6px" : "0",
+                  opacity: sidebarCollapsed ? 1 : 0,
+                  overflow: "hidden",
+                  transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
+                }} />
+                
+                <div style={{
+                  opacity: sidebarCollapsed ? 0 : 1,
+                  maxHeight: sidebarCollapsed ? 0 : "30px",
+                  overflow: "hidden",
+                  transition: "opacity 0.15s ease, max-height 0.25s ease",
+                  marginBottom: sidebarCollapsed ? 0 : 6
+                }}>
                   <button
                     onClick={() => toggleSection(section.title)}
                     style={{
@@ -491,7 +517,7 @@ export default function AppShell({
                       style={{ color: "var(--text-3)" }}
                     />
                   </button>
-                )}
+                </div>
 
                 {(!isCollapsed || sidebarCollapsed) && section.items.map((n) => {
                   const isActive = n.key === active;
@@ -509,9 +535,9 @@ export default function AppShell({
                         width: "100%",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: sidebarCollapsed ? "center" : "flex-start",
+                        justifyContent: "flex-start",
                         gap: sidebarCollapsed ? 0 : 10,
-                        padding: sidebarCollapsed ? "10px 0" : (isAnalyticsChild ? "8px 16px 8px 32px" : "10px 16px"),
+                        padding: sidebarCollapsed ? "10px 20px" : (isAnalyticsChild ? "8px 16px 8px 32px" : "10px 16px"),
                         marginBottom: 2,
                         background: isActive
                           ? "var(--accent-weak)"
@@ -527,55 +553,69 @@ export default function AppShell({
                         fontSize: isAnalyticsChild ? 12.5 : 13.5,
                         fontWeight: isActive ? 600 : 500,
                         textAlign: "left",
-                        transition: "all 0.15s ease",
+                        transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), gap 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.15s ease",
                         position: "relative"
                       }}>
-                      {isActive && !sidebarCollapsed && (
+                      {isActive && (
                         <div style={{
                           position: "absolute",
                           left: 0,
-                          top: "15%",
-                          height: "70%",
+                          top: sidebarCollapsed ? 0 : "15%",
+                          bottom: sidebarCollapsed ? 0 : "auto",
+                          height: sidebarCollapsed ? "100%" : "70%",
                           width: 3,
                           background: "#C8421C",
-                          borderRadius: "0 2px 2px 0"
+                          borderRadius: sidebarCollapsed ? 0 : "0 2px 2px 0",
+                          transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
                         }} />
                       )}
-                      {isActive && sidebarCollapsed && (
-                        <div style={{
-                          position: "absolute",
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: 3,
-                          background: "#C8421C"
-                        }} />
-                      )}
-                      <Icon name={n.icon} size={isAnalyticsChild ? 13 : 15} stroke={isActive ? 2 : 1.5} />
-                      {!sidebarCollapsed && <span style={{ flex: 1 }}>{n.label}</span>}
-                      {!sidebarCollapsed && n.badge ? (
-                        <span style={{
-                          background: "var(--critical)",
-                          color: "#fff",
-                          fontSize: 10,
-                          borderRadius: "var(--radius-sm)",
-                          padding: "2px 6px",
-                          fontWeight: 700,
-                          fontFamily: "var(--font-mono)"
-                        }}>{n.badge}</span>
-                      ) : null}
-                      {!sidebarCollapsed && n.aiBadge ? (
-                        <span style={{
-                          background: "var(--accent-weak)",
-                          color: "var(--accent)",
-                          fontSize: 9,
-                          borderRadius: 4,
-                          padding: "1px 5px",
-                          fontWeight: 800,
-                          border: "1px solid var(--border)"
-                        }}>AI</span>
-                      ) : null}
-                      {!sidebarCollapsed && n.soon ? <span className="muted" style={{ fontSize: 9 }}>soon</span> : null}
+                      <Icon name={n.icon} size={isAnalyticsChild ? 13 : 15} stroke={isActive ? 2 : 1.5} style={{ flexShrink: 0 }} />
+                      <span style={{ 
+                        flex: 1,
+                        opacity: sidebarCollapsed ? 0 : 1,
+                        maxWidth: sidebarCollapsed ? 0 : "300px",
+                        marginLeft: sidebarCollapsed ? 0 : 10,
+                        overflow: "hidden",
+                        whiteSpace: "nowrap",
+                        display: "inline-block",
+                        transition: "opacity 0.15s ease, max-width 0.2s ease, margin-left 0.2s ease"
+                      }}>
+                        {n.label}
+                      </span>
+                      <span style={{
+                        opacity: sidebarCollapsed ? 0 : 1,
+                        maxWidth: sidebarCollapsed ? 0 : "50px",
+                        overflow: "hidden",
+                        transition: "opacity 0.15s ease, max-width 0.2s ease, margin-left 0.2s ease",
+                        display: "inline-flex",
+                        whiteSpace: "nowrap",
+                        marginLeft: sidebarCollapsed ? 0 : 8,
+                        flexShrink: 0
+                      }}>
+                        {n.badge ? (
+                          <span style={{
+                            background: "var(--critical)",
+                            color: "#fff",
+                            fontSize: 10,
+                            borderRadius: "var(--radius-sm)",
+                            padding: "2px 6px",
+                            fontWeight: 700,
+                            fontFamily: "var(--font-mono)"
+                          }}>{n.badge}</span>
+                        ) : null}
+                        {n.aiBadge ? (
+                          <span style={{
+                            background: "var(--accent-weak)",
+                            color: "var(--accent)",
+                            fontSize: 9,
+                            borderRadius: 4,
+                            padding: "1px 5px",
+                            fontWeight: 800,
+                            border: "1px solid var(--border)"
+                          }}>AI</span>
+                        ) : null}
+                        {n.soon ? <span className="muted" style={{ fontSize: 9, marginLeft: 4 }}>soon</span> : null}
+                      </span>
                     </button>
                   );
                 })}
@@ -586,13 +626,16 @@ export default function AppShell({
 
         {/* Data Trust Score */}
         <div style={{ 
-          padding: sidebarCollapsed ? "16px 8px" : "16px", 
+          padding: "16px", 
           borderTop: "1px solid var(--border)",
           background: "var(--surface-2)",
           display: "flex",
-          justifyContent: "center"
+          flexDirection: "column",
+          gap: 6,
+          overflow: "hidden",
+          transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
         }}>
-          {sidebarCollapsed ? (
+          <div style={{ display: "flex", alignItems: "center", gap: sidebarCollapsed ? 0 : 10, transition: "gap 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
             <div 
               title={`Data Trust Score: ${trustScore != null ? `${trustScore.toFixed(1)}%` : "—"}`}
               style={{
@@ -602,51 +645,44 @@ export default function AppShell({
                 background: "var(--positive-weak)",
                 display: "grid",
                 placeItems: "center",
-                color: "var(--positive)"
+                color: "var(--positive)",
+                flexShrink: 0
               }}
             >
               <Icon name="check" size={16} stroke={2.5} />
             </div>
-          ) : (
-            <div style={{ width: "100%" }}>
-              <div className="muted" style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+            <div style={{ 
+              display: "flex",
+              flexDirection: "column",
+              opacity: sidebarCollapsed ? 0 : 1,
+              maxWidth: sidebarCollapsed ? 0 : "160px",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              transition: "opacity 0.15s ease, max-width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
+            }}>
+              <div className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
                 Data Trust Score
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  background: "var(--positive-weak)",
-                  display: "grid",
-                  placeItems: "center",
-                  color: "var(--positive)"
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ 
+                  fontFamily: "var(--font-mono)", 
+                  fontSize: 19, 
+                  fontWeight: 800, 
+                  color: "var(--positive)" 
                 }}>
-                  <Icon name="check" size={16} stroke={2.5} />
-                </div>
-                <div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                    <span style={{ 
-                      fontFamily: "var(--font-mono)", 
-                      fontSize: 20, 
-                      fontWeight: 800, 
-                      color: "var(--positive)" 
-                    }}>
-                      {trustScore != null ? `${trustScore.toFixed(1)}%` : "—"}
-                    </span>
-                    {trustScore != null && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--positive)" }}>
-                        {trustScore >= 95 ? "Excellent" : trustScore >= 85 ? "Good" : "Review"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="muted" style={{ fontSize: 9, marginTop: 1 }}>
-                    {trustScore != null ? "Computed from the live ledger" : "No data ingested yet"}
-                  </div>
-                </div>
+                  {trustScore != null ? `${trustScore.toFixed(1)}%` : "—"}
+                </span>
+                {trustScore != null && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--positive)" }}>
+                    {trustScore >= 95 ? "Excellent" : trustScore >= 85 ? "Good" : "Review"}
+                  </span>
+                )}
+              </div>
+              <div className="muted" style={{ fontSize: 9, marginTop: 1 }}>
+                {trustScore != null ? "Computed from the live ledger" : "No data ingested yet"}
               </div>
             </div>
-          )}
+          </div>
         </div>
       </aside>
 
@@ -699,6 +735,7 @@ export default function AppShell({
 
             {showViewMenu && (
               <div
+                className="dropdown-panel"
                 onClick={(e) => e.stopPropagation()}
                 style={{
                   position: "absolute",

@@ -3,7 +3,7 @@
 // Staging & Review (mockup 3). Upload raw files (the only place upload lives),
 // review the recomputed extraction, then Publish to Analytics → dashboard.
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import { useEvents } from "@/components/app/EventsContext";
@@ -910,142 +910,181 @@ export default function StagingPage() {
                         const isSwappable = isInvalid && r.flags.some(f => f.toLowerCase().includes("exceeds checked"));
                         
                         return (
-                          <tr
-                            key={r.recordIndex}
-                            ref={(el) => { if (el) rowRefs.current.set(r.recordIndex, el); else rowRefs.current.delete(r.recordIndex); }}
-                            style={{
-                              borderTop: "1px solid var(--border)",
-                              background: isInvalid ? "color-mix(in srgb, var(--status-bad) 8%, transparent)" : isCorrected ? "color-mix(in srgb, var(--status-warn) 6%, transparent)" : "transparent",
-                              color: isInvalid ? "var(--status-bad)" : "var(--text)",
-                              outline: flagsExpanded && isInvalid ? "2px solid var(--status-bad)" : "none",
-                            }}
-                          >
-                            <td style={std}>{i + 1}</td>
-                            <td style={{ ...std, fontFamily: "var(--font-mono)" }}>{r.date}</td>
-                            <td style={std}>{r.stageLabel}</td>
-                            
-                            {/* Editable Quantities */}
-                            <td style={{ ...std, textAlign: "right" }}>
-                              <input
-                                type="number"
-                                value={r.checked ?? ""}
-                                onChange={(e) => handleCellChange(r.recordIndex, "checked", e.target.value)}
-                                style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
-                              />
-                            </td>
-                            <td style={{ ...std, textAlign: "right" }}>
-                              <input
-                                type="number"
-                                value={r.acceptedGood ?? ""}
-                                onChange={(e) => handleCellChange(r.recordIndex, "acceptedGood", e.target.value)}
-                                style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
-                              />
-                            </td>
-                            <td style={{ ...std, textAlign: "right" }}>
-                              <input
-                                type="number"
-                                value={r.rework ?? ""}
-                                onChange={(e) => handleCellChange(r.recordIndex, "rework", e.target.value)}
-                                style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
-                              />
-                            </td>
-                            <td style={{ ...std, textAlign: "right" }}>
-                              <input
-                                type="number"
-                                value={r.rejected ?? ""}
-                                onChange={(e) => handleCellChange(r.recordIndex, "rejected", e.target.value)}
-                                style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
-                              />
-                            </td>
-                            
-                            <td style={{ ...std, textAlign: "right", fontFamily: "var(--font-mono)", paddingRight: "12px" }}>
-                              {r.correctedPct != null ? `${r.correctedPct.toFixed(2)}%` : "—"}
-                            </td>
-                            
-                            {/* Equation Balance Status */}
-                            <td style={{ ...std, textAlign: "center" }}>
-                              {(() => {
-                                const sum = (r.acceptedGood ?? 0) + (r.rework ?? 0) + (r.rejected ?? 0);
-                                const isBalanced = r.checked === sum;
+                          <Fragment key={r.recordIndex}>
+                            <tr
+                              ref={(el) => { if (el) rowRefs.current.set(r.recordIndex, el); else rowRefs.current.delete(r.recordIndex); }}
+                              style={{
+                                borderTop: "1px solid var(--border)",
+                                background: isInvalid ? "color-mix(in srgb, var(--status-bad) 8%, transparent)" : isCorrected ? "color-mix(in srgb, var(--status-warn) 6%, transparent)" : "transparent",
+                                color: isInvalid ? "var(--status-bad)" : "var(--text)",
+                                outline: flagsExpanded && isInvalid ? "2px solid var(--status-bad)" : "none",
+                              }}
+                            >
+                              <td style={std}>{i + 1}</td>
+                              <td style={{ ...std, fontFamily: "var(--font-mono)" }}>{r.date}</td>
+                              <td style={std}>{r.stageLabel}</td>
+                              
+                              {/* Editable Quantities */}
+                              <td style={{ ...std, textAlign: "right" }}>
+                                <input
+                                  type="number"
+                                  value={r.checked ?? ""}
+                                  onChange={(e) => handleCellChange(r.recordIndex, "checked", e.target.value)}
+                                  style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                                />
+                              </td>
+                              <td style={{ ...std, textAlign: "right" }}>
+                                <input
+                                  type="number"
+                                  value={r.acceptedGood ?? ""}
+                                  onChange={(e) => handleCellChange(r.recordIndex, "acceptedGood", e.target.value)}
+                                  style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                                />
+                              </td>
+                              <td style={{ ...std, textAlign: "right" }}>
+                                <input
+                                  type="number"
+                                  value={r.rework ?? ""}
+                                  onChange={(e) => handleCellChange(r.recordIndex, "rework", e.target.value)}
+                                  style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                                />
+                              </td>
+                              <td style={{ ...std, textAlign: "right" }}>
+                                <input
+                                  type="number"
+                                  value={r.rejected ?? ""}
+                                  onChange={(e) => handleCellChange(r.recordIndex, "rejected", e.target.value)}
+                                  style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                                />
+                              </td>
+                              
+                              <td style={{ ...std, textAlign: "right", fontFamily: "var(--font-mono)", paddingRight: "12px" }}>
+                                {r.correctedPct != null ? `${r.correctedPct.toFixed(2)}%` : "—"}
+                              </td>
+                              
+                              {/* Equation Balance Status */}
+                              <td style={{ ...std, textAlign: "center" }}>
+                                {(() => {
+                                  const sum = (r.acceptedGood ?? 0) + (r.rework ?? 0) + (r.rejected ?? 0);
+                                  const isBalanced = r.checked === sum;
+                                  return (
+                                    <span style={{ 
+                                      fontFamily: "var(--font-mono)", 
+                                      fontSize: 10.5, 
+                                      fontWeight: 700,
+                                      color: isBalanced ? "var(--status-good)" : "var(--status-bad)",
+                                      background: isBalanced ? "color-mix(in srgb, var(--status-good) 8%, transparent)" : "color-mix(in srgb, var(--status-bad) 8%, transparent)",
+                                      padding: "3px 6px",
+                                      borderRadius: 5,
+                                      border: isBalanced ? "1px solid color-mix(in srgb, var(--status-good) 30%, transparent)" : "1px solid color-mix(in srgb, var(--status-bad) 30%, transparent)"
+                                    }}>
+                                      {r.checked ?? 0} = {r.acceptedGood ?? 0} + {r.rework ?? 0} + {r.rejected ?? 0}
+                                    </span>
+                                  );
+                                })()}
+                              </td>
+                              
+                              {/* Dynamic Defect Cells */}
+                              {defectsList.map((d: any) => {
+                                const isApplicable = d.stages.includes(r.stageId);
+                                const defectVal = r.defects.find(df => df.raw === d.label || df.raw === d.defectCode)?.value ?? 0;
                                 return (
-                                  <span style={{ 
-                                    fontFamily: "var(--font-mono)", 
-                                    fontSize: 10.5, 
-                                    fontWeight: 700,
-                                    color: isBalanced ? "var(--status-good)" : "var(--status-bad)",
-                                    background: isBalanced ? "color-mix(in srgb, var(--status-good) 8%, transparent)" : "color-mix(in srgb, var(--status-bad) 8%, transparent)",
-                                    padding: "3px 6px",
-                                    borderRadius: 5,
-                                    border: isBalanced ? "1px solid color-mix(in srgb, var(--status-good) 30%, transparent)" : "1px solid color-mix(in srgb, var(--status-bad) 30%, transparent)"
-                                  }}>
-                                    {r.checked ?? 0} = {r.acceptedGood ?? 0} + {r.rework ?? 0} + {r.rejected ?? 0}
-                                  </span>
+                                  <td key={d.defectCode} style={{ ...std, textAlign: "right" }}>
+                                    <input
+                                      type="number"
+                                      disabled={!isApplicable}
+                                      value={isApplicable ? (defectVal || "") : ""}
+                                      onChange={(e) => handleCellChange(r.recordIndex, d.label, e.target.value)}
+                                      style={{ 
+                                        ...gridInputStyle, 
+                                        width: "55px", 
+                                        borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)",
+                                        opacity: isApplicable ? 1 : 0.25,
+                                        background: isApplicable ? "var(--bg)" : "var(--surface-2)",
+                                        cursor: isApplicable ? "text" : "not-allowed"
+                                      }}
+                                    />
+                                  </td>
                                 );
-                              })()}
-                            </td>
-                            
-                            {/* Dynamic Defect Cells */}
-                            {defectsList.map((d: any) => {
-                              const isApplicable = d.stages.includes(r.stageId);
-                              const defectVal = r.defects.find(df => df.raw === d.label || df.raw === d.defectCode)?.value ?? 0;
-                              return (
-                                <td key={d.defectCode} style={{ ...std, textAlign: "right" }}>
-                                  <input
-                                    type="number"
-                                    disabled={!isApplicable}
-                                    value={isApplicable ? (defectVal || "") : ""}
-                                    onChange={(e) => handleCellChange(r.recordIndex, d.label, e.target.value)}
-                                    style={{ 
-                                      ...gridInputStyle, 
-                                      width: "55px", 
-                                      borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)",
-                                      opacity: isApplicable ? 1 : 0.25,
-                                      background: isApplicable ? "var(--bg)" : "var(--surface-2)",
-                                      cursor: isApplicable ? "text" : "not-allowed"
-                                    }}
-                                  />
-                                </td>
-                              );
-                            })}
+                              })}
 
-                            <td style={{ ...std, fontWeight: 600 }}>
-                              {isInvalid ? (
+                              <td style={{ ...std, fontWeight: 600 }}>
+                                {isInvalid ? (
+                                  <button
+                                    onClick={() => setExpandedFlagsRow(flagsExpanded ? null : r.recordIndex)}
+                                    title="Click to see what's wrong"
+                                    style={{
+                                      display: "inline-flex", alignItems: "center", gap: 4,
+                                      padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700,
+                                      border: "1px solid var(--status-bad)",
+                                      background: "color-mix(in srgb, var(--status-bad) 12%, transparent)",
+                                      color: "var(--status-bad)",
+                                    }}
+                                  >
+                                    ⚠ Invalid {flagsExpanded ? "▲" : "▼"}
+                                  </button>
+                                ) : isCorrected ? (
+                                  <span style={{ color: "var(--status-warn)" }}>Corrected</span>
+                                ) : (
+                                  <span style={{ color: "var(--status-good)" }}>✓ Valid</span>
+                                )}
+                              </td>
+                              <td style={{ ...std, textAlign: "center" }}>
                                 <button
-                                  onClick={() => setExpandedFlagsRow(flagsExpanded ? null : r.recordIndex)}
-                                  title="Click to see what's wrong"
+                                  onClick={() => setEditingCommentRow(editingCommentRow === r.recordIndex ? null : r.recordIndex)}
                                   style={{
-                                    display: "inline-flex", alignItems: "center", gap: 4,
-                                    padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                                    border: "1px solid var(--status-bad)",
-                                    background: "color-mix(in srgb, var(--status-bad) 12%, transparent)",
-                                    color: "var(--status-bad)",
+                                    background: hasComment ? "var(--accent)" : "var(--surface-2)",
+                                    color: hasComment ? "#fff" : "var(--text-2)",
+                                    border: "none",
+                                    borderRadius: 7,
+                                    width: 28,
+                                    height: 28,
+                                    cursor: "pointer"
                                   }}
                                 >
-                                  ⚠ Invalid {flagsExpanded ? "▲" : "▼"}
+                                  <Icon name="comment" size={13} />
                                 </button>
-                              ) : isCorrected ? (
-                                <span style={{ color: "var(--status-warn)" }}>Corrected</span>
-                              ) : (
-                                <span style={{ color: "var(--status-good)" }}>✓ Valid</span>
-                              )}
-                            </td>
-                            <td style={{ ...std, textAlign: "center" }}>
-                              <button
-                                onClick={() => setEditingCommentRow(editingCommentRow === r.recordIndex ? null : r.recordIndex)}
-                                style={{
-                                  background: hasComment ? "var(--accent)" : "var(--surface-2)",
-                                  color: hasComment ? "#fff" : "var(--text-2)",
-                                  border: "none",
-                                  borderRadius: 7,
-                                  width: 28,
-                                  height: 28,
-                                  cursor: "pointer"
-                                }}
-                              >
-                                <Icon name="comment" size={13} />
-                              </button>
-                            </td>
-                          </tr>
+                              </td>
+                            </tr>
+                            {flagsExpanded && isInvalid && (
+                              <tr style={{ background: "color-mix(in srgb, var(--status-bad) 4%, transparent)" }}>
+                                <td colSpan={totalCols} style={{ padding: 0 }}>
+                                  <div className="expand-panel" style={{ padding: "10px 16px 12px 50px", borderBottom: "1px solid var(--border)" }}>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                      <div style={{ fontWeight: 700, fontSize: 10.5, color: "var(--status-bad)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 6 }}>
+                                        <span>⚠</span>
+                                        <span>Validation Issues for Row {i + 1}:</span>
+                                      </div>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingLeft: 12 }}>
+                                        {r.flags.map((flag, fi) => (
+                                          <div key={fi} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text)" }}>
+                                            <span style={{ color: "var(--status-bad)" }}>•</span>
+                                            <span>{flag}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      {isSwappable && (
+                                        <div style={{ marginTop: 4, paddingLeft: 12 }}>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleSwapCheckedRejected(r.recordIndex); }}
+                                            style={{
+                                              fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+                                              border: "1px solid var(--status-warn)",
+                                              background: "color-mix(in srgb, var(--status-warn) 12%, var(--surface))",
+                                              color: "var(--status-warn)",
+                                              transition: "all 0.2s ease"
+                                            }}
+                                          >
+                                            ⇅ Swap Checked ↔ Rejected values
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         );
                       })}
                     </tbody>
@@ -1053,7 +1092,7 @@ export default function StagingPage() {
                 </div>
 
                 {editingCommentRow !== null && (
-                  <div style={{ marginTop: 16, padding: 12, border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface-2)" }}>
+                  <div className="comment-box-panel" style={{ marginTop: 16, padding: 12, border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface-2)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13, fontWeight: 700 }}>
                       <span>Add Operator Comment</span>
                       <button onClick={() => setEditingCommentRow(null)} style={{ fontSize: 11, color: "var(--accent)", cursor: "pointer" }}>Close</button>
@@ -1140,8 +1179,15 @@ export default function StagingPage() {
       </div>
 
       {showSchemaModal && extractedSchema && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "900px", maxHeight: "85vh", display: "flex", flexDirection: "column", color: "var(--ink)", overflow: "hidden" }}>
+        <div 
+          className="modal-backdrop"
+          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(18,16,14,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSchemaModal(false); }}
+        >
+          <div 
+            className="modal-panel"
+            style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "900px", maxHeight: "85vh", display: "flex", flexDirection: "column", color: "var(--ink)", overflow: "hidden" }}
+          >
             {/* Header */}
             <div style={{ padding: "20px 24px", borderBottom: "2px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
