@@ -77,6 +77,7 @@ export default function FloatingDetailModal({
 }: FloatingDetailModalProps) {
   const [showSource, setShowSource] = useState(false);
   const [isInsightExpanded, setIsInsightExpanded] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // ponytail: toggle sidebar collapse to give spreadsheet table full width
   const containerRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
@@ -173,6 +174,7 @@ export default function FloatingDetailModal({
   useEffect(() => {
     if (!isOpen) {
       setShowSource(false);
+      setIsSidebarCollapsed(false);
     }
   }, [isOpen]);
 
@@ -237,7 +239,7 @@ export default function FloatingDetailModal({
       });
     }
     setBeams(next);
-  }, [showSource, activeRawSheets, activeTab]);
+  }, [showSource, activeRawSheets, activeTab, isSidebarCollapsed]);
 
   useLayoutEffect(() => {
     if (!isOpen) return;
@@ -363,21 +365,62 @@ export default function FloatingDetailModal({
           ) : (
             <>
               {/* SOURCE TRACE: computed value ⟶ source schema rows, beam-connected */}
-              <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 28, alignItems: "start" }}>
-                <div ref={anchorRef} style={{ position: "sticky", top: 0, border: "1px solid var(--accent)", borderRadius: "var(--radius-md)", background: "var(--surface)", padding: "16px 18px" }}>
-                  <span className="eyebrow accent" style={{ fontWeight: 700, fontSize: 10.5 }}>Computed value</span>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 32, fontWeight: 800, color: "var(--accent)", margin: "6px 0 4px", wordBreak: "break-word" }}>{primaryValue ?? "—"}</div>
-                  <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: "0 0 14px" }}>
-                    Traced to <strong style={{ color: "var(--text)" }}>{(sourceRows ?? []).length.toLocaleString()}</strong> source record{(sourceRows ?? []).length === 1 ? "" : "s"} below.
-                  </p>
-                  <div style={{ borderTop: "1px dashed var(--border)", paddingTop: 12, fontSize: 11.5, lineHeight: 1.5, color: "var(--text-2)" }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 700, color: "var(--status-good)", marginBottom: 6 }}>
-                      <Icon name="check" size={12} stroke={3} />
-                      <span>Excel Schema Verified</span>
-                    </div>
-                    Beams map this computed value directly to the exact file, sheet, row, and column letters in the staged Excel schema.
+              <div style={{ display: "grid", gridTemplateColumns: isSidebarCollapsed ? "40px 1fr" : "280px 1fr", gap: isSidebarCollapsed ? 12 : 28, alignItems: "start" }}>
+                {isSidebarCollapsed ? (
+                  <div 
+                    onClick={() => setIsSidebarCollapsed(false)}
+                    title="Expand source trace info"
+                    style={{
+                      position: "sticky",
+                      top: 0,
+                      height: "200px",
+                      width: "40px",
+                      border: "1.5px solid var(--border-strong)",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--surface)",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      gap: 12,
+                      color: "var(--text-3)",
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.color = "var(--accent)"}
+                    onMouseOut={(e) => e.currentTarget.style.color = "var(--text-3)"}
+                  >
+                    <span style={{ writingMode: "vertical-rl", textTransform: "uppercase", fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em" }}>Trace</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                   </div>
-                </div>
+                ) : (
+                  <div ref={anchorRef} style={{ position: "sticky", top: 0, border: "1px solid var(--accent)", borderRadius: "var(--radius-md)", background: "var(--surface)", padding: "16px 18px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <span className="eyebrow accent" style={{ fontWeight: 700, fontSize: 10.5 }}>Computed value</span>
+                      <button 
+                        onClick={() => setIsSidebarCollapsed(true)} 
+                        title="Collapse source trace info"
+                        style={{
+                          background: "transparent", border: "none", color: "var(--text-3)", cursor: "pointer", display: "grid", placeItems: "center", padding: 2, borderRadius: "50%"
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.color = "var(--accent)"}
+                        onMouseOut={(e) => e.currentTarget.style.color = "var(--text-3)"}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                      </button>
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 32, fontWeight: 800, color: "var(--accent)", margin: "0 0 4px", wordBreak: "break-word" }}>{primaryValue ?? "—"}</div>
+                    <p className="muted" style={{ fontSize: 11.5, lineHeight: 1.5, margin: "0 0 14px" }}>
+                      Traced to <strong style={{ color: "var(--text)" }}>{(sourceRows ?? []).length.toLocaleString()}</strong> source record{(sourceRows ?? []).length === 1 ? "" : "s"} below.
+                    </p>
+                    <div style={{ borderTop: "1px dashed var(--border)", paddingTop: 12, fontSize: 11.5, lineHeight: 1.5, color: "var(--text-2)" }}>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 700, color: "var(--status-good)", marginBottom: 6 }}>
+                        <Icon name="check" size={12} stroke={3} />
+                        <span>Excel Schema Verified</span>
+                      </div>
+                      Beams map this computed value directly to the exact file, sheet, row, and column letters in the staged Excel schema.
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   {activeRawSheets.length > 0 ? (
