@@ -95,7 +95,11 @@ export function extractSchemaFromWorkbook(wb: xlsx.WorkBook, fileName: string): 
     const ws = wb.Sheets[sheetName];
     if (!ws) continue;
 
-    const rawRows = xlsx.utils.sheet_to_json(ws, { header: 1, defval: '' }) as unknown[][];
+    // Same coordinate discipline as parser.ts: colLetter / row refs must be
+    // TRUE Excel coordinates (offset by the used range), or the refs built in
+    // classifyWithSchema disagree with the RawSheet __rowNum/colLetters grid.
+    const range = xlsx.utils.decode_range(ws['!ref'] ?? 'A1:A1');
+    const rawRows = xlsx.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: true }) as unknown[][];
     if (rawRows.length === 0) continue;
 
     const headerRowIndex = detectHeaderRow(rawRows);
@@ -108,7 +112,7 @@ export function extractSchemaFromWorkbook(wb: xlsx.WorkBook, fileName: string): 
     normalizedHeader.forEach((colName, idx) => {
       if (!colName || colName.startsWith('__EMPTY')) return;
 
-      const colLetter = colIndexToLabel(idx);
+      const colLetter = colIndexToLabel(range.s.c + idx);
       
       // Determine type based on data rows
       let type: ExtractedField["type"] = "unknown";
@@ -135,7 +139,7 @@ export function extractSchemaFromWorkbook(wb: xlsx.WorkBook, fileName: string): 
         }
 
         // Look for formula in Excel sheet cells
-        const cellRef = `${colLetter}${dataStartIndex + rIdx + 1}`;
+        const cellRef = `${colLetter}${range.s.r + dataStartIndex + rIdx + 1}`;
         const cell = ws[cellRef];
         if (cell && cell.f) {
           hasFormula = true;
@@ -229,6 +233,14 @@ export function classifyWithSchema(
 
     if (!dateField) continue;
 
+    // rawSheet.name is "<fileName> - <sheetName>" (parser.ts's display key).
+    // Provenance must carry the TRUE worksheet name — composite names make
+    // cell refs unresolvable against the workbook and break the /staging
+    // completeness check and Verify Mode's sheet lookup.
+    const rawSheetName = sheet.name.startsWith(`${sheet.fileName} - `)
+      ? sheet.name.slice(sheet.fileName.length + 3)
+      : sheet.name;
+
     sheet.rows.forEach((row) => {
       const dateVal = row[dateField.name];
       const iso = toISODate(dateVal);
@@ -241,7 +253,7 @@ export function classifyWithSchema(
 
       // Extract size if sheet name indicates it (e.g. 6FR -> Fr6)
       let size: string | null = null;
-      const sizeMatch = sheet.name.match(/^(\d+)FR$/i);
+      const sizeMatch = rawSheetName.match(/^(\d+)\s*FR\.?\s*$/i);
       if (sizeMatch) {
         size = `Fr${sizeMatch[1]}`;
       }
@@ -253,7 +265,7 @@ export function classifyWithSchema(
           defects.push({
             raw: df.name,
             value: Math.round(val),
-            cell: `${sheet.name}!${df.colLetter}${row.__rowNum}`,
+            cell: `${rawSheetName}!${df.colLetter}${row.__rowNum}`,
           });
         }
       });
@@ -264,7 +276,7 @@ export function classifyWithSchema(
         if (val !== null) {
           statedPct = {
             value: val,
-            cell: `${sheet.name}!${statedPctField.colLetter}${row.__rowNum}`,
+            cell: `${rawSheetName}!${statedPctField.colLetter}${row.__rowNum}`,
             formula: statedPctField.formula ?? null,
           };
         }
@@ -277,13 +289,13 @@ export function classifyWithSchema(
         source: {
           file: sheet.fileName,
           fileHash: "local",
-          sheet: sheet.name,
+          sheet: rawSheetName,
           tableId: "t1",
         },
-        checked: checked !== null ? { value: Math.round(checked), cell: `${sheet.name}!${checkedField!.colLetter}${row.__rowNum}`, header: checkedField!.name } : null,
-        acceptedGood: good !== null ? { value: Math.round(good), cell: `${sheet.name}!${goodField!.colLetter}${row.__rowNum}`, header: goodField!.name } : null,
-        rework: rework !== null ? { value: Math.round(rework), cell: `${sheet.name}!${reworkField!.colLetter}${row.__rowNum}`, header: reworkField!.name } : null,
-        rejected: rejected !== null ? { value: Math.round(rejected), cell: `${sheet.name}!${rejectedField!.colLetter}${row.__rowNum}`, header: rejectedField!.name } : null,
+        checked: checked !== null ? { value: Math.round(checked), cell: `${rawSheetName}!${checkedField!.colLetter}${row.__rowNum}`, header: checkedField!.name } : null,
+        acceptedGood: good !== null ? { value: Math.round(good), cell: `${rawSheetName}!${goodField!.colLetter}${row.__rowNum}`, header: goodField!.name } : null,
+        rework: rework !== null ? { value: Math.round(rework), cell: `${rawSheetName}!${reworkField!.colLetter}${row.__rowNum}`, header: reworkField!.name } : null,
+        rejected: rejected !== null ? { value: Math.round(rejected), cell: `${rawSheetName}!${rejectedField!.colLetter}${row.__rowNum}`, header: rejectedField!.name } : null,
         defects,
         statedPct,
         extractedBy: "heuristic",

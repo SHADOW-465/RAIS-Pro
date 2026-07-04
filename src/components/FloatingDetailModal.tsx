@@ -45,6 +45,26 @@ function colIndexToLabel(idx: number): string {
   return label;
 }
 
+/** Parse a provenance ref ("SHEET!D7") into exact parts. Loose endsWith
+ *  matching is forbidden here: "…!AD7".endsWith("D7") and sheet "4FR" vs
+ *  "14FR" both false-positive, lighting up the wrong cells. */
+const A1_REF = /^(.+)!([A-Z]+)(\d+)$/;
+function parseRef(cell: string): { sheet: string; col: string; row: number } | null {
+  const m = A1_REF.exec(cell);
+  return m ? { sheet: m[1].trim().toLowerCase(), col: m[2], row: Number(m[3]) } : null;
+}
+
+/** True when a RawSheet (named "<file> - <sheet>") IS the given bare sheet.
+ *  Strips the known fileName prefix rather than suffix-matching, then compares
+ *  TRIMMED names — real workbooks contain sheets like " MAY 25" whose leading
+ *  space breaks any raw string comparison. */
+function rawSheetMatches(raw: { name: string; fileName: string }, bareSheet: string): boolean {
+  const bare = raw.name.startsWith(`${raw.fileName} - `)
+    ? raw.name.slice(raw.fileName.length + 3)
+    : raw.name;
+  return bare.trim().toLowerCase() === bareSheet.trim().toLowerCase();
+}
+
 export default function FloatingDetailModal({
   isOpen,
   onClose,
@@ -79,10 +99,15 @@ export default function FloatingDetailModal({
 
   useEffect(() => {
     if (!showSource || !sourceRows) return;
-    const covered = new Set(allRawSheets.map((s) => s.fileName));
+    // Compare by BASENAME: seeded events carry full paths ("DATA/VISUAL/1
+    // APRIL 25.xlsx") while session RawSheets carry File.name basenames —
+    // a raw string compare re-fetches the same workbook and duplicates every
+    // sheet tab in the source dropdown.
+    const base = (p: string) => p.split(/[\\/]/).pop()!.toLowerCase();
+    const covered = new Set(allRawSheets.map((s) => base(s.fileName)));
     const toFetch = new Map<string, string>(); // fileHash -> file name
     for (const r of sourceRows) {
-      if (!r.fileHash || !r.file || covered.has(r.file) || fetchingHashes.current.has(r.fileHash)) continue;
+      if (!r.fileHash || !r.file || covered.has(base(r.file)) || fetchingHashes.current.has(r.fileHash)) continue;
       toFetch.set(r.fileHash, r.file);
     }
     if (toFetch.size === 0) return;
@@ -96,7 +121,10 @@ export default function FloatingDetailModal({
           if (!res.ok) continue; // best-effort — falls back to the flat provenance table
           const buf = await res.arrayBuffer();
           const { rawSheets: parsed } = parseWorkbookBuffer(buf, fileName);
-          setFetchedRawSheets((prev) => [...prev, ...parsed]);
+          setFetchedRawSheets((prev) => {
+            const have = new Set(prev.map((s) => s.name.toLowerCase()));
+            return [...prev, ...parsed.filter((s) => !have.has(s.name.toLowerCase()))];
+          });
         } catch {
           // best-effort — never blocks the modal
         }
@@ -114,16 +142,11 @@ export default function FloatingDetailModal({
     return Array.from(sheets);
   }, [sourceRows]);
 
-  // Find raw sheets matching contributing sheets
+  // Find raw sheets matching contributing sheets (exact bare-name match on the
+  // "<file> - <sheet>" suffix — loose endsWith made "4FR" claim "14FR"/"24FR").
   const activeRawSheets = useMemo(() => {
     if (allRawSheets.length === 0 || contributingSheets.length === 0) return [];
-    return allRawSheets.filter(s =>
-      contributingSheets.some(cs => {
-        const cleanS = s.name.toLowerCase().trim();
-        const cleanCs = cs.toLowerCase().trim();
-        return cleanS === cleanCs || cleanS.endsWith(cleanCs) || cleanCs.endsWith(cleanS);
-      })
-    );
+    return allRawSheets.filter(s => contributingSheets.some(cs => rawSheetMatches(s, cs)));
   }, [allRawSheets, contributingSheets]);
 
   // Tab label: bare stage stem, UNLESS more than one contributing raw sheet
@@ -404,10 +427,10 @@ export default function FloatingDetailModal({
                                     <th style={{ ...th, width: 40, borderRight: "1px solid var(--border-strong)", textAlign: "center" }}>#</th>
                                     {sheet.columns.map((col, cIdx) => {
                                       const colLetter = sheet.colLetters?.[col] || colIndexToLabel(cIdx);
-                                      const isColumnUsed = sourceRows?.some(r => 
-                                        r.sheet === sheet.name && 
-                                        (r.cell.includes(`!${colLetter}`) || r.cell.endsWith(`!${colLetter}`))
-                                      );
+                                      const isColumnUsed = sourceRows?.some(r => {
+                                        const ref = parseRef(r.cell);
+                                        return ref && ref.col === colLetter && rawSheetMatches(sheet, ref.sheet);
+                                      });
                                       return (
                                         <th key={col} style={{ ...th, background: isColumnUsed ? "var(--accent-weak)" : "var(--surface-2)", color: isColumnUsed ? "var(--accent)" : "var(--text-3)" }}>
                                           <div style={{ display: "flex", flexDirection: "column" }}>
@@ -429,17 +452,11 @@ export default function FloatingDetailModal({
                                         </td>
                                         {sheet.columns.map((col, cIdx) => {
                                           const colLetter = sheet.colLetters?.[col] || colIndexToLabel(cIdx);
-                                          const shortSheetName = sheet.name.split(" - ").slice(-1)[0];
-                                          const cellRef1 = `${sheet.name}!${colLetter}${rowNum}`;
-                                          const cellRef2 = `${shortSheetName}!${colLetter}${rowNum}`;
+                                          const matchingSource = sourceRows?.find(r => {
+                                            const ref = parseRef(r.cell);
+                                            return ref && ref.col === colLetter && ref.row === rowNum && rawSheetMatches(sheet, ref.sheet);
+                                          });
 
-                                          const matchingSource = sourceRows?.find(r => 
-                                            r.cell === cellRef1 || 
-                                            r.cell === cellRef2 ||
-                                            (r.sheet === sheet.name && r.cell.endsWith(`${colLetter}${rowNum}`)) ||
-                                            (r.sheet === shortSheetName && r.cell.endsWith(`${colLetter}${rowNum}`))
-                                          );
-                                          
                                           const isHighlighted = !!matchingSource;
                                           const cellKey = `${sheet.name}-${colLetter}-${rowNum}`;
 

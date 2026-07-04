@@ -16,6 +16,7 @@ import * as xlsx from "xlsx";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { toLocalISODate } from "@/lib/ingest/date";
 import { norm, headerSections } from "./header-sections";
+import { sheetGrid } from "./a1";
 
 interface StageCols { stageId: string; chk: number | null; acc: number | null; hold: number | null; rej: number | null; }
 
@@ -103,12 +104,6 @@ const intOrNull = (v: unknown): number | null => {
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
 };
 
-const cellRef = (col: number, row: number): string => {
-  let s = ""; let n = col;
-  do { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; } while (n >= 0);
-  return `${s}${row}`;
-};
-
 export interface DailyActivityParseResult { records: StageDayRecord[]; }
 
 export function parseDailyActivity(buf: Buffer | ArrayBuffer, file: string): DailyActivityParseResult {
@@ -122,7 +117,10 @@ export function parseDailyActivity(buf: Buffer | ArrayBuffer, file: string): Dai
     // covers the exact same 31 days as "JAN 2026") — counting both doubles
     // every stage's checked/rejected for that period.
     if (/yearly|summary|format|weekly/i.test(sheet)) continue;
-    const rows: any[][] = xlsx.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, defval: null, blankrows: false });
+    // blankrows MUST stay on (via sheetGrid): dropping them desyncs array
+    // index from worksheet row and every provenance ref lands on the wrong cell.
+    const grid = sheetGrid(wb.Sheets[sheet]);
+    const rows = grid.rows as any[][];
 
     const headerRows = findHeaderRows(rows);
     if (!headerRows) continue; // doesn't match this template — nothing to extract
@@ -139,10 +137,9 @@ export function parseDailyActivity(buf: Buffer | ArrayBuffer, file: string): Dai
       if (!iso) continue;                                  // header / WEEKLY / blank
       if (typeof row[1] === "string" && HOLIDAY.test(row[1])) continue; // SUNDAY etc.
 
-      const r = i + 1;
       const src = { file, fileHash: "local", sheet, tableId: "daily-activity" };
       const sv = (val: number | null, col: number, header: string) =>
-        val == null ? null : { value: val, cell: `${sheet}!${cellRef(col, r)}`, header };
+        val == null ? null : { value: val, cell: `${sheet}!${grid.colLetter(col)}${grid.rowNum(i)}`, header };
 
       for (const s of stages) {
         const checked = s.chk != null ? sv(intOrNull(row[s.chk]), s.chk, "CHKD QTY") : null;

@@ -3,6 +3,7 @@ import * as xlsx from "xlsx";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { dateFromFilename, toLocalISODate } from "@/lib/ingest/date";
 import { norm, headerSections } from "./header-sections";
+import { sheetGrid } from "./a1";
 
 interface ValveBlockCols { stageId: "balloon" | "valve-integrity"; chk: number; acc: number | null; hold: number | null; rej: number | null; defects: { col: number; label: string }[] }
 
@@ -90,7 +91,8 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
       if (!sizeMatch) continue;
       const size = `Fr${sizeMatch[1]}`;
       const ws = wb.Sheets[sheetName];
-      const rows: any[][] = xlsx.utils.sheet_to_json(ws, { header: 1, defval: null });
+      const grid = sheetGrid(ws);
+      const rows = grid.rows as any[][];
 
       let headerRowIdx = -1;
       for (let i = 0; i < Math.min(20, rows.length); i++) {
@@ -117,11 +119,12 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
           const rej = Number(row[b.rej ?? -1]);
           if (isNaN(checked) || checked <= 0) continue;
 
+          const cellAt = (c: number) => `${sheetName}!${grid.colLetter(c)}${grid.rowNum(i)}`;
           const defects = [];
           for (const d of b.defects) {
             const val = Number(row[d.col]);
             if (!isNaN(val) && val > 0) {
-              defects.push({ raw: d.label, value: Math.round(val), cell: `${sheetName}!${String.fromCharCode(65 + d.col)}${i + 1}` });
+              defects.push({ raw: d.label, value: Math.round(val), cell: cellAt(d.col) });
             }
           }
           records.push({
@@ -129,10 +132,10 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
             stageId: b.stageId,
             size,
             source: { file, fileHash: "local", sheet: sheetName, tableId: `valve-${b.stageId}-row` },
-            checked: { value: Math.round(checked), cell: `${sheetName}!${String.fromCharCode(65 + b.chk)}${i + 1}`, header: "CHECKED QTY" },
-            acceptedGood: b.acc != null && !isNaN(Number(row[b.acc])) ? { value: Math.round(Number(row[b.acc])), cell: `${sheetName}!${String.fromCharCode(65 + b.acc)}${i + 1}`, header: "ACCEPT QTY" } : null,
-            rework: b.hold != null && !isNaN(Number(row[b.hold])) ? { value: Math.round(Number(row[b.hold])), cell: `${sheetName}!${String.fromCharCode(65 + b.hold)}${i + 1}`, header: "HOLD QTY" } : null,
-            rejected: { value: Math.round(rej || 0), cell: b.rej != null ? `${sheetName}!${String.fromCharCode(65 + b.rej)}${i + 1}` : "", header: "REJ. QTY" },
+            checked: { value: Math.round(checked), cell: cellAt(b.chk), header: "CHECKED QTY" },
+            acceptedGood: b.acc != null && !isNaN(Number(row[b.acc])) ? { value: Math.round(Number(row[b.acc])), cell: cellAt(b.acc), header: "ACCEPT QTY" } : null,
+            rework: b.hold != null && !isNaN(Number(row[b.hold])) ? { value: Math.round(Number(row[b.hold])), cell: cellAt(b.hold), header: "HOLD QTY" } : null,
+            rejected: { value: Math.round(rej || 0), cell: b.rej != null ? cellAt(b.rej) : "", header: "REJ. QTY" },
             defects,
             statedPct: null,
             extractedBy: "heuristic",
@@ -148,7 +151,8 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
       if (!sizeMatch) continue;
       const size = `Fr${sizeMatch[1]}`;
       const ws = wb.Sheets[sheetName];
-      const rows: any[][] = xlsx.utils.sheet_to_json(ws, { header: 1, defval: null });
+      const grid = sheetGrid(ws);
+      const rows = grid.rows as any[][];
 
       let headerRowIdx = -1;
       let headers: string[] = [];
@@ -199,6 +203,7 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
         const rej = Number(row[rejectedIdx]);
         if (isNaN(chk) && isNaN(rej)) continue;
 
+        const cellAt = (c: number) => `${sheetName}!${grid.colLetter(c)}${grid.rowNum(i)}`;
         const defects = [];
         for (let c = startDefectIdx; c < row.length; c++) {
           const val = Number(row[c]);
@@ -207,7 +212,7 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
             defects.push({
               raw: label,
               value: Math.round(val),
-              cell: `${sheetName}!${String.fromCharCode(65 + c)}${i + 1}`,
+              cell: cellAt(c),
             });
           }
         }
@@ -217,10 +222,10 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
           stageId: isVisual ? "visual" : "final",
           size,
           source: { file, fileHash: "local", sheet: sheetName, tableId: "size-row" },
-          checked: !isNaN(chk) ? { value: Math.round(chk), cell: `${sheetName}!${String.fromCharCode(65 + checkedIdx)}${i + 1}`, header: headers[checkedIdx] } : null,
-          acceptedGood: acceptIdx >= 0 && !isNaN(Number(row[acceptIdx])) ? { value: Math.round(Number(row[acceptIdx])), cell: `${sheetName}!${String.fromCharCode(65 + acceptIdx)}${i + 1}`, header: headers[acceptIdx] } : null,
-          rework: holdIdx >= 0 && !isNaN(Number(row[holdIdx])) ? { value: Math.round(Number(row[holdIdx])), cell: `${sheetName}!${String.fromCharCode(65 + holdIdx)}${i + 1}`, header: headers[holdIdx] } : null,
-          rejected: !isNaN(rej) ? { value: Math.round(rej), cell: `${sheetName}!${String.fromCharCode(65 + rejectedIdx)}${i + 1}`, header: headers[rejectedIdx] } : null,
+          checked: !isNaN(chk) ? { value: Math.round(chk), cell: cellAt(checkedIdx), header: headers[checkedIdx] } : null,
+          acceptedGood: acceptIdx >= 0 && !isNaN(Number(row[acceptIdx])) ? { value: Math.round(Number(row[acceptIdx])), cell: cellAt(acceptIdx), header: headers[acceptIdx] } : null,
+          rework: holdIdx >= 0 && !isNaN(Number(row[holdIdx])) ? { value: Math.round(Number(row[holdIdx])), cell: cellAt(holdIdx), header: headers[holdIdx] } : null,
+          rejected: !isNaN(rej) ? { value: Math.round(rej), cell: cellAt(rejectedIdx), header: headers[rejectedIdx] } : null,
           defects,
           statedPct: null,
           extractedBy: "heuristic",

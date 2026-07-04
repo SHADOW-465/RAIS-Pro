@@ -317,7 +317,12 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
       const sheet = workbook.Sheets[sheetName];
 
       // ── Detect real header row (score-based scan over first 12 rows) ────────
-      const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
+      // blankrows explicit + used-range offsets: __rowNum / colLetters below
+      // must be TRUE Excel coordinates (the provenance audit checks them
+      // against the original workbook), so array indices are translated
+      // through the sheet's !ref rather than assumed to start at A1.
+      const range = XLSX.utils.decode_range(sheet['!ref'] ?? 'A1:A1');
+      const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: true }) as unknown[][];
       const headerRowIndex = detectHeaderRow(rawRows);
 
       // Merge any multi-row header block (main header + reason-code sub-headers)
@@ -331,7 +336,7 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
       const dataRows = rawRows.slice(dataStartIndex);
       let json: Record<string, unknown>[] = dataRows.map((row, rowIdx) => {
         const rec: Record<string, unknown> = {
-          __rowNum: dataStartIndex + rowIdx + 1
+          __rowNum: range.s.r + dataStartIndex + rowIdx + 1
         };
         normalizedHeader.forEach((name, idx) => {
           if (name === '') return;
@@ -520,7 +525,7 @@ export function parseWorkbookBuffer(data: ArrayBuffer | Buffer, fileName: string
       columns.forEach(col => {
         const idx = normalizedHeader.indexOf(col);
         if (idx !== -1) {
-          colLetters[col] = colIndexToLabel(idx);
+          colLetters[col] = colIndexToLabel(range.s.c + idx);
         }
       });
 

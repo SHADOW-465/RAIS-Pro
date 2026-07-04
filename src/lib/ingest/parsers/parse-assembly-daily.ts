@@ -15,6 +15,7 @@ import * as xlsx from "xlsx";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { toLocalISODate } from "@/lib/ingest/date";
 import { norm, headerSections } from "./header-sections";
+import { sheetGrid, type SheetGrid } from "./a1";
 
 interface StageCols { stageId: string; chk: number; acc: number | null; rej: number | null; }
 
@@ -90,8 +91,8 @@ const intOrNull = (v: unknown): number | null => {
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
 };
 
-const sv = (value: number | null, sheet: string, col: number, row: number, header: string) =>
-  value == null ? null : { value, cell: `${sheet}!${String.fromCharCode(65 + col)}${row}`, header };
+const sv = (value: number | null, sheet: string, grid: SheetGrid, col: number, rowIdx: number, header: string) =>
+  value == null ? null : { value, cell: `${sheet}!${grid.colLetter(col)}${grid.rowNum(rowIdx)}`, header };
 
 export interface AssemblyParseResult {
   records: StageDayRecord[];
@@ -103,7 +104,10 @@ export function parseAssemblyDaily(buf: Buffer | ArrayBuffer, file: string): Ass
 
   for (const sheet of wb.SheetNames) {
     if (/yearly|summary/i.test(sheet)) continue;
-    const rows: any[][] = xlsx.utils.sheet_to_json(wb.Sheets[sheet], { header: 1, defval: null, blankrows: false });
+    // blankrows MUST stay on (via sheetGrid): dropping them desyncs array
+    // index from worksheet row and every provenance ref lands on the wrong cell.
+    const grid = sheetGrid(wb.Sheets[sheet]);
+    const rows = grid.rows as any[][];
 
     const headerRowIdx = findHeaderRow(rows);
     if (headerRowIdx == null) continue; // doesn't match this template — nothing to extract
@@ -119,13 +123,12 @@ export function parseAssemblyDaily(buf: Buffer | ArrayBuffer, file: string): Ass
       if (typeof a === "string" && MARKER.test(a)) continue;
       const iso = toLocalISODate(a);
       if (!iso) continue;
-      const r = i + 1;
       const src = { file, fileHash: "local", sheet, tableId: "t1" };
 
       for (const s of stages) {
-        const checked = sv(intOrNull(row[s.chk]), sheet, s.chk, r, "CHKD QTY");
-        const accepted = s.acc != null ? sv(intOrNull(row[s.acc]), sheet, s.acc, r, "ACPT QTY") : null;
-        const rejected = s.rej != null ? sv(intOrNull(row[s.rej]), sheet, s.rej, r, `${s.stageId.toUpperCase()} REJ`) : null;
+        const checked = sv(intOrNull(row[s.chk]), sheet, grid, s.chk, i, "CHKD QTY");
+        const accepted = s.acc != null ? sv(intOrNull(row[s.acc]), sheet, grid, s.acc, i, "ACPT QTY") : null;
+        const rejected = s.rej != null ? sv(intOrNull(row[s.rej]), sheet, grid, s.rej, i, `${s.stageId.toUpperCase()} REJ`) : null;
         if (!checked && !rejected) continue;
 
         records.push({

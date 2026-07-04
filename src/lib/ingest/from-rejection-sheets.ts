@@ -123,24 +123,35 @@ export function classifyRejectionSheets(
     let sampleDate: string | null = null;
 
     if (dateColumn && (checkedColumn || rejectedColumn)) {
+      // True A1 provenance: the RawSheet carries each row's real worksheet row
+      // (__rowNum) and each column's real letter (colLetters) — refs built from
+      // array indices or column NAMES are unfindable in the original workbook.
+      // parseWorkbookBuffer always provides both; the positional estimate below
+      // only fires for synthetic RawSheets (the contract requires a non-empty
+      // cell ref on every event, so "" is not an option).
+      const a1 = (col: string, row: Record<string, unknown>, rowIdx: number): string => {
+        const letter = sheet.colLetters?.[col]
+          ?? String.fromCharCode(65 + Math.max(0, sheet.columns.indexOf(col)));
+        const rowNum = typeof row.__rowNum === "number" ? row.__rowNum : rowIdx + 2;
+        return `${rawSheetName}!${letter}${rowNum}`;
+      };
       sheet.rows.forEach((row, rowIdx) => {
         const iso = toISODate(row[dateColumn]);
         if (!iso) return;
         const checked = checkedColumn ? toNumber(row[checkedColumn]) : null;
         const rejected = rejectedColumn ? toNumber(row[rejectedColumn]) : null;
         if (checked == null && rejected == null) return;
-        const r = rowIdx + 2; // human-ish row ref for provenance
         const pctVal = pctColumn ? toNumber(row[pctColumn]) : null;
         records.push({
           occurredOn: { kind: "day", start: iso, end: iso },
           stageId: stage.stageId,
           source,
-          checked: checked != null && checked >= 0 ? { value: Math.round(checked), cell: `${rawSheetName}!${checkedColumn}${r}`, header: checkedColumn! } : null,
+          checked: checked != null && checked >= 0 ? { value: Math.round(checked), cell: a1(checkedColumn!, row, rowIdx), header: checkedColumn! } : null,
           acceptedGood: null,
           rework: null,
-          rejected: rejected != null && rejected >= 0 ? { value: Math.round(rejected), cell: `${rawSheetName}!${rejectedColumn}${r}`, header: rejectedColumn! } : null,
+          rejected: rejected != null && rejected >= 0 ? { value: Math.round(rejected), cell: a1(rejectedColumn!, row, rowIdx), header: rejectedColumn! } : null,
           defects: [],
-          statedPct: pctVal != null && pctColumn ? { value: pctVal, cell: `${rawSheetName}!${pctColumn}${r}`, formula: null } : null,
+          statedPct: pctVal != null && pctColumn ? { value: pctVal, cell: a1(pctColumn, row, rowIdx), formula: null } : null,
           extractedBy: "heuristic",
           ingestionId,
         });
