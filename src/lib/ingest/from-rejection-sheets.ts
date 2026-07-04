@@ -17,7 +17,7 @@ const STAGE_FROM_NAME: { test: RegExp; stageId: string; label: string }[] = [
   { test: /final/i,          stageId: "final",           label: "Final Inspection" },
 ];
 
-const SUMMARY_NAME = /c[ou]mm?ulative|yearly|summary|^\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
+export const SUMMARY_NAME = /c[ou]mm?ulative|yearly|summary|^\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i;
 
 function stageForSheet(sheetName: string): { stageId: string; label: string } | null {
   // valve before balloon (valve sheets often mention balloon too)

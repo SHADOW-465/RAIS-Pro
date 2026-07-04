@@ -11,6 +11,7 @@ import { Card, Empty } from "@/components/app/widgets";
 import UploadZone from "@/components/UploadZone";
 import Icon from "@/components/editorial/Icon";
 import { buildReviewRows, reviewSummary, applyEdit } from "@/lib/ingest/review";
+import { SUMMARY_NAME } from "@/lib/ingest/from-rejection-sheets";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { Dataset } from "@/lib/dataset/types";
@@ -23,6 +24,11 @@ export default function StagingPage() {
   const [fileName, setFileName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Sheets recognized as summary/rollup and excluded ON PURPOSE (never counted
+  // in the day-ledger, or double-counting would result) — distinct from a
+  // genuine unrecognized-layout gap, so it gets a neutral note, not the same
+  // red banner as an actual failure.
+  const [excludedNote, setExcludedNote] = useState<string | null>(null);
   const [done, setDone] = useState<{ inserted: number; deduped: number } | null>(null);
   const [extractedSchema, setExtractedSchema] = useState<any | null>(null);
   const [showSchemaModal, setShowSchemaModal] = useState(false);
@@ -89,7 +95,7 @@ export default function StagingPage() {
   const totalCols = 11 + defectsList.length;
 
   async function handleUpload(files: File[]) {
-    setError(null); setDone(null); setComments({}); setEditingCommentRow(null); setExtractedSchema(null);
+    setError(null); setExcludedNote(null); setDone(null); setComments({}); setEditingCommentRow(null); setExtractedSchema(null);
     setFocusedInvalidIdx(0); setExpandedFlagsRow(null); setRawSheetsData(null); setDetectedSummary(null);
     try {
       if (!files || files.length === 0) return;
@@ -133,6 +139,7 @@ export default function StagingPage() {
       const fallbackRecords: any[] = []; // generic-classifier records (unknown layouts)
       const allRawSheets: any[] = [];
       const skipped: string[] = [];
+      const excluded: string[] = []; // recognized summary/rollup sheets, excluded on purpose
       let firstSchema: any = null;
       const discoveredSizes = new Map<string, { sizeId: string; label: string }>();
 
@@ -174,8 +181,37 @@ export default function StagingPage() {
             // Workbooks explorer via the dataset pipeline above.)
             const consumed = new Set(preceded.map((p: any) => p.record?.source?.sheet).filter(Boolean));
             const unconsumed = wb.SheetNames.filter((n: string) => !consumed.has(n));
-            if (unconsumed.length > 0) {
-              skipped.push(`${file.name}: sheet${unconsumed.length === 1 ? "" : "s"} not ingested to the ledger (unrecognized layout — still browsable in Workbooks): ${unconsumed.join(", ")}`);
+            // A summary/rollup sheet (Cummulative, a bare month tab, etc.) was
+            // RECOGNIZED and deliberately excluded — counting it would double
+            // the day-level total it's a rollup of. That's not the same as a
+            // sheet whose layout genuinely isn't understood.
+            const designExcluded = unconsumed.filter((n) => SUMMARY_NAME.test(n));
+            const genuinelyUnrecognized = unconsumed.filter((n) => !SUMMARY_NAME.test(n));
+            if (designExcluded.length > 0) {
+              excluded.push(`${file.name}: ${designExcluded.join(", ")}`);
+            }
+            if (genuinelyUnrecognized.length > 0) {
+              // Distinguish "the sheet's layout isn't understood" from "the
+              // layout is fine but its own DATE column was never filled in" —
+              // the header row is found either way, but the second case has
+              // no date to recover from anywhere in the sheet, so it needs a
+              // different (source-data, not app) reason surfaced to the user.
+              const hasEmptyDateColumn = (n: string): boolean => {
+                const rs = rawSheets.find((s: any) => s.name === `${file.name} - ${n}`);
+                const dateCol = rs?.columns.find((c: string) => /^date$/i.test(c.trim()));
+                return !!dateCol && rs!.rows.every((r: any) => r[dateCol] === "" || r[dateCol] == null);
+              };
+              const dataGap = genuinelyUnrecognized.filter(hasEmptyDateColumn);
+              const trulyUnrecognized = genuinelyUnrecognized.filter((n) => !hasEmptyDateColumn(n));
+
+              const parts: string[] = [];
+              if (trulyUnrecognized.length) {
+                parts.push(`sheet${trulyUnrecognized.length === 1 ? "" : "s"} not ingested (unrecognized layout — still browsable in Workbooks): ${trulyUnrecognized.join(", ")}`);
+              }
+              if (dataGap.length) {
+                parts.push(`sheet${dataGap.length === 1 ? "" : "s"} recognized but has no DATE values recorded in the source file — nothing to ingest until the workbook is corrected: ${dataGap.join(", ")}`);
+              }
+              skipped.push(`${file.name}: ${parts.join("; ")}`);
             }
           } else {
             // Fallback: generic classifier for unrecognized layouts.
@@ -263,6 +299,7 @@ export default function StagingPage() {
         );
       }
       if (skipped.length) setError(`Ingestion completeness: ${skipped.join("; ")}`);
+      if (excluded.length) setExcludedNote(`Excluded by design (summary/rollup sheets, not day-level data): ${excluded.join("; ")}`);
 
       // Jump to the page containing the first invalid row.
       const reviewedRows = buildReviewRows(classifiedRecords);
@@ -577,6 +614,7 @@ export default function StagingPage() {
       <p className="muted" style={{ fontSize: 13, margin: "0 0 18px" }}>Upload raw data files, review the recomputed extraction, and verify before publishing to analytics.</p>
 
       {error && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 9, background: "color-mix(in srgb, var(--status-bad) 12%, transparent)", color: "var(--status-bad)", fontSize: 13 }}>{error}</div>}
+      {excludedNote && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 9, background: "color-mix(in srgb, var(--status-warn) 10%, transparent)", color: "var(--status-warn)", fontSize: 13 }}>{excludedNote}</div>}
       {done && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 9, background: "color-mix(in srgb, var(--status-good) 12%, transparent)", color: "var(--status-good)", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span>Published {done.inserted} new events ({done.deduped} already on file).</span>
         <button onClick={() => router.push("/")} style={{ background: "var(--status-good)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>View dashboard →</button>
