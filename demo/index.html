@@ -475,12 +475,6 @@
       grid-template-columns: 310px 1fr;
       gap: 40px;
       position: relative;
-      transition: grid-template-columns 0.3s cubic-bezier(0.16, 1, 0.3, 1), gap 0.3s ease;
-    }
-
-    .modal-body.collapsed {
-      grid-template-columns: 40px 1fr;
-      gap: 16px;
     }
 
     /* Modal Sidebar */
@@ -493,35 +487,6 @@
       display: flex;
       flex-direction: column;
       gap: 14px;
-      transition: border-color 0.2s;
-    }
-
-    .modal-sidebar.collapsed {
-      padding: 16px 0;
-      border: 1.5px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      background: var(--surface);
-      height: 200px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      gap: 12px;
-      color: var(--text-dim);
-    }
-
-    .modal-sidebar.collapsed:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .modal-sidebar.collapsed .modal-sidebar-expanded {
-      display: none;
-    }
-
-    .modal-sidebar:not(.collapsed) .modal-sidebar-collapsed {
-      display: none;
     }
 
     /* Modal Data Grid Area */
@@ -850,32 +815,18 @@
         
         <!-- Left Column: Source Stats -->
         <div class="modal-sidebar" id="modalSidebar">
-          <!-- Expanded View -->
-          <div class="modal-sidebar-expanded" style="display: flex; flex-direction: column; gap: 14px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span class="eyebrow accent">Computed Value</span>
-              <button id="modalSidebarCollapseBtn" style="background: transparent; border: none; color: var(--text-dim); cursor: pointer; display: flex; align-items: center;" title="Collapse Panel">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              </button>
+          <span class="eyebrow accent">Computed Value</span>
+          <div style="font-family: var(--font-mono); font-size: 38px; font-weight: 800; color: var(--accent); line-height: 1;">12.22%</div>
+          <p style="font-size: 12px; line-height: 1.5; color: var(--text-muted);">
+            Traced to <strong>1,660</strong> records across the uploaded spreadsheets.
+          </p>
+          <div style="border-top: 1px dashed var(--border-strong); margin: 8px 0;"></div>
+          <div style="display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; line-height: 1.5; color: var(--text-muted);">
+            <span style="color: var(--status-good); font-weight: 900; font-size: 13px;">✓</span>
+            <div>
+              <strong style="color: var(--text); display: block; margin-bottom: 2px;">Excel Schema Verified</strong>
+              Data coordinates maps directly to the active ledger sheet columns and row boundaries.
             </div>
-            <div style="font-family: var(--font-mono); font-size: 38px; font-weight: 800; color: var(--accent); line-height: 1;">12.22%</div>
-            <p style="font-size: 12px; line-height: 1.5; color: var(--text-muted);">
-              Traced to <strong>1,660</strong> records across the uploaded spreadsheets.
-            </p>
-            <div style="border-top: 1px dashed var(--border-strong); margin: 4px 0;"></div>
-            <div style="display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; line-height: 1.5; color: var(--text-muted);">
-              <span style="color: var(--status-good); font-weight: 900; font-size: 13px;">✓</span>
-              <div>
-                <strong style="color: var(--text); display: block; margin-bottom: 2px;">Excel Schema Verified</strong>
-                Data coordinates maps directly to the active ledger sheet columns and row boundaries.
-              </div>
-            </div>
-          </div>
-
-          <!-- Collapsed View -->
-          <div class="modal-sidebar-collapsed" style="display: flex; flex-direction: column; align-items: center; gap: 12px; height: 100%; justify-content: center;">
-            <span style="writing-mode: vertical-rl; text-transform: uppercase; font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em;">Trace</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
           </div>
         </div>
 
@@ -1038,7 +989,6 @@
       beamsOverlay.innerHTML = "";
       
       if (!traceModal.classList.contains("open")) return;
-      if (modalSidebar.classList.contains("collapsed")) return; // ponytail: don't draw beams if sidebar is collapsed
       
       const sidebarRect = modalSidebar.getBoundingClientRect();
       const startX = sidebarRect.right;
@@ -1082,33 +1032,11 @@
     const hideModal = () => {
       traceModal.classList.remove("open");
       beamsOverlay.innerHTML = "";
-      // Reset collapse states
-      modalSidebar.classList.remove("collapsed");
-      modalBody.classList.remove("collapsed");
     };
 
     modalCloseBtn.addEventListener("click", hideModal);
     traceModal.addEventListener("click", (e) => {
       if (e.target === traceModal) hideModal();
-    });
-
-    // Sidebar Collapse Logic
-    const modalSidebarCollapseBtn = document.getElementById("modalSidebarCollapseBtn");
-    const modalBody = document.querySelector(".modal-body");
-
-    modalSidebarCollapseBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      modalSidebar.classList.add("collapsed");
-      modalBody.classList.add("collapsed");
-      beamsOverlay.innerHTML = ""; // Clear beams when collapsed
-    });
-
-    modalSidebar.addEventListener("click", () => {
-      if (modalSidebar.classList.contains("collapsed")) {
-        modalSidebar.classList.remove("collapsed");
-        modalBody.classList.remove("collapsed");
-        setTimeout(drawBeams, 100);
-      }
     });
 
     // Select change
