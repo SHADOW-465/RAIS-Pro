@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { emitMany, type StageDayRecord } from "@/lib/ingest/emit";
 import { checkRecord } from "@/lib/entry/validate-entry";
-import { getStores } from "@/lib/store";
+import { getStores, shouldUseSupabase } from "@/lib/store";
 import { createServerClient } from "@/lib/supabase";
 
 interface IngestBody {
@@ -25,7 +25,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No records to ingest." }, { status: 400 });
     }
 
-    const isDirectEntry = records.some(r => r.extractedBy === "direct-entry");
+    // The full-day-replace step below talks to Supabase directly (the
+    // EventStore interface has no delete()); in memory-store dev/test runs
+    // there's nothing to replace against, so skip it rather than hard-fail —
+    // the CorrectionEvent supersede step further down still keeps re-edits
+    // correct either way, just without pruning the stale direct-entry rows.
+    const isDirectEntry = records.some(r => r.extractedBy === "direct-entry") && shouldUseSupabase();
     if (isDirectEntry) {
       const date = records[0].occurredOn.start;
       const shift = records[0].source.sheet;

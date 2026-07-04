@@ -7,6 +7,7 @@ import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { StageDayRecord } from "@/lib/ingest/emit";
+import { buildReviewRows, reviewSummary, applyEdit } from "@/lib/ingest/review";
 import DatasetEntryForm from "@/components/DatasetEntryForm";
 
 interface FieldDef {
@@ -39,6 +40,9 @@ const DEFAULT_FIELDS: FieldDef[] = [
 
 const CAPTURE_LABEL: Record<string, string> = { checked: "Checked", accepted: "Accept", hold: "Hold", rejected: "Reject" };
 const CAPTURE_FIELD: Record<string, string> = { checked: "Checked Qty", accepted: "Good Qty", hold: "Rework Qty", rejected: "Rejected Qty" };
+const CAPTURE_TO_RECORD_FIELD: Record<string, "checked" | "acceptedGood" | "rework" | "rejected"> = {
+  checked: "checked", accepted: "acceptedGood", hold: "rework", rejected: "rejected",
+};
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -56,9 +60,13 @@ export default function DataEntryPage() {
     machine: "All Machines",
     batch: ""
   });
-  
-  // Rows state: stageId -> fieldName -> value
-  const [rows, setRows] = useState<Record<string, Record<string, string>>>({});
+
+  // The spreadsheet's actual data: one StageDayRecord per (stage, size) slot
+  // that has a value. Same shape /staging uses — same applyEdit/buildReviewRows,
+  // same /api/ingest save path, so a manually-entered day and an uploaded day
+  // are indistinguishable everywhere downstream.
+  const [records, setRecords] = useState<StageDayRecord[]>([]);
+  const [loadingDay, setLoadingDay] = useState(false);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,10 +99,12 @@ export default function DataEntryPage() {
     dropdownOptions: []
   });
 
-  // Load registry, ledger records, and prefilled header fields on mount
+  // Load registry, ledger records, prefilled header fields, and today's
+  // spreadsheet (existing data if any, else an empty grid) on mount.
   useEffect(() => {
     loadRegistry();
     loadLedger();
+    loadDay(date);
     if (typeof window !== "undefined") {
       const savedOperator = localStorage.getItem("rais_hdr_operator");
       const savedSupervisor = localStorage.getItem("rais_hdr_supervisor");
@@ -150,6 +160,25 @@ export default function DataEntryPage() {
     }
   };
 
+  // Load whatever is ACTUALLY on file for a date — any source, not just
+  // direct entry — into the spreadsheet. A date with nothing yet just comes
+  // back empty, which is exactly "create a new date": the grid renders every
+  // registry row blank and ready to fill in.
+  const loadDay = async (d: string) => {
+    setLoadingDay(true); setError(null);
+    try {
+      const res = await fetch(`/api/day-records?date=${d}`);
+      const data = await res.json();
+      setRecords(data.records ?? []);
+    } catch (err) {
+      console.error("Error loading day records:", err);
+      setError("Failed to load existing data for this date.");
+      setRecords([]);
+    } finally {
+      setLoadingDay(false);
+    }
+  };
+
   const activeRegistry = useMemo(() => {
     return registry || DISPOSAFE_REGISTRY;
   }, [registry]);
@@ -193,110 +222,81 @@ export default function DataEntryPage() {
   // Grid row keys: one per size for size-wise stages, else a single synthetic row.
   const gridRowKeys: string[] = isSizeWise ? sizes.map(s => s.sizeId) : ["__line__"];
 
-  // rows: `${stageId}|${rowKey}` -> fieldName -> value
   const cellKey = (stageId: string, rowKey: string) => `${stageId}|${rowKey}`;
 
-  const updateCell = (stageId: string, rowKey: string, colName: string, val: string) => {
-    setRows((prev) => ({
-      ...prev,
-      [cellKey(stageId, rowKey)]: { ...(prev[cellKey(stageId, rowKey)] || {}), [colName]: val },
-    }));
+  const recordFor = (stageId: string, rowKey: string): StageDayRecord | undefined =>
+    records.find((r) => r.stageId === stageId && (r.size ?? "__line__") === rowKey);
+
+  const blankRecord = (stageId: string, rowKey: string): StageDayRecord => ({
+    occurredOn: { kind: "day", start: date, end: date },
+    stageId,
+    size: rowKey === "__line__" ? null : rowKey,
+    source: { file: "Manual Entry", fileHash: `manual-${date}`, sheet: "Data Entry", tableId: "entry" },
+    checked: null, acceptedGood: null, rework: null, rejected: null,
+    defects: [], statedPct: null,
+    extractedBy: "direct-entry",
+    ingestionId: "pending",
+  });
+
+  const CORE_FIELD_BY_COL: Record<string, "checked" | "acceptedGood" | "rework" | "rejected"> = {
+    "Checked Qty": "checked", "Good Qty": "acceptedGood", "Rework Qty": "rework", "Rejected Qty": "rejected",
   };
 
-  // KPI live calculations (across every stage × row)
+  // Edits go through review.ts's applyEdit — the SAME function /staging uses,
+  // so a manually-typed cell and a re-classified upload cell behave
+  // identically (defect-sum auto-recompute of Rejected, extractedBy tagging).
+  const updateCell = (stageId: string, rowKey: string, colName: string, val: string) => {
+    const coreField = CORE_FIELD_BY_COL[colName];
+    setRecords((prev) => {
+      let idx = prev.findIndex((r) => r.stageId === stageId && (r.size ?? "__line__") === rowKey);
+      let next = prev;
+      if (idx < 0) {
+        if (val === "") return prev; // nothing to clear on a row with no record yet
+        next = [...prev, blankRecord(stageId, rowKey)];
+        idx = next.length - 1;
+      }
+      if (val === "") {
+        return next.map((r, i) => {
+          if (i !== idx) return r;
+          if (coreField) return { ...r, [coreField]: null, extractedBy: "direct-entry" };
+          return { ...r, defects: r.defects.filter((d) => d.raw !== colName), extractedBy: "direct-entry" };
+        });
+      }
+      const num = Number(val);
+      if (isNaN(num) || num < 0) return next;
+      return applyEdit(next, idx, coreField ?? colName, num);
+    });
+  };
+
+  // KPI live calculations — every stage × size slot currently in the grid.
   const totals = useMemo(() => {
     let checked = 0, rejected = 0, good = 0, rework = 0; let hasGoodField = false;
-    for (const stageId of stageIds) {
-      const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
-      const stageSizeWise = !!stage?.sizeWise && sizes.length > 0;
-      const rowKeys = stageSizeWise ? sizes.map((s) => s.sizeId) : ["__line__"];
-      for (const rowKey of rowKeys) {
-        const c = rows[cellKey(stageId, rowKey)] || {};
-        const cVal = Number(c["Checked Qty"]) || 0;
-        const rVal = Number(c["Rejected Qty"]) || 0;
-        const rwVal = Number(c["Rework Qty"]) || 0;
-        let gVal: number;
-        if (c["Good Qty"] !== undefined && c["Good Qty"] !== "") { hasGoodField = true; gVal = Number(c["Good Qty"]) || 0; }
-        else gVal = Math.max(0, cVal - rVal - rwVal);
-        checked += cVal; rejected += rVal; good += gVal; rework += rwVal;
-      }
+    for (const r of records) {
+      const cVal = r.checked?.value ?? 0;
+      const rVal = r.rejected?.value ?? 0;
+      const rwVal = r.rework?.value ?? 0;
+      let gVal: number;
+      if (r.acceptedGood != null) { hasGoodField = true; gVal = r.acceptedGood.value; }
+      else gVal = Math.max(0, cVal - rVal - rwVal);
+      checked += cVal; rejected += rVal; good += gVal; rework += rwVal;
     }
     const rejPct = checked ? (rejected / checked) * 100 : 0;
     const fpy = checked ? (good / checked) * 100 : 0;
     return { checked, rejected, good, rework, rejPct, fpy, hasGoodField };
-  }, [rows, stageIds, activeRegistry, sizes]);
+  }, [records]);
 
-  // Smart validation checks on Submit
+  // Same recompute-from-scratch validation /staging's review grid runs
+  // (balance equation, negative values, defect-sum vs rejected, rejected >
+  // checked) — reused rather than re-implementing a thinner check here.
+  const reviewRows = useMemo(() => buildReviewRows(records), [records]);
   const blockingErrors = useMemo(() => {
     const errs: string[] = [];
     if (!hdr.operator.trim()) errs.push("Operator name is required.");
-    for (const stageId of stageIds) {
-      const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
-      const name = stage?.label || stageId;
-      const stageSizeWise = !!stage?.sizeWise && sizes.length > 0;
-      const rowKeys = stageSizeWise ? sizes.map((s) => s.sizeId) : ["__line__"];
-      for (const rowKey of rowKeys) {
-        const c = rows[cellKey(stageId, rowKey)] || {};
-        const cVal = c["Checked Qty"] !== undefined && c["Checked Qty"] !== "" ? Number(c["Checked Qty"]) : null;
-        const rVal = c["Rejected Qty"] !== undefined && c["Rejected Qty"] !== "" ? Number(c["Rejected Qty"]) : null;
-        if (cVal !== null && rVal !== null && rVal > cVal) {
-          const sizeLbl = stageSizeWise ? ` (${sizes.find(s => s.sizeId === rowKey)?.label})` : "";
-          errs.push(`${name}${sizeLbl}: Rejected (${rVal}) cannot exceed Checked (${cVal}).`);
-        }
-      }
+    for (const r of reviewRows) {
+      if (r.status === "invalid") errs.push(...r.flags.map((f) => `${r.stageLabel}: ${f}`));
     }
     return errs;
-  }, [rows, stageIds, hdr.operator, activeRegistry, sizes]);
-
-  // Build canonical ingestion payload records — one per (stage, size).
-  const buildRecords = (ingestionId: string): StageDayRecord[] => {
-    const out: StageDayRecord[] = [];
-    for (const stageId of stageIds) {
-      const stage = activeRegistry.stages.find((s: any) => s.stageId === stageId);
-      const captures: string[] = stage?.captures ?? ["checked", "accepted", "hold", "rejected"];
-      const stageSizeWise = !!stage?.sizeWise && sizes.length > 0;
-      const rowKeys = stageSizeWise ? sizes.map((s) => s.sizeId) : ["__line__"];
-      const stageDefects = (activeRegistry.defects || []).filter((d: any) => d.stages.includes(stageId));
-
-      for (const rowKey of rowKeys) {
-        const cells = rows[cellKey(stageId, rowKey)] || {};
-        const num = (f: string) => (cells[f] !== undefined && cells[f] !== "" ? Number(cells[f]) : null);
-        const cVal = captures.includes("checked") ? num("Checked Qty") : null;
-        const rVal = captures.includes("rejected") ? num("Rejected Qty") : null;
-        const rwVal = captures.includes("hold") ? num("Rework Qty") : null;
-        let gVal = captures.includes("accepted") ? num("Good Qty") : null;
-        if (gVal === null && cVal !== null && rVal !== null) gVal = Math.max(0, cVal - rVal - (rwVal ?? 0));
-
-        const defects = stageDefects
-          .map((d: any) => ({ raw: d.label, value: Number(cells[d.label]) || 0, cell: `ENTRY!${stageId}.${rowKey}.${d.defectCode}` }))
-          .filter((d: any) => d.value > 0);
-
-        // skip empty rows
-        if (cVal === null && rVal === null && defects.length === 0) continue;
-
-        const size = stageSizeWise ? rowKey : null;
-        out.push({
-          occurredOn: { kind: "day" as const, start: date, end: date },
-          stageId,
-          size,
-          source: { file: "Manual Entry", fileHash: `manual-${date}-${hdr.shift}`, sheet: hdr.shift, tableId: "entry" },
-          checked: cVal !== null ? { value: cVal, cell: `ENTRY!${stageId}.${rowKey}.checked`, header: "Checked Qty" } : null,
-          acceptedGood: gVal !== null ? { value: gVal, cell: `ENTRY!${stageId}.${rowKey}.good`, header: "Good Qty" } : null,
-          rework: rwVal !== null ? { value: rwVal, cell: `ENTRY!${stageId}.${rowKey}.rework`, header: "Rework Qty" } : null,
-          rejected: rVal !== null ? { value: rVal, cell: `ENTRY!${stageId}.${rowKey}.rejected`, header: "Rejected Qty" } : null,
-          defects,
-          statedPct: null,
-          extractedBy: "direct-entry",
-          ingestionId,
-          customFields: {
-            operator: hdr.operator, supervisor: hdr.supervisor, machine: hdr.machine,
-            product: hdr.product, size: size ?? hdr.size, batch: hdr.batch, notes,
-          },
-        });
-      }
-    }
-    return out;
-  };
+  }, [reviewRows, hdr.operator]);
 
   async function submit() {
     setAttemptedSubmit(true);
@@ -308,9 +308,19 @@ export default function DataEntryPage() {
     setError(null);
     setSuccess(null);
     const ingestionId = globalThis.crypto?.randomUUID?.() ?? `entry-${Date.now()}`;
-    const records = buildRecords(ingestionId);
-    
-    if (records.length === 0) {
+    const payload = records
+      .filter((r) => r.checked || r.acceptedGood || r.rework || r.rejected || r.defects.length > 0)
+      .map((r) => ({
+        ...r,
+        ingestionId,
+        customFields: {
+          ...r.customFields,
+          operator: hdr.operator, supervisor: hdr.supervisor, machine: hdr.machine,
+          product: hdr.product, size: r.size ?? hdr.size, batch: hdr.batch, shift: hdr.shift, notes,
+        },
+      }));
+
+    if (payload.length === 0) {
       setError("Enter quantities for at least one stage before submitting.");
       setBusy(false);
       return;
@@ -322,18 +332,17 @@ export default function DataEntryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ingestionId,
-          fileName: `Manual Entry ${date} ${hdr.shift}`,
-          records
+          fileName: `Manual Entry ${date}`,
+          records: payload
         })
       });
 
       if (!res.ok) {
         throw new Error((await res.json().catch(() => ({}))).error ?? "Submit failed");
       }
-      
-      setSuccess(`Record for ${date} (${hdr.shift}) saved and KPIs recalculated successfully.`);
+
+      setSuccess(`Record for ${date} saved and KPIs recalculated successfully.`);
       setAttemptedSubmit(false);
-      resetSpreadsheet();
       loadLedger();
       refreshEvents().catch(console.error);
     } catch (e: any) {
@@ -345,7 +354,7 @@ export default function DataEntryPage() {
   }
 
   const resetSpreadsheet = () => {
-    setRows({});
+    setRecords([]);
     setNotes("");
     setError(null);
   };
@@ -584,55 +593,48 @@ Assign another field as Rejected Quantity.`;
     }
   };
 
-  // Ledger Actions
+  // Ledger Actions — both route through the same real per-(stage,size) data
+  // /api/day-records exposes, instead of the ledger tab's own flattened
+  // (stage-only, no size) reconstruction, which is the "Edit" button's job:
+  // give the operator the full grid, not a lossy summary of it.
   const handleEditLedgerRecord = (rec: any) => {
     setDate(rec.date);
     setHdr({
-      shift: rec.shift,
-      operator: rec.operator,
-      supervisor: rec.supervisor,
-      product: rec.product,
-      size: rec.size,
-      machine: rec.machine,
-      batch: rec.batch
+      shift: rec.shift, operator: rec.operator, supervisor: rec.supervisor,
+      product: rec.product, size: rec.size, machine: rec.machine, batch: rec.batch,
     });
     setNotes(rec.notes || "");
-
-    // Unpack stage data (ledger groups by stage; load into the whole-line slot)
-    const nextRows: Record<string, Record<string, string>> = {};
-    Object.entries(rec.stageData).forEach(([stageId, data]: [string, any]) => {
-      const k = `${stageId}|__line__`;
-      nextRows[k] = {};
-      Object.entries(data).forEach(([fName, val]) => { nextRows[k][fName] = String(val ?? ""); });
-    });
-    setRows(nextRows);
     setActiveTab("entry");
-    setSuccess(`Record loaded for editing. Editing date: ${rec.date}, shift: ${rec.shift}`);
+    loadDay(rec.date);
+    setSuccess(`Record loaded for editing. Editing date: ${rec.date}.`);
   };
 
-  const handleDuplicateLedgerRecord = (rec: any) => {
-    setDate(today()); // Set date to today
+  const handleDuplicateLedgerRecord = async (rec: any) => {
     setHdr({
-      shift: rec.shift,
-      operator: rec.operator,
-      supervisor: rec.supervisor,
-      product: rec.product,
-      size: rec.size,
-      machine: rec.machine,
-      batch: rec.batch
+      shift: rec.shift, operator: rec.operator, supervisor: rec.supervisor,
+      product: rec.product, size: rec.size, machine: rec.machine, batch: rec.batch,
     });
     setNotes(rec.notes || "");
-
-    // Unpack stage data (ledger groups by stage; load into the whole-line slot)
-    const nextRows: Record<string, Record<string, string>> = {};
-    Object.entries(rec.stageData).forEach(([stageId, data]: [string, any]) => {
-      const k = `${stageId}|__line__`;
-      nextRows[k] = {};
-      Object.entries(data).forEach(([fName, val]) => { nextRows[k][fName] = String(val ?? ""); });
-    });
-    setRows(nextRows);
     setActiveTab("entry");
-    setSuccess("Record duplicated. Date reset to today. Modify and click Submit to save.");
+    const newDate = today();
+    try {
+      const res = await fetch(`/api/day-records?date=${rec.date}`);
+      const data = await res.json();
+      const duplicated: StageDayRecord[] = (data.records ?? []).map((r: StageDayRecord) => ({
+        ...r,
+        occurredOn: { kind: "day" as const, start: newDate, end: newDate },
+        source: { ...r.source, file: "Manual Entry", fileHash: `manual-${newDate}` },
+        extractedBy: "direct-entry",
+        ingestionId: "pending",
+      }));
+      setDate(newDate);
+      setRecords(duplicated);
+      setSuccess("Record duplicated. Date reset to today. Modify and click Submit to save.");
+    } catch {
+      setDate(newDate);
+      setRecords([]);
+      setError("Could not load the source date's data to duplicate.");
+    }
   };
 
   const handleDeleteLedgerRecord = async (rec: any) => {
@@ -782,7 +784,7 @@ Assign another field as Rejected Quantity.`;
             <div style={{ display: "flex", gap: 14, alignItems: "flex-end", marginBottom: 16, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12 }}>
               <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
                 Report Date
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inp, width: 160 }} />
+                <input type="date" value={date} onChange={(e) => { setDate(e.target.value); loadDay(e.target.value); }} style={{ ...inp, width: 160 }} />
               </label>
               <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
                 Shift
@@ -791,6 +793,7 @@ Assign another field as Rejected Quantity.`;
                   <option>Night Shift</option>
                 </select>
               </label>
+              {loadingDay && <span className="muted" style={{ fontSize: 12, alignSelf: "center" }}>Loading {date}…</span>}
             </div>
 
             {/* Header info */}
@@ -852,20 +855,29 @@ Assign another field as Rejected Quantity.`;
                   <tbody>
                     {gridRowKeys.map((rowKey) => {
                       const label = isSizeWise ? (sizes.find(s => s.sizeId === rowKey)?.label ?? rowKey) : "Whole line";
-                      const cells = rows[cellKey(activeStageId!, rowKey)] || {};
+                      const rec = recordFor(activeStageId!, rowKey);
+                      const captureValue = (c: string): string => {
+                        const field = CAPTURE_TO_RECORD_FIELD[c];
+                        const sv = rec?.[field];
+                        return sv != null ? String(sv.value) : "";
+                      };
+                      const defectValue = (label: string): string => {
+                        const d = rec?.defects.find((x) => x.raw === label);
+                        return d ? String(d.value) : "";
+                      };
                       return (
                         <tr key={rowKey} style={{ borderBottom: "1px solid var(--border)" }}>
                           <td style={{ ...etd, textAlign: "left", fontWeight: 700, background: "var(--surface)", position: "sticky", left: 0, zIndex: 1 }}>{label}</td>
                           {activeCaptures.map(c => (
                             <td key={c} style={{ ...etd, padding: "3px 4px" }}>
-                              <input type="number" inputMode="numeric" value={cells[CAPTURE_FIELD[c]] ?? ""}
+                              <input type="number" inputMode="numeric" value={captureValue(c)}
                                 onChange={(e) => updateCell(activeStageId!, rowKey, CAPTURE_FIELD[c], e.target.value)}
                                 style={{ ...inp, width: 84, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right" }} />
                             </td>
                           ))}
                           {activeDefects.map((d: any) => (
                             <td key={d.defectCode} style={{ ...etd, padding: "3px 4px" }}>
-                              <input type="number" inputMode="numeric" value={cells[d.label] ?? ""}
+                              <input type="number" inputMode="numeric" value={defectValue(d.label)}
                                 onChange={(e) => updateCell(activeStageId!, rowKey, d.label, e.target.value)}
                                 style={{ ...inp, width: 64, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right" }} />
                             </td>
@@ -877,7 +889,7 @@ Assign another field as Rejected Quantity.`;
                 </table>
               </div>
               <p className="muted" style={{ fontSize: 11, margin: 0 }}>
-                💡 Enter per-{isSizeWise ? "size" : "line"} quantities for <strong>{activeStage?.label}</strong>. Switch stages with the tabs above; each stage saves its own rows.
+                💡 Enter per-{isSizeWise ? "size" : "line"} quantities for <strong>{activeStage?.label}</strong>. Switch stages with the tabs above — Submit saves every stage's entered rows for {date} in one go.
               </p>
             </Section>
 

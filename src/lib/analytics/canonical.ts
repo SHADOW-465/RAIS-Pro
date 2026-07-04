@@ -44,8 +44,15 @@ function dayOf(e: Event): string {
 function fileOf(e: Event): string {
   return (e as any).provenance?.file ?? "";
 }
-function precedenceOf(file: string): number {
-  const base = file.split(/[\\/]/).pop() ?? file;
+function isDirectEntry(e: Event): boolean {
+  return (e as any).extractedBy === "direct-entry";
+}
+/** A human explicitly entering/correcting a day's numbers always wins — never
+ *  silently outvoted by a same-day upload. Everything else falls back to file
+ *  routeFamily precedence (0 = unrouteable, e.g. a cumulative/summary sheet). */
+function precedenceOf(e: Event): number {
+  if (isDirectEntry(e)) return Number.POSITIVE_INFINITY;
+  const base = fileOf(e).split(/[\\/]/).pop() ?? fileOf(e);
   const fam = routeFamily(base);
   return fam ? (PRECEDENCE[fam] ?? 0) : 0;
 }
@@ -84,7 +91,7 @@ export function canonicalizeEvents(events: Event[]): Event[] {
     let winnerScore = -1;
     for (const e of tier) {
       const f = fileOf(e);
-      const score = precedenceOf(f);
+      const score = precedenceOf(e);
       if (score > winnerScore || (score === winnerScore && (winner === null || f < winner))) {
         winnerScore = score;
         winner = f;
