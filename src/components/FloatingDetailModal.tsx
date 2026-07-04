@@ -359,30 +359,33 @@ export default function FloatingDetailModal({
                 <div>
                   {activeRawSheets.length > 0 ? (
                     <div>
-                      {/* Sheet Tabs */}
-                      <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto", paddingBottom: 4 }}>
-                        {activeRawSheets.map((s) => {
-                          const isActive = s.name === activeTab;
-                          return (
-                            <button
-                              key={s.name}
-                              onClick={() => setActiveTab(s.name)}
-                              style={{
-                                padding: "6px 12px",
-                                borderRadius: "var(--radius-sm)",
-                                fontSize: 11.5,
-                                fontWeight: 700,
-                                cursor: "pointer",
-                                border: `1px solid ${isActive ? "var(--accent)" : "var(--border-strong)"}`,
-                                background: isActive ? "var(--accent)" : "var(--surface)",
-                                color: isActive ? "var(--text-invert)" : "var(--text-2)",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
+                      {/* Sheet Select Dropdown */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                          Source File:
+                        </span>
+                        <select
+                          value={activeTab}
+                          onChange={(e) => setActiveTab(e.target.value)}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: "var(--radius-sm)",
+                            border: "1px solid var(--border-strong)",
+                            background: "var(--surface)",
+                            color: "var(--text)",
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            outline: "none",
+                            fontFamily: "var(--font-sans)",
+                          }}
+                        >
+                          {activeRawSheets.map((s) => (
+                            <option key={s.name} value={s.name} style={{ background: "var(--surface)", color: "var(--text)" }}>
                               {sheetLabel(s)}
-                            </button>
-                          );
-                        })}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       {activeRawSheets.map((sheet) => {
