@@ -15,6 +15,7 @@
 import * as xlsx from "xlsx";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { toLocalISODate } from "@/lib/ingest/date";
+import { norm, headerSections } from "./header-sections";
 
 interface StageCols { stageId: string; chk: number | null; acc: number | null; hold: number | null; rej: number | null; }
 
@@ -47,27 +48,15 @@ const SUB_ACC = /^acpt\s*qty$|^accept/i;
 const SUB_HOLD = /^hold$/i;
 const SUB_REJ = /^rej$/i;
 
-const norm = (c: unknown): string => String(c ?? "").replace(/\s+/g, " ").trim();
-
-/** Non-empty cells of the group-header row, sorted by column — each one starts
- *  a "section" that runs until the next non-empty cell (or row end). */
-function sections(groupRow: unknown[]): { col: number; text: string }[] {
-  const out: { col: number; text: string }[] = [];
-  groupRow.forEach((c, i) => { const t = norm(c); if (t) out.push({ col: i, text: t }); });
-  return out;
-}
-
 /** Resolve this sheet's actual stage->column map from its own header rows.
  *  Stages absent from the sheet (e.g. Final/Balloon-Production pre-July25)
  *  are simply not returned — never guessed. */
 function resolveStageColumns(groupRow: unknown[], subRow: unknown[], rowLen: number): StageCols[] {
-  const secs = sections(groupRow);
+  const secs = headerSections(groupRow, rowLen);
   const out: StageCols[] = [];
-  for (let i = 0; i < secs.length; i++) {
-    const { col, text } = secs[i];
+  for (const { col, text, end } of secs) {
     const match = STAGE_PATTERNS.find((p) => p.all.every((re) => re.test(text)));
     if (!match) continue;
-    const end = i + 1 < secs.length ? secs[i + 1].col : rowLen;
     const cols: StageCols = { stageId: match.stageId, chk: null, acc: null, hold: null, rej: null };
     if (end - col <= 1) {
       // single unlabeled value column (LEACHING, CHLORINATION, HANGING, GAUGE,
@@ -98,7 +87,7 @@ function findHeaderRows(rows: unknown[][]): { groupRowIdx: number; subRowIdx: nu
   let best = -1, bestScore = 0;
   for (let i = 0; i < limit; i++) {
     const row = rows[i] ?? [];
-    const score = sections(row).filter((s) => STAGE_PATTERNS.some((p) => p.all.every((re) => re.test(s.text)))).length;
+    const score = headerSections(row, row.length).filter((s) => STAGE_PATTERNS.some((p) => p.all.every((re) => re.test(s.text)))).length;
     if (score > bestScore) { bestScore = score; best = i; }
   }
   if (best < 0 || bestScore < 4) return null; // too few stage matches — not this template

@@ -10,7 +10,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { recordsFromBuffer } from "../src/lib/store/seed";
 
-const ROOT = join(process.cwd(), "ANALYTICAL DATA");
+const ROOTS = [join(process.cwd(), "ANALYTICAL DATA"), join(process.cwd(), "DATA")];
 function walk(dir: string): string[] {
   const out: string[] = [];
   for (const e of readdirSync(dir)) {
@@ -22,7 +22,7 @@ function walk(dir: string): string[] {
   return out;
 }
 
-const files = existsSync(ROOT) ? walk(ROOT) : [];
+const files = ROOTS.filter(existsSync).flatMap(walk);
 const all: any[] = [];
 for (const f of files) {
   try {

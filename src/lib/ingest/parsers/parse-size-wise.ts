@@ -2,6 +2,53 @@
 import * as xlsx from "xlsx";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { dateFromFilename, toLocalISODate } from "@/lib/ingest/date";
+import { norm, headerSections } from "./header-sections";
+
+interface ValveBlockCols { stageId: "balloon" | "valve-integrity"; chk: number; acc: number | null; hold: number | null; rej: number | null; defects: { col: number; label: string }[] }
+
+const SUB_CHK = /^(checked|chkd|check)\s*qty$/i;
+const SUB_ACC = /^(accept|acpt)\s*qty$/i;
+const SUB_HOLD = /^hold\s*qty$/i;
+const SUB_REJ = /^rej\.?\s*qty$/i;
+const SUB_SKIP = /^batch\s*no\.?$|^remarks?$|^rej\.?\s*%$|^s\.?\s*no\.?$/i;
+
+/** Resolve the Balloon / Valve Integrity column blocks from the sheet's own
+ *  two-row header (group row: "BALLOON…"/"VALVE INTEGRITY"; sub row: CHECKED
+ *  QTY/ACCEPT QTY/HOLD QTY/REJ. QTY + defect labels) instead of a fixed
+ *  index map. Falls back to positional order (Balloon block, then Valve
+ *  Integrity block — the corpus's consistent left-to-right layout) if the
+ *  group row's labels aren't recognizable, so a stray merged-cell quirk in
+ *  the group row never drops the whole sheet. */
+function resolveValveBlocks(groupRow: unknown[] | undefined, subRow: unknown[], rowLen: number): ValveBlockCols[] {
+  const subSecs = headerSections(subRow, rowLen).filter((s) => SUB_CHK.test(s.text));
+  if (subSecs.length < 2) return []; // needs both a Balloon and a Valve Integrity block
+
+  const order: ("balloon" | "valve-integrity")[] = ["balloon", "valve-integrity"];
+  if (groupRow) {
+    const groupSecs = headerSections(groupRow, rowLen);
+    const balloon = groupSecs.find((s) => /balloon|baloon/i.test(s.text));
+    const valve = groupSecs.find((s) => /valve/i.test(s.text) && /integrity/i.test(s.text));
+    if (balloon && valve) {
+      // Assign each CHECKED-QTY column to whichever group section's span contains it.
+      order[0] = subSecs[0].col >= balloon.col && subSecs[0].col < balloon.end ? "balloon" : "valve-integrity";
+      order[1] = order[0] === "balloon" ? "valve-integrity" : "balloon";
+    }
+  }
+
+  return subSecs.slice(0, 2).map((chkSec, i) => {
+    const end = i + 1 < subSecs.length ? subSecs[i + 1].col : rowLen;
+    const cols: ValveBlockCols = { stageId: order[i], chk: chkSec.col, acc: null, hold: null, rej: null, defects: [] };
+    for (let c = chkSec.col + 1; c < end; c++) {
+      const text = norm(subRow[c]);
+      if (!text || SUB_SKIP.test(text)) continue;
+      if (SUB_ACC.test(text)) cols.acc = c;
+      else if (SUB_HOLD.test(text)) cols.hold = c;
+      else if (SUB_REJ.test(text)) cols.rej = c;
+      else cols.defects.push({ col: c, label: text }); // defect column — real header text, not a hardcoded label
+    }
+    return cols;
+  });
+}
 
 /** Decide whether a size-wise workbook is a Valve (balloon+valve) or Visual
  *  book. Filename hint first (folder path on disk), then sheet-content sniffing
@@ -46,33 +93,18 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
       const rows: any[][] = xlsx.utils.sheet_to_json(ws, { header: 1, defval: null });
 
       let headerRowIdx = -1;
-      let headers: string[] = [];
       for (let i = 0; i < Math.min(20, rows.length); i++) {
         const row = rows[i];
         if (Array.isArray(row) && row.some((v) => v != null && String(v).trim().toUpperCase() === "DATE")) {
           headerRowIdx = i;
-          headers = row.map((v) => String(v || "").trim().toUpperCase());
           break;
         }
       }
-
       if (headerRowIdx === -1) continue;
 
-      // Balloon columns: DATE (0), CHECKED QTY (3), ACCEPT QTY (4), REJ. QTY (6), defects: 8, 9, 10, 11
-      // Valve columns: DATE (0), CHECKED QTY (15), ACCEPT QTY (16), REJ. QTY (18), defects: 20, 21, 22, 23, 24
-      const bCheckedIdx = 3;
-      const bAcceptIdx = 4;
-      const bHoldIdx = 5;
-      const bRejectedIdx = 6;
-      const bDefectStart = 8;
-      const bDefectLabels = ["STRUCK BALLOON", "BALLOON BURST", "LEAKAGE", "OTHERS"];
-
-      const vCheckedIdx = 15;
-      const vAcceptIdx = 16;
-      const vHoldIdx = 17;
-      const vRejectedIdx = 18;
-      const vDefectStart = 20;
-      const vDefectLabels = ["LEAKAGE", "90-10", "BUBBLE", "THIN SPOT", "OTHERS"];
+      const rowLen = rows[headerRowIdx]?.length ?? 0;
+      const blocks = resolveValveBlocks(rows[headerRowIdx - 1], rows[headerRowIdx] ?? [], rowLen);
+      if (blocks.length === 0) continue; // doesn't match this template — nothing to extract
 
       for (let i = headerRowIdx + 1; i < rows.length; i++) {
         const row = rows[i];
@@ -80,65 +112,31 @@ export function parseSizeWise(buf: Buffer | ArrayBuffer, file: string): StageDay
         const iso = toLocalISODate(row[0]);
         if (!iso) continue; // Skip non-date rows
 
-        // Balloon Balloon Inspection
-        const bChecked = Number(row[bCheckedIdx]);
-        const bRej = Number(row[bRejectedIdx]);
-        if (!isNaN(bChecked) && bChecked > 0) {
-          const defects = [];
-          for (let c = 0; c < 4; c++) {
-            const val = Number(row[bDefectStart + c]);
-            if (!isNaN(val) && val > 0) {
-              defects.push({
-                raw: bDefectLabels[c],
-                value: Math.round(val),
-                cell: `${sheetName}!${String.fromCharCode(65 + bDefectStart + c)}${i + 1}`,
-              });
-            }
-          }
-          records.push({
-            occurredOn: { kind: "day", start: iso, end: iso },
-            stageId: "balloon",
-            size,
-            source: { file, fileHash: "local", sheet: sheetName, tableId: "valve-balloon-row" },
-            checked: { value: Math.round(bChecked), cell: `${sheetName}!${String.fromCharCode(65 + bCheckedIdx)}${i + 1}`, header: "CHECKED QTY" },
-            acceptedGood: !isNaN(Number(row[bAcceptIdx])) ? { value: Math.round(Number(row[bAcceptIdx])), cell: `${sheetName}!${String.fromCharCode(65 + bAcceptIdx)}${i + 1}`, header: "ACCEPT QTY" } : null,
-            rework: !isNaN(Number(row[bHoldIdx])) ? { value: Math.round(Number(row[bHoldIdx])), cell: `${sheetName}!${String.fromCharCode(65 + bHoldIdx)}${i + 1}`, header: "HOLD QTY" } : null,
-            rejected: { value: Math.round(bRej || 0), cell: `${sheetName}!${String.fromCharCode(65 + bRejectedIdx)}${i + 1}`, header: "REJ. QTY" },
-            defects,
-            statedPct: null,
-            extractedBy: "heuristic",
-            ingestionId: `init-seed-size-valve-balloon-${sheetName}-${iso}`,
-          });
-        }
+        for (const b of blocks) {
+          const checked = Number(row[b.chk]);
+          const rej = Number(row[b.rej ?? -1]);
+          if (isNaN(checked) || checked <= 0) continue;
 
-        // Valve Integrity
-        const vChecked = Number(row[vCheckedIdx]);
-        const vRej = Number(row[vRejectedIdx]);
-        if (!isNaN(vChecked) && vChecked > 0) {
           const defects = [];
-          for (let c = 0; c < 5; c++) {
-            const val = Number(row[vDefectStart + c]);
+          for (const d of b.defects) {
+            const val = Number(row[d.col]);
             if (!isNaN(val) && val > 0) {
-              defects.push({
-                raw: vDefectLabels[c],
-                value: Math.round(val),
-                cell: `${sheetName}!${String.fromCharCode(65 + vDefectStart + c)}${i + 1}`,
-              });
+              defects.push({ raw: d.label, value: Math.round(val), cell: `${sheetName}!${String.fromCharCode(65 + d.col)}${i + 1}` });
             }
           }
           records.push({
             occurredOn: { kind: "day", start: iso, end: iso },
-            stageId: "valve-integrity",
+            stageId: b.stageId,
             size,
-            source: { file, fileHash: "local", sheet: sheetName, tableId: "valve-integrity-row" },
-            checked: { value: Math.round(vChecked), cell: `${sheetName}!${String.fromCharCode(65 + vCheckedIdx)}${i + 1}`, header: "CHECKED QTY" },
-            acceptedGood: !isNaN(Number(row[vAcceptIdx])) ? { value: Math.round(Number(row[vAcceptIdx])), cell: `${sheetName}!${String.fromCharCode(65 + vAcceptIdx)}${i + 1}`, header: "ACCEPT QTY" } : null,
-            rework: !isNaN(Number(row[vHoldIdx])) ? { value: Math.round(Number(row[vHoldIdx])), cell: `${sheetName}!${String.fromCharCode(65 + vHoldIdx)}${i + 1}`, header: "HOLD QTY" } : null,
-            rejected: { value: Math.round(vRej || 0), cell: `${sheetName}!${String.fromCharCode(65 + vRejectedIdx)}${i + 1}`, header: "REJ. QTY" },
+            source: { file, fileHash: "local", sheet: sheetName, tableId: `valve-${b.stageId}-row` },
+            checked: { value: Math.round(checked), cell: `${sheetName}!${String.fromCharCode(65 + b.chk)}${i + 1}`, header: "CHECKED QTY" },
+            acceptedGood: b.acc != null && !isNaN(Number(row[b.acc])) ? { value: Math.round(Number(row[b.acc])), cell: `${sheetName}!${String.fromCharCode(65 + b.acc)}${i + 1}`, header: "ACCEPT QTY" } : null,
+            rework: b.hold != null && !isNaN(Number(row[b.hold])) ? { value: Math.round(Number(row[b.hold])), cell: `${sheetName}!${String.fromCharCode(65 + b.hold)}${i + 1}`, header: "HOLD QTY" } : null,
+            rejected: { value: Math.round(rej || 0), cell: b.rej != null ? `${sheetName}!${String.fromCharCode(65 + b.rej)}${i + 1}` : "", header: "REJ. QTY" },
             defects,
             statedPct: null,
             extractedBy: "heuristic",
-            ingestionId: `init-seed-size-valve-integrity-${sheetName}-${iso}`,
+            ingestionId: `init-seed-size-valve-${b.stageId}-${sheetName}-${iso}`,
           });
         }
       }
