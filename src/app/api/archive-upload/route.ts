@@ -72,12 +72,19 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Supabase durable archive (authoritative) ─────────────────────────────
+    // file_bytes must go over the wire as a Postgres bytea hex literal
+    // ("\x<hex>"), NOT a raw Buffer — supabase-js JSON-serializes the request
+    // body, and Node's Buffer.toJSON() silently turns a bare Buffer into
+    // {"type":"Buffer","data":[...]}, which Postgres then stores as the
+    // literal TEXT of that JSON descriptor, not the real file bytes. Every
+    // read of raw_files.file_bytes (e.g. /api/raw-file, for Verify Mode)
+    // would come back corrupted without this.
     const db = createServerClient();
     const { error: dbError } = await db.from("raw_files").upsert(
       {
         file_hash: hash,
         file_name: file.name,
-        file_bytes: buffer,
+        file_bytes: `\\x${buffer.toString("hex")}`,
         recorded_at: new Date().toISOString(),
       },
       { onConflict: "file_hash" }

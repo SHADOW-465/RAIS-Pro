@@ -12,6 +12,9 @@ export interface SourceRow {
   type: string;        // production | inspection | rejection …
   qty: number | string;
   file: string;        // source workbook / "Manual Entry"
+  fileHash?: string | null; // content hash into raw_files — lets Verify Mode
+                             // fetch this file's bytes even if it wasn't part
+                             // of the CURRENT browser session's upload
   sheet?: string;
   cell: string;        // A1 ref or ENTRY!… token
 }
@@ -61,6 +64,46 @@ export default function FloatingDetailModal({
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const [beams, setBeams] = useState<Beam[]>([]);
 
+  // rawSheets (prop) only ever holds the CURRENT browser session's cached
+  // upload — sourceRows can span the full historical ledger, built from
+  // files uploaded in past sessions. Those files' bytes are archived
+  // durably in raw_files, keyed by the fileHash every event already carries
+  // (see /api/archive-upload, /api/raw-file). Fetch+parse whichever
+  // contributing files aren't already covered, on demand, so "View Source"
+  // reconstructs the real worksheet for ledger-wide metrics too, not just
+  // the last-uploaded file.
+  const [fetchedRawSheets, setFetchedRawSheets] = useState<RawSheet[]>([]);
+  const fetchingHashes = useRef<Set<string>>(new Set());
+
+  const allRawSheets = useMemo(() => [...(rawSheets ?? []), ...fetchedRawSheets], [rawSheets, fetchedRawSheets]);
+
+  useEffect(() => {
+    if (!showSource || !sourceRows) return;
+    const covered = new Set(allRawSheets.map((s) => s.fileName));
+    const toFetch = new Map<string, string>(); // fileHash -> file name
+    for (const r of sourceRows) {
+      if (!r.fileHash || !r.file || covered.has(r.file) || fetchingHashes.current.has(r.fileHash)) continue;
+      toFetch.set(r.fileHash, r.file);
+    }
+    if (toFetch.size === 0) return;
+
+    (async () => {
+      const { parseWorkbookBuffer } = await import("@/lib/parser");
+      for (const [hash, fileName] of toFetch) {
+        fetchingHashes.current.add(hash);
+        try {
+          const res = await fetch(`/api/raw-file?hash=${encodeURIComponent(hash)}`);
+          if (!res.ok) continue; // best-effort — falls back to the flat provenance table
+          const buf = await res.arrayBuffer();
+          const { rawSheets: parsed } = parseWorkbookBuffer(buf, fileName);
+          setFetchedRawSheets((prev) => [...prev, ...parsed]);
+        } catch {
+          // best-effort — never blocks the modal
+        }
+      }
+    })();
+  }, [showSource, sourceRows, allRawSheets]);
+
   // Find sheets that contributed to this metric based on sourceRows
   const contributingSheets = useMemo(() => {
     if (!sourceRows) return [];
@@ -73,15 +116,24 @@ export default function FloatingDetailModal({
 
   // Find raw sheets matching contributing sheets
   const activeRawSheets = useMemo(() => {
-    if (!rawSheets || contributingSheets.length === 0) return [];
-    return rawSheets.filter(s => 
+    if (allRawSheets.length === 0 || contributingSheets.length === 0) return [];
+    return allRawSheets.filter(s =>
       contributingSheets.some(cs => {
         const cleanS = s.name.toLowerCase().trim();
         const cleanCs = cs.toLowerCase().trim();
         return cleanS === cleanCs || cleanS.endsWith(cleanCs) || cleanCs.endsWith(cleanS);
       })
     );
-  }, [rawSheets, contributingSheets]);
+  }, [allRawSheets, contributingSheets]);
+
+  // Tab label: bare stage stem, UNLESS more than one contributing raw sheet
+  // shares that stem (a metric aggregated across several monthly files) —
+  // then disambiguate by source file so tabs are never visually duplicated.
+  const sheetLabel = useCallback((s: RawSheet) => {
+    const stem = s.name.split(" - ").slice(-1)[0];
+    const collisions = activeRawSheets.filter((x) => x.name.split(" - ").slice(-1)[0] === stem).length;
+    return collisions > 1 ? `${stem} — ${s.fileName}` : stem;
+  }, [activeRawSheets]);
 
   const [activeTab, setActiveTab] = useState<string>("");
 
@@ -310,7 +362,6 @@ export default function FloatingDetailModal({
                       {/* Sheet Tabs */}
                       <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto", paddingBottom: 4 }}>
                         {activeRawSheets.map((s) => {
-                          const sheetLabel = s.name.split(" - ").slice(-1)[0];
                           const isActive = s.name === activeTab;
                           return (
                             <button
@@ -328,7 +379,7 @@ export default function FloatingDetailModal({
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              {sheetLabel}
+                              {sheetLabel(s)}
                             </button>
                           );
                         })}

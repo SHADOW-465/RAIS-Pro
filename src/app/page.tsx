@@ -83,6 +83,7 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
       type: e.eventType + (e.disposition ? `·${e.disposition}` : "") + (e.defectCodeRaw ? ` ${e.defectCodeRaw}` : ""),
       qty: e.quantity ?? e.statedValue ?? "—",
       file: prov.file ?? "Manual Entry",
+      fileHash: prov.fileHash ?? null,
       sheet: prov.sheet,
       cell: prov.cells?.[0] ?? "ENTRY",
     });
