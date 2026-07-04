@@ -108,7 +108,17 @@ export function classifyRejectionSheets(
     const rejectedColumn = pickColumn(cols, /reject|rej/i, /%|percent/i);
     const pctColumn = pickColumn(cols, /%|percent/i);
 
-    const source = { file: sheet.fileName, fileHash, sheet: sheet.name, tableId: "t1" };
+    // sheet.name is "<fileName> - <sheetName>" (RawSheet's cross-file display
+    // key, built in src/lib/parser.ts for the Workbooks explorer) — NOT the
+    // true Excel sheet name. Every other family parser's source.sheet holds
+    // the raw sheet name; this one must too, or any consumer that compares
+    // source.sheet against the workbook's actual sheet names (the /staging
+    // ingestion-completeness check; Verify Mode's sheet lookup) never finds a
+    // match and misreports a fully-ingested sheet as skipped.
+    const rawSheetName = sheet.name.startsWith(`${sheet.fileName} - `)
+      ? sheet.name.slice(sheet.fileName.length + 3)
+      : sheet.name;
+    const source = { file: sheet.fileName, fileHash, sheet: rawSheetName, tableId: "t1" };
     let dayCount = 0;
     let sampleDate: string | null = null;
 
@@ -125,12 +135,12 @@ export function classifyRejectionSheets(
           occurredOn: { kind: "day", start: iso, end: iso },
           stageId: stage.stageId,
           source,
-          checked: checked != null && checked >= 0 ? { value: Math.round(checked), cell: `${sheet.name}!${checkedColumn}${r}`, header: checkedColumn! } : null,
+          checked: checked != null && checked >= 0 ? { value: Math.round(checked), cell: `${rawSheetName}!${checkedColumn}${r}`, header: checkedColumn! } : null,
           acceptedGood: null,
           rework: null,
-          rejected: rejected != null && rejected >= 0 ? { value: Math.round(rejected), cell: `${sheet.name}!${rejectedColumn}${r}`, header: rejectedColumn! } : null,
+          rejected: rejected != null && rejected >= 0 ? { value: Math.round(rejected), cell: `${rawSheetName}!${rejectedColumn}${r}`, header: rejectedColumn! } : null,
           defects: [],
-          statedPct: pctVal != null && pctColumn ? { value: pctVal, cell: `${sheet.name}!${pctColumn}${r}`, formula: null } : null,
+          statedPct: pctVal != null && pctColumn ? { value: pctVal, cell: `${rawSheetName}!${pctColumn}${r}`, formula: null } : null,
           extractedBy: "heuristic",
           ingestionId,
         });

@@ -85,4 +85,21 @@ describe("classifyRejectionSheets", () => {
     const issues = records.flatMap(checkRecord);
     expect(issues.some((i) => i.code === "V-001")).toBe(true); // rejected > checked
   });
+
+  test("source.sheet holds the true Excel sheet name, not parser.ts's '<file> - <sheet>' display key", () => {
+    // src/lib/parser.ts's RawSheet.name is "<fileName> - <sheetName>" (a
+    // cross-file display key for the Workbooks explorer). Any consumer that
+    // diffs record.source.sheet against the workbook's real sheet names (the
+    // /staging ingestion-completeness check; Verify Mode's sheet lookup) must
+    // see the RAW name here, or every rejection-analysis sheet is
+    // unconditionally misreported as "not ingested" despite producing events.
+    const prefixed: RawSheet = {
+      ...visualSheet(),
+      name: "01 REJECTION ANALYSIS-APRIL 2025.xlsx - VISUAL",
+    };
+    const { records } = classifyRejectionSheets([prefixed], "ing-prefixed");
+    expect(records.length).toBeGreaterThan(0);
+    expect(records.every((r) => r.source.sheet === "VISUAL")).toBe(true);
+    expect(records.every((r) => r.checked?.cell.startsWith("VISUAL!"))).toBe(true);
+  });
 });
