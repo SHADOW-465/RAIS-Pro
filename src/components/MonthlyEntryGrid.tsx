@@ -8,7 +8,7 @@
 // so a day entered here is indistinguishable from one entered anywhere else
 // (see docs/superpowers/specs/2026-07-05-monthly-data-entry-design.md).
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { buildReviewRows, applyEdit } from "@/lib/ingest/review";
@@ -90,7 +90,7 @@ export default function MonthlyEntryGrid() {
 
   const rowKey = isSizeWise ? activeSize : "__line__";
 
-  const loadMonth = async () => {
+  const loadMonth = useCallback(async () => {
     if (!activeStageId) return;
     setLoading(true); setError(null);
     const from = isoDate(year, month, 1);
@@ -108,12 +108,11 @@ export default function MonthlyEntryGrid() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeStageId, activeSize, year, month, isSizeWise]);
 
   useEffect(() => {
     loadMonth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStageId, activeSize, year, month]);
+  }, [loadMonth]);
 
   const days = useMemo(
     () => Array.from({ length: daysInMonth(year, month) }, (_, i) => isoDate(year, month, i + 1)),
