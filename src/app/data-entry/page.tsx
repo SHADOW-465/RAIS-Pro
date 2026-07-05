@@ -10,6 +10,7 @@ import type { StageDayRecord } from "@/lib/ingest/emit";
 import { buildReviewRows, reviewSummary, applyEdit } from "@/lib/ingest/review";
 import { CAPTURE_LABEL, CAPTURE_FIELD, CAPTURE_TO_RECORD_FIELD, CORE_FIELD_BY_COL } from "@/lib/ingest/capture-fields";
 import DatasetEntryForm from "@/components/DatasetEntryForm";
+import MonthlyEntryGrid from "@/components/MonthlyEntryGrid";
 
 interface FieldDef {
   name: string;
@@ -43,7 +44,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function DataEntryPage() {
   const { refreshEvents } = useEvents();
-  const [activeTab, setActiveTab] = useState<"entry" | "ledger" | "custom">("entry");
+  const [activeTab, setActiveTab] = useState<"entry" | "monthly" | "ledger" | "custom">("entry");
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
   const [date, setDate] = useState(today());
   const [hdr, setHdr] = useState({
@@ -734,6 +735,21 @@ Assign another field as Rejected Quantity.`;
             New Data Entry
           </button>
           <button
+            onClick={() => setActiveTab("monthly")}
+            style={{
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "0",
+              background: activeTab === "monthly" ? "var(--accent)" : "var(--surface-2)",
+              color: activeTab === "monthly" ? "var(--text-invert)" : "var(--text-2)",
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer"
+            }}
+          >
+            Monthly Entry
+          </button>
+          <button
             onClick={() => { setActiveTab("ledger"); loadLedger(); }}
             style={{
               padding: "8px 16px",
@@ -789,6 +805,8 @@ Assign another field as Rejected Quantity.`;
 
       {activeTab === "custom" ? (
         <DatasetEntryForm />
+      ) : activeTab === "monthly" ? (
+        <MonthlyEntryGrid />
       ) : activeTab === "entry" ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20 }}>
           {/* Main workspace */}
