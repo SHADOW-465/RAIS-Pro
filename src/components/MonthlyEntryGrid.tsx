@@ -38,6 +38,7 @@ export default function MonthlyEntryGrid() {
   const [records, setRecords] = useState<StageDayRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     fetch("/api/schema")
@@ -90,6 +91,41 @@ export default function MonthlyEntryGrid() {
 
   const rowKey = isSizeWise ? activeSize : "__line__";
 
+  const blankRecord = (date: string): StageDayRecord => ({
+    occurredOn: { kind: "day", start: date, end: date },
+    stageId: activeStageId!,
+    size: rowKey === "__line__" ? null : rowKey,
+    source: { file: "Manual Entry", fileHash: `manual-${date}`, sheet: "Data Entry", tableId: "entry" },
+    checked: null, acceptedGood: null, rework: null, rejected: null,
+    defects: [], statedPct: null,
+    extractedBy: "direct-entry",
+    ingestionId: "pending",
+  });
+
+  const updateCell = (date: string, colName: string, val: string) => {
+    const coreField = CORE_FIELD_BY_COL[colName];
+    setDirty(true);
+    setRecords((prev) => {
+      let idx = prev.findIndex((r) => r.occurredOn.start === date && (r.size ?? "__line__") === rowKey);
+      let next = prev;
+      if (idx < 0) {
+        if (val === "") return prev;
+        next = [...prev, blankRecord(date)];
+        idx = next.length - 1;
+      }
+      if (val === "") {
+        return next.map((r, i) => {
+          if (i !== idx) return r;
+          if (coreField) return { ...r, [coreField]: null, extractedBy: "direct-entry" };
+          return { ...r, defects: r.defects.filter((d) => d.raw !== colName), extractedBy: "direct-entry" };
+        });
+      }
+      const num = Number(val);
+      if (isNaN(num) || num < 0) return next;
+      return applyEdit(next, idx, coreField ?? colName, num);
+    });
+  };
+
   const loadMonth = useCallback(async () => {
     if (!activeStageId) return;
     setLoading(true); setError(null);
@@ -101,10 +137,12 @@ export default function MonthlyEntryGrid() {
       const res = await fetch(`/api/day-records?${params.toString()}`);
       const data = await res.json();
       setRecords(data.records ?? []);
+      setDirty(false);
     } catch (err) {
       console.error("Error loading month:", err);
       setError("Failed to load this month's data.");
       setRecords([]);
+      setDirty(false);
     } finally {
       setLoading(false);
     }
@@ -119,12 +157,27 @@ export default function MonthlyEntryGrid() {
     [year, month],
   );
 
+  const reviewByDate = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof buildReviewRows>[number]>();
+    records.forEach((r, i) => {
+      const [row] = buildReviewRows([r]);
+      if (row) map.set(`${r.occurredOn.start}|${(r.size ?? "__line__")}`, { ...row, recordIndex: i });
+    });
+    return map;
+  }, [records]);
+
   const recordFor = (date: string): StageDayRecord | undefined =>
     records.find((r) => r.occurredOn.start === date && (r.size ?? "__line__") === rowKey);
 
   const monthLabel = new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
+  const confirmDiscardIfDirty = (actionLabel: string): boolean => {
+    if (!dirty) return true;
+    return confirm(`You have unsaved changes for ${monthLabel} that haven't been submitted yet. ${actionLabel} will discard them. Continue?`);
+  };
+
   const goToMonth = (deltaMonths: number) => {
+    if (!confirmDiscardIfDirty("Changing the month")) return;
     let m = month + deltaMonths;
     let y = year;
     while (m > 12) { m -= 12; y += 1; }
@@ -139,7 +192,7 @@ export default function MonthlyEntryGrid() {
         <div style={{ fontWeight: 700, minWidth: 140, textAlign: "center" }}>{monthLabel}</div>
         <button onClick={() => goToMonth(1)} style={ghost} aria-label="Next month">Next ›</button>
         {isSizeWise && (
-          <select value={activeSize ?? ""} onChange={(e) => setActiveSize(e.target.value)} style={{ ...inp, width: 100, marginLeft: 12 }}>
+          <select value={activeSize ?? ""} onChange={(e) => { if (confirmDiscardIfDirty("Switching size")) setActiveSize(e.target.value); }} style={{ ...inp, width: 100, marginLeft: 12 }}>
             {sizes.map((s) => <option key={s.sizeId} value={s.sizeId}>{s.label}</option>)}
           </select>
         )}
@@ -153,7 +206,7 @@ export default function MonthlyEntryGrid() {
           const s = activeRegistry.stages.find((st: any) => st.stageId === id);
           const on = id === activeStageId;
           return (
-            <button key={id} onClick={() => setActiveStageId(id)}
+            <button key={id} onClick={() => { if (confirmDiscardIfDirty("Switching stages")) setActiveStageId(id); }}
               style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border-strong)",
                 background: on ? "var(--accent)" : "var(--surface-2)",
                 color: on ? "var(--text-invert)" : "var(--text-2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
@@ -187,24 +240,46 @@ export default function MonthlyEntryGrid() {
               return (
                 <tr key={date} style={{ borderBottom: "1px solid var(--border)" }}>
                   <td style={{ ...etd, textAlign: "left", fontWeight: 700, background: "var(--surface)", position: "sticky", left: 0, zIndex: 1, fontFamily: "var(--font-mono)" }}>{date}</td>
-                  {activeCaptures.map((c) => (
-                    <td key={c} style={{ ...etd, padding: "3px 4px" }}>
-                      <input type="number" inputMode="numeric" value={captureValue(c)} readOnly
-                        style={{ ...inp, width: 84, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right" }} />
-                    </td>
-                  ))}
-                  {activeDefects.map((d: any) => (
-                    <td key={d.defectCode} style={{ ...etd, padding: "3px 4px" }}>
-                      <input type="number" inputMode="numeric" value={defectValue(d.label)} readOnly
-                        style={{ ...inp, width: 64, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right" }} />
-                    </td>
-                  ))}
+                  {activeCaptures.map((c) => {
+                    const review = reviewByDate.get(`${date}|${rowKey}`);
+                    const field = CAPTURE_TO_RECORD_FIELD[c];
+                    const isCulprit = review?.invalidFields.includes(field === "acceptedGood" ? "acceptedGood" : field);
+                    return (
+                      <td key={c} style={{ ...etd, padding: "3px 4px" }}>
+                        <input type="number" inputMode="numeric" value={captureValue(c)}
+                          onChange={(e) => updateCell(date, CAPTURE_FIELD[c], e.target.value)}
+                          style={{ ...inp, width: 84, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right",
+                            borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)" }} />
+                      </td>
+                    );
+                  })}
+                  {activeDefects.map((d: any) => {
+                    const review = reviewByDate.get(`${date}|${rowKey}`);
+                    const isCulprit = review?.invalidFields.includes(d.label) || review?.invalidFields.includes(d.defectCode);
+                    return (
+                      <td key={d.defectCode} style={{ ...etd, padding: "3px 4px" }}>
+                        <input type="number" inputMode="numeric" value={defectValue(d.label)}
+                          onChange={(e) => updateCell(date, d.label, e.target.value)}
+                          style={{ ...inp, width: 64, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right",
+                            borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)" }} />
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      {(() => {
+        const invalidCount = Array.from(reviewByDate.values()).filter((r) => r.status === "invalid").length;
+        return invalidCount > 0 ? (
+          <p style={{ fontSize: 12, color: "var(--status-bad)", marginTop: 8 }}>
+            {invalidCount} of {reviewByDate.size} entered day{reviewByDate.size === 1 ? "" : "s"} need{invalidCount === 1 ? "s" : ""} fixing before you can save.
+          </p>
+        ) : null;
+      })()}
     </div>
   );
 }
