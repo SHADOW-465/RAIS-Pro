@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Icon, { type IconName } from "@/components/editorial/Icon";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { useEvents } from "@/components/app/EventsContext";
+import { resolveScope } from "@/lib/analytics/scope";
+import { trustScore as computeTrustScore } from "@/lib/analytics/trust";
 
 export type NavKey =
   | "dashboard" | "workbooks" | "data-entry" | "staging" | "stage" | "size" | "defect"
@@ -83,7 +85,7 @@ const VIEW_OPTIONS: { id: string; label: string }[] = [
 ];
 
 export default function AppShell({
-  active, trustScore, statusCounts, dateRange, children,
+  active, trustScore: trustScoreProp, statusCounts, dateRange, children,
 }: {
   active: NavKey;
   trustScore?: number | null;
@@ -152,6 +154,21 @@ export default function AppShell({
   const suggestedGrain = mounted ? getSuggestedGrain() : "month";
 
   const { events } = useEvents();
+
+  // Pages that don't explicitly compute/pass a trustScore prop (most of them —
+  // only Dashboard and Reports did) used to show a permanent "No data ingested
+  // yet" in this sidebar regardless of the actual ledger. Fall back to
+  // computing it here from the same shared events cache + global date-range
+  // tweaks, so every page reflects real data. An explicitly-passed prop
+  // (including `null` while a page's own fetch is still loading) still wins.
+  const fallbackTrustScore = useMemo(() => {
+    if (!events) return null;
+    const scope = resolveScope(events, {
+      grain: suggestedGrain, datePreset: t.datePreset, dateFrom: t.dateFrom, dateTo: t.dateTo,
+    });
+    return computeTrustScore(events, scope).pct;
+  }, [events, suggestedGrain, t.datePreset, t.dateFrom, t.dateTo]);
+  const trustScore = trustScoreProp !== undefined ? trustScoreProp : fallbackTrustScore;
 
   useEffect(() => {
     setMounted(true);

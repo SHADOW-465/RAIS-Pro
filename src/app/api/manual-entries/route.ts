@@ -1,19 +1,18 @@
 // src/app/api/manual-entries/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import { mapRowToEvent } from "@/lib/store/supabase-mappers";
+import { getStores } from "@/lib/store";
+import { aggregate } from "@/lib/analytics/rejection";
 
 export async function GET(req: NextRequest) {
   try {
-    const db = createServerClient();
-    const { data: rows, error } = await db
-      .from("events")
-      .select("*")
-      .order("recorded_at", { ascending: false });
-
-    if (error) throw error;
-
-    const events = (rows || []).map(mapRowToEvent);
+    // Same store abstraction /api/events uses — works against the in-memory
+    // store in local/test runs (no Supabase configured) as well as Supabase,
+    // instead of querying Supabase directly and hard-failing without it.
+    const { events: store } = getStores();
+    const events = (await store.effective({}))
+      .slice()
+      .sort((a, b) => (b.recordedAt ?? "").localeCompare(a.recordedAt ?? ""));
 
     // Group events by occurredOn.start (Date) and provenance.sheet (Shift)
     const groups = new Map<string, any[]>();
@@ -43,32 +42,34 @@ export async function GET(req: NextRequest) {
       const isDirect = firstEvent.provenance?.is_direct_entry === true;
       const source = isDirect ? "Direct Entry" : (firstEvent.provenance?.file || "Upload");
 
-      // Reconstruct stage-wise field values
+      // Reconstruct stage-wise field values. `provenance.headerPath` is
+      // whatever the source used (an internal field key like "checked" for
+      // direct entry, or the raw sheet header text for an upload) — never a
+      // reliable match for the "Checked Qty"/"Rejected Qty" keys the ledger
+      // summary reads. Use the event's own semantic type instead (same
+      // aggregate() the rest of the analytics layer trusts), grouped by stage.
       const stageData: Record<string, Record<string, any>> = {};
-      
+      const stageIds = new Set(groupEvents.map((e) => e.stageId).filter(Boolean));
+      for (const stageId of stageIds) {
+        const agg = aggregate(groupEvents.filter((e) => e.stageId === stageId));
+        stageData[stageId] = {
+          "Checked Qty": agg.checked,
+          "Good Qty": agg.good,
+          "Rework Qty": agg.rework,
+          "Rejected Qty": agg.rejected,
+        };
+      }
+
+      // Copy any genuine custom fields (excluding the header fields already
+      // grouped at the top level) onto their stage.
       for (const e of groupEvents) {
         const stageId = e.stageId;
-        if (!stageId) continue;
-        
-        if (!stageData[stageId]) {
-          stageData[stageId] = {};
-        }
-
-        // Extract cell values from event quantity
-        const fieldName = e.provenance?.headerPath?.[0];
-        if (fieldName) {
-          stageData[stageId][fieldName] = e.quantity;
-        }
-
-        // Copy custom fields for this stage
-        if (e.customFields) {
-          Object.entries(e.customFields).forEach(([k, v]) => {
-            // Exclude header fields which are grouped at the top level
-            if (!["operator", "supervisor", "machine", "product", "size", "batch", "notes"].includes(k)) {
-              stageData[stageId][k] = v;
-            }
-          });
-        }
+        if (!stageId || !e.customFields) continue;
+        Object.entries(e.customFields).forEach(([k, v]) => {
+          if (!["operator", "supervisor", "machine", "product", "size", "batch", "notes"].includes(k)) {
+            stageData[stageId][k] = v;
+          }
+        });
       }
 
       return {

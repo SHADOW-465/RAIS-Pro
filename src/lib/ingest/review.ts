@@ -5,7 +5,16 @@
 // Feeds the verification grid; the user can edit, then save the corrected set.
 
 import type { StageDayRecord } from "@/lib/ingest/emit";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { DISPOSAFE_REGISTRY, resolveDefect } from "@/lib/registry/disposafe";
+
+/** Canonical identity for a defect column. The parser stores whatever header
+ *  text the sheet used (a code, an alias spelling, ...); the grid edits by
+ *  registry label or code. Without a shared key, an edit can't find its own
+ *  row's existing entry and silently inserts a duplicate under a different
+ *  key instead of updating it (`rejected` then reflects a phantom double-count). */
+export function defectKey(raw: string): string {
+  return resolveDefect(raw) ?? raw.trim().toUpperCase();
+}
 
 export type RowStatus = "ok" | "corrected" | "invalid";
 
@@ -22,6 +31,7 @@ export interface ReviewRow {
   correctedPct: number | null; // recomputed = rejected / checked * 100
   status: RowStatus;
   flags: string[];           // plain-language anomalies / corrections
+  invalidFields: string[];   // field keys implicated by the flags above (for cell highlighting)
   defects: { raw: string; value: number; cell: string }[];
 }
 
@@ -45,18 +55,19 @@ export function reviewRow(rec: StageDayRecord, recordIndex: number): ReviewRow {
   const defects = rec.defects;
 
   const flags: string[] = [];
+  const invalidFields = new Set<string>();
   let status: RowStatus = "ok";
 
-  if (checked != null && checked < 0) { flags.push(`Checked is negative (${checked})`); status = "invalid"; }
-  if (acceptedGood != null && acceptedGood < 0) { flags.push(`Good is negative (${acceptedGood})`); status = "invalid"; }
-  if (rework != null && rework < 0) { flags.push(`Rework is negative (${rework})`); status = "invalid"; }
-  if (rejected != null && rejected < 0) { flags.push(`Rejected is negative (${rejected})`); status = "invalid"; }
-  
+  if (checked != null && checked < 0) { flags.push(`Checked is negative (${checked})`); invalidFields.add("checked"); status = "invalid"; }
+  if (acceptedGood != null && acceptedGood < 0) { flags.push(`Good is negative (${acceptedGood})`); invalidFields.add("acceptedGood"); status = "invalid"; }
+  if (rework != null && rework < 0) { flags.push(`Rework is negative (${rework})`); invalidFields.add("rework"); status = "invalid"; }
+  if (rejected != null && rejected < 0) { flags.push(`Rejected is negative (${rejected})`); invalidFields.add("rejected"); status = "invalid"; }
+
   if (checked != null && rejected != null && rejected > checked) {
-    flags.push(`Rejected (${rejected}) exceeds checked (${checked})`); status = "invalid";
+    flags.push(`Rejected (${rejected}) exceeds checked (${checked})`); invalidFields.add("checked"); invalidFields.add("rejected"); status = "invalid";
   }
   if (checked != null && acceptedGood != null && acceptedGood > checked) {
-    flags.push(`Good (${acceptedGood}) exceeds checked (${checked})`); status = "invalid";
+    flags.push(`Good (${acceptedGood}) exceeds checked (${checked})`); invalidFields.add("checked"); invalidFields.add("acceptedGood"); status = "invalid";
   }
 
   // Real-time balance rule check: Checked = Good + Rework + Rejected
@@ -64,6 +75,7 @@ export function reviewRow(rec: StageDayRecord, recordIndex: number): ReviewRow {
     const sum = acceptedGood + (rework ?? 0) + (rejected ?? 0);
     if (checked !== sum) {
       flags.push(`Balance Violation: Checked (${checked}) does not equal Good (${acceptedGood}) + Rework (${rework ?? 0}) + Rejected (${rejected ?? 0}) (Sum: ${sum})`);
+      invalidFields.add("checked"); invalidFields.add("acceptedGood"); invalidFields.add("rework"); invalidFields.add("rejected");
       status = "invalid";
     }
   }
@@ -73,6 +85,8 @@ export function reviewRow(rec: StageDayRecord, recordIndex: number): ReviewRow {
     const defectSum = defects.reduce((s, d) => s + d.value, 0);
     if (defectSum !== rejected) {
       flags.push(`Defect Mismatch: Defect counts sum (${defectSum}) does not equal Rejected total (${rejected})`);
+      invalidFields.add("rejected");
+      for (const d of defects) invalidFields.add(defectKey(d.raw));
       status = "invalid";
     }
   }
@@ -95,6 +109,7 @@ export function reviewRow(rec: StageDayRecord, recordIndex: number): ReviewRow {
     correctedPct,
     status,
     flags,
+    invalidFields: Array.from(invalidFields),
     defects,
   };
 }
@@ -139,7 +154,8 @@ export function applyEdit(
 
     // Otherwise treat as a defect count edit
     const defectName = field;
-    const existingIdx = rec.defects.findIndex((d) => d.raw === defectName);
+    const targetKey = defectKey(defectName);
+    const existingIdx = rec.defects.findIndex((d) => defectKey(d.raw) === targetKey);
     const newDefects = [...rec.defects];
 
     if (existingIdx >= 0) {
@@ -159,19 +175,11 @@ export function applyEdit(
       });
     }
 
-    // Auto-calculate total rejected if defects exist
-    let newRejected = rec.rejected;
-    if (newDefects.length > 0) {
-      const sum = newDefects.reduce((s, d) => s + d.value, 0);
-      newRejected = rec.rejected
-        ? { ...rec.rejected, value: sum }
-        : { value: sum, cell: "EDIT!rejected", header: "Rejected" };
-    }
-
+    // Never auto-adjust `rejected` from a defect edit — that's the user's
+    // call (see Defect Mismatch flag in reviewRow), not an automatic one.
     return {
       ...rec,
       defects: newDefects,
-      rejected: newRejected,
       extractedBy: "direct-entry",
     };
   });

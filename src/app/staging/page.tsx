@@ -10,7 +10,7 @@ import { useEvents } from "@/components/app/EventsContext";
 import { Card, Empty } from "@/components/app/widgets";
 import UploadZone from "@/components/UploadZone";
 import Icon from "@/components/editorial/Icon";
-import { buildReviewRows, reviewSummary, applyEdit } from "@/lib/ingest/review";
+import { buildReviewRows, reviewSummary, applyEdit, defectKey } from "@/lib/ingest/review";
 import { SUMMARY_NAME } from "@/lib/ingest/from-rejection-sheets";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
@@ -241,7 +241,10 @@ export default function StagingPage() {
       // Detect new columns introduced by this upload compared to registry
       const regToCompare = activeRegistry || DISPOSAFE_REGISTRY;
       if (firstSchema && regToCompare) {
-        const newCols: { stageId: string; colName: string; type: string }[] = [];
+        // One extracted "stage" per SHEET (e.g. one per month tab), so the same
+        // stageId (e.g. "visual") repeats many times with the same columns —
+        // dedupe by stageId|colName or every column duplicates once per sheet.
+        const newColsByKey = new Map<string, { stageId: string; colName: string; type: string }>();
         firstSchema.stages.forEach((extractedStage: any) => {
           const activeStage = regToCompare.stages.find((s: any) => s.stageId === extractedStage.stageId);
           if (activeStage) {
@@ -253,20 +256,24 @@ export default function StagingPage() {
               { name: "Rejected Qty" }
             ];
             const activeFieldNames = activeFields.map((f: any) => f.name.toLowerCase());
-            
+
             extractedStage.fields.forEach((f: any) => {
               // Ignore standard structural fields
               if (f.role === "date" || f.name.startsWith("__EMPTY")) return;
               if (!activeFieldNames.includes(f.name.toLowerCase())) {
-                newCols.push({
-                  stageId: extractedStage.stageId,
-                  colName: f.name,
-                  type: f.type === "number" ? "number" : "text"
-                });
+                const key = `${extractedStage.stageId}|${f.name}`;
+                if (!newColsByKey.has(key)) {
+                  newColsByKey.set(key, {
+                    stageId: extractedStage.stageId,
+                    colName: f.name,
+                    type: f.type === "number" ? "number" : "text"
+                  });
+                }
               }
             });
           }
         });
+        const newCols = Array.from(newColsByKey.values());
         setNewColumns(newCols);
         
         const initialConfirm: Record<string, boolean> = {};
@@ -924,13 +931,14 @@ export default function StagingPage() {
                               <td style={{ ...std, fontFamily: "var(--font-mono)" }}>{r.date}</td>
                               <td style={std}>{r.stageLabel}</td>
                               
-                              {/* Editable Quantities */}
+                              {/* Editable Quantities — only the cell(s) actually implicated in a
+                                  failed rule are highlighted, not the whole row (see r.invalidFields). */}
                               <td style={{ ...std, textAlign: "right" }}>
                                 <input
                                   type="number"
                                   value={r.checked ?? ""}
                                   onChange={(e) => handleCellChange(r.recordIndex, "checked", e.target.value)}
-                                  style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                                  style={{ ...gridInputStyle, borderColor: r.invalidFields.includes("checked") ? "var(--status-bad)" : "var(--border-strong)" }}
                                 />
                               </td>
                               <td style={{ ...std, textAlign: "right" }}>
@@ -938,7 +946,7 @@ export default function StagingPage() {
                                   type="number"
                                   value={r.acceptedGood ?? ""}
                                   onChange={(e) => handleCellChange(r.recordIndex, "acceptedGood", e.target.value)}
-                                  style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                                  style={{ ...gridInputStyle, borderColor: r.invalidFields.includes("acceptedGood") ? "var(--status-bad)" : "var(--border-strong)" }}
                                 />
                               </td>
                               <td style={{ ...std, textAlign: "right" }}>
@@ -946,7 +954,7 @@ export default function StagingPage() {
                                   type="number"
                                   value={r.rework ?? ""}
                                   onChange={(e) => handleCellChange(r.recordIndex, "rework", e.target.value)}
-                                  style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                                  style={{ ...gridInputStyle, borderColor: r.invalidFields.includes("rework") ? "var(--status-bad)" : "var(--border-strong)" }}
                                 />
                               </td>
                               <td style={{ ...std, textAlign: "right" }}>
@@ -954,7 +962,7 @@ export default function StagingPage() {
                                   type="number"
                                   value={r.rejected ?? ""}
                                   onChange={(e) => handleCellChange(r.recordIndex, "rejected", e.target.value)}
-                                  style={{ ...gridInputStyle, borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)" }}
+                                  style={{ ...gridInputStyle, borderColor: r.invalidFields.includes("rejected") ? "var(--status-bad)" : "var(--border-strong)" }}
                                 />
                               </td>
                               
@@ -987,18 +995,20 @@ export default function StagingPage() {
                               {/* Dynamic Defect Cells */}
                               {defectsList.map((d: any) => {
                                 const isApplicable = d.stages.includes(r.stageId);
-                                const defectVal = r.defects.find(df => df.raw === d.label || df.raw === d.defectCode)?.value ?? 0;
+                                const colKey = defectKey(d.defectCode);
+                                const defectVal = r.defects.find(df => defectKey(df.raw) === colKey)?.value ?? 0;
+                                const isCulprit = r.invalidFields.includes(colKey);
                                 return (
                                   <td key={d.defectCode} style={{ ...std, textAlign: "right" }}>
                                     <input
                                       type="number"
                                       disabled={!isApplicable}
                                       value={isApplicable ? (defectVal || "") : ""}
-                                      onChange={(e) => handleCellChange(r.recordIndex, d.label, e.target.value)}
-                                      style={{ 
-                                        ...gridInputStyle, 
-                                        width: "55px", 
-                                        borderColor: isInvalid ? "var(--status-bad)" : "var(--border-strong)",
+                                      onChange={(e) => handleCellChange(r.recordIndex, d.defectCode, e.target.value)}
+                                      style={{
+                                        ...gridInputStyle,
+                                        width: "55px",
+                                        borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)",
                                         opacity: isApplicable ? 1 : 0.25,
                                         background: isApplicable ? "var(--bg)" : "var(--surface-2)",
                                         cursor: isApplicable ? "text" : "not-allowed"

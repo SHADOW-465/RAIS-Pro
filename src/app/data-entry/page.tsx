@@ -66,6 +66,10 @@ export default function DataEntryPage() {
   // same /api/ingest save path, so a manually-entered day and an uploaded day
   // are indistinguishable everywhere downstream.
   const [records, setRecords] = useState<StageDayRecord[]>([]);
+  // True whenever the grid has unsubmitted edits — guards every action that
+  // would otherwise silently discard them (date change, ledger Edit/Duplicate,
+  // Clear Grid). Reset on load and on a successful submit.
+  const [dirty, setDirty] = useState(false);
   const [loadingDay, setLoadingDay] = useState(false);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -170,13 +174,23 @@ export default function DataEntryPage() {
       const res = await fetch(`/api/day-records?date=${d}`);
       const data = await res.json();
       setRecords(data.records ?? []);
+      setDirty(false);
     } catch (err) {
       console.error("Error loading day records:", err);
       setError("Failed to load existing data for this date.");
       setRecords([]);
+      setDirty(false);
     } finally {
       setLoadingDay(false);
     }
+  };
+
+  // Any action that would replace `records` wholesale (switching date,
+  // loading a different ledger entry, clearing the grid) must go through
+  // this first — otherwise unsubmitted edits vanish with no warning.
+  const confirmDiscardIfDirty = (actionLabel: string): boolean => {
+    if (!dirty) return true;
+    return confirm(`You have unsaved changes for ${date} that haven't been submitted yet. ${actionLabel} will discard them. Continue?`);
   };
 
   const activeRegistry = useMemo(() => {
@@ -244,9 +258,10 @@ export default function DataEntryPage() {
 
   // Edits go through review.ts's applyEdit — the SAME function /staging uses,
   // so a manually-typed cell and a re-classified upload cell behave
-  // identically (defect-sum auto-recompute of Rejected, extractedBy tagging).
+  // identically (extractedBy tagging, no auto-adjusting of other fields).
   const updateCell = (stageId: string, rowKey: string, colName: string, val: string) => {
     const coreField = CORE_FIELD_BY_COL[colName];
+    setDirty(true);
     setRecords((prev) => {
       let idx = prev.findIndex((r) => r.stageId === stageId && (r.size ?? "__line__") === rowKey);
       let next = prev;
@@ -343,6 +358,7 @@ export default function DataEntryPage() {
 
       setSuccess(`Record for ${date} saved and KPIs recalculated successfully.`);
       setAttemptedSubmit(false);
+      setDirty(false);
       loadLedger();
       refreshEvents().catch(console.error);
     } catch (e: any) {
@@ -354,9 +370,11 @@ export default function DataEntryPage() {
   }
 
   const resetSpreadsheet = () => {
+    if (!confirmDiscardIfDirty("Clearing the grid")) return;
     setRecords([]);
     setNotes("");
     setError(null);
+    setDirty(false);
   };
 
   // Schema Editor - Safety check
@@ -598,6 +616,7 @@ Assign another field as Rejected Quantity.`;
   // (stage-only, no size) reconstruction, which is the "Edit" button's job:
   // give the operator the full grid, not a lossy summary of it.
   const handleEditLedgerRecord = (rec: any) => {
+    if (!confirmDiscardIfDirty("Loading this record for editing")) return;
     setDate(rec.date);
     setHdr({
       shift: rec.shift, operator: rec.operator, supervisor: rec.supervisor,
@@ -610,6 +629,7 @@ Assign another field as Rejected Quantity.`;
   };
 
   const handleDuplicateLedgerRecord = async (rec: any) => {
+    if (!confirmDiscardIfDirty("Duplicating this record")) return;
     setHdr({
       shift: rec.shift, operator: rec.operator, supervisor: rec.supervisor,
       product: rec.product, size: rec.size, machine: rec.machine, batch: rec.batch,
@@ -629,6 +649,7 @@ Assign another field as Rejected Quantity.`;
       }));
       setDate(newDate);
       setRecords(duplicated);
+      setDirty(true); // copied onto today's (unsaved) date — still needs Submit
       setSuccess("Record duplicated. Date reset to today. Modify and click Submit to save.");
     } catch {
       setDate(newDate);
@@ -784,7 +805,11 @@ Assign another field as Rejected Quantity.`;
             <div style={{ display: "flex", gap: 14, alignItems: "flex-end", marginBottom: 16, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12 }}>
               <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
                 Report Date
-                <input type="date" value={date} onChange={(e) => { setDate(e.target.value); loadDay(e.target.value); }} style={{ ...inp, width: 160 }} />
+                <input type="date" value={date} onChange={(e) => {
+                  const newDate = e.target.value;
+                  if (!confirmDiscardIfDirty("Switching the report date")) return;
+                  setDate(newDate); loadDay(newDate);
+                }} style={{ ...inp, width: 160 }} />
               </label>
               <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
                 Shift
