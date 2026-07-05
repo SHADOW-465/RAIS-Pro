@@ -45,6 +45,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 export default function DataEntryPage() {
   const { refreshEvents } = useEvents();
   const [activeTab, setActiveTab] = useState<"entry" | "monthly" | "ledger" | "custom">("entry");
+  const [monthlyDirty, setMonthlyDirty] = useState(false);
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
   const [date, setDate] = useState(today());
   const [hdr, setHdr] = useState({
@@ -187,6 +188,14 @@ export default function DataEntryPage() {
   const confirmDiscardIfDirty = (actionLabel: string): boolean => {
     if (!dirty) return true;
     return confirm(`You have unsaved changes for ${date} that haven't been submitted yet. ${actionLabel} will discard them. Continue?`);
+  };
+
+  // Guards the three OTHER top-level tab buttons from silently unmounting
+  // MonthlyEntryGrid (and its unsaved edits) when leaving the Monthly Entry
+  // tab. Mirrors confirmDiscardIfDirty above for the daily-entry tab's grid.
+  const confirmLeaveMonthly = (): boolean => {
+    if (activeTab !== "monthly" || !monthlyDirty) return true;
+    return confirm("You have unsaved changes in Monthly Entry that haven't been submitted yet. Switching tabs will discard them. Continue?");
   };
 
   const activeRegistry = useMemo(() => {
@@ -720,7 +729,7 @@ Assign another field as Rejected Quantity.`;
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 4 }}>
           <button
-            onClick={() => setActiveTab("entry")}
+            onClick={() => { if (confirmLeaveMonthly()) setActiveTab("entry"); }}
             style={{
               padding: "8px 16px",
               border: "none",
@@ -750,7 +759,7 @@ Assign another field as Rejected Quantity.`;
             Monthly Entry
           </button>
           <button
-            onClick={() => { setActiveTab("ledger"); loadLedger(); }}
+            onClick={() => { if (confirmLeaveMonthly()) { setActiveTab("ledger"); loadLedger(); } }}
             style={{
               padding: "8px 16px",
               border: "none",
@@ -765,7 +774,7 @@ Assign another field as Rejected Quantity.`;
             Entry History / Data Ledger
           </button>
           <button
-            onClick={() => setActiveTab("custom")}
+            onClick={() => { if (confirmLeaveMonthly()) setActiveTab("custom"); }}
             style={{
               padding: "8px 16px",
               border: "none",
@@ -806,7 +815,7 @@ Assign another field as Rejected Quantity.`;
       {activeTab === "custom" ? (
         <DatasetEntryForm />
       ) : activeTab === "monthly" ? (
-        <MonthlyEntryGrid />
+        <MonthlyEntryGrid onDirtyChange={setMonthlyDirty} />
       ) : activeTab === "entry" ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20 }}>
           {/* Main workspace */}

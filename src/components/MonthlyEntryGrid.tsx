@@ -8,7 +8,7 @@
 // so a day entered here is indistinguishable from one entered anywhere else
 // (see docs/superpowers/specs/2026-07-05-monthly-data-entry-design.md).
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { buildReviewRows, applyEdit } from "@/lib/ingest/review";
@@ -29,7 +29,7 @@ function isoDate(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-export default function MonthlyEntryGrid() {
+export default function MonthlyEntryGrid({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void } = {}) {
   const [registry, setRegistry] = useState<any | null>(null);
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
   const [activeSize, setActiveSize] = useState<string | null>(null);
@@ -41,6 +41,12 @@ export default function MonthlyEntryGrid() {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
+  useEffect(() => {
+    onDirtyChangeRef.current?.(dirty);
+  }, [dirty]);
 
   useEffect(() => {
     fetch("/api/schema")
