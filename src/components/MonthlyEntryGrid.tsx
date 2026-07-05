@@ -39,6 +39,8 @@ export default function MonthlyEntryGrid() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/schema")
@@ -185,6 +187,38 @@ export default function MonthlyEntryGrid() {
     setYearMonth({ year: y, month: m });
   };
 
+  const invalidCount = Array.from(reviewByDate.values()).filter((r) => r.status === "invalid").length;
+
+  async function saveMonth() {
+    setSaving(true); setError(null); setSuccess(null);
+    const ingestionId = globalThis.crypto?.randomUUID?.() ?? `entry-${Date.now()}`;
+    const payload = records
+      .filter((r) => r.checked || r.acceptedGood || r.rework || r.rejected || r.defects.length > 0)
+      .map((r) => ({ ...r, ingestionId }));
+
+    if (payload.length === 0) {
+      setError("Enter quantities for at least one day before saving.");
+      setSaving(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ingestionId, fileName: `Monthly Entry ${monthLabel}`, records: payload }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Save failed");
+      setSuccess(`${payload.length} day(s) saved for ${monthLabel}.`);
+      setDirty(false);
+      await loadMonth();
+    } catch (e: any) {
+      setError(e?.message ?? "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12 }}>
@@ -272,14 +306,25 @@ export default function MonthlyEntryGrid() {
         </table>
       </div>
 
-      {(() => {
-        const invalidCount = Array.from(reviewByDate.values()).filter((r) => r.status === "invalid").length;
-        return invalidCount > 0 ? (
-          <p style={{ fontSize: 12, color: "var(--status-bad)", marginTop: 8 }}>
-            {invalidCount} of {reviewByDate.size} entered day{reviewByDate.size === 1 ? "" : "s"} need{invalidCount === 1 ? "s" : ""} fixing before you can save.
-          </p>
-        ) : null;
-      })()}
+      {invalidCount > 0 && (
+        <p style={{ fontSize: 12, color: "var(--status-bad)", marginTop: 8 }}>
+          {invalidCount} of {reviewByDate.size} entered day{reviewByDate.size === 1 ? "" : "s"} need{invalidCount === 1 ? "s" : ""} fixing before you can save.
+        </p>
+      )}
+
+      {success && (
+        <div style={{ marginTop: 14, padding: "10px 14px", borderRadius: 9, background: "var(--positive-weak)", border: "1px solid var(--positive)", color: "var(--positive)", fontSize: 13 }}>
+          {success}
+        </div>
+      )}
+
+      <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+        <button onClick={saveMonth} disabled={saving || invalidCount > 0}
+          style={{ background: "var(--status-good)", color: "#fff", border: "none", borderRadius: 9, padding: "10px 22px", fontSize: 14, fontWeight: 700,
+            cursor: saving || invalidCount > 0 ? "not-allowed" : "pointer", opacity: saving || invalidCount > 0 ? 0.6 : 1 }}>
+          {saving ? "Saving Month…" : "Save Month"}
+        </button>
+      </div>
     </div>
   );
 }
