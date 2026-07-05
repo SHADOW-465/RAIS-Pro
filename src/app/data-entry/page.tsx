@@ -8,6 +8,7 @@ import { useEvents } from "@/components/app/EventsContext";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { buildReviewRows, reviewSummary, applyEdit } from "@/lib/ingest/review";
+import { CAPTURE_LABEL, CAPTURE_FIELD, CAPTURE_TO_RECORD_FIELD, CORE_FIELD_BY_COL } from "@/lib/ingest/capture-fields";
 import DatasetEntryForm from "@/components/DatasetEntryForm";
 
 interface FieldDef {
@@ -37,12 +38,6 @@ const DEFAULT_FIELDS: FieldDef[] = [
   { name: "Rework Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
   { name: "Rejected Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" }
 ];
-
-const CAPTURE_LABEL: Record<string, string> = { checked: "Checked", accepted: "Accept", hold: "Hold", rejected: "Reject" };
-const CAPTURE_FIELD: Record<string, string> = { checked: "Checked Qty", accepted: "Good Qty", hold: "Rework Qty", rejected: "Rejected Qty" };
-const CAPTURE_TO_RECORD_FIELD: Record<string, "checked" | "acceptedGood" | "rework" | "rejected"> = {
-  checked: "checked", accepted: "acceptedGood", hold: "rework", rejected: "rejected",
-};
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -251,10 +246,6 @@ export default function DataEntryPage() {
     extractedBy: "direct-entry",
     ingestionId: "pending",
   });
-
-  const CORE_FIELD_BY_COL: Record<string, "checked" | "acceptedGood" | "rework" | "rejected"> = {
-    "Checked Qty": "checked", "Good Qty": "acceptedGood", "Rework Qty": "rework", "Rejected Qty": "rejected",
-  };
 
   // Edits go through review.ts's applyEdit — the SAME function /staging uses,
   // so a manually-typed cell and a re-classified upload cell behave
