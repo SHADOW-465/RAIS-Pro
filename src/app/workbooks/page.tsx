@@ -94,6 +94,19 @@ export default function WorkbooksPage() {
   const [publishing, setPublishing] = useState(false);
   const [publishMsg, setPublishMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
 
+  // Lock main container scrolling so split panes can scroll independently
+  useEffect(() => {
+    const mainEl = document.querySelector("main");
+    if (mainEl) {
+      mainEl.style.overflowY = "hidden";
+    }
+    return () => {
+      if (mainEl) {
+        mainEl.style.overflowY = "auto";
+      }
+    };
+  }, []);
+
   useEffect(() => {
     fetch("/api/datasets")
       .then((r) => {
@@ -193,29 +206,31 @@ export default function WorkbooksPage() {
 
   return (
     <AppShell active="workbooks">
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <div>
+      <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 162px)", minHeight: 0 }}>
+        {/* Title block */}
+        <div style={{ flexShrink: 0, marginBottom: 16 }}>
           <span className="eyebrow accent" style={{ fontWeight: 700 }}>Workbook Explorer</span>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 800, margin: "2px 0 4px", color: "var(--text)" }}>
             Workbooks
           </h1>
-          <p className="muted" style={{ fontSize: 14, margin: 0 }}>
+          <p className="muted" style={{ fontSize: 13.5, margin: 0 }}>
             Every uploaded file, browsable sheet by sheet — dashboards here are row filters over the same live ledger, not separate data.
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 24, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 24, flex: 1, minHeight: 0 }}>
           {/* Left panel: search + tree */}
           <div style={{
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-md)",
             background: "var(--surface)",
-            padding: 12,
+            padding: 16,
             display: "flex",
             flexDirection: "column",
-            gap: 10,
-            position: "sticky",
-            top: 12,
+            gap: 12,
+            height: "100%",
+            overflowY: "auto",
+            scrollbarWidth: "thin",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: "6px 10px", background: "var(--surface-2)" }}>
               <Icon name="search" size={13} style={{ color: "var(--text-3)" }} />
@@ -350,7 +365,7 @@ export default function WorkbooksPage() {
           </div>
 
           {/* Right pane: dashboard */}
-          <div style={{ minWidth: 0 }}>
+          <div style={{ height: "100%", overflowY: "auto", minWidth: 0, paddingRight: 8, scrollbarWidth: "thin" }}>
             {!selection && datasets !== null && tree.length === 0 && (
               <div style={{
                 border: "1px dashed var(--border-strong)",
