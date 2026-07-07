@@ -38,11 +38,13 @@ function yearMonthOf(dateStr: string): { year: number; month: number } {
   return { year: y, month: m };
 }
 
-export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialDate, blockedReason }: {
+export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialDate, blockedReason, presetId }: {
   onDirtyChange?: (dirty: boolean) => void;
   customFields?: Record<string, any>;
   initialDate?: string;
   blockedReason?: string | null;
+  /** Which Data Entry preset's registry to render the grid against. Omit for the default preset. */
+  presetId?: string | null;
 } = {}) {
   const { refreshEvents } = useEvents();
   const [registry, setRegistry] = useState<any | null>(null);
@@ -64,11 +66,11 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
   }, [dirty]);
 
   useEffect(() => {
-    fetch("/api/schema")
+    fetch(presetId ? `/api/schema?presetId=${encodeURIComponent(presetId)}` : "/api/schema")
       .then((res) => res.json())
       .then((data) => setRegistry(data.registry ?? null))
       .catch(() => setRegistry(null));
-  }, []);
+  }, [presetId]);
 
   const activeRegistry = registry || DISPOSAFE_REGISTRY;
 

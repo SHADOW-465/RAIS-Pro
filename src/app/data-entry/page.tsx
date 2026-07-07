@@ -60,6 +60,10 @@ export default function DataEntryPage() {
   // Registry state
   const [registry, setRegistry] = useState<any | null>(null);
 
+  // Preset state — which uploaded-workbook-derived Data Entry preset is active.
+  const [presets, setPresets] = useState<{ presetId: string; name: string; stageCount: number }[]>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+
   // Ledger state
   const [ledgerRecords, setLedgerRecords] = useState<any[]>([]);
   const [ledgerSearch, setLedgerSearch] = useState("");
@@ -86,7 +90,7 @@ export default function DataEntryPage() {
   // Load registry, ledger records, and prefilled header fields on mount.
   // The spreadsheet itself (MonthlyEntryGrid) loads its own month of data.
   useEffect(() => {
-    loadRegistry();
+    loadPresets();
     loadLedger();
     if (typeof window !== "undefined") {
       const savedOperator = localStorage.getItem("rais_hdr_operator");
@@ -119,9 +123,9 @@ export default function DataEntryPage() {
     });
   };
 
-  const loadRegistry = async () => {
+  const loadRegistry = async (presetId?: string | null) => {
     try {
-      const res = await fetch("/api/schema");
+      const res = await fetch(presetId ? `/api/schema?presetId=${encodeURIComponent(presetId)}` : "/api/schema");
       const data = await res.json();
       if (data.registry) {
         setRegistry(data.registry);
@@ -129,6 +133,29 @@ export default function DataEntryPage() {
     } catch (err) {
       console.error("Error loading registry:", err);
     }
+  };
+
+  const loadPresets = async () => {
+    try {
+      const res = await fetch("/api/schema?list=true");
+      const data = await res.json();
+      const list = data.presets || [];
+      setPresets(list);
+      // Default to the first preset (matches the API's own "no presetId"
+      // fallback) so the picker and the loaded registry agree from the start.
+      const initial = list[0]?.presetId ?? null;
+      setSelectedPresetId(initial);
+      await loadRegistry(initial);
+    } catch (err) {
+      console.error("Error loading presets:", err);
+      await loadRegistry(null);
+    }
+  };
+
+  const handlePresetChange = async (presetId: string) => {
+    if (!confirmLeaveEntryGrid()) return;
+    setSelectedPresetId(presetId);
+    await loadRegistry(presetId);
   };
 
   const loadLedger = async () => {
@@ -379,8 +406,8 @@ Assign another field as Rejected Quantity.`;
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          presetId: selectedPresetId ?? activeRegistry.presetId ?? activeRegistry.clientId,
           registry: {
-            clientId: "disposafe",
             stages: draftStages,
             defects: activeRegistry.defects
           }
@@ -497,7 +524,7 @@ Assign another field as Rejected Quantity.`;
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
   return (
-    <AppShell active="data-entry">
+    <AppShell active="data-entry" presetId={selectedPresetId}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 4 }}>
           <button
@@ -576,6 +603,19 @@ Assign another field as Rejected Quantity.`;
               }} style={{ ...inp, width: 160 }} />
             </label>
             <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
+              Excel Preset
+              <select
+                value={selectedPresetId ?? ""}
+                onChange={(e) => handlePresetChange(e.target.value)}
+                style={{ ...inp, width: 220 }}
+              >
+                {presets.length === 0 && <option value="">Default Registry</option>}
+                {presets.map((p) => (
+                  <option key={p.presetId} value={p.presetId}>{p.name} ({p.stageCount} stages)</option>
+                ))}
+              </select>
+            </label>
+            <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
               Shift
               <select value={hdr.shift} onChange={(e) => updateHdrField("shift", e.target.value)} style={{ ...inp, width: 140 }}>
                 <option>Day Shift</option>
@@ -618,13 +658,20 @@ Assign another field as Rejected Quantity.`;
             </Field>
           </Section>
 
-          <MonthlyEntryGrid
-            key={date}
-            initialDate={date}
-            customFields={entryCustomFields}
-            blockedReason={hdr.operator.trim() ? null : "Operator name is required."}
-            onDirtyChange={setMonthlyDirty}
-          />
+          {presets.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", background: "var(--surface)", border: "1px dashed var(--border)", borderRadius: 12, color: "var(--text-2)" }}>
+              No Data Entry presets yet. Upload a workbook on <a href="/staging" style={{ color: "var(--accent)" }}>Excel Upload / Staging</a> to create the first one.
+            </div>
+          ) : (
+            <MonthlyEntryGrid
+              key={`${date}-${selectedPresetId ?? "default"}`}
+              initialDate={date}
+              presetId={selectedPresetId}
+              customFields={entryCustomFields}
+              blockedReason={hdr.operator.trim() ? null : "Operator name is required."}
+              onDirtyChange={setMonthlyDirty}
+            />
+          )}
         </div>
       ) : (
         /* Data Ledger / Entry History View */

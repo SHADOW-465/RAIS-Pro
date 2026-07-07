@@ -6,10 +6,12 @@ import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 export async function POST(req: NextRequest) {
   try {
     const db = createServerClient();
+    const presetId = req.nextUrl.searchParams.get("presetId") || "disposafe";
 
-    // Reset registries stages and defects to default DISPOSAFE_REGISTRY
+    // Reset only the targeted preset's stages/defects to defaults — other
+    // presets are untouched.
     const { error } = await db.from("registries").upsert({
-      client_id: "disposafe",
+      client_id: presetId,
       registry_version: "1.0.0",
       fiscal_year_start_month: 4,
       stages: DISPOSAFE_REGISTRY.stages,

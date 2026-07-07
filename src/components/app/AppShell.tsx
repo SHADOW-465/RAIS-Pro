@@ -85,13 +85,15 @@ const VIEW_OPTIONS: { id: string; label: string }[] = [
 ];
 
 export default function AppShell({
-  active, trustScore: trustScoreProp, statusCounts, dateRange, children,
+  active, trustScore: trustScoreProp, statusCounts, dateRange, children, presetId,
 }: {
   active: NavKey;
   trustScore?: number | null;
   statusCounts?: { alerts?: number; capa?: number; overdue?: number; anomalies?: number };
   dateRange?: string;
   children: React.ReactNode;
+  /** Which Data Entry preset's registry to load for stage-gate nav. Omit for the default preset. */
+  presetId?: string | null;
 }) {
   const router = useRouter();
   const { t, setTweak } = useTweaks();
@@ -172,7 +174,7 @@ export default function AppShell({
 
   useEffect(() => {
     setMounted(true);
-    fetch("/api/schema")
+    fetch(presetId ? `/api/schema?presetId=${encodeURIComponent(presetId)}` : "/api/schema")
       .then((res) => res.json())
       .then((data) => {
         setIsConfigured(data.configured !== false);
@@ -182,7 +184,7 @@ export default function AppShell({
       .catch(() => {
         setIsConfigured(true);
       });
-  }, []);
+  }, [presetId]);
 
   useEffect(() => {
     fetch("/api/datasets")
