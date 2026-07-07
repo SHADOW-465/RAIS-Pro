@@ -31,6 +31,8 @@ interface FloatingDetailModalProps {
   sourceRows?: SourceRow[];
   /** The raw workbook sheets to render original Excel schema */
   rawSheets?: RawSheet[];
+  /** Optional rect of the element that triggered the modal for FLIP transitions */
+  originRect?: DOMRect | null;
 }
 
 interface Beam { x1: number; y1: number; x2: number; y2: number; key: string }
@@ -74,15 +76,38 @@ export default function FloatingDetailModal({
   primaryValue,
   sourceRows,
   rawSheets,
+  originRect,
 }: FloatingDetailModalProps) {
   const [showSource, setShowSource] = useState(false);
   const [isInsightExpanded, setIsInsightExpanded] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
   const cellRefs = useRef<Map<string, HTMLTableCellElement>>(new Map());
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const [beams, setBeams] = useState<Beam[]>([]);
+
+  // FLIP Transition logic using Web Animations API
+  useEffect(() => {
+    if (isOpen && originRect && panelRef.current) {
+      const panel = panelRef.current;
+      const targetRect = panel.getBoundingClientRect();
+      const scaleX = originRect.width / targetRect.width;
+      const scaleY = originRect.height / targetRect.height;
+      const transX = originRect.left - targetRect.left;
+      const transY = originRect.top - targetRect.top;
+
+      panel.animate([
+        { transform: `translate(${transX}px, ${transY}px) scale(${scaleX}, ${scaleY})`, transformOrigin: 'top left', opacity: 0, borderRadius: 'var(--radius-lg)' },
+        { transform: `translate(0, 0) scale(1)`, transformOrigin: 'top left', opacity: 1, borderRadius: 'var(--radius-lg)' }
+      ], {
+        duration: 450,
+        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        fill: "forwards"
+      });
+    }
+  }, [isOpen, originRect]);
 
   // rawSheets (prop) only ever holds the CURRENT browser session's cached
   // upload — sourceRows can span the full historical ledger, built from
@@ -281,6 +306,7 @@ export default function FloatingDetailModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
+        ref={panelRef}
         className="modal-panel"
         style={{
           width: "98vw",
@@ -293,9 +319,9 @@ export default function FloatingDetailModal({
           flexDirection: "column",
           maxHeight: "96vh",
           overflow: "hidden",
-          opacity: isOpen ? 1 : 0,
-          transform: isOpen ? "translateY(0) scale(1)" : "translateY(24px) scale(0.985)",
-          transition: "max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+          opacity: isOpen && !originRect ? 1 : (originRect ? undefined : 0),
+          transform: isOpen && !originRect ? "translateY(0) scale(1)" : (originRect ? undefined : "translateY(24px) scale(0.985)"),
+          transition: originRect ? "max-width var(--duration-medium) var(--ease-out)" : "max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
         {/* Title bar — slim */}
@@ -561,7 +587,8 @@ export default function FloatingDetailModal({
                   const c2x = b.x2 - Math.max(40, dx * 0.4);
                   return (
                     <path key={b.key} d={`M ${b.x1} ${b.y1} C ${c1x} ${b.y1}, ${c2x} ${b.y2}, ${b.x2 - 3} ${b.y2}`}
-                      fill="none" stroke="var(--accent)" strokeWidth="1.3" opacity="0.5" markerEnd="url(#modal-beam-arrow)" />
+                      fill="none" stroke="var(--accent)" strokeWidth="1.3" opacity="0.5" markerEnd="url(#modal-beam-arrow)"
+                      pathLength="1" className="draw-line" style={{ animationDuration: "0.6s" }} />
                   );
                 })}
                 {beams[0] && <circle cx={beams[0].x1} cy={beams[0].y1} r="4" fill="var(--accent)" />}

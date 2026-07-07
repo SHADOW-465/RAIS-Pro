@@ -200,9 +200,10 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                   fill={it.isVitalFew ? "var(--accent)" : "var(--border-strong)"}
                   opacity={hover === null || active ? 1 : 0.55}
                   rx={2}
+                  className="bar-grow"
                   onMouseEnter={() => setHover(i)}
                   onMouseLeave={() => setHover(null)}
-                  style={{ transition: "opacity 0.15s ease", cursor: "pointer" }}
+                  style={{ transition: "opacity 0.15s ease", cursor: "pointer", animationDelay: `${i * 0.05}s` }}
                 />
                 <text
                   x={xCenter(i)}

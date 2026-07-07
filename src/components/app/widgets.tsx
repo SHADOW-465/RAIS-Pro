@@ -72,35 +72,60 @@ export function ZoomButton({ onClick, children, title }: { onClick: (e: any) => 
 
 
 export function AnimatedValue({ value }: { value: string }) {
-  const [displayValue, setDisplayValue] = useState("0");
-  
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
+  const prevNumRef = useRef<number | null>(null);
+
+  // Parse initial number on mount to prevent initial 0-sweep animation
   useEffect(() => {
-    // Extract numeric part and any non-numeric suffixes/prefixes (like %, ₹, $)
+    const match = value.match(/([\d,.]+)/);
+    if (match) {
+      const cleanNum = parseFloat(match[1].replace(/,/g, ""));
+      if (!isNaN(cleanNum)) {
+        prevNumRef.current = cleanNum;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (value === prevValueRef.current) return;
+    prevValueRef.current = value;
+    
     const match = value.match(/([\d,.]+)/);
     if (!match) {
       setDisplayValue(value);
       return;
     }
+    
     const numStr = match[1];
     const isPercent = value.includes("%");
     const isCurrency = value.includes("₹") || value.includes("Rs");
     const hasComma = numStr.includes(",");
-    const cleanNum = parseFloat(numStr.replace(/,/g, ""));
-    if (isNaN(cleanNum)) {
+    const targetNum = parseFloat(numStr.replace(/,/g, ""));
+    
+    if (isNaN(targetNum)) {
       setDisplayValue(value);
       return;
     }
     
-    const duration = 1200; // ms
+    const startNum = prevNumRef.current ?? targetNum;
+    prevNumRef.current = targetNum;
+
+    if (startNum === targetNum) {
+      setDisplayValue(value);
+      return;
+    }
+    
+    const duration = 600; // ms
     const startTime = performance.now();
     
     let frameId: number;
     const update = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      // Ease out cubic
+      // power3.out equivalent
       const ease = 1 - Math.pow(1 - progress, 3);
-      const current = cleanNum * ease;
+      const current = startNum + (targetNum - startNum) * ease;
       
       let formatted = "";
       if (isPercent) {
@@ -113,7 +138,6 @@ export function AnimatedValue({ value }: { value: string }) {
         }
       }
       
-      // Re-attach any extra text prefix/suffix
       setDisplayValue(value.replace(/[\d,.]+/, formatted.replace(/[^0-9.]/g, "")));
       
       if (progress < 1) {
@@ -267,10 +291,11 @@ export function Spark({ points, tone }: { points: SeriesPoint[]; tone?: "good" |
         fill="none" 
         stroke={color} 
         strokeWidth={1.5} 
+        pathLength={1}
         style={{
-          strokeDasharray: "200",
-          strokeDashoffset: "200",
-          animation: "draw-line 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards"
+          strokeDasharray: "1",
+          strokeDashoffset: "1",
+          animation: "draw-line var(--duration-slow) var(--ease-out) forwards"
         }}
       />
     </svg>
@@ -481,10 +506,11 @@ export function LineChart({
               fill="none" 
               stroke={color} 
               strokeWidth={2} 
+              pathLength={1}
               style={{
-                strokeDasharray: "1500",
-                strokeDashoffset: "1500",
-                animation: "draw-line 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+                strokeDasharray: "1",
+                strokeDashoffset: "1",
+                animation: "draw-line var(--duration-slow) var(--ease-out) forwards"
               }}
             />
           )}
@@ -684,10 +710,11 @@ export function MultiLine({
                 stroke={color(si)} 
                 strokeWidth={1.8} 
                 d={pathD} 
+                pathLength={1}
                 style={{
-                  strokeDasharray: "1500",
-                  strokeDashoffset: "1500",
-                  animation: `draw-line 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${si * 0.12}s forwards`
+                  strokeDasharray: "1",
+                  strokeDashoffset: "1",
+                  animation: `draw-line var(--duration-slow) var(--ease-out) ${si * 0.12}s forwards`
                 }}
               />
             ) : null;

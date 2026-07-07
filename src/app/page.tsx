@@ -103,7 +103,20 @@ export default function Dashboard() {
   const [modalContent, setModalContent] = useState<React.ReactNode>(null);
   const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
   const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
+  const [modalOriginRect, setModalOriginRect] = useState<DOMRect | null>(null);
   const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
+  const lastClickRect = React.useRef<DOMRect | null>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement).closest('.card'); // Kpis and Cards both use .card
+      if (el) {
+        lastClickRect.current = el.getBoundingClientRect();
+      }
+    };
+    document.addEventListener('click', handler, true); // Capture phase
+    return () => document.removeEventListener('click', handler, true);
+  }, []);
 
   const openModal = (
     title: string,
@@ -116,6 +129,7 @@ export default function Dashboard() {
     setModalContent(content);
     setModalSourceRows(source?.rows);
     setModalPrimaryValue(source?.value);
+    setModalOriginRect(lastClickRect.current);
     setModalOpen(true);
   };
 
@@ -989,12 +1003,16 @@ export default function Dashboard() {
 
       <FloatingDetailModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          lastClickRect.current = null;
+        }}
         title={modalTitle}
         insight={modalInsight}
-        sourceRows={modalSourceRows}
         primaryValue={modalPrimaryValue}
+        sourceRows={modalSourceRows}
         rawSheets={rawSheets}
+        originRect={modalOriginRect}
       >
         {modalContent}
       </FloatingDetailModal>

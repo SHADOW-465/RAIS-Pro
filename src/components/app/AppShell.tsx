@@ -101,6 +101,7 @@ export default function AppShell({
   const [showPicker, setShowPicker] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
   const [activeOffsetTop, setActiveOffsetTop] = useState(-1000);
+  const [activeOffsetLeft, setActiveOffsetLeft] = useState(0);
   const [activeHeight, setActiveHeight] = useState(0);
   const [activeWidth, setActiveWidth] = useState(0);
   const [showViewMenu, setShowViewMenu] = useState(false);
@@ -353,12 +354,15 @@ export default function AppShell({
     
     const updatePosition = () => {
       const activeEl = navRef.current?.querySelector('[data-nav-active="true"]');
-      if (activeEl && activeEl instanceof HTMLElement) {
+      const navEl = navRef.current;
+      if (activeEl && navEl && activeEl instanceof HTMLElement) {
         setActiveOffsetTop(activeEl.offsetTop);
+        setActiveOffsetLeft(activeEl.offsetLeft);
         setActiveHeight(activeEl.offsetHeight);
         setActiveWidth(activeEl.offsetWidth);
       } else {
         setActiveOffsetTop(-1000);
+        setActiveOffsetLeft(0);
       }
     };
 
@@ -515,15 +519,16 @@ export default function AppShell({
           {/* Sliding highlight indicator */}
           <div style={{
             position: "absolute",
-            left: sidebarCollapsed ? 4 : 8,
-            width: activeWidth || (sidebarCollapsed ? 56 : 224),
-            height: activeHeight || 38,
+            top: 0,
+            left: 0,
+            width: activeWidth,
+            height: activeHeight,
             borderRadius: "30px",
             background: "color-mix(in srgb, var(--accent) 8%, var(--surface-2))",
             border: "1px solid color-mix(in srgb, var(--accent) 15%, var(--border-strong))",
             pointerEvents: "none",
             transition: "all 0.28s cubic-bezier(0.25, 1, 0.5, 1)",
-            transform: `translateY(${activeOffsetTop}px)`,
+            transform: `translate(${activeOffsetLeft}px, ${activeOffsetTop}px)`,
             opacity: activeOffsetTop === -1000 ? 0 : 1,
             zIndex: 0
           }} />
