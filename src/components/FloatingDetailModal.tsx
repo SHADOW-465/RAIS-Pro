@@ -102,8 +102,8 @@ export default function FloatingDetailModal({
         { transform: `translate(${transX}px, ${transY}px) scale(${scaleX}, ${scaleY})`, transformOrigin: 'top left', opacity: 0, borderRadius: 'var(--radius-lg)' },
         { transform: `translate(0, 0) scale(1)`, transformOrigin: 'top left', opacity: 1, borderRadius: 'var(--radius-lg)' }
       ], {
-        duration: 450,
-        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        duration: 500,
+        easing: "cubic-bezier(0.34, 1.56, 0.64, 1)", // Soft spring overshoot
         fill: "forwards"
       });
     }
@@ -293,15 +293,15 @@ export default function FloatingDetailModal({
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(18,16,14,0.55)",
-        backdropFilter: "blur(4px)",
+        backgroundColor: "rgba(10, 9, 8, 0.88)",
+        backdropFilter: "blur(20px)",
         zIndex: 1000,
         display: "grid",
         placeItems: "center",
-        padding: 16,
+        padding: 24,
         opacity: isOpen ? 1 : 0,
         visibility: isOpen ? "visible" : "hidden",
-        transition: "opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+        transition: "opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.45s cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 0.45s cubic-bezier(0.16, 1, 0.3, 1)",
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -309,56 +309,86 @@ export default function FloatingDetailModal({
         ref={panelRef}
         className="modal-panel"
         style={{
-          width: "98vw",
-          maxWidth: showSource ? 1640 : 1320,
+          width: "95vw",
+          maxWidth: showSource ? 1720 : 1440,
+          height: "92vh",
           background: "var(--bg)",
           border: "1.5px solid var(--border-strong)",
           borderRadius: "var(--radius-lg)",
-          boxShadow: "0 24px 50px -12px rgba(0,0,0,0.5)",
+          boxShadow: "0 30px 60px -15px rgba(0,0,0,0.65)",
           display: "flex",
           flexDirection: "column",
-          maxHeight: "96vh",
+          maxHeight: "92vh",
           overflow: "hidden",
           opacity: isOpen && !originRect ? 1 : (originRect ? undefined : 0),
           transform: isOpen && !originRect ? "translateY(0) scale(1)" : (originRect ? undefined : "translateY(24px) scale(0.985)"),
           transition: originRect ? "max-width var(--duration-medium) var(--ease-out)" : "max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        {/* Title bar — slim */}
-        <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--border)", background: "var(--surface-2)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+        {/* Title bar — transparent / no borders */}
+        <div style={{ padding: "24px 28px 12px", background: "transparent", borderBottom: "none", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 9.5, fontWeight: 800, background: "var(--accent)", color: "var(--text-invert)", padding: "2px 6px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>RAIS</span>
-            <span style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, color: "var(--text)" }}>{title}</span>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--text)" }}>{title}</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {hasSource && (
               <button
                 onClick={() => setShowSource((s) => !s)}
                 style={{
-                  display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: "var(--radius-sm)",
-                  fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  border: `1px solid ${showSource ? "var(--accent)" : "var(--border-strong)"}`,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 18px",
+                  borderRadius: "9999px",
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  border: `1.5px solid ${showSource ? "var(--accent)" : "var(--border-strong)"}`,
                   background: showSource ? "var(--accent)" : "var(--surface)",
                   color: showSource ? "var(--text-invert)" : "var(--text)",
+                  boxShadow: "0 4px 14px rgba(0, 0, 0, 0.18)",
+                  transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
                 }}
               >
                 <Icon name="search" size={12} /> {showSource ? "Hide Source" : "View Source"}
               </button>
             )}
-            <button onClick={onClose} aria-label="Close" style={{ background: "transparent", border: "none", color: "var(--text-3)", cursor: "pointer", display: "grid", placeItems: "center", padding: 6, borderRadius: "50%" }}
-              onMouseOver={(e) => (e.currentTarget.style.background = "var(--surface-3)")}
-              onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}>
-              <Icon name="plus" size={15} style={{ transform: "rotate(45deg)" }} />
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                background: "var(--surface)",
+                border: "1.5px solid var(--border-strong)",
+                color: "var(--text-2)",
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                padding: 8,
+                borderRadius: "50%",
+                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.18)",
+                transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "var(--surface-3)";
+                e.currentTarget.style.transform = "scale(1.05)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "var(--surface)";
+                e.currentTarget.style.transform = "none";
+              }}
+            >
+              <Icon name="plus" size={14} style={{ transform: "rotate(45deg)" }} />
             </button>
           </div>
         </div>
 
         {/* Body */}
-        <div ref={containerRef} style={{ position: "relative", flex: 1, overflowY: "auto", padding: "16px 18px" }}>
+        <div ref={containerRef} style={{ position: "relative", flex: 1, overflowY: "auto", padding: "12px 28px 28px" }}>
           {!showSource ? (
             <>
-              {/* Chart big, full width */}
-              <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface)", padding: "16px 18px 8px", minHeight: 300 }}>
+              {/* Chart big, full width — full bleed, no border */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 450 }}>
                 {children}
               </div>
               {/* Collapsible AI Insights panel */}

@@ -366,9 +366,32 @@ export default function AppShell({
       }
     };
 
-    // Run on next tick to ensure layout rendering has settled
-    const id = requestAnimationFrame(updatePosition);
-    return () => cancelAnimationFrame(id);
+    // 1. Initial measurement
+    updatePosition();
+
+    // 2. Observe size changes (during transitions)
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(updatePosition);
+    });
+    observer.observe(navRef.current);
+
+    // 3. Keep updating on window resize
+    window.addEventListener("resize", updatePosition);
+
+    // 4. Run a few delayed checks during sidebar collapse transition
+    const timers = [
+      setTimeout(updatePosition, 50),
+      setTimeout(updatePosition, 100),
+      setTimeout(updatePosition, 180),
+      setTimeout(updatePosition, 250),
+      setTimeout(updatePosition, 350)
+    ];
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updatePosition);
+      timers.forEach(clearTimeout);
+    };
   }, [active, sidebarCollapsed, collapsedSections, mounted, viewStages, datasetTabs]);
 
   function toggleSection(title: string) {
@@ -675,66 +698,7 @@ export default function AppShell({
           })}
         </nav>
 
-        {/* Data Trust Score */}
-        <div style={{ 
-          padding: "16px", 
-          borderTop: "1px solid var(--border)",
-          background: "var(--surface-2)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          overflow: "hidden",
-          transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: sidebarCollapsed ? 0 : 10, transition: "gap 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
-            <div 
-              title={`Data Trust Score: ${trustScore != null ? `${trustScore.toFixed(1)}%` : "—"}`}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                background: "var(--positive-weak)",
-                display: "grid",
-                placeItems: "center",
-                color: "var(--positive)",
-                flexShrink: 0
-              }}
-            >
-              <Icon name="check" size={16} stroke={2.5} />
-            </div>
-            <div style={{ 
-              display: "flex",
-              flexDirection: "column",
-              opacity: sidebarCollapsed ? 0 : 1,
-              maxWidth: sidebarCollapsed ? 0 : "160px",
-              overflow: "hidden",
-              whiteSpace: "nowrap",
-              transition: "opacity 0.15s ease, max-width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
-            }}>
-              <div className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                Data Trust Score
-              </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                <span style={{ 
-                  fontFamily: "var(--font-mono)", 
-                  fontSize: 19, 
-                  fontWeight: 800, 
-                  color: "var(--positive)" 
-                }}>
-                  {trustScore != null ? `${trustScore.toFixed(1)}%` : "—"}
-                </span>
-                {trustScore != null && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--positive)" }}>
-                    {trustScore >= 95 ? "Excellent" : trustScore >= 85 ? "Good" : "Review"}
-                  </span>
-                )}
-              </div>
-              <div className="muted" style={{ fontSize: 9, marginTop: 1 }}>
-                {trustScore != null ? "Computed from the live ledger" : "No data ingested yet"}
-              </div>
-            </div>
-          </div>
-        </div>
+
       </aside>
 
       {/* Topbar / Masthead */}
@@ -752,8 +716,6 @@ export default function AppShell({
       }}>
         {/* left filter selectors */}
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <Selector label="Plant" value="Disposable Baddi" />
-          <Selector label="Line" value="FBC Line 1" />
 
           {/* Global View (stage) selector — scopes the ENTIRE app to one process.
               Compact dropdown (styled like Date Range below) replacing the old
@@ -1321,31 +1283,7 @@ function ViewMenuGroup({ label, options, activeId, onSelect, emptyLabel }: {
   );
 }
 
-function Selector({ label, value, icon }: { label: string; value: string; icon?: string }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
-      <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
-        {label}
-      </span>
-      <div style={{ 
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 12.5, 
-        fontWeight: 600, 
-        border: "1px solid var(--border-strong)", 
-        borderRadius: "var(--radius-sm)", 
-        padding: "4px 10px", 
-        background: "var(--surface-2)",
-        cursor: "pointer"
-      }}>
-        {icon === "calendar" && <Icon name="file" size={12} style={{ color: "var(--text-3)" }} />}
-        <span>{value}</span>
-        <Icon name="arrow-right" size={10} style={{ transform: "rotate(90deg)", color: "var(--text-3)" }} />
-      </div>
-    </div>
-  );
-}
+
 
 function Status({ tone, label, value }: { tone: string; label: string; value: string }) {
   return (
