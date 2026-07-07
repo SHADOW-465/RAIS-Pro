@@ -191,18 +191,17 @@ export function Kpi({
       className={onClick ? "card-hover" : ""}
       style={{ 
         border: "1.5px solid var(--border)", 
-        borderTop: primary ? "4px solid var(--accent)" : "1.5px solid var(--border)", 
         borderRadius: "var(--radius-lg)", 
-        background: "var(--surface)", 
+        background: primary ? "color-mix(in srgb, var(--accent) 1.5%, var(--surface))" : "var(--surface)", 
         padding: "20px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         cursor: onClick ? "pointer" : "default",
         minWidth: 0,
-        boxShadow: primary ? "var(--shadow-2), 0 0 12px rgba(200, 66, 28, 0.04)" : "var(--shadow-1)",
+        boxShadow: primary ? "var(--shadow-2), 0 4px 20px -2px color-mix(in srgb, var(--accent) 8%, transparent)" : "var(--shadow-1)",
         position: "relative",
-        transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
+        transition: "all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)",
       }}
     >
       {tone && (
@@ -346,7 +345,15 @@ export function LineChart({
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
   const v = points.map((p) => p.value);
-  const max = Math.max(...v, target ?? 0, 1e-6);
+  const maxVal = Math.max(...v, target ?? 0);
+  let defaultMax = 0.05;
+  try {
+    const testStr = fmt(1000);
+    if (testStr.includes("₹") || testStr.includes("Lakhs")) {
+      defaultMax = 100000;
+    }
+  } catch (e) {}
+  const max = maxVal === 0 ? defaultMax : maxVal;
   const avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
 
   const numPoints = points.length;
@@ -557,12 +564,22 @@ export function MultiLine({
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
 
-  let max = 1e-6;
+  let maxVal = 0;
   for (const d of data) {
     for (const s of stages) {
-      max = Math.max(max, d.perStage[s.stageId] ?? 0);
+      maxVal = Math.max(maxVal, d.perStage[s.stageId] ?? 0);
     }
   }
+  let defaultMax = 0.05;
+  try {
+    const testStr = fmtVal(1000);
+    if (testStr.includes("₹") || testStr.includes("Lakhs")) {
+      defaultMax = 100000;
+    } else if (!testStr.includes("%") && maxVal > 1) {
+      defaultMax = 10;
+    }
+  } catch (e) {}
+  const max = maxVal === 0 ? defaultMax : maxVal;
 
   const numPoints = data.length;
   const baseSpacing = getBaseSpacing(numPoints);

@@ -260,13 +260,24 @@ export default function FloatingDetailModal({
     cellRefs.current.clear();
   }, [activeTab]);
 
-  if (!isOpen) return null;
   const insights = Array.isArray(insight) ? insight : [insight];
 
   return (
     <div
       className="modal-backdrop"
-      style={{ position: "fixed", inset: 0, backgroundColor: "rgba(18,16,14,0.55)", zIndex: 1000, display: "grid", placeItems: "center", padding: 16 }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(18,16,14,0.55)",
+        backdropFilter: "blur(4px)",
+        zIndex: 1000,
+        display: "grid",
+        placeItems: "center",
+        padding: 16,
+        opacity: isOpen ? 1 : 0,
+        visibility: isOpen ? "visible" : "hidden",
+        transition: "opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+      }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
@@ -282,7 +293,9 @@ export default function FloatingDetailModal({
           flexDirection: "column",
           maxHeight: "96vh",
           overflow: "hidden",
-          transition: "max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
+          opacity: isOpen ? 1 : 0,
+          transform: isOpen ? "translateY(0) scale(1)" : "translateY(24px) scale(0.985)",
+          transition: "max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
         {/* Title bar — slim */}

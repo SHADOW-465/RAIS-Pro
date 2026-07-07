@@ -99,6 +99,10 @@ export default function AppShell({
   const { t, setTweak } = useTweaks();
   const [mounted, setMounted] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const navRef = useRef<HTMLDivElement>(null);
+  const [activeOffsetTop, setActiveOffsetTop] = useState(-1000);
+  const [activeHeight, setActiveHeight] = useState(0);
+  const [activeWidth, setActiveWidth] = useState(0);
   const [showViewMenu, setShowViewMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
@@ -343,6 +347,26 @@ export default function AppShell({
     }
   }, []);
 
+  // Calculate active navigation element coordinates relative to <nav> container
+  useEffect(() => {
+    if (!mounted || !navRef.current) return;
+    
+    const updatePosition = () => {
+      const activeEl = navRef.current?.querySelector('[data-nav-active="true"]');
+      if (activeEl && activeEl instanceof HTMLElement) {
+        setActiveOffsetTop(activeEl.offsetTop);
+        setActiveHeight(activeEl.offsetHeight);
+        setActiveWidth(activeEl.offsetWidth);
+      } else {
+        setActiveOffsetTop(-1000);
+      }
+    };
+
+    // Run on next tick to ensure layout rendering has settled
+    const id = requestAnimationFrame(updatePosition);
+    return () => cancelAnimationFrame(id);
+  }, [active, sidebarCollapsed, collapsedSections, mounted, viewStages, datasetTabs]);
+
   function toggleSection(title: string) {
     setCollapsedSections((prev) => {
       const next = { ...prev, [title]: !prev[title] };
@@ -401,9 +425,10 @@ export default function AppShell({
       background: "var(--bg)", 
       color: "var(--text)", 
       display: "grid", 
-      gridTemplateColumns: "auto 1fr", 
+      gridTemplateColumns: sidebarCollapsed ? "64px 1fr" : "240px 1fr", 
       gridTemplateRows: "70px 1fr 44px", 
-      gridTemplateAreas: `"side top" "side main" "side status"`
+      gridTemplateAreas: `"side top" "side main" "side status"`,
+      transition: "grid-template-columns 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
     }}>
       {/* Sidebar Navigation */}
       <aside style={{ 
@@ -486,7 +511,22 @@ export default function AppShell({
         </div>
 
         {/* nav links — grouped into collapsible sections */}
-        <nav style={{ flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 4px" : "12px 8px" }}>
+        <nav ref={navRef} style={{ position: "relative", flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 4px" : "12px 8px" }}>
+          {/* Sliding highlight indicator */}
+          <div style={{
+            position: "absolute",
+            left: sidebarCollapsed ? 4 : 8,
+            width: activeWidth || (sidebarCollapsed ? 56 : 224),
+            height: activeHeight || 38,
+            borderRadius: "30px",
+            background: "color-mix(in srgb, var(--accent) 8%, var(--surface-2))",
+            border: "1px solid color-mix(in srgb, var(--accent) 15%, var(--border-strong))",
+            pointerEvents: "none",
+            transition: "all 0.28s cubic-bezier(0.25, 1, 0.5, 1)",
+            transform: `translateY(${activeOffsetTop}px)`,
+            opacity: activeOffsetTop === -1000 ? 0 : 1,
+            zIndex: 0
+          }} />
           {NAV_SECTIONS.map((section) => {
             const isCollapsed = !!collapsedSections[section.title];
             return (
@@ -544,6 +584,7 @@ export default function AppShell({
 
                   return (
                     <button key={n.key} disabled={n.soon}
+                      data-nav-active={isActive}
                       onClick={() => {
                         if (n.href) {
                           router.push(n.href);
@@ -558,36 +599,22 @@ export default function AppShell({
                         gap: sidebarCollapsed ? 0 : 10,
                         padding: sidebarCollapsed ? "10px 20px" : (isAnalyticsChild ? "8px 16px 8px 32px" : "10px 16px"),
                         marginBottom: 2,
-                        background: isActive
-                          ? "var(--accent-weak)"
-                          : "transparent",
-                        borderRadius: "var(--radius-sm)",
+                        background: "transparent",
+                        borderRadius: "30px",
                         color: isActive
-                          ? "var(--text)"
+                          ? "var(--accent)"
                           : n.soon
                             ? "var(--text-3)"
                             : "var(--text-2)",
                         border: "none",
                         cursor: n.soon ? "default" : "pointer",
                         fontSize: isAnalyticsChild ? 12.5 : 13.5,
-                        fontWeight: isActive ? 600 : 500,
+                        fontWeight: isActive ? 700 : 500,
                         textAlign: "left",
-                        transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), gap 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.15s ease",
-                        position: "relative"
+                        transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), gap 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.15s ease",
+                        position: "relative",
+                        zIndex: 1
                       }}>
-                      {isActive && (
-                        <div style={{
-                          position: "absolute",
-                          left: 0,
-                          top: sidebarCollapsed ? 0 : "15%",
-                          bottom: sidebarCollapsed ? 0 : "auto",
-                          height: sidebarCollapsed ? "100%" : "70%",
-                          width: 3,
-                          background: "#C8421C",
-                          borderRadius: sidebarCollapsed ? 0 : "0 2px 2px 0",
-                          transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
-                        }} />
-                      )}
                       <Icon name={n.icon} size={isAnalyticsChild ? 13 : 15} stroke={isActive ? 2 : 1.5} style={{ flexShrink: 0 }} />
                       <span style={{ 
                         flex: 1,
