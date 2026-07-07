@@ -71,6 +71,65 @@ export function ZoomButton({ onClick, children, title }: { onClick: (e: any) => 
 
 
 
+export function AnimatedValue({ value }: { value: string }) {
+  const [displayValue, setDisplayValue] = useState("0");
+  
+  useEffect(() => {
+    // Extract numeric part and any non-numeric suffixes/prefixes (like %, ₹, $)
+    const match = value.match(/([\d,.]+)/);
+    if (!match) {
+      setDisplayValue(value);
+      return;
+    }
+    const numStr = match[1];
+    const isPercent = value.includes("%");
+    const isCurrency = value.includes("₹") || value.includes("Rs");
+    const hasComma = numStr.includes(",");
+    const cleanNum = parseFloat(numStr.replace(/,/g, ""));
+    if (isNaN(cleanNum)) {
+      setDisplayValue(value);
+      return;
+    }
+    
+    const duration = 1200; // ms
+    const startTime = performance.now();
+    
+    let frameId: number;
+    const update = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const current = cleanNum * ease;
+      
+      let formatted = "";
+      if (isPercent) {
+        formatted = `${current.toFixed(2)}%`;
+      } else {
+        const rounded = Math.round(current);
+        formatted = hasComma ? rounded.toLocaleString("en-IN") : String(rounded);
+        if (isCurrency) {
+          formatted = `₹${formatted}`;
+        }
+      }
+      
+      // Re-attach any extra text prefix/suffix
+      setDisplayValue(value.replace(/[\d,.]+/, formatted.replace(/[^0-9.]/g, "")));
+      
+      if (progress < 1) {
+        frameId = requestAnimationFrame(update);
+      } else {
+        setDisplayValue(value);
+      }
+    };
+    
+    frameId = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frameId);
+  }, [value]);
+  
+  return <span>{displayValue}</span>;
+}
+
 export function Card({ title, sub, children, span, onClick }: { title?: string; sub?: string; children: React.ReactNode; span?: number; onClick?: () => void }) {
   return (
     <div 
@@ -78,24 +137,27 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
       className={onClick ? "card-hover" : ""}
       style={{ 
         gridColumn: span ? `span ${span}` : undefined, 
-        border: "1px solid var(--border)", 
-        borderRadius: "var(--radius-md)", 
+        border: "1.5px solid var(--border)", 
+        borderRadius: "var(--radius-lg)", 
         background: "var(--surface)", 
-        padding: "16px",
+        padding: "24px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         cursor: onClick ? "pointer" : "default",
-        minWidth: 0
+        minWidth: 0,
+        boxShadow: "var(--shadow-2)",
+        position: "relative",
+        transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)"
       }}
     >
       {title && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)" }}>{title}</span>
-          {sub && <span className="muted" style={{ fontSize: 11 }}>{sub}</span>}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-3)", fontFamily: "var(--font-sans)" }}>{title}</span>
+          {sub && <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>{sub}</span>}
         </div>
       )}
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>{children}</div>
     </div>
   );
 }
@@ -122,47 +184,68 @@ export function Kpi({
   onClick?: () => void;
 }) {
   const color = tone === "bad" ? "var(--critical)" : tone === "warn" ? "var(--warning)" : tone === "good" ? "var(--positive)" : "var(--text)";
+  
   return (
     <div 
       onClick={onClick}
       className={onClick ? "card-hover" : ""}
       style={{ 
-        border: "1px solid var(--border)", 
-        borderTop: primary ? "3px solid #C8421C" : "1px solid var(--border)", 
-        borderRadius: "var(--radius-md)", 
+        border: "1.5px solid var(--border)", 
+        borderTop: primary ? "4px solid var(--accent)" : "1.5px solid var(--border)", 
+        borderRadius: "var(--radius-lg)", 
         background: "var(--surface)", 
-        padding: "16px",
+        padding: "20px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         cursor: onClick ? "pointer" : "default",
-        minWidth: 0
+        minWidth: 0,
+        boxShadow: primary ? "var(--shadow-2), 0 0 12px rgba(200, 66, 28, 0.04)" : "var(--shadow-1)",
+        position: "relative",
+        transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
       }}
     >
-      <div>
-        <div className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>{label}</div>
+      {tone && (
         <div style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: primary ? 34 : 22,
+          position: "absolute",
+          top: 0,
+          right: 0,
+          width: 32,
+          height: 32,
+          borderTopRightRadius: "calc(var(--radius-lg) - 1.5px)",
+          background: `radial-gradient(circle at top right, ${color} 15%, transparent 70%)`,
+          opacity: 0.12,
+          pointerEvents: "none"
+        }} />
+      )}
+      
+      <div>
+        <div className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, fontFamily: "var(--font-sans)", color: "var(--text-3)" }}>{label}</div>
+        <div style={{
+          fontFamily: /[\d%₹]/.test(value) && !/[a-zA-Z]{5,}/.test(value) ? "var(--font-mono)" : "var(--font-display)",
+          fontSize: primary ? 32 : 20,
           fontWeight: 800,
           color,
-          margin: "8px 0 2px",
-          letterSpacing: primary ? "-0.01em" : undefined,
-        }}>{value}</div>
+          margin: "12px 0 4px",
+          letterSpacing: "-0.015em",
+          lineHeight: 1.15
+        }}>
+          <AnimatedValue value={value} />
+        </div>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10, gap: 12 }}>
         {sub && (
           <div className="muted" style={{ 
             fontSize: 11.5, 
-            fontFamily: "var(--font-mono)", 
+            fontFamily: "var(--font-sans)", 
             color: tone === "bad" ? "var(--critical)" : tone === "good" ? "var(--positive)" : "var(--text-3)",
-            fontWeight: 600
+            fontWeight: 700
           }}>
             {sub}
           </div>
         )}
         {spark && spark.length > 1 && (
-          <div style={{ marginLeft: "auto" }}>
+          <div style={{ marginLeft: "auto", opacity: 0.85 }}>
             <Spark points={spark} tone={tone} />
           </div>
         )}
@@ -180,7 +263,17 @@ export function Spark({ points, tone }: { points: SeriesPoint[]; tone?: "good" |
   const color = tone === "bad" ? "var(--critical)" : tone === "good" ? "var(--positive)" : "var(--accent)";
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible" }}>
-      <polyline points={d} fill="none" stroke={color} strokeWidth={1.5} />
+      <polyline 
+        points={d} 
+        fill="none" 
+        stroke={color} 
+        strokeWidth={1.5} 
+        style={{
+          strokeDasharray: "200",
+          strokeDashoffset: "200",
+          animation: "draw-line 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards"
+        }}
+      />
     </svg>
   );
 }
@@ -365,8 +458,29 @@ export function LineChart({
             </g>
           )}
 
-          {fillD && <path d={fillD} fill="var(--accent-weak)" opacity={0.25} />}
-          {pathD && <path d={pathD} fill="none" stroke={color} strokeWidth={2} />}
+          {fillD && (
+            <path 
+              d={fillD} 
+              fill="var(--accent-weak)" 
+              style={{
+                opacity: 0,
+                animation: "fade-up 0.8s ease-out 1.2s forwards"
+              }}
+            />
+          )}
+          {pathD && (
+            <path 
+              d={pathD} 
+              fill="none" 
+              stroke={color} 
+              strokeWidth={2} 
+              style={{
+                strokeDasharray: "1500",
+                strokeDashoffset: "1500",
+                animation: "draw-line 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+              }}
+            />
+          )}
 
           {/* Hover Crosshairs */}
           {hover != null && (
@@ -547,7 +661,18 @@ export function MultiLine({
               ? `M ${x(startIdx)} ${y(data[startIdx].perStage[s.stageId] ?? 0)} ` + visibleData.map((d, idx) => `L ${x(startIdx + idx)} ${y(d.perStage[s.stageId] ?? 0)}`).join(" ")
               : "";
             return pathD ? (
-              <path key={s.stageId} fill="none" stroke={color(si)} strokeWidth={1.8} d={pathD} />
+              <path 
+                key={s.stageId} 
+                fill="none" 
+                stroke={color(si)} 
+                strokeWidth={1.8} 
+                d={pathD} 
+                style={{
+                  strokeDasharray: "1500",
+                  strokeDashoffset: "1500",
+                  animation: `draw-line 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${si * 0.12}s forwards`
+                }}
+              />
             ) : null;
           })}
 
@@ -597,26 +722,33 @@ export function MultiLine({
 
 
 export function BarsH({ rows, fmt }: { rows: { label: string; value: number; sub?: string }[]; fmt: (n: number) => string }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   if (!rows || rows.length === 0) {
     return <Empty label="No distribution records available." />;
   }
   const max = Math.max(...rows.map((r) => r.value), 1e-6);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {rows.map((r, i) => (
         <div key={r.label}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
-            <span style={{ color: "var(--text)", fontWeight: 500 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 6 }}>
+            <span style={{ color: "var(--text)", fontWeight: 600 }}>
               {r.label}
-              {r.sub ? <span className="muted" style={{ fontSize: 11 }}> · {r.sub}</span> : null}
+              {r.sub ? <span className="muted" style={{ fontSize: 11, fontWeight: 500 }}> · {r.sub}</span> : null}
             </span>
             <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-2)" }}>{fmt(r.value)}</span>
           </div>
-          <div style={{ height: 8, background: "var(--surface-2)", borderRadius: 4, overflow: "hidden", border: "1px solid var(--border)" }}>
+          <div style={{ height: 10, background: "var(--surface-2)", borderRadius: 5, overflow: "hidden", border: "1px solid var(--border)" }}>
             <div style={{ 
-              width: `${(r.value / max) * 100}%`, 
+              width: mounted ? `${(r.value / max) * 100}%` : "0%", 
               height: "100%", 
-              background: i === 0 ? "#C8421C" : "var(--accent)" 
+              background: i === 0 ? "var(--accent)" : "color-mix(in srgb, var(--accent) 70%, transparent)",
+              transition: "width 1.2s cubic-bezier(0.2, 0.8, 0.2, 1)",
+              borderRadius: 5
             }} />
           </div>
         </div>
@@ -830,6 +962,11 @@ export function Donut({
   fontSize?: number;
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const total = data.reduce((s, d) => s + d.value, 0);
   if (!data.length || total <= 0) return <Empty label="No data for the selected range." />;
   const f = fmt ?? ((n: number) => Math.round(n).toLocaleString("en-IN"));
@@ -842,16 +979,17 @@ export function Donut({
         <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--border)" strokeWidth={20} />
         {data.map((d, i) => {
           const frac = d.value / total, seg = frac * C, off = acc * C; acc += frac;
+          const animatedSeg = mounted ? seg : 0;
           return <circle key={i} cx={cx} cy={cy} r={R} fill="none" stroke={col(i)} strokeWidth={hover === i ? 24 : 20}
-            strokeDasharray={`${seg} ${C - seg}`} strokeDashoffset={-off} transform={`rotate(-90 ${cx} ${cy})`}
-            onMouseEnter={() => setHover(i)} style={{ transition: "stroke-width .1s" }} />;
+            strokeDasharray={`${animatedSeg} ${C - animatedSeg}`} strokeDashoffset={-off} transform={`rotate(-90 ${cx} ${cy})`}
+            onMouseEnter={() => setHover(i)} style={{ transition: "stroke-width .15s, stroke-dasharray 1.4s cubic-bezier(0.16, 1, 0.3, 1)" }} />;
         })}
         <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fill="var(--text-3)">Total</text>
         <text x={cx} y={cy + 14} textAnchor="middle" fontSize={15} fontWeight={800} fontFamily="var(--font-mono)" fill="var(--text)">{f(total)}</text>
       </svg>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: fontSize }}>
         {data.map((d, i) => (
-          <div key={i} onMouseEnter={() => setHover(i)} style={{ display: "flex", alignItems: "center", gap: 10, opacity: hover == null || hover === i ? 1 : 0.5 }}>
+          <div key={i} onMouseEnter={() => setHover(i)} style={{ display: "flex", alignItems: "center", gap: 10, opacity: hover == null || hover === i ? 1 : 0.5, transition: "opacity 0.2s" }}>
             <span style={{ width: fontSize - 3, height: fontSize - 3, borderRadius: 2, background: col(i), flexShrink: 0 }} />
             <span style={{ color: "var(--text-2)", minWidth: fontSize * 8 }}>{d.label}</span>
             <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{f(d.value)}</span>
