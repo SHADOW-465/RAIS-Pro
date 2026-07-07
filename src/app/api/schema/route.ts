@@ -31,10 +31,13 @@ const DEFAULT_FIELDS = [
 ];
 
 function toRegistry(data: any) {
-  const enrichedStages = (data.stages || []).map((stage: any) => ({
+  const rawStages = typeof data.stages === "string" ? JSON.parse(data.stages) : data.stages;
+  const enrichedStages = (rawStages || []).map((stage: any) => ({
     ...stage,
     fields: stage.fields || DEFAULT_FIELDS
   }));
+  const rawDefects = typeof data.defects === "string" ? JSON.parse(data.defects) : data.defects;
+  const rawSizes = typeof data.sizes === "string" ? JSON.parse(data.sizes) : data.sizes;
   return {
     presetId: data.client_id,
     clientId: data.client_id,
@@ -43,8 +46,8 @@ function toRegistry(data: any) {
     registryVersion: data.registry_version,
     fiscalYearStartMonth: data.fiscal_year_start_month,
     stages: enrichedStages,
-    defects: data.defects || [],
-    sizes: data.sizes || DISPOSAFE_REGISTRY.sizes,
+    defects: rawDefects || [],
+    sizes: rawSizes || DISPOSAFE_REGISTRY.sizes,
   };
 }
 
@@ -54,11 +57,23 @@ export async function GET(req: NextRequest) {
     const presetId = req.nextUrl.searchParams.get("presetId");
     const wantList = req.nextUrl.searchParams.get("list") === "true";
 
+    // Select * to be resilient to missing columns (like name/created_at) on older schemas
+    const { data, error } = await db.from("registries").select("*");
+    if (error) throw error;
+
+    const rows = data || [];
+
+    // Sort in memory: if created_at is present, order by it; otherwise fallback to client_id
+    const sortedRows = [...rows].sort((a: any, b: any) => {
+      if (a.created_at && b.created_at) {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      return (a.client_id || "").localeCompare(b.client_id || "");
+    });
+
     if (wantList) {
-      const { data, error } = await db.from("registries").select("client_id, name, stages, created_at").order("created_at", { ascending: true });
-      if (error) throw error;
       return NextResponse.json({
-        presets: (data || []).map((r: any) => ({
+        presets: sortedRows.map((r: any) => ({
           presetId: r.client_id,
           name: r.name || r.client_id,
           stageCount: (r.stages || []).length,
@@ -66,13 +81,12 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    let query = db.from("registries").select("*");
-    query = presetId ? query.eq("client_id", presetId) : query.order("created_at", { ascending: true }).limit(1);
-    const { data, error } = await query.maybeSingle();
-    if (error) throw error;
+    const matchedRow = presetId
+      ? rows.find((r: any) => r.client_id === presetId)
+      : sortedRows[0];
 
-    if (data) {
-      return NextResponse.json({ registry: toRegistry(data), configured: true });
+    if (matchedRow) {
+      return NextResponse.json({ registry: toRegistry(matchedRow), configured: true });
     }
 
     const defaultEnrichedStages = DISPOSAFE_REGISTRY.stages.map((stage: any) => ({
@@ -120,9 +134,6 @@ export async function POST(req: NextRequest) {
     const defects = payload.defects || DISPOSAFE_REGISTRY.defects;
     const sizes = payload.sizes || DISPOSAFE_REGISTRY.sizes;
 
-    // New preset: presetId is a fresh slug (never collides with/overwrites an
-    // existing preset). Existing preset: presetId must already exist — this
-    // route only ever extends that one row, never touches any other preset.
     const db = createServerClient();
     let clientId = requestedPresetId;
     if (!clientId) {
@@ -130,9 +141,9 @@ export async function POST(req: NextRequest) {
       clientId = base;
       let suffix = 1;
       // Guarantee uniqueness rather than colliding with an existing preset.
-      // eslint-disable-next-line no-constant-condition
       while (true) {
-        const { data: existing } = await db.from("registries").select("client_id").eq("client_id", clientId).maybeSingle();
+        const { data: existing, error: existingError } = await db.from("registries").select("client_id").eq("client_id", clientId).maybeSingle();
+        if (existingError) throw existingError;
         if (!existing) break;
         clientId = `${base}-${++suffix}`;
       }
@@ -149,8 +160,26 @@ export async function POST(req: NextRequest) {
     if (name) row.name = name;
     if (createdFromFilename) row.created_from_filename = createdFromFilename;
 
-    const { error } = await db.from("registries").upsert(row, { onConflict: "client_id" });
-    if (error) throw error;
+    let { error } = await db.from("registries").upsert(row, { onConflict: "client_id" });
+    if (error) {
+      // Fallback: If migration was not pushed to remote DB, the registries table
+      // may lack name or created_from_filename columns. Catch and retry stripping them.
+      const isColErr = error.message.includes("column") && error.message.includes("does not exist");
+      if (isColErr) {
+        const fallbackRow = {
+          client_id: clientId,
+          registry_version: "1.0.0",
+          fiscal_year_start_month: 4,
+          stages,
+          defects,
+          sizes,
+        };
+        const { error: fallbackError } = await db.from("registries").upsert(fallbackRow, { onConflict: "client_id" });
+        if (fallbackError) throw fallbackError;
+      } else {
+        throw error;
+      }
+    }
 
     return NextResponse.json({
       success: true,

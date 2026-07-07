@@ -694,7 +694,7 @@ export default function StagingPage() {
         <button onClick={() => router.push("/")} style={{ background: "var(--status-good)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>View dashboard →</button>
       </div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 18 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <Card 
             title="Upload" 
