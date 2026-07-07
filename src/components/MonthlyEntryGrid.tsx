@@ -1,12 +1,12 @@
 "use client";
 
 // src/components/MonthlyEntryGrid.tsx
-// "Monthly Entry" mode for /data-entry — one row per calendar day of a
-// selected month, for a chosen Stage (+ Size for size-wise stages). Mirrors
-// the real Excel sheet shape. Reuses the exact same StageDayRecord model,
-// applyEdit(), and buildReviewRows() the daily entry grid and /staging use,
-// so a day entered here is indistinguishable from one entered anywhere else
-// (see docs/superpowers/specs/2026-07-05-monthly-data-entry-design.md).
+// Spreadsheet-style entry surface for /data-entry — one row per calendar day
+// of a selected month, for a chosen Stage (+ Size for size-wise stages).
+// Mirrors the real Excel sheet shape. Reuses the exact same StageDayRecord
+// model, applyEdit(), and buildReviewRows() the daily entry grid and /staging
+// use, so a day entered here is indistinguishable from one entered anywhere
+// else (see docs/superpowers/specs/2026-07-07-data-entry-unify-design.md).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
@@ -339,6 +339,12 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
       {invalidCount > 0 && (
         <p style={{ fontSize: 12, color: "var(--status-bad)", marginTop: 8 }}>
           {invalidCount} of {reviewByDate.size} entered day{reviewByDate.size === 1 ? "" : "s"} need{invalidCount === 1 ? "s" : ""} fixing before you can save.
+        </p>
+      )}
+
+      {blockedReason && (
+        <p style={{ fontSize: 12, color: "var(--status-bad)", marginTop: 8 }}>
+          {blockedReason}
         </p>
       )}
 
