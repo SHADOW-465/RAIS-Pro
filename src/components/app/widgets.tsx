@@ -954,12 +954,14 @@ export function Donut({
   data, 
   fmt,
   size = 160,
-  fontSize = 12
+  fontSize = 12,
+  hideLegend = false
 }: { 
   data: { label: string; value: number; color?: string }[]; 
   fmt?: (n: number) => string;
   size?: number;
   fontSize?: number;
+  hideLegend?: boolean;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -987,16 +989,18 @@ export function Donut({
         <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fill="var(--text-3)">Total</text>
         <text x={cx} y={cy + 14} textAnchor="middle" fontSize={15} fontWeight={800} fontFamily="var(--font-mono)" fill="var(--text)">{f(total)}</text>
       </svg>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: fontSize }}>
-        {data.map((d, i) => (
-          <div key={i} onMouseEnter={() => setHover(i)} style={{ display: "flex", alignItems: "center", gap: 10, opacity: hover == null || hover === i ? 1 : 0.5, transition: "opacity 0.2s" }}>
-            <span style={{ width: fontSize - 3, height: fontSize - 3, borderRadius: 2, background: col(i), flexShrink: 0 }} />
-            <span style={{ color: "var(--text-2)", minWidth: fontSize * 8 }}>{d.label}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{f(d.value)}</span>
-            <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-2)" }}>({((d.value / total) * 100).toFixed(1)}%)</span>
-          </div>
-        ))}
-      </div>
+      {!hideLegend && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: fontSize }}>
+          {data.map((d, i) => (
+            <div key={i} onMouseEnter={() => setHover(i)} style={{ display: "flex", alignItems: "center", gap: 10, opacity: hover == null || hover === i ? 1 : 0.5, transition: "opacity 0.2s" }}>
+              <span style={{ width: fontSize - 3, height: fontSize - 3, borderRadius: 2, background: col(i), flexShrink: 0 }} />
+              <span style={{ color: "var(--text-2)", minWidth: fontSize * 8 }}>{d.label}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{f(d.value)}</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-2)" }}>({((d.value / total) * 100).toFixed(1)}%)</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
