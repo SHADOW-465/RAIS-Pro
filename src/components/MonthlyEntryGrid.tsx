@@ -1,18 +1,19 @@
 "use client";
 
 // src/components/MonthlyEntryGrid.tsx
-// "Monthly Entry" mode for /data-entry — one row per calendar day of a
-// selected month, for a chosen Stage (+ Size for size-wise stages). Mirrors
-// the real Excel sheet shape. Reuses the exact same StageDayRecord model,
-// applyEdit(), and buildReviewRows() the daily entry grid and /staging use,
-// so a day entered here is indistinguishable from one entered anywhere else
-// (see docs/superpowers/specs/2026-07-05-monthly-data-entry-design.md).
+// Spreadsheet-style entry surface for /data-entry — one row per calendar day
+// of a selected month, for a chosen Stage (+ Size for size-wise stages).
+// Mirrors the real Excel sheet shape. Reuses the exact same StageDayRecord
+// model, applyEdit(), and buildReviewRows() the daily entry grid and /staging
+// use, so a day entered here is indistinguishable from one entered anywhere
+// else (see docs/superpowers/specs/2026-07-07-data-entry-unify-design.md).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { buildReviewRows, applyEdit } from "@/lib/ingest/review";
 import { CAPTURE_LABEL, CAPTURE_FIELD, CAPTURE_TO_RECORD_FIELD, CORE_FIELD_BY_COL } from "@/lib/ingest/capture-fields";
+import { useEvents } from "@/components/app/EventsContext";
 
 function currentYearMonth(): { year: number; month: number } {
   const now = new Date();
@@ -29,11 +30,25 @@ function isoDate(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-export default function MonthlyEntryGrid({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void } = {}) {
+/** Parses a "YYYY-MM-DD" string into { year, month } without going through
+ *  `Date` parsing (which treats date-only strings as UTC and can shift the
+ *  day depending on the browser's local timezone). */
+function yearMonthOf(dateStr: string): { year: number; month: number } {
+  const [y, m] = dateStr.split("-").map(Number);
+  return { year: y, month: m };
+}
+
+export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialDate, blockedReason }: {
+  onDirtyChange?: (dirty: boolean) => void;
+  customFields?: Record<string, any>;
+  initialDate?: string;
+  blockedReason?: string | null;
+} = {}) {
+  const { refreshEvents } = useEvents();
   const [registry, setRegistry] = useState<any | null>(null);
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
   const [activeSize, setActiveSize] = useState<string | null>(null);
-  const [{ year, month }, setYearMonth] = useState(currentYearMonth());
+  const [{ year, month }, setYearMonth] = useState(() => (initialDate ? yearMonthOf(initialDate) : currentYearMonth()));
 
   const [records, setRecords] = useState<StageDayRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -196,11 +211,19 @@ export default function MonthlyEntryGrid({ onDirtyChange }: { onDirtyChange?: (d
   const invalidCount = Array.from(reviewByDate.values()).filter((r) => r.status === "invalid").length;
 
   async function saveMonth() {
+    if (blockedReason) {
+      setError(blockedReason);
+      return;
+    }
     setSaving(true); setError(null); setSuccess(null);
     const ingestionId = globalThis.crypto?.randomUUID?.() ?? `entry-${Date.now()}`;
     const payload = records
       .filter((r) => r.checked || r.acceptedGood || r.rework || r.rejected || r.defects.length > 0)
-      .map((r) => ({ ...r, ingestionId }));
+      .map((r) => ({
+        ...r,
+        ingestionId,
+        customFields: { ...r.customFields, ...customFields, size: r.size ?? customFields?.size },
+      }));
 
     if (payload.length === 0) {
       setError("Enter quantities for at least one day before saving.");
@@ -218,6 +241,7 @@ export default function MonthlyEntryGrid({ onDirtyChange }: { onDirtyChange?: (d
       setSuccess(`${payload.length} day(s) saved for ${monthLabel}.`);
       setDirty(false);
       await loadMonth();
+      refreshEvents().catch(console.error);
     } catch (e: any) {
       setError(e?.message ?? "Save failed");
     } finally {
@@ -318,6 +342,12 @@ export default function MonthlyEntryGrid({ onDirtyChange }: { onDirtyChange?: (d
         </p>
       )}
 
+      {blockedReason && (
+        <p style={{ fontSize: 12, color: "var(--status-bad)", marginTop: 8 }}>
+          {blockedReason}
+        </p>
+      )}
+
       {success && (
         <div style={{ marginTop: 14, padding: "10px 14px", borderRadius: 9, background: "var(--positive-weak)", border: "1px solid var(--positive)", color: "var(--positive)", fontSize: 13 }}>
           {success}
@@ -325,9 +355,9 @@ export default function MonthlyEntryGrid({ onDirtyChange }: { onDirtyChange?: (d
       )}
 
       <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
-        <button onClick={saveMonth} disabled={saving || invalidCount > 0}
+        <button onClick={saveMonth} disabled={saving || invalidCount > 0 || !!blockedReason}
           style={{ background: "var(--status-good)", color: "#fff", border: "none", borderRadius: 9, padding: "10px 22px", fontSize: 14, fontWeight: 700,
-            cursor: saving || invalidCount > 0 ? "not-allowed" : "pointer", opacity: saving || invalidCount > 0 ? 0.6 : 1 }}>
+            cursor: saving || invalidCount > 0 || blockedReason ? "not-allowed" : "pointer", opacity: saving || invalidCount > 0 || blockedReason ? 0.6 : 1 }}>
           {saving ? "Saving Month…" : "Save Month"}
         </button>
       </div>
