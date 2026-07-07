@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import type { SeriesPoint, StageRow, DefectRow, StageTrendPoint } from "@/lib/analytics";
 import Icon from "@/components/editorial/Icon";
 import { useTweaks } from "@/components/editorial/TweaksContext";
@@ -17,15 +17,67 @@ export function ChartTip({ leftPx, topPx, below, title, rows }: {
   leftPx: number; topPx: number; below: boolean; title: string;
   rows: { label: string; value: string; color?: string }[];
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0, forceBelow: null as boolean | null });
+
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const el = ref.current;
+    const parent = el.offsetParent;
+    if (!parent) return;
+
+    const parentRect = parent.getBoundingClientRect();
+    const tooltipRect = el.getBoundingClientRect();
+
+    let shiftX = 0;
+    let forceBelowVal: boolean | null = null;
+
+    // Check left collision
+    const absoluteLeft = parentRect.left + leftPx - tooltipRect.width / 2;
+    if (absoluteLeft < parentRect.left + 8) {
+      shiftX = (parentRect.left + 8) - absoluteLeft;
+    }
+
+    // Check right collision
+    const absoluteRight = parentRect.left + leftPx + tooltipRect.width / 2;
+    if (absoluteRight > parentRect.right - 8) {
+      shiftX = (parentRect.right - 8) - absoluteRight;
+    }
+
+    // Check top/bottom collision
+    const isBelow = forceBelowVal !== null ? forceBelowVal : below;
+    if (!isBelow) {
+      const absoluteTop = parentRect.top + topPx - tooltipRect.height - 12;
+      if (absoluteTop < parentRect.top + 8) {
+        forceBelowVal = true;
+      }
+    } else {
+      const absoluteBottom = parentRect.top + topPx + tooltipRect.height + 12;
+      if (absoluteBottom > parentRect.bottom - 8) {
+        forceBelowVal = false;
+      }
+    }
+
+    setOffset({ x: shiftX, y: 0, forceBelow: forceBelowVal });
+  }, [leftPx, topPx, below, rows.length]);
+
+  const activeBelow = offset.forceBelow !== null ? offset.forceBelow : below;
+  const yTransform = activeBelow 
+    ? "translate(-50%, 12px)" 
+    : "translate(-50%, calc(-100% - 12px))";
+
   return (
-    <div style={{
-      position: "absolute", left: leftPx, top: topPx,
-      transform: below ? "translate(-50%, 12px)" : "translate(-50%, calc(-100% - 12px))",
-      background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)",
-      boxShadow: "0 6px 20px rgba(0,0,0,0.18)", padding: "8px 10px", pointerEvents: "none",
-      zIndex: 30, minWidth: 130, whiteSpace: "nowrap",
-      transition: "left 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1)"
-    }}>
+    <div 
+      ref={ref}
+      style={{
+        position: "absolute", left: leftPx, top: topPx,
+        transform: `translate(${offset.x}px, 0px) ${yTransform}`,
+        background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)",
+        boxShadow: "0 6px 20px rgba(0,0,0,0.18)", padding: "8px 10px", pointerEvents: "none",
+        zIndex: 30, minWidth: 130, whiteSpace: "nowrap",
+        transition: "left 0.1s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.1s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1)"
+      }}
+    >
       <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: rows.length ? 5 : 0, fontFamily: "var(--font-sans)" }}>{title}</div>
       {rows.map((r, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, fontSize: 11.5, lineHeight: 1.7 }}>
