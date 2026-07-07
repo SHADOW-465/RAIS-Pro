@@ -542,7 +542,7 @@ export default function Dashboard() {
               not new math. Clicking any of the first 4 opens the 5-part drill-down
               na          <>
           {/* Section 1: Executive KPIs */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 20 }}>
             <Kpi
               primary
               label="Overall Rejection"
@@ -602,7 +602,7 @@ export default function Dashboard() {
           {/* Section 2: Visual Analytics (Bento Grid Layout) */}
           <div style={{ 
             display: "grid", 
-            gridTemplateColumns: "repeat(3, 1fr)", 
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))", 
             gap: 20,
             marginTop: 10
           }}>
@@ -825,7 +825,7 @@ export default function Dashboard() {
           {/* Section 3: Executive Brief */}
           <div style={{ 
             display: "grid", 
-            gridTemplateColumns: "1.2fr 1fr 1.2fr", 
+            gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr)", 
             gap: 20,
             marginTop: 10
           }}>
@@ -1025,7 +1025,7 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 20 }}>
         <Kpi primary label={`${label} — Rejection Rate`} value={pct(d.rate)} tone={d.rate > targetRej ? "bad" : "good"} spark={d.trend}
           onClick={() => openModal(`${label} — Rejection Rate`, `${label} rejection rate is ${pct(d.rate)} for the selected range.`, <div style={{ minHeight: 280, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection"] }), value: pct(d.rate) })} />
         <Kpi label="Quantity Checked" value={num(d.checked)} />
