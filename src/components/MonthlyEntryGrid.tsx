@@ -13,6 +13,7 @@ import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { buildReviewRows, applyEdit } from "@/lib/ingest/review";
 import { CAPTURE_LABEL, CAPTURE_FIELD, CAPTURE_TO_RECORD_FIELD, CORE_FIELD_BY_COL } from "@/lib/ingest/capture-fields";
+import { useEvents } from "@/components/app/EventsContext";
 
 function currentYearMonth(): { year: number; month: number } {
   const now = new Date();
@@ -30,6 +31,7 @@ function isoDate(year: number, month: number, day: number): string {
 }
 
 export default function MonthlyEntryGrid({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void } = {}) {
+  const { refreshEvents } = useEvents();
   const [registry, setRegistry] = useState<any | null>(null);
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
   const [activeSize, setActiveSize] = useState<string | null>(null);
@@ -218,6 +220,7 @@ export default function MonthlyEntryGrid({ onDirtyChange }: { onDirtyChange?: (d
       setSuccess(`${payload.length} day(s) saved for ${monthLabel}.`);
       setDirty(false);
       await loadMonth();
+      refreshEvents().catch(console.error);
     } catch (e: any) {
       setError(e?.message ?? "Save failed");
     } finally {
