@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toStageRecords } from "@/lib/dataset/to-stage-records";
+import { useEvents } from "@/components/app/EventsContext";
 import type { Dataset, DatasetRow } from "@/lib/dataset/types";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -20,6 +21,7 @@ function humanize(name: string): string {
  *  reuses the existing /api/datasets POST (Plan 3/4) for persistence and
  *  toStageRecords + /api/ingest (Plan 7) for the optional publish step. */
 export default function DatasetEntryForm() {
+  const { refreshEvents } = useEvents();
   const [datasets, setDatasets] = useState<Dataset[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>("");
@@ -188,6 +190,7 @@ export default function DatasetEntryForm() {
         tone: "ok",
         text: `Published — ${json.inserted} new, ${json.deduped} already present${issues ? `, ${issues} clarification${issues === 1 ? "" : "s"} raised` : ""}.`,
       });
+      refreshEvents().catch(console.error);
     } catch (e: any) {
       setPublishMsg({ tone: "err", text: e?.message ?? "Publish failed" });
     } finally {
