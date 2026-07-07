@@ -1,7 +1,7 @@
 // src/app/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import { useEvents } from "@/components/app/EventsContext";
@@ -105,7 +105,7 @@ export default function Dashboard() {
   const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
   const [modalOriginRect, setModalOriginRect] = useState<DOMRect | null>(null);
   const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
-  const lastClickRect = React.useRef<DOMRect | null>(null);
+  const lastClickRect = useRef<DOMRect | null>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
