@@ -617,7 +617,10 @@ export default function StagingPage() {
           })
         });
 
-        if (!regRes.ok) throw new Error("Failed to update registry schema with new custom fields");
+        if (!regRes.ok) {
+          const errBody = await regRes.json().catch(() => ({}));
+          throw new Error(errBody.error ? `Failed to update registry schema: ${errBody.error}` : "Failed to update registry schema with new custom fields");
+        }
         const regData = await regRes.json();
         if (regData.registry) {
           setActiveRegistry(regData.registry);
