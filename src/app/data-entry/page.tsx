@@ -55,7 +55,6 @@ export default function DataEntryPage() {
   });
 
   const [notes, setNotes] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Registry state
@@ -560,13 +559,6 @@ Assign another field as Rejected Quantity.`;
         <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, background: "var(--positive-weak)", border: "1px solid var(--positive)", color: "var(--positive)", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>{success}</span>
           <button onClick={() => setSuccess(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 16, color: "var(--positive)", fontWeight: 700 }}>&times;</button>
-        </div>
-      )}
-
-      {error && (
-        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, background: "color-mix(in srgb, var(--status-bad) 12%, transparent)", border: "1px solid var(--status-bad)", color: "var(--status-bad)", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>{error}</span>
-          <button onClick={() => setError(null)} style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 16, color: "var(--status-bad)", fontWeight: 700 }}>&times;</button>
         </div>
       )}
 
