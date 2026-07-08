@@ -91,32 +91,13 @@ export default function StagingPage() {
       .catch(err => console.error("Failed to load presets:", err));
   }, []);
 
-  // Rank existing presets by structural similarity whenever a fresh workbook
-  // schema is extracted — ranking only, the operator still confirms below.
+  // Set preset choice name automatically when a fresh workbook schema is extracted
   useEffect(() => {
-    if (!extractedSchema || presets.length === 0) {
-      setPresetMatches([]);
+    if (!extractedSchema) {
       return;
     }
-    fetch("/api/schema?list=true")
-      .then(res => res.json())
-      .then(async (listData) => {
-        const summaries = await Promise.all((listData.presets || []).map(async (p: any) => {
-          const r = await fetch(`/api/schema?presetId=${encodeURIComponent(p.presetId)}`).then(x => x.json());
-          return { clientId: p.presetId, name: p.name, stages: r.registry?.stages || [] };
-        }));
-        const matches = matchAgainstPresets(extractedSchema, summaries);
-        setPresetMatches(matches);
-        const top = matches[0];
-        if (top && top.score >= 0.5) {
-          setPresetChoice({ mode: "merge", presetId: top.clientId });
-        } else {
-          setPresetChoice({ mode: "new", name: fileName.replace(/\.(xlsx|xls|csv)$/i, "") });
-        }
-      })
-      .catch(err => console.error("Failed to rank preset matches:", err));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [extractedSchema]);
+    setPresetChoice({ mode: "new", name: fileName.replace(/\.(xlsx|xls|csv)$/i, "") });
+  }, [extractedSchema, fileName]);
 
   const rows = useMemo(() => buildReviewRows(records), [records]);
   const summary = useMemo(() => reviewSummary(rows), [rows]);
@@ -545,92 +526,34 @@ export default function StagingPage() {
   async function publish() {
     setBusy(true); setError(null);
     try {
-      const approvedNewCols = newColumns.filter(c => confirmMappings[`${c.stageId}|${c.colName}`]);
-      // Extend the preset the operator explicitly chose — which may not be
-      // the currently-loaded activeRegistry (e.g. operator picked a
-      // different existing preset to merge into).
-      let regToUpdate = activeRegistry || DISPOSAFE_REGISTRY;
-      if (presetChoice.mode === "merge" && presetChoice.presetId && presetChoice.presetId !== (activeRegistry?.presetId ?? activeRegistry?.clientId)) {
-        const targetRes = await fetch(`/api/schema?presetId=${encodeURIComponent(presetChoice.presetId)}`).then(r => r.json());
-        if (targetRes.registry) regToUpdate = targetRes.registry;
+      if (!extractedSchema) {
+        throw new Error("No schema available to publish.");
       }
 
-      const mergedSizes = (() => {
-        const map = new Map<string, any>();
-        for (const s of (regToUpdate.sizes || [])) map.set(s.sizeId, s);
-        // discoveredSizes is bridged from handleUpload via sessionStorage.
-        const cached = sessionStorage.getItem(`rais_sizes_${ingestionId}`);
-        if (cached) for (const s of JSON.parse(cached)) map.set(s.sizeId, s);
-        return Array.from(map.values()).sort((a, b) => Number(a.sizeId.slice(2)) - Number(b.sizeId.slice(2)));
-      })();
+      // Always save the extracted schema as a new preset named after the file (or custom name)
+      const presetName = presetChoice.name || fileName.replace(/\.(xlsx|xls|csv)$/i, "");
+      const regRes = await fetch("/api/schema", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema: extractedSchema,
+          name: presetName,
+          createdFromFilename: fileName,
+        })
+      });
 
-      const sizesChanged = JSON.stringify(mergedSizes) !== JSON.stringify(regToUpdate.sizes || []);
-
-      if ((approvedNewCols.length > 0 || sizesChanged) && regToUpdate) {
-        // Clone registry stages and inject new fields (only when new columns approved)
-        const updatedStages = approvedNewCols.length > 0
-          ? regToUpdate.stages.map((stage: any) => {
-              const defaultFields = [
-                { name: "Checked Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" },
-                { name: "Good Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
-                { name: "Rework Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
-                { name: "Rejected Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" }
-              ];
-              const fields = stage.fields ? [...stage.fields] : [...defaultFields];
-
-              approvedNewCols.forEach((newCol) => {
-                if (newCol.stageId === stage.stageId) {
-                  const alreadyExists = fields.some(f => f.name.toLowerCase() === newCol.colName.toLowerCase());
-                  if (!alreadyExists) {
-                    fields.push({
-                      name: newCol.colName,
-                      type: newCol.type as any,
-                      required: false,
-                      addAs: "column",
-                      appliesTo: "selected",
-                      selectedStages: [stage.stageId]
-                    });
-                  }
-                }
-              });
-              return {
-                ...stage,
-                fields
-              };
-            })
-          : regToUpdate.stages;
-
-        // Save new schema config — extends whichever preset the operator
-        // explicitly chose above; never silently creates or merges.
-        const regRes = await fetch("/api/schema", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            registry: {
-              ...regToUpdate,
-              stages: updatedStages,
-              sizes: mergedSizes
-            },
-            ...(presetChoice.mode === "merge"
-              ? { presetId: presetChoice.presetId ?? regToUpdate.presetId ?? regToUpdate.clientId }
-              : { name: presetChoice.name || fileName, createdFromFilename: fileName }),
-          })
-        });
-
-        if (!regRes.ok) {
-          const errBody = await regRes.json().catch(() => ({}));
-          throw new Error(errBody.error ? `Failed to update registry schema: ${errBody.error}` : "Failed to update registry schema with new custom fields");
-        }
-        const regData = await regRes.json();
-        if (regData.registry) {
-          setActiveRegistry(regData.registry);
-        }
+      if (!regRes.ok) {
+        const errBody = await regRes.json().catch(() => ({}));
+        throw new Error(errBody.error ? `Failed to save preset: ${errBody.error}` : "Failed to save preset.");
       }
+
+      const regData = await regRes.json();
+      const savedPresetId = regData.registry.presetId;
 
       const res = await fetch("/api/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingestionId, fileName, records, comments })
+        body: JSON.stringify({ ingestionId, fileName, records, comments, presetId: savedPresetId })
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Publish failed");
       const r = await res.json();
@@ -735,48 +658,18 @@ export default function StagingPage() {
             </div>
           </Card>
 
-          {/* Preset identity — explicit operator choice, never auto-decided.
-              Uploading a file that matches an existing preset's shape extends
-              that preset; a structurally different shape saves as a new one. */}
+          {/* Preset identity — every workbook is a separate independent preset */}
           {extractedSchema && (
-            <Card title="Excel Preset" sub="This upload becomes (or extends) a reusable Data Entry preset — never silently merged with a different report layout.">
+            <Card title="Excel Preset Name" sub="The independent Data Entry preset name for this workbook.">
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {presetMatches.length > 0 && (
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                    <input
-                      type="radio"
-                      checked={presetChoice.mode === "merge"}
-                      onChange={() => setPresetChoice({ mode: "merge", presetId: presetMatches[0].clientId })}
-                    />
-                    Extend existing preset:
-                    <select
-                      disabled={presetChoice.mode !== "merge"}
-                      value={presetChoice.mode === "merge" ? presetChoice.presetId : presetMatches[0]?.clientId}
-                      onChange={(e) => setPresetChoice({ mode: "merge", presetId: e.target.value })}
-                      style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border)" }}
-                    >
-                      {presetMatches.map((m) => (
-                        <option key={m.clientId} value={m.clientId}>
-                          {m.name} ({Math.round(m.score * 100)}% column/stage match)
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                  <input
-                    type="radio"
-                    checked={presetChoice.mode === "new"}
-                    onChange={() => setPresetChoice({ mode: "new", name: presetChoice.name || fileName.replace(/\.(xlsx|xls|csv)$/i, "") })}
-                  />
-                  Save as a new preset named:
+                  Save as preset:
                   <input
                     type="text"
-                    disabled={presetChoice.mode !== "new"}
-                    value={presetChoice.mode === "new" ? presetChoice.name ?? "" : ""}
+                    value={presetChoice.name ?? ""}
                     onChange={(e) => setPresetChoice({ mode: "new", name: e.target.value })}
-                    placeholder="e.g. May 2025 Rejection Report"
-                    style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border)", width: 260 }}
+                    placeholder="e.g. April 2026 Rejection Report"
+                    style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)", width: 300, background: "var(--bg)", color: "var(--text)" }}
                   />
                 </label>
               </div>

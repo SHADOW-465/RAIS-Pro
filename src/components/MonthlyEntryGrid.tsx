@@ -127,8 +127,25 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
     ingestionId: "pending",
   });
 
+  const getFieldPropertyForCol = (colName: string) => {
+    const field = activeStage?.fields?.find((f: any) => f.name === colName);
+    if (field) {
+      if (field.role === "checked") return "checked";
+      if (field.role === "good") return "acceptedGood";
+      if (field.role === "rework") return "rework";
+      if (field.role === "rejected") return "rejected";
+      if (field.role === "defect") return colName;
+      return null;
+    }
+    return CORE_FIELD_BY_COL[colName] ?? colName;
+  };
+
+  const isCustomPreset = !!(activeStage?.headerRows && activeStage?.columns);
+
   const updateCell = (date: string, colName: string, val: string) => {
-    const coreField = CORE_FIELD_BY_COL[colName];
+    const prop = getFieldPropertyForCol(colName);
+    if (!prop) return; // ignore read-only columns
+
     setDirty(true);
     setRecords((prev) => {
       let idx = prev.findIndex((r) => r.occurredOn.start === date && (r.size ?? "__line__") === rowKey);
@@ -141,13 +158,15 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
       if (val === "") {
         return next.map((r, i) => {
           if (i !== idx) return r;
-          if (coreField) return { ...r, [coreField]: null, extractedBy: "direct-entry" };
+          if (prop === "checked" || prop === "acceptedGood" || prop === "rework" || prop === "rejected") {
+            return { ...r, [prop]: null, extractedBy: "direct-entry" };
+          }
           return { ...r, defects: r.defects.filter((d) => d.raw !== colName), extractedBy: "direct-entry" };
         });
       }
       const num = Number(val);
       if (isNaN(num) || num < 0) return next;
-      return applyEdit(next, idx, coreField ?? colName, num);
+      return applyEdit(next, idx, prop, num);
     });
   };
 
@@ -237,7 +256,7 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
       const res = await fetch("/api/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingestionId, fileName: `Monthly Entry ${monthLabel}`, records: payload }),
+        body: JSON.stringify({ ingestionId, fileName: `Monthly Entry ${monthLabel}`, records: payload, presetId }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Save failed");
       setSuccess(`${payload.length} day(s) saved for ${monthLabel}.`);
@@ -284,57 +303,205 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
 
       <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)" }}>
         <table style={{ width: "max-content", minWidth: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: 13 }}>
-          <thead>
-            <tr style={{ color: "var(--text-3)", background: "var(--surface-2)", fontSize: 10, textTransform: "uppercase", borderBottom: "1.5px solid var(--border-strong)" }}>
-              <th style={{ ...eth, textAlign: "left", minWidth: 90, position: "sticky", left: 0, zIndex: 2, background: "var(--surface-2)" }}>Date</th>
-              {activeCaptures.map((c) => <th key={c} style={eth}>{CAPTURE_LABEL[c]}</th>)}
-              {activeDefects.map((d: any) => <th key={d.defectCode} style={eth} title={d.label}>{d.defectCode}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {days.map((date) => {
-              const rec = recordFor(date);
-              const captureValue = (c: string): string => {
-                const field = CAPTURE_TO_RECORD_FIELD[c];
-                const sv = rec?.[field];
-                return sv != null ? String(sv.value) : "";
-              };
-              const defectValue = (label: string): string => {
-                const d = rec?.defects.find((x) => x.raw === label);
-                return d ? String(d.value) : "";
-              };
-              return (
-                <tr key={date} style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ ...etd, textAlign: "left", fontWeight: 700, background: "var(--surface)", position: "sticky", left: 0, zIndex: 1, fontFamily: "var(--font-mono)" }}>{date}</td>
-                  {activeCaptures.map((c) => {
-                    const review = reviewByDate.get(`${date}|${rowKey}`);
-                    const field = CAPTURE_TO_RECORD_FIELD[c];
-                    const isCulprit = review?.invalidFields.includes(field === "acceptedGood" ? "acceptedGood" : field);
-                    return (
-                      <td key={c} style={{ ...etd, padding: "3px 4px" }}>
-                        <input type="number" inputMode="numeric" value={captureValue(c)}
-                          onChange={(e) => updateCell(date, CAPTURE_FIELD[c], e.target.value)}
-                          style={{ ...inp, width: 84, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right",
-                            borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)" }} />
-                      </td>
+          {isCustomPreset ? (
+            <thead>
+              {activeStage.headerRows.map((rowCells: any[], rIdx: number) => (
+                <tr key={rIdx} style={{ color: "var(--text-3)", background: "var(--surface-2)", fontSize: 10, textTransform: "uppercase", borderBottom: "1.5px solid var(--border-strong)" }}>
+                  {rowCells.map((cellVal: any, cIdx: number) => {
+                    const merges = activeStage.merges || [];
+                    const merge = merges.find((m: any) => 
+                      rIdx >= m.s.r && rIdx <= m.e.r && cIdx >= m.s.c && cIdx <= m.e.c
                     );
-                  })}
-                  {activeDefects.map((d: any) => {
-                    const review = reviewByDate.get(`${date}|${rowKey}`);
-                    const isCulprit = review?.invalidFields.includes(d.label) || review?.invalidFields.includes(d.defectCode);
+                    if (merge) {
+                      if (rIdx === merge.s.r && cIdx === merge.s.c) {
+                        const rowSpan = merge.e.r - merge.s.r + 1;
+                        const colSpan = merge.e.c - merge.s.c + 1;
+                        return (
+                          <th
+                            key={cIdx}
+                            rowSpan={rowSpan}
+                            colSpan={colSpan}
+                            style={{ ...eth, textAlign: "center" }}
+                          >
+                            {String(cellVal || "")}
+                          </th>
+                        );
+                      }
+                      return null;
+                    }
                     return (
-                      <td key={d.defectCode} style={{ ...etd, padding: "3px 4px" }}>
-                        <input type="number" inputMode="numeric" value={defectValue(d.label)}
-                          onChange={(e) => updateCell(date, d.label, e.target.value)}
-                          style={{ ...inp, width: 64, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right",
-                            borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)" }} />
-                      </td>
+                      <th
+                        key={cIdx}
+                        rowSpan={1}
+                        colSpan={1}
+                        style={eth}
+                      >
+                        {String(cellVal || "")}
+                      </th>
                     );
                   })}
                 </tr>
-              );
-            })}
-          </tbody>
+              ))}
+            </thead>
+          ) : (
+            <thead>
+              <tr style={{ color: "var(--text-3)", background: "var(--surface-2)", fontSize: 10, textTransform: "uppercase", borderBottom: "1.5px solid var(--border-strong)" }}>
+                <th style={{ ...eth, textAlign: "left", minWidth: 90, position: "sticky", left: 0, zIndex: 2, background: "var(--surface-2)" }}>Date</th>
+                {activeCaptures.map((c) => <th key={c} style={eth}>{CAPTURE_LABEL[c]}</th>)}
+                {activeDefects.map((d: any) => <th key={d.defectCode} style={eth} title={d.label}>{d.defectCode}</th>)}
+              </tr>
+            </thead>
+          )}
+          {isCustomPreset ? (
+            <tbody>
+              {days.map((date) => {
+                const rec = recordFor(date);
+                return (
+                  <tr key={date} style={{ borderBottom: "1px solid var(--border)" }}>
+                    {activeStage.columns.map((colName: string, cIdx: number) => {
+                      const field = activeStage.fields.find((f: any) => f.name === colName);
+                      const role = field?.role;
+
+                      if (role === "date") {
+                        return (
+                          <td
+                            key={cIdx}
+                            style={{
+                              ...etd,
+                              textAlign: "left",
+                              fontWeight: 700,
+                              background: "var(--surface)",
+                              position: "sticky",
+                              left: 0,
+                              zIndex: 1,
+                              fontFamily: "var(--font-mono)"
+                            }}
+                          >
+                            {date}
+                          </td>
+                        );
+                      }
+
+                      const isEditable = ["checked", "good", "rework", "rejected", "defect"].includes(role || "");
+                      if (isEditable) {
+                        const val = (() => {
+                          if (role === "defect") {
+                            const df = rec?.defects.find((x) => x.raw === colName);
+                            return df ? String(df.value) : "";
+                          }
+                          const prop = getFieldPropertyForCol(colName);
+                          if (prop && prop !== colName) {
+                            const sv = rec?.[prop as "checked" | "acceptedGood" | "rework" | "rejected"];
+                            return sv != null ? String(sv.value) : "";
+                          }
+                          return "";
+                        })();
+
+                        const review = reviewByDate.get(`${date}|${rowKey}`);
+                        const prop = getFieldPropertyForCol(colName);
+                        const isCulprit = review?.invalidFields.includes(prop || "") || (role === "defect" && review?.invalidFields.includes(colName));
+
+                        return (
+                          <td key={cIdx} style={{ ...etd, padding: "3px 4px" }}>
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              value={val}
+                              onChange={(e) => updateCell(date, colName, e.target.value)}
+                              style={{
+                                ...inp,
+                                width: 84,
+                                padding: "4px 8px",
+                                height: 30,
+                                fontFamily: "var(--font-mono)",
+                                textAlign: "right",
+                                borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)"
+                              }}
+                            />
+                          </td>
+                        );
+                      }
+
+                      // Formula or other read-only column
+                      const displayVal = (() => {
+                        if (role === "formula") {
+                          if (/%|pct|percent|rate/i.test(colName)) {
+                            const chkVal = rec?.checked?.value;
+                            const rejVal = rec?.rejected?.value;
+                            if (chkVal != null && chkVal > 0 && rejVal != null) {
+                              return `${((rejVal / chkVal) * 100).toFixed(2)}%`;
+                            }
+                          }
+                          return rec?.statedPct?.value != null ? `${rec.statedPct.value}%` : "—";
+                        }
+                        return "—";
+                      })();
+
+                      return (
+                        <td
+                          key={cIdx}
+                          style={{
+                            ...etd,
+                            background: "var(--surface-2)",
+                            color: "var(--text-3)",
+                            fontFamily: "var(--font-mono)",
+                            textAlign: "right"
+                          }}
+                        >
+                          {displayVal}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          ) : (
+            <tbody>
+              {days.map((date) => {
+                const rec = recordFor(date);
+                const captureValue = (c: string): string => {
+                  const field = CAPTURE_TO_RECORD_FIELD[c];
+                  const sv = rec?.[field];
+                  return sv != null ? String(sv.value) : "";
+                };
+                const defectValue = (label: string): string => {
+                  const d = rec?.defects.find((x) => x.raw === label);
+                  return d ? String(d.value) : "";
+                };
+                return (
+                  <tr key={date} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td style={{ ...etd, textAlign: "left", fontWeight: 700, background: "var(--surface)", position: "sticky", left: 0, zIndex: 1, fontFamily: "var(--font-mono)" }}>{date}</td>
+                    {activeCaptures.map((c) => {
+                      const review = reviewByDate.get(`${date}|${rowKey}`);
+                      const field = CAPTURE_TO_RECORD_FIELD[c];
+                      const isCulprit = review?.invalidFields.includes(field === "acceptedGood" ? "acceptedGood" : field);
+                      return (
+                        <td key={c} style={{ ...etd, padding: "3px 4px" }}>
+                          <input type="number" inputMode="numeric" value={captureValue(c)}
+                            onChange={(e) => updateCell(date, CAPTURE_FIELD[c], e.target.value)}
+                            style={{ ...inp, width: 84, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right",
+                              borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)" }} />
+                        </td>
+                      );
+                    })}
+                    {activeDefects.map((d: any) => {
+                      const review = reviewByDate.get(`${date}|${rowKey}`);
+                      const isCulprit = review?.invalidFields.includes(d.label) || review?.invalidFields.includes(d.defectCode);
+                      return (
+                        <td key={d.defectCode} style={{ ...etd, padding: "3px 4px" }}>
+                          <input type="number" inputMode="numeric" value={defectValue(d.label)}
+                            onChange={(e) => updateCell(date, d.label, e.target.value)}
+                            style={{ ...inp, width: 64, padding: "4px 8px", height: 30, fontFamily: "var(--font-mono)", textAlign: "right",
+                              borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)" }} />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          )}
         </table>
       </div>
 

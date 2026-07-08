@@ -123,11 +123,16 @@ export async function POST(req: NextRequest) {
       const fields = stage.fields || DEFAULT_FIELDS;
       return {
         stageId,
+        canonicalStageId: stage.canonicalStageId || null,
+        size: stage.size || null,
         label: stage.label || stage.name,
         fields,
         upstream,
         effectiveFrom: stage.effectiveFrom || null,
         effectiveTo: stage.effectiveTo || null,
+        headerRows: stage.headerRows || null,
+        merges: stage.merges || null,
+        columns: stage.columns || null,
       };
     });
 

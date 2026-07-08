@@ -16,9 +16,14 @@ export interface ExtractedField {
 
 export interface ExtractedStage {
   stageId: string;
+  canonicalStageId?: string;
+  size?: string | null;
   label: string;
   fields: ExtractedField[];
   rowCount: number;
+  headerRows?: any[][];
+  merges?: any[];
+  columns?: string[];
 }
 
 export interface ExtractedSchema {
@@ -85,13 +90,15 @@ const OTHER_RE = /s\.?\s*no|trolley|batch|lot|machine|m\/c|operator|supervisor|r
 // bare `hasFormula` was hiding them — leaving 0 defect events / an empty Pareto.
 const DEFECT_CODES = new Set(["COAG","SD","TT","BL","PS","SB","PW","FP","RW","BEP","DEC","BM","WEB","BT","SF","BIC","WK","BMP","TF","PH","BST","THSP","LEAK","BLBR","BUB","PINH","OTH"]);
 
+function resolveSize(sheetName: string): string | null {
+  const m = sheetName.trim().match(/^(\d+)\s*FR\.?\s*$/i);
+  return m ? `Fr${m[1]}` : null;
+}
+
 export function extractSchemaFromWorkbook(wb: xlsx.WorkBook, fileName: string): ExtractedSchema {
   const stages: ExtractedStage[] = [];
 
   for (const sheetName of wb.SheetNames) {
-    // Skip summary or yearly rollups
-    if (/yearly|annual|cumul|summary|total|config|settings/i.test(sheetName)) continue;
-
     const ws = wb.Sheets[sheetName];
     if (!ws) continue;
 
@@ -106,12 +113,33 @@ export function extractSchemaFromWorkbook(wb: xlsx.WorkBook, fileName: string): 
     const { header, dataStartIndex } = buildHeaderBlock(rawRows, headerRowIndex);
     const normalizedHeader = normalizeHeaders(header);
 
+    // Extract raw header rows (unnormalized, padded)
+    const headerRows = rawRows.slice(headerRowIndex, dataStartIndex).map((row) => {
+      const padded = [...row];
+      while (padded.length < normalizedHeader.length) {
+        padded.push('');
+      }
+      return padded.map((cell) => cell === undefined || cell === null ? '' : cell);
+    });
+
+    // Extract merges relative to the header block
+    const merges: any[] = [];
+    if (ws['!merges']) {
+      for (const m of ws['!merges']) {
+        if (m.s.r >= headerRowIndex && m.e.r < dataStartIndex) {
+          merges.push({
+            s: { r: m.s.r - headerRowIndex, c: m.s.c },
+            e: { r: m.e.r - headerRowIndex, c: m.e.c }
+          });
+        }
+      }
+    }
+
     const fields: ExtractedField[] = [];
     const dataRows = rawRows.slice(dataStartIndex);
 
     normalizedHeader.forEach((colName, idx) => {
-      if (!colName || colName.startsWith('__EMPTY')) return;
-
+      const nameToUse = (!colName || colName.startsWith('__EMPTY')) ? `__EMPTY_${idx}` : colName;
       const colLetter = colIndexToLabel(range.s.c + idx);
       
       // Determine type based on data rows
@@ -155,24 +183,23 @@ export function extractSchemaFromWorkbook(wb: xlsx.WorkBook, fileName: string): 
         else type = "string";
       }
 
-      // Classify role. Known defect codes win first (so "RW"/formula-driven counts
-      // aren't mis-read as rework/formula); only true %/rate columns are "formula".
-      const u = colName.trim().toUpperCase();
+      // Classify role. Known defect codes win first
+      const u = nameToUse.trim().toUpperCase();
       let role: ExtractedField["role"] = "other";
-      if (DATE_RE.test(colName)) role = "date";
-      else if (PCT_RE.test(colName)) role = "formula";
+      if (DATE_RE.test(nameToUse)) role = "date";
+      else if (PCT_RE.test(nameToUse)) role = "formula";
       else if (DEFECT_CODES.has(u)) role = "defect";
-      else if (CHECKED_RE.test(colName)) role = "checked";
-      else if (GOOD_RE.test(colName)) role = "good";
-      else if (REWORK_RE.test(colName)) role = "rework";
-      else if (REJECTED_RE.test(colName)) role = "rejected";
-      else if (type === "number" && /^[A-Z0-9/]{1,5}$/.test(u)) role = "defect"; // generic short reason code
+      else if (CHECKED_RE.test(nameToUse)) role = "checked";
+      else if (GOOD_RE.test(nameToUse)) role = "good";
+      else if (REWORK_RE.test(nameToUse)) role = "rework";
+      else if (REJECTED_RE.test(nameToUse)) role = "rejected";
+      else if (type === "number" && /^[A-Z0-9/]{1,5}$/.test(u)) role = "defect";
       else if (hasFormula) role = "formula";
-      else if (OTHER_RE.test(colName)) role = "other";
+      else if (OTHER_RE.test(nameToUse)) role = "other";
       else if (type === "number") role = "defect";
 
       fields.push({
-        name: colName,
+        name: nameToUse,
         colLetter,
         colIndex: idx,
         role,
@@ -182,11 +209,25 @@ export function extractSchemaFromWorkbook(wb: xlsx.WorkBook, fileName: string): 
     });
 
     if (fields.length > 0) {
+      const canonicalStageId = resolveStageId(sheetName, fileName);
+      const size = resolveSize(sheetName);
+
+      let stageId = canonicalStageId;
+      let suffix = 1;
+      while (stages.some((s) => s.stageId === stageId)) {
+        stageId = `${canonicalStageId}-${++suffix}`;
+      }
+
       stages.push({
-        stageId: resolveStageId(sheetName, fileName),
+        stageId,
+        canonicalStageId,
+        size,
         label: sheetName,
         fields,
         rowCount: dataRows.length,
+        headerRows,
+        merges,
+        columns: normalizedHeader.map((colName, idx) => (!colName || colName.startsWith('__EMPTY')) ? `__EMPTY_${idx}` : colName),
       });
     }
   }
@@ -214,7 +255,7 @@ export function classifyWithSchema(
   for (const stage of schema.stages) {
     // rawSheet.name is "<fileName> - <sheetName>" (see parser.ts), but a schema
     // stage.label is the bare sheet name. Match on the sheet-name suffix so the
-    // lookup actually resolves (the strict === never matched → 0 records).
+    // lookup actually resolves.
     const target = stage.label.toLowerCase().trim();
     const sheet = rawSheets.find((s) => {
       const full = s.name.toLowerCase().trim();
@@ -233,10 +274,6 @@ export function classifyWithSchema(
 
     if (!dateField) continue;
 
-    // rawSheet.name is "<fileName> - <sheetName>" (parser.ts's display key).
-    // Provenance must carry the TRUE worksheet name — composite names make
-    // cell refs unresolvable against the workbook and break the /staging
-    // completeness check and Verify Mode's sheet lookup.
     const rawSheetName = sheet.name.startsWith(`${sheet.fileName} - `)
       ? sheet.name.slice(sheet.fileName.length + 3)
       : sheet.name;
@@ -251,11 +288,14 @@ export function classifyWithSchema(
       const rework = reworkField ? toNumber(row[reworkField.name]) : null;
       const rejected = rejectedField ? toNumber(row[rejectedField.name]) : null;
 
-      // Extract size if sheet name indicates it (e.g. 6FR -> Fr6)
-      let size: string | null = null;
-      const sizeMatch = rawSheetName.match(/^(\d+)\s*FR\.?\s*$/i);
-      if (sizeMatch) {
-        size = `Fr${sizeMatch[1]}`;
+      // Extract size and stageId from schema stage if defined
+      const stageId = stage.canonicalStageId || stage.stageId;
+      let size = stage.size || null;
+      if (!size) {
+        const sizeMatch = rawSheetName.match(/^(\d+)\s*FR\.?\s*$/i);
+        if (sizeMatch) {
+          size = `Fr${sizeMatch[1]}`;
+        }
       }
 
       const defects: any[] = [];
@@ -284,7 +324,7 @@ export function classifyWithSchema(
 
       records.push({
         occurredOn: { kind: "day", start: iso, end: iso },
-        stageId: stage.stageId,
+        stageId,
         size,
         source: {
           file: sheet.fileName,

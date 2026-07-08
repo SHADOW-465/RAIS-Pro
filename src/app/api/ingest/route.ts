@@ -13,6 +13,7 @@ interface IngestBody {
   ingestionId: string;
   fileName: string;
   records: StageDayRecord[];
+  presetId?: string;
   /** per-mapping-row comments keyed by mapping id (carried for provenance/audit) */
   comments?: Record<string, string>;
 }
@@ -173,10 +174,11 @@ export async function POST(req: NextRequest) {
     let activeRegistry = undefined;
     try {
       const db = createServerClient();
+      const targetPresetId = body.presetId || "disposafe";
       const { data: regRow } = await db
         .from("registries")
         .select("*")
-        .eq("client_id", "disposafe")
+        .eq("client_id", targetPresetId)
         .maybeSingle();
       if (regRow) {
         activeRegistry = {
