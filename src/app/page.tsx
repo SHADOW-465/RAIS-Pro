@@ -576,7 +576,7 @@ export default function Dashboard() {
               not new math. Clicking any of the first 4 opens the 5-part drill-down
               na          <>
           {/* Section 1: Executive KPIs */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
             <Kpi
               primary
               label="Overall Rejection"
@@ -646,13 +646,13 @@ export default function Dashboard() {
               )}
             />
           </div>
-
+ 
           {/* Row 1: Primary Rejection Analytics (3-column layout) */}
           <div style={{ 
             display: "grid", 
             gridTemplateColumns: "repeat(3, minmax(0, 1fr))", 
-            gap: 16,
-            marginTop: 16
+            gap: "var(--gap-grid)",
+            marginTop: "var(--gap-grid)"
           }}>
             {/* Card 1: Rejection Trend */}
             <Card 
@@ -661,10 +661,10 @@ export default function Dashboard() {
               onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}
             >
               <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
-                <div style={{ flex: 1, minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                  <LineChart points={m.tr} target={targetRej} fmt={pct} mean height={200} />
+                <div style={{ flex: 1, minHeight: 180, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  <LineChart points={m.tr} target={targetRej} fmt={pct} mean height={180} />
                 </div>
-                <div style={{ marginTop: 12, display: "flex" }}>
+                <div style={{ marginTop: "var(--space-2)", display: "flex" }}>
                   <a 
                     href="#"
                     onClick={(e) => {
@@ -679,7 +679,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </Card>
-
+ 
             {/* Card 2: Rejection By Stage */}
             <Card 
               title="Rejection By Stage" 
@@ -687,29 +687,29 @@ export default function Dashboard() {
               onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected) })}
             >
               <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "center", padding: "10px 0" }}>
-                    <Donut data={m.stages.map((s) => ({ label: s.label.split(" ")[0], value: s.rejected }))} size={150} fontSize={11} hideLegend={true} />
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                  <div style={{ display: "flex", justifyContent: "center", padding: "4px 0" }}>
+                    <Donut data={m.stages.map((s) => ({ label: s.label.split(" ")[0], value: s.rejected }))} size={130} fontSize={10} hideLegend={true} />
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-3)", borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
                     {m.stages.slice(0, 4).map((s, idx) => {
                       const colors = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#EC4899", "#65A30D"];
                       const share = ((s.rejected / (m.rejected || 1)) * 100).toFixed(1);
                       return (
-                        <div key={s.stageId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5 }}>
+                        <div key={s.stageId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: colors[idx % colors.length] }} />
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: colors[idx % colors.length] }} />
                             {s.label}
                           </span>
                           <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>
-                            {pct(s.rejRate)} <span className="muted" style={{ fontWeight: 500, fontSize: 11 }}>({share}%)</span>
+                            {pct(s.rejRate)} <span className="muted" style={{ fontWeight: 500, fontSize: 10.5 }}>({share}%)</span>
                           </span>
                         </div>
                       );
                     })}
                   </div>
                 </div>
-                <div style={{ marginTop: 12, display: "flex" }}>
+                <div style={{ marginTop: "var(--space-2)", display: "flex" }}>
                   <a 
                     href="/stage-analysis"
                     onClick={(e) => {
@@ -722,7 +722,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </Card>
-
+ 
             {/* Card 3: Top Defects (Pareto) */}
             <Card 
               title="Top Defects (Pareto)" 
@@ -737,17 +737,17 @@ export default function Dashboard() {
               )}
             >
               <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                   <div style={{ 
                     display: "grid", 
-                    gridTemplateColumns: "24px minmax(0, 1.3fr) 60px 80px 70px", 
-                    gap: 8, 
-                    fontSize: 10.5, 
+                    gridTemplateColumns: "20px minmax(0, 1.3fr) 55px 70px 60px", 
+                    gap: "var(--space-2)", 
+                    fontSize: 10, 
                     fontWeight: 700, 
                     textTransform: "uppercase", 
                     letterSpacing: "0.05em", 
                     color: "var(--text-3)", 
-                    paddingBottom: 8, 
+                    paddingBottom: "var(--space-2)", 
                     borderBottom: "1px solid var(--border)" 
                   }}>
                     <div></div>
@@ -765,18 +765,18 @@ export default function Dashboard() {
                       return (
                         <div key={d.label} style={{ 
                           display: "grid", 
-                          gridTemplateColumns: "24px minmax(0, 1.3fr) 60px 80px 70px", 
-                          gap: 8, 
+                          gridTemplateColumns: "20px minmax(0, 1.3fr) 55px 70px 60px", 
+                          gap: "var(--space-2)", 
                           alignItems: "center", 
-                          fontSize: 12,
-                          padding: "4px 0",
-                          borderBottom: i < 4 ? "1px solid var(--border-subtle)" : "none"
+                          fontSize: 11.5,
+                          padding: "clamp(2px, 0.4vh, 4px) 0",
+                          borderBottom: i < 4 ? "1px solid var(--border)" : "none"
                         }}>
                           <span style={{ color: "var(--text-3)", fontWeight: 700 }}>{i + 1}</span>
                           <span style={{ fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.label}>{d.label}</span>
-                          <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{(rejRate * 100).toFixed(2)}%</span>
-                          <div style={{ display: "flex", alignItems: "center", paddingLeft: 8 }}>
-                            <div style={{ width: "100%", height: 6, background: "var(--surface-3)", borderRadius: 3, overflow: "hidden", border: "1px solid var(--border)" }}>
+                          <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{(rejRate * 100).toFixed(1)}%</span>
+                          <div style={{ display: "flex", alignItems: "center", paddingLeft: 6 }}>
+                            <div style={{ width: "100%", height: 5, background: "var(--surface-3)", borderRadius: 3, overflow: "hidden", border: "1px solid var(--border)" }}>
                               <div style={{ width: `${d.pct}%`, height: "100%", background: colors[i % colors.length], borderRadius: 3 }} />
                             </div>
                           </div>
@@ -786,7 +786,7 @@ export default function Dashboard() {
                     })
                   )}
                 </div>
-                <div style={{ marginTop: 12, display: "flex" }}>
+                <div style={{ marginTop: "var(--space-2)", display: "flex" }}>
                   <a 
                     href="/defect-analysis"
                     onClick={(e) => {
@@ -800,26 +800,26 @@ export default function Dashboard() {
               </div>
             </Card>
           </div>
-
+ 
           {/* Row 2: Stage wise Rejection Trend (Full Width) */}
           <div style={{ 
             display: "grid", 
             gridTemplateColumns: "1fr", 
-            gap: 16,
-            marginTop: 16
+            gap: "var(--gap-grid)",
+            marginTop: "var(--gap-grid)"
           }}>
             <Card 
               title={`Stage-wise Rejection Trend (${grainLabel})`} 
               sub="per-stage + Total — hover for values" 
               onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Each line is a station's rejection rate over its own checked quantity; the Total line is the per-period sum of those stage rates. Recomputed from raw counts.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}
             >
-              <MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} height={200} />
+              <MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} height={180} />
             </Card>
           </div>
 
           {/* Row 4: Stage x Size Concentration Heatmap */}
           {m.stageSize.length > 0 && (
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: "var(--gap-grid)" }}>
               <Card
                 title="Stage x Size Concentration"
                 sub="Rejection rate by stage and catheter size (warmer cells indicate concentration hotspots)"
@@ -834,7 +834,7 @@ export default function Dashboard() {
               </Card>
             </div>
           )}
-
+ 
           {/* Row 5: Size Analytics */}
           {(() => {
             const hasSizeYtd = m.sizes.length > 0;
@@ -845,8 +845,8 @@ export default function Dashboard() {
               <div style={{ 
                 display: "grid", 
                 gridTemplateColumns: gridCols, 
-                gap: 16,
-                marginTop: 16
+                gap: "var(--gap-grid)",
+                marginTop: "var(--gap-grid)"
               }}>
                 <Card 
                   title="Rejection by Size (YTD)" 
@@ -883,13 +883,13 @@ export default function Dashboard() {
                         ))}
                       </select>
                     </div>
-                    <LineChart points={m.sizeTrend} fmt={pct} height={200} />
+                    <LineChart points={m.sizeTrend} fmt={pct} height={180} />
                   </Card>
                 )}
               </div>
             );
           })()}
-
+ 
           {/* Row 6: COPQ & Audit Trail */}
           {(() => {
             const hasCopq = m.copqTrend.length > 0;
@@ -902,18 +902,18 @@ export default function Dashboard() {
               <div style={{ 
                 display: "grid", 
                 gridTemplateColumns: gridCols, 
-                gap: 16,
-                marginTop: 16
+                gap: "var(--gap-grid)",
+                marginTop: "var(--gap-grid)"
               }}>
                 {hasCopq && (
                   <Card 
                     title={`COPQ Trend (${grainLabel})`} 
                     onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}
                   >
-                    <LineChart points={m.copqTrend} fmt={rupee} height={200} />
+                    <LineChart points={m.copqTrend} fmt={rupee} height={180} />
                   </Card>
                 )}
-
+ 
                 <Card 
                   title="Audit &amp; Verification" 
                   onClick={() => openModal("Audit & Verification", `Ledger verification metrics derived from processed source files.`, <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable sourceFiles={m.audit.sourceFilesProcessed} validation={m.audit.dataValidationChecks} integrity={m.audit.formulaIntegrity} overrides={m.audit.manualOverrides} completeness={m.audit.dataCompleteness} /></div>)}
@@ -946,9 +946,9 @@ export default function Dashboard() {
               </div>
             );
           })()}
-
+ 
           {/* Section 3: AI Diagnostics & Actionable Brief */}
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: "var(--gap-grid)" }}>
             <Card title="AI Diagnostics & Actionable Brief">
               <div style={{ 
                 display: "grid", 
@@ -1169,8 +1169,8 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
     { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data for this period." };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 20 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-grid)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
         <Kpi primary label={`${label} — Rejection Rate`} value={pct(d.rate)} tone={d.rate > targetRej ? "bad" : "good"} spark={d.trend}
           onClick={() => openModal(`${label} — Rejection Rate`, `${label} rejection rate is ${pct(d.rate)} for the selected range.`, <div style={{ minHeight: 280, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection"] }), value: pct(d.rate) })} />
         <Kpi label="Quantity Checked" value={num(d.checked)} />
@@ -1180,7 +1180,7 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
 
       <Card title={`${label} — Rejection % Trend (${grainLabel})`} sub="recomputed from raw checked / rejected"
         onClick={() => openModal(`${label} — Rejection % Trend (${grainLabel})`, `${label} rejection rate per period, from this station's own checked and rejected counts.`, <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection"] }), value: pct(d.rate) })}>
-        <LineChart points={d.trend} target={targetRej} fmt={pct} mean />
+        <LineChart points={d.trend} target={targetRej} fmt={pct} mean height={180} />
       </Card>
 
       {d.defects.length > 0 && (

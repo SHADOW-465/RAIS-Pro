@@ -475,8 +475,8 @@ export default function AppShell({
       background: "var(--bg)", 
       color: "var(--text)", 
       display: "grid", 
-      gridTemplateColumns: sidebarCollapsed ? "64px 1fr" : "240px 1fr", 
-      gridTemplateRows: "56px 1fr 36px", 
+      gridTemplateColumns: sidebarCollapsed ? "56px 1fr" : "208px 1fr", 
+      gridTemplateRows: "var(--header-h) 1fr var(--footer-h)", 
       gridTemplateAreas: `"side top" "side main" "side status"`,
       transition: "grid-template-columns 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
     }}>
@@ -491,18 +491,18 @@ export default function AppShell({
         top: 0, 
         height: "100vh",
         zIndex: 100,
-        width: sidebarCollapsed ? "64px" : "240px",
+        width: sidebarCollapsed ? "56px" : "208px",
         transition: "width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
         overflow: "hidden"
       }}>
         {/* logo and collapse toggle */}
         <div style={{ 
-          padding: sidebarCollapsed ? "12px 20px" : "12px 18px", 
+          padding: sidebarCollapsed ? "10px 14px" : "10px 12px", 
           display: "flex", 
           alignItems: "center", 
           justifyContent: "flex-start",
           borderBottom: "1px solid var(--border)",
-          minHeight: "55px",
+          minHeight: "calc(var(--header-h) - 1px)",
           transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
           overflow: "hidden"
         }}>
@@ -511,29 +511,29 @@ export default function AppShell({
             alignItems: "center", 
             gap: 6,
             opacity: sidebarCollapsed ? 0 : 1,
-            maxWidth: sidebarCollapsed ? 0 : "172px",
+            maxWidth: sidebarCollapsed ? 0 : "152px",
             overflow: "hidden",
             whiteSpace: "nowrap",
-            marginRight: sidebarCollapsed ? 0 : 8,
+            marginRight: sidebarCollapsed ? 0 : 6,
             flexShrink: 0,
             transition: "opacity 0.2s ease, max-width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), margin-right 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
           }}>
             <span style={{ 
               fontFamily: "var(--font-display)", 
               fontWeight: 800, 
-              fontSize: 24, 
+              fontSize: "clamp(20px, 1.8vw, 24px)", 
               color: "var(--text)",
               letterSpacing: "-0.03em"
             }}>
               MO<span style={{ color: "#C8421C" }}>!</span>D
             </span>
             <span className="muted" style={{ 
-              fontSize: 8.5, 
+              fontSize: 8, 
               lineHeight: 1.15,
               fontWeight: 500,
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              marginLeft: 8
+              marginLeft: 6
             }}>
               Manufacturing Operational<br />Intelligence &amp; Diagnostics
             </span>
@@ -551,17 +551,18 @@ export default function AppShell({
               padding: 4,
               borderRadius: "var(--radius-sm)",
               transition: "background 0.2s",
-              flexShrink: 0
+              flexShrink: 0,
+              marginLeft: "auto"
             }}
             onMouseOver={(e) => e.currentTarget.style.background = "var(--surface-3)"}
             onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
           >
-            <Icon name={sidebarCollapsed ? "arrow-right" : "arrow-left"} size={16} />
+            <Icon name={sidebarCollapsed ? "arrow-right" : "arrow-left"} size={14} />
           </button>
         </div>
 
         {/* nav links — grouped into collapsible sections */}
-        <nav ref={navRef} style={{ position: "relative", flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 4px" : "12px 8px" }}>
+        <nav ref={navRef} style={{ position: "relative", flex: 1, overflowY: "auto", padding: sidebarCollapsed ? "12px 4px" : "12px 6px" }}>
           {/* Sliding highlight indicator */}
           <div style={{
             position: "absolute",
@@ -581,11 +582,11 @@ export default function AppShell({
           {NAV_SECTIONS.map((section) => {
             const isCollapsed = !!collapsedSections[section.title];
             return (
-              <div key={section.title} style={{ marginBottom: 6 }}>
+              <div key={section.title} style={{ marginBottom: 4 }}>
                 <div style={{ 
                   height: sidebarCollapsed ? 1 : 0, 
                   borderTop: sidebarCollapsed ? "1px solid var(--border)" : "0px solid transparent", 
-                  margin: sidebarCollapsed ? "12px 4px 6px" : "0",
+                  margin: sidebarCollapsed ? "8px 4px 4px" : "0",
                   opacity: sidebarCollapsed ? 1 : 0,
                   overflow: "hidden",
                   transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
@@ -593,10 +594,10 @@ export default function AppShell({
                 
                 <div style={{
                   opacity: sidebarCollapsed ? 0 : 1,
-                  maxHeight: sidebarCollapsed ? 0 : "30px",
+                  maxHeight: sidebarCollapsed ? 0 : "24px",
                   overflow: "hidden",
                   transition: "opacity 0.15s ease, max-height 0.25s ease",
-                  marginBottom: sidebarCollapsed ? 0 : 6
+                  marginBottom: sidebarCollapsed ? 0 : 4
                 }}>
                   <button
                     onClick={() => toggleSection(section.title)}
@@ -606,14 +607,14 @@ export default function AppShell({
                       alignItems: "center",
                       justifyContent: "space-between",
                       gap: 6,
-                      padding: "8px 16px 4px",
+                      padding: "4px 12px 2px",
                       background: "transparent",
                       border: "none",
                       cursor: "pointer",
                     }}
                   >
                     <span className="muted" style={{
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: 700,
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
@@ -623,16 +624,16 @@ export default function AppShell({
                     </span>
                     <Icon
                       name={isCollapsed ? "chevron-down" : "chevron-up"}
-                      size={11}
+                      size={10}
                       style={{ color: "var(--text-3)" }}
                     />
                   </button>
                 </div>
-
+ 
                 {(!isCollapsed || sidebarCollapsed) && section.items.map((n) => {
                   const isActive = n.key === active;
                   const isAnalyticsChild = n.indent;
-
+ 
                   return (
                     <button key={n.key} disabled={n.soon}
                       data-nav-active={isActive}
@@ -659,9 +660,9 @@ export default function AppShell({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "flex-start",
-                        gap: sidebarCollapsed ? 0 : 10,
-                        padding: sidebarCollapsed ? "10px 20px" : (isAnalyticsChild ? "8px 16px 8px 32px" : "10px 16px"),
-                        marginBottom: 2,
+                        gap: sidebarCollapsed ? 0 : 8,
+                        padding: sidebarCollapsed ? "8px 16px" : (isAnalyticsChild ? "6px 12px 6px 20px" : "8px 12px"),
+                        marginBottom: 1,
                         background: "transparent",
                         borderRadius: "30px",
                         color: isActive
@@ -671,19 +672,19 @@ export default function AppShell({
                             : "var(--text-2)",
                         border: "none",
                         cursor: n.soon ? "default" : "pointer",
-                        fontSize: isAnalyticsChild ? 12.5 : 13.5,
+                        fontSize: isAnalyticsChild ? 11.5 : 12.5,
                         fontWeight: isActive ? 700 : 500,
                         textAlign: "left",
                         transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), gap 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.15s ease",
                         position: "relative",
                         zIndex: 1
                       }}>
-                      <Icon name={n.icon} size={isAnalyticsChild ? 13 : 15} stroke={isActive ? 2 : 1.5} style={{ flexShrink: 0 }} />
+                      <Icon name={n.icon} size={isAnalyticsChild ? 12 : 14} stroke={isActive ? 2 : 1.5} style={{ flexShrink: 0 }} />
                       <span style={{ 
                         flex: 1,
                         opacity: sidebarCollapsed ? 0 : 1,
-                        maxWidth: sidebarCollapsed ? 0 : "300px",
-                        marginLeft: sidebarCollapsed ? 0 : 10,
+                        maxWidth: sidebarCollapsed ? 0 : "260px",
+                        marginLeft: sidebarCollapsed ? 0 : 8,
                         overflow: "hidden",
                         whiteSpace: "nowrap",
                         display: "inline-block",
@@ -741,7 +742,7 @@ export default function AppShell({
         gridArea: "top", 
         borderBottom: "1px solid var(--border)", 
         background: "var(--surface)", 
-        padding: "0 24px", 
+        padding: "0 var(--space-4)", 
         display: "flex", 
         alignItems: "center", 
         justifyContent: "space-between", 
@@ -750,7 +751,7 @@ export default function AppShell({
         zIndex: 50
       }}>
         {/* left filter selectors */}
-        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "clamp(8px, 1vw, 16px)", alignItems: "center" }}>
 
           {/* Global View (stage) selector — scopes the ENTIRE app to one process.
               Compact dropdown (styled like Date Range below) replacing the old
@@ -1036,7 +1037,7 @@ export default function AppShell({
         </div>
 
         {/* right profile / actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 1vw, 16px)" }}>
           {/* Notifications */}
           <button style={{ 
             position: "relative",
@@ -1129,7 +1130,7 @@ export default function AppShell({
       <main style={{ 
         gridArea: "main", 
         overflowY: "auto", 
-        padding: "16px 24px",
+        padding: "clamp(10px, 1.2vh, 16px) var(--space-4)",
         background: "var(--bg)",
         position: "relative"
       }}>
@@ -1225,13 +1226,13 @@ export default function AppShell({
         gridArea: "status", 
         borderTop: "1px solid var(--border)", 
         background: "var(--surface)", 
-        padding: "0 24px", 
+        padding: "0 var(--space-4)", 
         display: "flex", 
         alignItems: "center",
         justifyContent: "space-between", 
-        fontSize: 12
+        fontSize: 11
       }}>
-        <div style={{ display: "flex", gap: 24 }}>
+        <div style={{ display: "flex", gap: "clamp(12px, 1.5vw, 24px)" }}>
           <Status tone="var(--critical)" label="Active Alerts" value={`${sc.alerts ?? 0} Critical`} />
           <Status tone="var(--positive)" label="Pending CAPA" value={`${sc.capa ?? 0} Actions`} />
           <Status tone="var(--warning)" label="Overdue Actions" value={`${sc.overdue ?? 0}`} />

@@ -98,7 +98,7 @@ export default function GenericDashboardBody({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-grid)" }}>
       {caption && (
         <div className="muted" style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.02em" }}>
           {caption}
@@ -137,7 +137,7 @@ export default function GenericDashboardBody({
       {d.kpis.length === 0 ? (
         <Empty label="This dataset has no measure columns to summarize — it may be a derived or summary sheet." />
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(d.kpis.length, 5)}, 1fr)`, gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(d.kpis.length, 5)}, 1fr)`, gap: "var(--gap-grid)" }}>
           {d.kpis.map((k) => (
             <Kpi
               key={k.columnName}
@@ -160,7 +160,7 @@ export default function GenericDashboardBody({
       )}
 
       {trendKpis.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "var(--gap-grid)" }}>
           {trendKpis.map((k) => (
             <Card
               key={k.columnName}
@@ -181,7 +181,7 @@ export default function GenericDashboardBody({
       )}
 
       {d.breakdowns.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "var(--gap-grid)" }}>
           {d.breakdowns.map((b) => (
             <Card
               key={b.columnName}

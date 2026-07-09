@@ -216,7 +216,7 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
         border: "1.5px solid var(--border)", 
         borderRadius: "var(--radius-lg)", 
         background: "var(--surface)", 
-        padding: "24px",
+        padding: "var(--pad-card)",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
@@ -228,9 +228,9 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
       }}
     >
       {title && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-3)", fontFamily: "var(--font-sans)" }}>{title}</span>
-          {sub && <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>{sub}</span>}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "var(--space-3)" }}>
+          <span style={{ fontSize: "clamp(11.5px, 0.9vw, 13px)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-3)", fontFamily: "var(--font-sans)" }}>{title}</span>
+          {sub && <span className="muted" style={{ fontSize: "clamp(9.5px, 0.8vw, 11px)", fontFamily: "var(--font-mono)" }}>{sub}</span>}
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>{children}</div>
@@ -269,7 +269,7 @@ export function Kpi({
         border: "1.5px solid var(--border)", 
         borderRadius: "var(--radius-lg)", 
         background: primary ? "color-mix(in srgb, var(--accent) 1.5%, var(--surface))" : "var(--surface)", 
-        padding: "12px 14px",
+        padding: "clamp(6px, 0.8vh, 10px) clamp(8px, 1vw, 12px)",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
@@ -295,23 +295,23 @@ export function Kpi({
       )}
       
       <div>
-        <div className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, fontFamily: "var(--font-sans)", color: "var(--text-3)" }}>{label}</div>
+        <div className="muted" style={{ fontSize: "clamp(9.5px, 0.8vw, 11px)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, fontFamily: "var(--font-sans)", color: "var(--text-3)" }}>{label}</div>
         <div style={{
           fontFamily: /[\d%₹]/.test(value) && !/[a-zA-Z]{5,}/.test(value) ? "var(--font-mono)" : "var(--font-display)",
-          fontSize: primary ? 24 : 18,
+          fontSize: primary ? "clamp(19px, 1.4vw, 22px)" : "clamp(15px, 1.1vw, 17px)",
           fontWeight: 800,
           color,
-          margin: "6px 0 2px",
+          margin: "clamp(2px, 0.4vh, 4px) 0 clamp(1px, 0.1vh, 2px)",
           letterSpacing: "-0.015em",
           lineHeight: 1.15
         }}>
           <AnimatedValue value={value} />
         </div>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 6, gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "clamp(2px, 0.4vh, 6px)", gap: 12 }}>
         {sub && (
           <div className="muted" style={{ 
-            fontSize: 11.5, 
+            fontSize: "clamp(10px, 0.8vw, 11.5px)", 
             fontFamily: "var(--font-sans)", 
             color: tone === "bad" ? "var(--critical)" : tone === "good" ? "var(--positive)" : "var(--text-3)",
             fontWeight: 700
@@ -333,7 +333,7 @@ export function Spark({ points, tone }: { points: SeriesPoint[]; tone?: "good" |
   if (!points || points.length < 2) return null;
   const v = points.map((p) => p.value); 
   const max = Math.max(...v, 1e-6), min = Math.min(...v, 0);
-  const W = 110, H = 24;
+  const W = 90, H = 16;
   const d = points.map((p, i) => `${(i / (points.length - 1)) * W},${H - ((p.value - min) / (max - min || 1)) * H}`).join(" ");
   const color = tone === "bad" ? "var(--critical)" : tone === "good" ? "var(--positive)" : "var(--accent)";
   return (
