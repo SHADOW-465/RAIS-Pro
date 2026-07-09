@@ -140,7 +140,7 @@ function FbcProcessFlow({ stages }: { stages: StageRow[] }) {
             <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 11, color: "var(--text-3)", minWidth: 32 }}>{step.code}</span>
             <span style={{ fontSize: 12, fontWeight: step.stageId ? 700 : 500, color: "var(--text)", flex: 1 }}>
               {step.label}
-              {step.critical && <span title="Critical operation — special control" style={{ color: "#C8421C", fontWeight: 800, marginLeft: 6 }}>*</span>}
+              {step.critical && <span title="Critical operation — special control" style={{ color: "var(--critical)", fontWeight: 800, marginLeft: 6 }}>*</span>}
             </span>
             {step.stageId ? (
               <span style={{

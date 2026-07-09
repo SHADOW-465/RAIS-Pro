@@ -171,7 +171,7 @@ export default function AuditPage() {
             <div className="muted" style={{ fontSize: 11 }}>Reason-specific points</div>
           </Card>
           <Card title="Manual Overrides">
-            <div style={{ ...statValStyle, color: "#C8421C" }}>{stats.annotations}</div>
+            <div style={{ ...statValStyle, color: "var(--accent)" }}>{stats.annotations}</div>
             <div className="muted" style={{ fontSize: 11 }}>Operator comments logged</div>
           </Card>
         </div>
