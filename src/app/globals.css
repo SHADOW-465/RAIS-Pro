@@ -173,7 +173,10 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans), 'Inter Tight', sans-serif;
-  font-size: 15px;
+  /* ponytail: scales the whole rem-based type/spacing system down on laptop
+     viewports and back up on large monitors instead of sitting at a fixed
+     15px everywhere — native clamp(), no JS/resize-observer needed. */
+  font-size: clamp(13px, 0.22vw + 10.7px, 15px);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

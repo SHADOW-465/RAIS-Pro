@@ -104,6 +104,11 @@ export default function AppShell({
   const [activeOffsetLeft, setActiveOffsetLeft] = useState(0);
   const [activeHeight, setActiveHeight] = useState(0);
   const [activeWidth, setActiveWidth] = useState(0);
+  // ponytail: highlight only glides once it has a real position to glide FROM.
+  // Every navigation remounts AppShell (fresh state), so without this flag the
+  // pill would tween in from its (-1000, 0) placeholder — reading as "always
+  // slides in from the top-left" — on every single tab change.
+  const [highlightReady, setHighlightReady] = useState(false);
   const [showViewMenu, setShowViewMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
@@ -366,7 +371,8 @@ export default function AppShell({
       }
     };
 
-    // 1. Initial measurement
+    // 1. Initial measurement (placed with transitions off — see highlightReady
+    // effect below — so the pill appears already in place, not sliding in)
     updatePosition();
 
     // 2. Observe size changes (during transitions)
@@ -393,6 +399,22 @@ export default function AppShell({
       timers.forEach(clearTimeout);
     };
   }, [active, sidebarCollapsed, collapsedSections, mounted, viewStages, datasetTabs]);
+
+  // Enable the pill's slide transition only after its first real position has
+  // painted (two rAFs = one committed frame), so it never tweens in from the
+  // (-1000, 0) placeholder on mount/navigation — only glides between tabs
+  // within an already-settled sidebar.
+  useEffect(() => {
+    if (!mounted || activeOffsetTop === -1000) return;
+    let raf1 = 0, raf2 = 0;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setHighlightReady(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [mounted, activeOffsetTop]);
 
   function toggleSection(title: string) {
     setCollapsedSections((prev) => {
@@ -550,7 +572,7 @@ export default function AppShell({
             background: "color-mix(in srgb, var(--accent) 8%, var(--surface-2))",
             border: "1px solid color-mix(in srgb, var(--accent) 15%, var(--border-strong))",
             pointerEvents: "none",
-            transition: "all 0.28s cubic-bezier(0.25, 1, 0.5, 1)",
+            transition: highlightReady ? "transform 0.28s cubic-bezier(0.25, 1, 0.5, 1), width 0.28s cubic-bezier(0.25, 1, 0.5, 1), height 0.28s cubic-bezier(0.25, 1, 0.5, 1)" : "none",
             transform: `translate(${activeOffsetLeft}px, ${activeOffsetTop}px)`,
             opacity: activeOffsetTop === -1000 ? 0 : 1,
             zIndex: 0
