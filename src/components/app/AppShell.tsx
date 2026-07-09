@@ -475,89 +475,91 @@ export default function AppShell({
       background: "var(--bg)", 
       color: "var(--text)", 
       display: "grid", 
-      gridTemplateColumns: sidebarCollapsed ? "48px 1fr" : "180px 1fr", 
-      gridTemplateRows: "var(--header-h) 1fr var(--footer-h)", 
+      gridTemplateColumns: sidebarCollapsed 
+        ? "calc(48px + var(--space-4)) 1fr" 
+        : "calc(180px + var(--space-4)) 1fr", 
+      gridTemplateRows: "calc(var(--header-h) + var(--space-4)) 1fr calc(var(--footer-h) + var(--space-4))", 
       gridTemplateAreas: `"side top" "side main" "side status"`,
       transition: "grid-template-columns 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
     }}>
       {/* Sidebar Navigation */}
       <aside style={{ 
         gridArea: "side", 
-        borderRight: "1px solid var(--border)", 
-        background: "var(--surface)", 
+        background: "#1C1815", 
+        border: "1px solid #1F1F23",
+        borderRadius: "16px",
+        margin: "var(--space-4) 0 var(--space-4) var(--space-4)",
         display: "flex", 
         flexDirection: "column", 
         position: "sticky", 
-        top: 0, 
-        height: "100vh",
+        top: "var(--space-4)", 
+        height: "calc(100vh - var(--space-4) * 2)",
         zIndex: 100,
         width: sidebarCollapsed ? "48px" : "180px",
-        transition: "width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
-        overflow: "hidden"
+        transition: "width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), margin 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
+        overflow: "hidden",
+        boxShadow: "0 10px 30px -10px rgba(0,0,0,0.5)"
       }}>
         {/* logo and collapse toggle */}
         <div style={{ 
-          padding: sidebarCollapsed ? "10px 0" : "10px 12px", 
+          padding: sidebarCollapsed ? "14px 0" : "14px 16px", 
           display: "flex", 
+          flexDirection: sidebarCollapsed ? "column" : "row",
           alignItems: "center", 
-          justifyContent: sidebarCollapsed ? "center" : "flex-start",
-          borderBottom: "1px solid var(--border)",
-          minHeight: "calc(var(--header-h) - 1px)",
-          transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
+          justifyContent: sidebarCollapsed ? "center" : "space-between",
+          gap: sidebarCollapsed ? 12 : 8,
+          borderBottom: "none",
+          minHeight: 52,
+          transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
           overflow: "hidden"
         }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: 6,
-            opacity: sidebarCollapsed ? 0 : 1,
-            maxWidth: sidebarCollapsed ? 0 : "152px",
-            overflow: "hidden",
-            whiteSpace: "nowrap",
-            marginRight: sidebarCollapsed ? 0 : 6,
-            flexShrink: 0,
-            transition: "opacity 0.2s ease, max-width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), margin-right 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
-          }}>
-            <span style={{ 
-              fontFamily: "var(--font-display)", 
-              fontWeight: 800, 
-              fontSize: "clamp(20px, 1.8vw, 24px)", 
-              color: "var(--text)",
-              letterSpacing: "-0.03em"
-            }}>
-              MO<span style={{ color: "#C8421C" }}>!</span>D
-            </span>
-            <span className="muted" style={{ 
-              fontSize: 8, 
-              lineHeight: 1.15,
-              fontWeight: 500,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              marginLeft: 6
-            }}>
-              Manufacturing Operational<br />Intelligence &amp; Diagnostics
-            </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <img src="/logo.png" alt="MOID Logo" style={{ width: 20, height: 20, objectFit: "contain", flexShrink: 0 }} />
+            {!sidebarCollapsed && (
+              <span style={{ 
+                fontFamily: "var(--font-sans)", 
+                fontWeight: 800, 
+                fontSize: 16, 
+                letterSpacing: "-0.01em",
+                display: "inline-flex"
+              }}>
+                <span style={{ color: "#FFFFFF" }}>Dispo</span>
+                <span style={{ color: "#009FDF" }}>safe</span>
+              </span>
+            )}
           </div>
           <button 
             onClick={toggleSidebar}
-            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--text-3)",
+              background: "#1E1E20",
+              border: "1px solid #2D2D30",
+              color: "#A1A1AA",
               cursor: "pointer",
               display: "grid",
               placeItems: "center",
-              padding: 4,
-              borderRadius: "var(--radius-sm)",
-              transition: "background 0.2s",
-              flexShrink: 0,
-              marginLeft: sidebarCollapsed ? "0" : "auto"
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              transition: "all 0.2s",
+              flexShrink: 0
             }}
-            onMouseOver={(e) => e.currentTarget.style.background = "var(--surface-3)"}
-            onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
+            onMouseOver={(e) => {
+              if (e.currentTarget) {
+                e.currentTarget.style.background = "var(--accent)";
+                e.currentTarget.style.color = "#FFFFFF";
+                e.currentTarget.style.borderColor = "var(--accent)";
+              }
+            }}
+            onMouseOut={(e) => {
+              if (e.currentTarget) {
+                e.currentTarget.style.background = "#1E1E20";
+                e.currentTarget.style.color = "#A1A1AA";
+                e.currentTarget.style.borderColor = "#2D2D30";
+              }
+            }}
           >
-            <Icon name={sidebarCollapsed ? "arrow-right" : "arrow-left"} size={14} />
+            <Icon name={sidebarCollapsed ? "arrow-right" : "arrow-left"} size={12} />
           </button>
         </div>
 
@@ -571,8 +573,8 @@ export default function AppShell({
             width: activeWidth,
             height: activeHeight,
             borderRadius: "30px",
-            background: "color-mix(in srgb, var(--accent) 8%, var(--surface-2))",
-            border: "1px solid color-mix(in srgb, var(--accent) 15%, var(--border-strong))",
+            background: "color-mix(in srgb, var(--accent) 12%, #121214)",
+            border: "1px solid color-mix(in srgb, var(--accent) 30%, #2D2D30)",
             pointerEvents: "none",
             transition: highlightReady ? "transform 0.28s cubic-bezier(0.25, 1, 0.5, 1), width 0.28s cubic-bezier(0.25, 1, 0.5, 1), height 0.28s cubic-bezier(0.25, 1, 0.5, 1)" : "none",
             transform: `translate(${activeOffsetLeft}px, ${activeOffsetTop}px)`,
@@ -585,7 +587,7 @@ export default function AppShell({
               <div key={section.title} style={{ marginBottom: 4 }}>
                 <div style={{ 
                   height: sidebarCollapsed ? 1 : 0, 
-                  borderTop: sidebarCollapsed ? "1px solid var(--border)" : "0px solid transparent", 
+                  borderTop: sidebarCollapsed ? "1px solid #1F1F23" : "0px solid transparent", 
                   margin: sidebarCollapsed ? "8px 4px 4px" : "0",
                   opacity: sidebarCollapsed ? 1 : 0,
                   overflow: "hidden",
@@ -618,14 +620,14 @@ export default function AppShell({
                       fontWeight: 700,
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
-                      color: "var(--text-3)",
+                      color: "#52525B",
                     }}>
                       {section.title}
                     </span>
                     <Icon
                       name={isCollapsed ? "chevron-down" : "chevron-up"}
                       size={10}
-                      style={{ color: "var(--text-3)" }}
+                      style={{ color: "#52525B" }}
                     />
                   </button>
                 </div>
@@ -666,10 +668,10 @@ export default function AppShell({
                         background: "transparent",
                         borderRadius: "30px",
                         color: isActive
-                          ? "var(--accent)"
+                          ? "#FFFFFF"
                           : n.soon
-                            ? "var(--text-3)"
-                            : "var(--text-2)",
+                            ? "#3F3F46"
+                            : "#A1A1AA",
                         border: "none",
                         cursor: n.soon ? "default" : "pointer",
                         fontSize: isAnalyticsChild ? 11.5 : 12.5,
@@ -679,7 +681,7 @@ export default function AppShell({
                         position: "relative",
                         zIndex: 1
                       }}>
-                      <Icon name={n.icon} size={isAnalyticsChild ? 12 : 14} stroke={isActive ? 2 : 1.5} style={{ flexShrink: 0 }} />
+                      <Icon name={n.icon} size={isAnalyticsChild ? 12 : 14} stroke={isActive ? 2 : 1.5} style={{ flexShrink: 0, color: isActive ? "var(--accent)" : "#71717A" }} />
                       <span style={{ 
                         flex: 1,
                         opacity: sidebarCollapsed ? 0 : 1,
@@ -721,7 +723,7 @@ export default function AppShell({
                             borderRadius: 4,
                             padding: "1px 5px",
                             fontWeight: 800,
-                            border: "1px solid var(--border)"
+                            border: "1px solid #2D2D30"
                           }}>AI</span>
                         ) : null}
                         {n.soon ? <span className="muted" style={{ fontSize: 9, marginLeft: 4 }}>soon</span> : null}
@@ -741,12 +743,12 @@ export default function AppShell({
       <header style={{ 
         gridArea: "top", 
         background: "var(--bg)", 
-        padding: "0 var(--space-4)", 
+        margin: "var(--space-4) var(--space-4) 0 var(--space-4)", 
         display: "flex", 
         alignItems: "center", 
         justifyContent: "space-between", 
         position: "sticky", 
-        top: 0, 
+        top: "var(--space-4)", 
         zIndex: 50,
         height: "var(--header-h)"
       }}>
@@ -1118,11 +1120,11 @@ export default function AppShell({
               fontSize: 11,
               border: "1px solid var(--border-strong)"
             }}>
-              RK
+              S
             </div>
             <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.1 }}>Rajesh Kumar</span>
-              <span className="muted" style={{ fontSize: 9, lineHeight: 1.1 }}>Quality Manager</span>
+              <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.1 }}>Swamiji</span>
+              <span className="muted" style={{ fontSize: 9, lineHeight: 1.1 }}>General Manager</span>
             </div>
           </div>
 
@@ -1265,13 +1267,17 @@ export default function AppShell({
       {/* Footer Status Bar */}
       <footer style={{ 
         gridArea: "status", 
-        borderTop: "1px solid var(--border)", 
         background: "var(--surface)", 
-        padding: "0 var(--space-4)", 
+        border: "1px solid var(--border-strong)", 
+        borderRadius: "30px",
+        margin: "0 var(--space-4) var(--space-4) var(--space-4)", 
+        padding: "0 16px", 
         display: "flex", 
         alignItems: "center",
         justifyContent: "space-between", 
-        fontSize: 11
+        fontSize: 11,
+        height: "var(--footer-h)",
+        boxShadow: "var(--shadow-sm)"
       }}>
         <div style={{ display: "flex", gap: "clamp(12px, 1.5vw, 24px)" }}>
           <Status tone="var(--critical)" label="Active Alerts" value={`${sc.alerts ?? 0} Critical`} />

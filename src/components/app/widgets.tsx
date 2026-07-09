@@ -676,7 +676,12 @@ export function MultiLine({
 
   const x = (i: number) => padX + i * spacing;
   const y = (val: number) => axisY - (val / (max || 1)) * plotH;
-  const color = (si: number) => SERIES_COLORS[si % SERIES_COLORS.length];
+  const getStageColor = (s: { stageId: string; label: string }, si: number) => {
+    if (s.stageId === "total" || s.label.toLowerCase() === "total") {
+      return "#39FF14"; // Neon green
+    }
+    return SERIES_COLORS[si % SERIES_COLORS.length];
+  };
 
   const buffer = 10;
   const startIdx = isScrollable ? Math.max(0, Math.floor((scrollLeft - padX) / spacing) - buffer) : 0;
@@ -763,7 +768,7 @@ export function MultiLine({
               <path 
                 key={s.stageId} 
                 fill="none" 
-                stroke={color(si)} 
+                stroke={getStageColor(s, si)} 
                 strokeWidth={1.8} 
                 d={pathD} 
                 pathLength={1}
@@ -777,7 +782,7 @@ export function MultiLine({
           })}
 
           {hover != null && stages.map((s, si) => (
-            <circle key={`h${s.stageId}`} cx={x(hover)} cy={y(data[hover].perStage[s.stageId] ?? 0)} r={3.5} fill={color(si)} stroke="var(--surface)" strokeWidth={1.5} />
+            <circle key={`h${s.stageId}`} cx={x(hover)} cy={y(data[hover].perStage[s.stageId] ?? 0)} r={3.5} fill={getStageColor(s, si)} stroke="var(--surface)" strokeWidth={1.5} />
           ))}
 
           {/* Rotated thinned date labels */}
@@ -793,7 +798,7 @@ export function MultiLine({
           {/* Legend */}
           {stages.map((s, si) => (
             <g key={`lg${s.stageId}`} transform={`translate(${padX + (si % 5) * 110}, ${12 + Math.floor(si / 5) * 12})`}>
-              <circle cx={0} cy={-2} r={4} fill={color(si)} />
+              <circle cx={0} cy={-2} r={4} fill={getStageColor(s, si)} />
               <text x={8} y={3} fontSize={11} fill="var(--text-2)" fontWeight={700}>{s.label.split(" ")[0].toUpperCase()}</text>
             </g>
           ))}
@@ -809,7 +814,7 @@ export function MultiLine({
               .map((s, si) => {
                 const c = data[hover].counts?.[s.stageId];
                 const exact = c && c.checked > 0 ? ` · ${num(c.rejected)}/${num(c.checked)}` : "";
-                return { label: s.label.split(" ")[0], value: fmtVal(data[hover].perStage[s.stageId] ?? 0) + exact, color: color(si), raw: data[hover].perStage[s.stageId] ?? 0 };
+                return { label: s.label.split(" ")[0], value: fmtVal(data[hover].perStage[s.stageId] ?? 0) + exact, color: getStageColor(s, si), raw: data[hover].perStage[s.stageId] ?? 0 };
               })
               .sort((a, b) => b.raw - a.raw)
               .map(({ label, value, color }) => ({ label, value, color }))}
