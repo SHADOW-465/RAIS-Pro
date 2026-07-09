@@ -105,7 +105,6 @@ export default function Dashboard() {
   const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
   const [modalOriginRect, setModalOriginRect] = useState<DOMRect | null>(null);
   const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
-  const [showParetoBar, setShowParetoBar] = useState(false);
   const lastClickRect = useRef<DOMRect | null>(null);
 
   useEffect(() => {
@@ -577,7 +576,7 @@ export default function Dashboard() {
               not new math. Clicking any of the first 4 opens the 5-part drill-down
               na          <>
           {/* Section 1: Executive KPIs */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 20 }}>
             <Kpi
               primary
               label="Overall Rejection"
@@ -630,6 +629,20 @@ export default function Dashboard() {
                 `The top defect category is ${m.defects[0].label}, accounting for ${m.defects[0].rejected.toLocaleString()} rejects (${m.defects[0].pct.toFixed(1)}% of all rejections).`,
                 <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "" }} showTable={true} /></div>,
                 { rows: srcRows({ defectCode: m.defects[0].label, types: ["rejection"] }), value: m.defects[0].rejected.toLocaleString() }
+              )}
+            />
+            <Kpi
+              primary
+              label="COPQ"
+              value={rupee(m.copq)}
+              sub={stats.copqDiff}
+              tone={m.copq > 0 ? "bad" : "good"}
+              spark={m.copqTrend}
+              onClick={() => openModal(
+                `COPQ Trend (${grainLabel})`,
+                kpiNarrative("copq", `Cost of Poor Quality (COPQ) is ${rupee(m.copq)} for the latest period (${stats.copqDiff}).`),
+                <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>,
+                { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) },
               )}
             />
           </div>
@@ -713,65 +726,66 @@ export default function Dashboard() {
             {/* Card 3: Top Defects (Pareto) */}
             <Card 
               title="Top Defects (Pareto)" 
-              sub={showParetoBar ? "Bar chart view — click to switch to list" : "List view — click to switch to chart"}
-              onClick={() => setShowParetoBar(!showParetoBar)}
+              sub="YTD Rejections"
+              onClick={() => openModal(
+                "Defect Pareto (All Stages)", 
+                "Six Sigma Pareto analysis highlighting the vital few defect categories responsible for most rejects.", 
+                <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  <ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} showTable={false} />
+                </div>, 
+                { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) }
+              )}
             >
               <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
-                {showParetoBar ? (
-                  <div style={{ flex: 1, minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }} onClick={(e) => e.stopPropagation()}>
-                    <ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} showTable={false} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ 
+                    display: "grid", 
+                    gridTemplateColumns: "24px minmax(0, 1.3fr) 60px 80px 70px", 
+                    gap: 8, 
+                    fontSize: 10.5, 
+                    fontWeight: 700, 
+                    textTransform: "uppercase", 
+                    letterSpacing: "0.05em", 
+                    color: "var(--text-3)", 
+                    paddingBottom: 8, 
+                    borderBottom: "1px solid var(--border)" 
+                  }}>
+                    <div></div>
+                    <div>Defect</div>
+                    <div style={{ textAlign: "right" }}>Rejection %</div>
+                    <div></div>
+                    <div style={{ textAlign: "right" }}>% of Total</div>
                   </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div style={{ 
-                      display: "grid", 
-                      gridTemplateColumns: "24px minmax(0, 1.3fr) 60px 80px 70px", 
-                      gap: 8, 
-                      fontSize: 10.5, 
-                      fontWeight: 700, 
-                      textTransform: "uppercase", 
-                      letterSpacing: "0.05em", 
-                      color: "var(--text-3)", 
-                      paddingBottom: 8, 
-                      borderBottom: "1px solid var(--border)" 
-                    }}>
-                      <div></div>
-                      <div>Defect</div>
-                      <div style={{ textAlign: "right" }}>Rejection %</div>
-                      <div></div>
-                      <div style={{ textAlign: "right" }}>% of Total</div>
-                    </div>
-                    {m.defects.length === 0 ? (
-                      <Empty label="No defect data available for this period." />
-                    ) : (
-                      m.defects.slice(0, 5).map((d, i) => {
-                        const colors = ["#C8421C", "#2563EB", "#D97706", "#0D9488", "#7C3AED"];
-                        const rejRate = getDefectRejRate(d);
-                        return (
-                          <div key={d.label} style={{ 
-                            display: "grid", 
-                            gridTemplateColumns: "24px minmax(0, 1.3fr) 60px 80px 70px", 
-                            gap: 8, 
-                            alignItems: "center", 
-                            fontSize: 12,
-                            padding: "4px 0",
-                            borderBottom: i < 4 ? "1px solid var(--border-subtle)" : "none"
-                          }}>
-                            <span style={{ color: "var(--text-3)", fontWeight: 700 }}>{i + 1}</span>
-                            <span style={{ fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.label}>{d.label}</span>
-                            <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{(rejRate * 100).toFixed(2)}%</span>
-                            <div style={{ display: "flex", alignItems: "center", paddingLeft: 8 }}>
-                              <div style={{ width: "100%", height: 6, background: "var(--surface-3)", borderRadius: 3, overflow: "hidden", border: "1px solid var(--border)" }}>
-                                <div style={{ width: `${d.pct}%`, height: "100%", background: colors[i % colors.length], borderRadius: 3 }} />
-                              </div>
+                  {m.defects.length === 0 ? (
+                    <Empty label="No defect data available for this period." />
+                  ) : (
+                    m.defects.slice(0, 5).map((d, i) => {
+                      const colors = ["#C8421C", "#2563EB", "#D97706", "#0D9488", "#7C3AED"];
+                      const rejRate = getDefectRejRate(d);
+                      return (
+                        <div key={d.label} style={{ 
+                          display: "grid", 
+                          gridTemplateColumns: "24px minmax(0, 1.3fr) 60px 80px 70px", 
+                          gap: 8, 
+                          alignItems: "center", 
+                          fontSize: 12,
+                          padding: "4px 0",
+                          borderBottom: i < 4 ? "1px solid var(--border-subtle)" : "none"
+                        }}>
+                          <span style={{ color: "var(--text-3)", fontWeight: 700 }}>{i + 1}</span>
+                          <span style={{ fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.label}>{d.label}</span>
+                          <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{(rejRate * 100).toFixed(2)}%</span>
+                          <div style={{ display: "flex", alignItems: "center", paddingLeft: 8 }}>
+                            <div style={{ width: "100%", height: 6, background: "var(--surface-3)", borderRadius: 3, overflow: "hidden", border: "1px solid var(--border)" }}>
+                              <div style={{ width: `${d.pct}%`, height: "100%", background: colors[i % colors.length], borderRadius: 3 }} />
                             </div>
-                            <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-2)" }}>{d.pct.toFixed(0)}%</span>
                           </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
+                          <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-2)" }}>{d.pct.toFixed(0)}%</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
                 <div style={{ marginTop: 12, display: "flex" }}>
                   <a 
                     href="/defect-analysis"
