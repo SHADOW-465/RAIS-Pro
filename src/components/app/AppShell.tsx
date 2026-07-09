@@ -467,7 +467,29 @@ export default function AppShell({
   const stationOptions = stationCandidates.filter((v) => stagesWithData.has(v.id));
   const allViewOptions = [{ id: "cumulative", label: "Factory Overview" }, ...stationOptions, ...datasetTabs];
   const currentView = allViewOptions.find((v) => v.id === t.stageView)
-    ?? { id: t.stageView, label: t.stageView === "cumulative" ? "Factory Overview" : t.stageView };
+  const sidebarBg = isDark ? "#1C1815" : "var(--surface)";
+  const sidebarBorder = isDark ? "1px solid #1F1F23" : "1px solid var(--border-strong)";
+  const dispoTextColor = isDark ? "#FFFFFF" : "var(--text)";
+  const navTextColor = (isActive: boolean, soon: boolean) => {
+    if (isActive) return isDark ? "#FFFFFF" : "var(--text)";
+    if (soon) return isDark ? "#3F3F46" : "var(--text-3)";
+    return isDark ? "#A1A1AA" : "var(--text-2)";
+  };
+  const navIconColor = (isActive: boolean) => {
+    if (isActive) return "var(--accent)";
+    return isDark ? "#71717A" : "var(--text-3)";
+  };
+  const highlightBg = isDark 
+    ? "color-mix(in srgb, var(--accent) 12%, #121214)" 
+    : "color-mix(in srgb, var(--accent) 8%, var(--surface-2))";
+  const highlightBorder = isDark 
+    ? "1px solid color-mix(in srgb, var(--accent) 30%, #2D2D30)" 
+    : "1px solid color-mix(in srgb, var(--accent) 15%, var(--border-strong))";
+  const sepBorderColor = isDark ? "#1F1F23" : "var(--border)";
+  const sectionHeaderColor = isDark ? "#52525B" : "var(--text-3)";
+  const toggleBtnBg = isDark ? "#1E1E20" : "var(--surface-2)";
+  const toggleBtnBorder = isDark ? "1px solid #2D2D30" : "1px solid var(--border-strong)";
+  const toggleBtnColor = isDark ? "#A1A1AA" : "var(--text-2)";
 
   return (
     <div style={{ 
@@ -485,8 +507,8 @@ export default function AppShell({
       {/* Sidebar Navigation */}
       <aside style={{ 
         gridArea: "side", 
-        background: "#1C1815", 
-        border: "1px solid #1F1F23",
+        background: sidebarBg, 
+        border: sidebarBorder,
         borderRadius: "16px",
         margin: "var(--space-4) 0 var(--space-4) var(--space-4)",
         display: "flex", 
@@ -496,7 +518,7 @@ export default function AppShell({
         height: "calc(100vh - var(--space-4) * 2)",
         zIndex: 100,
         width: sidebarCollapsed ? "48px" : "180px",
-        transition: "width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), margin 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
+        transition: "width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), margin 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.25s ease, border-color 0.25s ease",
         overflow: "hidden",
         boxShadow: "0 10px 30px -10px rgba(0,0,0,0.5)"
       }}>
@@ -523,7 +545,7 @@ export default function AppShell({
                 letterSpacing: "-0.01em",
                 display: "inline-flex"
               }}>
-                <span style={{ color: "#FFFFFF" }}>Dispo</span>
+                <span style={{ color: dispoTextColor }}>Dispo</span>
                 <span style={{ color: "#009FDF" }}>safe</span>
               </span>
             )}
@@ -532,9 +554,9 @@ export default function AppShell({
             onClick={toggleSidebar}
             title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             style={{
-              background: "#1E1E20",
-              border: "1px solid #2D2D30",
-              color: "#A1A1AA",
+              background: toggleBtnBg,
+              border: toggleBtnBorder,
+              color: toggleBtnColor,
               cursor: "pointer",
               display: "grid",
               placeItems: "center",
@@ -553,9 +575,9 @@ export default function AppShell({
             }}
             onMouseOut={(e) => {
               if (e.currentTarget) {
-                e.currentTarget.style.background = "#1E1E20";
-                e.currentTarget.style.color = "#A1A1AA";
-                e.currentTarget.style.borderColor = "#2D2D30";
+                e.currentTarget.style.background = toggleBtnBg;
+                e.currentTarget.style.color = toggleBtnColor;
+                e.currentTarget.style.borderColor = isDark ? "#2D2D30" : "var(--border-strong)";
               }
             }}
           >
@@ -573,8 +595,8 @@ export default function AppShell({
             width: activeWidth,
             height: activeHeight,
             borderRadius: "30px",
-            background: "color-mix(in srgb, var(--accent) 12%, #121214)",
-            border: "1px solid color-mix(in srgb, var(--accent) 30%, #2D2D30)",
+            background: highlightBg,
+            border: highlightBorder,
             pointerEvents: "none",
             transition: highlightReady ? "transform 0.28s cubic-bezier(0.25, 1, 0.5, 1), width 0.28s cubic-bezier(0.25, 1, 0.5, 1), height 0.28s cubic-bezier(0.25, 1, 0.5, 1)" : "none",
             transform: `translate(${activeOffsetLeft}px, ${activeOffsetTop}px)`,
@@ -587,7 +609,7 @@ export default function AppShell({
               <div key={section.title} style={{ marginBottom: 4 }}>
                 <div style={{ 
                   height: sidebarCollapsed ? 1 : 0, 
-                  borderTop: sidebarCollapsed ? "1px solid #1F1F23" : "0px solid transparent", 
+                  borderTop: sidebarCollapsed ? `1px solid ${sepBorderColor}` : "0px solid transparent", 
                   margin: sidebarCollapsed ? "8px 4px 4px" : "0",
                   opacity: sidebarCollapsed ? 1 : 0,
                   overflow: "hidden",
@@ -620,14 +642,14 @@ export default function AppShell({
                       fontWeight: 700,
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
-                      color: "#52525B",
+                      color: sectionHeaderColor,
                     }}>
                       {section.title}
                     </span>
                     <Icon
                       name={isCollapsed ? "chevron-down" : "chevron-up"}
                       size={10}
-                      style={{ color: "#52525B" }}
+                      style={{ color: sectionHeaderColor }}
                     />
                   </button>
                 </div>
@@ -667,11 +689,7 @@ export default function AppShell({
                         marginBottom: 1,
                         background: "transparent",
                         borderRadius: "30px",
-                        color: isActive
-                          ? "#FFFFFF"
-                          : n.soon
-                            ? "#3F3F46"
-                            : "#A1A1AA",
+                        color: navTextColor(isActive, n.soon),
                         border: "none",
                         cursor: n.soon ? "default" : "pointer",
                         fontSize: isAnalyticsChild ? 11.5 : 12.5,
@@ -681,7 +699,7 @@ export default function AppShell({
                         position: "relative",
                         zIndex: 1
                       }}>
-                      <Icon name={n.icon} size={isAnalyticsChild ? 12 : 14} stroke={isActive ? 2 : 1.5} style={{ flexShrink: 0, color: isActive ? "var(--accent)" : "#71717A" }} />
+                      <Icon name={n.icon} size={isAnalyticsChild ? 12 : 14} stroke={isActive ? 2 : 1.5} style={{ flexShrink: 0, color: navIconColor(isActive) }} />
                       <span style={{ 
                         flex: 1,
                         opacity: sidebarCollapsed ? 0 : 1,
@@ -723,7 +741,7 @@ export default function AppShell({
                             borderRadius: 4,
                             padding: "1px 5px",
                             fontWeight: 800,
-                            border: "1px solid #2D2D30"
+                            border: isDark ? "1px solid #2D2D30" : "1px solid var(--border)"
                           }}>AI</span>
                         ) : null}
                         {n.soon ? <span className="muted" style={{ fontSize: 9, marginLeft: 4 }}>soon</span> : null}
