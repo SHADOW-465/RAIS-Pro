@@ -224,7 +224,7 @@ function ChatContent() {
           {/* Header context selector */}
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <span className="eyebrow accent" style={{ fontWeight: 700 }}>Ask RAIS</span>
+              <span className="eyebrow accent" style={{ fontWeight: 700 }}>Ask MOID</span>
               <span className="muted" style={{ fontSize: 10.5 }}>Ask quality questions about production sheets</span>
             </div>
             <span className="eyebrow muted" style={{ fontSize: 10.5 }}>Staging Ledger (All Data)</span>

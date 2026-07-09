@@ -5,6 +5,16 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Icon, { type IconName } from "@/components/editorial/Icon";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { useEvents } from "@/components/app/EventsContext";
+import {
+  rejectionRate,
+  totalRejected,
+  totalChecked,
+  fpy,
+  copq,
+  savingsOpportunity,
+  trustScore,
+} from "@/lib/analytics";
+import type { DashboardConfig } from "@/types/dashboard";
 import { resolveScope } from "@/lib/analytics/scope";
 import { trustScore as computeTrustScore } from "@/lib/analytics/trust";
 
@@ -64,7 +74,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "reports", label: "Reports", icon: "print", href: "/reports" },
       { key: "capa", label: "CAPA & Actions", icon: "check", href: "/capa" },
-      { key: "ask", label: "Ask RAIS", icon: "comment", href: "/chat", aiBadge: true },
+      { key: "ask", label: "Ask MOID", icon: "comment", href: "/chat", aiBadge: true },
       { key: "audit", label: "Audit Trail", icon: "search", href: "/audit" },
       { key: "schema", label: "Data Schema", icon: "split", href: "/schema" },
       { key: "settings", label: "Settings", icon: "external", href: "/settings" },
@@ -96,6 +106,7 @@ export default function AppShell({
   presetId?: string | null;
 }) {
   const router = useRouter();
+  const { events } = useEvents();
   const { t, setTweak } = useTweaks();
   const [mounted, setMounted] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -123,6 +134,130 @@ export default function AppShell({
     }
     return false;
   });
+
+  // Floating Ask MOID Chat Widget States
+  const [showChatWidget, setShowChatWidget] = useState(false);
+  const [widgetInput, setWidgetInput] = useState("");
+  const [widgetMessages, setWidgetMessages] = useState<any[]>([
+    {
+      id: "welcome",
+      sender: "moid",
+      text: "Hello! I am MOID, your Manufacturing Operational Intelligence assistant. How can I help you analyze rejection trends or diagnostic metrics today?",
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    }
+  ]);
+  const [widgetLoading, setWidgetLoading] = useState(false);
+  const [activeConfig, setActiveConfig] = useState<DashboardConfig | null>(null);
+
+
+
+  useEffect(() => {
+    const evs = events ?? [];
+    if (evs.length > 0) {
+      const scope = { grain: "month" as const };
+      const rate = rejectionRate(evs, scope).value;
+      const rejected = totalRejected(evs, scope).value;
+      const checked = totalChecked(evs, scope).value;
+      const fpyVal = fpy(evs, scope).value;
+      const copqRes = copq(evs, scope);
+      const savings = savingsOpportunity(evs, scope);
+
+      const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
+      const rupee = (n: number) => `₹${(n / 100000).toFixed(2)}L`;
+      const num = (n: number) => n.toLocaleString();
+
+      const computedConfig: DashboardConfig = {
+        dashboardTitle: "Live Staging Ledger",
+        executiveSummary: `Overall rejection rate is ${pct(rate)}. Visual Inspection contributes the highest rejection volume.`,
+        kpis: [
+          { label: "Rejection Rate", value: pct(rate), unit: "", trend: 0, context: "YTD average" },
+          { label: "Total Rejections", value: num(rejected), unit: "", trend: 0, context: "YTD total" },
+          { label: "First Pass Yield (FPY)", value: pct(fpyVal), unit: "", trend: 0, context: "YTD FPY" },
+          { label: "COPQ (This Month)", value: rupee(copqRes?.value ?? 0), trend: 0, context: "Month total" },
+          { label: "Savings Opportunity", value: rupee(savings ?? 0), trend: 0, context: "Annual Potential" },
+        ],
+        charts: [],
+        insights: [
+          `Total production checked is ${num(checked)} units.`,
+          `Discrepancy count stands at ${num(rejected)} rejected.`,
+        ],
+        recommendations: [],
+        alerts: [],
+        sections: [],
+      };
+
+      setActiveConfig(computedConfig);
+    }
+  }, [events]);
+
+  const submitWidgetQuery = async () => {
+    const question = widgetInput.trim();
+    if (!question || widgetLoading) return;
+
+    setWidgetLoading(true);
+    setWidgetInput("");
+
+    // Add user message
+    const userMsg = {
+      id: `usr-${Date.now()}`,
+      sender: "user",
+      text: question,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+    setWidgetMessages((prev) => [...prev, userMsg]);
+
+    try {
+      const currentConfig = activeConfig || {
+        dashboardTitle: "Live Staging Ledger",
+        executiveSummary: "Operational analytics loaded.",
+        kpis: [
+          { label: "Rejection Rate", value: "0.00%", unit: "", trend: 0, context: "No active data" }
+        ],
+        charts: [],
+        insights: [],
+        recommendations: [],
+        alerts: [],
+        sections: [],
+      };
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          dataSummary: JSON.stringify(currentConfig.insights),
+          currentConfig,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Chat request failed");
+      }
+
+      const result = await res.json();
+      const text = result.type === "slide" && result.slide ? result.slide.headline : (result.text || "I was unable to construct a response.");
+
+      const moidMsg = {
+        id: `moid-${Date.now()}`,
+        sender: "moid",
+        text,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setWidgetMessages((prev) => [...prev, moidMsg]);
+    } catch (err: any) {
+      setWidgetMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          sender: "moid",
+          text: `Error: ${err.message ?? "Operational AI returned a timeout error."}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+    } finally {
+      setWidgetLoading(false);
+    }
+  };
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -166,7 +301,7 @@ export default function AppShell({
 
   const suggestedGrain = mounted ? getSuggestedGrain() : "month";
 
-  const { events } = useEvents();
+
 
   // Pages that don't explicitly compute/pass a trustScore prop (most of them —
   // only Dashboard and Reports did) used to show a permanent "No data ingested
@@ -1292,33 +1427,184 @@ export default function AppShell({
           <Status tone="var(--warning)" label="Overdue Actions" value={`${sc.overdue ?? 0}`} />
           <Status tone="var(--warning)" label="Data Anomalies" value={`${sc.anomalies ?? 0}`} />
         </div>
-        
-        {/* Ask RAIS text input field */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, width: 340 }}>
-          <span className="muted" style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, fontSize: 11.5 }}>
-            <Icon name="comment" size={12} style={{ color: "var(--accent)" }} /> Ask RAIS:
-          </span>
-          <input 
-            type="text" 
-            placeholder="Ask Rejection Advisory System..." 
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && e.currentTarget.value.trim()) {
-                router.push(`/chat?q=${encodeURIComponent(e.currentTarget.value.trim())}`);
-                e.currentTarget.value = "";
-              }
-            }}
-            style={{ 
-              flex: 1, 
-              fontSize: 11.5, 
-              padding: "4px 10px", 
-              border: "1px solid var(--border-strong)", 
-              borderRadius: "var(--radius-sm)",
-              background: "var(--bg)",
-              outline: "none"
-            }} 
-          />
-        </div>
       </footer>
+
+      {/* Floating Ask MOID Chat Widget */}
+      {showChatWidget && (
+        <div style={{
+          position: "fixed",
+          bottom: 84,
+          right: 24,
+          width: 360,
+          height: 480,
+          background: "var(--surface)",
+          border: "1px solid var(--border-strong)",
+          borderRadius: "16px",
+          boxShadow: "0 10px 40px -10px rgba(0,0,0,0.3)",
+          zIndex: 1000,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden"
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: "14px 18px",
+            background: "var(--accent)",
+            color: "#FFFFFF",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 800 }}>Ask MOID</span>
+              <span style={{ fontSize: 9.5, opacity: 0.8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Operational Intelligence</span>
+            </div>
+            <button 
+              onClick={() => setShowChatWidget(false)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#FFFFFF",
+                cursor: "pointer",
+                padding: 4,
+                display: "grid",
+                placeItems: "center"
+              }}
+            >
+              <Icon name="x" size={16} />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            background: "var(--bg)"
+          }}>
+            {widgetMessages.map((m) => (
+              <div 
+                key={m.id}
+                style={{
+                  alignSelf: m.sender === "user" ? "flex-end" : "flex-start",
+                  maxWidth: "85%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3
+                }}
+              >
+                <div style={{
+                  padding: "10px 14px",
+                  borderRadius: "12px",
+                  fontSize: 12.5,
+                  lineHeight: 1.4,
+                  background: m.sender === "user" ? "var(--surface-2)" : "var(--surface)",
+                  color: "var(--text)",
+                  border: m.sender === "user" ? "1px solid var(--border)" : "1px solid var(--border-strong)",
+                  boxShadow: "2px 2px 0 rgba(0,0,0,0.05)"
+                }}>
+                  {m.text}
+                </div>
+                <span style={{
+                  fontSize: 9,
+                  color: "var(--text-3)",
+                  alignSelf: m.sender === "user" ? "flex-end" : "flex-start",
+                  padding: "0 4px"
+                }}>
+                  {m.timestamp}
+                </span>
+              </div>
+            ))}
+            {widgetLoading && (
+              <div style={{ alignSelf: "flex-start", fontSize: 11, color: "var(--text-3)", fontStyle: "italic", padding: "4px 8px" }}>
+                MOID is thinking...
+              </div>
+            )}
+          </div>
+
+          {/* Input Area */}
+          <div style={{
+            padding: 12,
+            background: "var(--surface)",
+            borderTop: "1px solid var(--border-strong)",
+            display: "flex",
+            gap: 8,
+            alignItems: "center"
+          }}>
+            <input 
+              type="text"
+              placeholder="Ask anything about ledger..."
+              value={widgetInput}
+              onChange={(e) => setWidgetInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitWidgetQuery();
+              }}
+              style={{
+                flex: 1,
+                fontSize: 12.5,
+                padding: "8px 12px",
+                borderRadius: "20px",
+                border: "1px solid var(--border-strong)",
+                outline: "none",
+                background: "var(--bg)",
+                color: "var(--text)"
+              }}
+            />
+            <button
+              onClick={submitWidgetQuery}
+              disabled={widgetLoading || !widgetInput.trim()}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: "var(--accent)",
+                color: "#FFFFFF",
+                border: "none",
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                opacity: widgetInput.trim() ? 1 : 0.5,
+                transition: "opacity 0.2s"
+              }}
+            >
+              <Icon name="arrow-right" size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating M Toggle Button */}
+      <button 
+        onClick={() => setShowChatWidget(!showChatWidget)}
+        title="Ask MOID AI Assistant"
+        style={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          width: 48,
+          height: 48,
+          borderRadius: "50%",
+          background: "var(--accent)",
+          color: "#FFFFFF",
+          border: "none",
+          cursor: "pointer",
+          display: "grid",
+          placeItems: "center",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+          zIndex: 1000,
+          fontWeight: 800,
+          fontSize: 18,
+          fontFamily: "var(--font-sans)",
+          transition: "transform 0.2s"
+        }}
+        onMouseOver={(e) => { e.currentTarget.style.transform = "scale(1.08)"; }}
+        onMouseOut={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+      >
+        M
+      </button>
     </div>
   );
 }
