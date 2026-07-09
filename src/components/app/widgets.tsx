@@ -613,7 +613,7 @@ export function LineChart({
   );
 }
 
-const SERIES_COLORS = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#7C3AED", "#65A30D"];
+const SERIES_COLORS = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#EC4899", "#65A30D"];
 
 export function MultiLine({ 
   data, 

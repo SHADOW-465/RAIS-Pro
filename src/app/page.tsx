@@ -693,7 +693,7 @@ export default function Dashboard() {
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
                     {m.stages.slice(0, 4).map((s, idx) => {
-                      const colors = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#7C3AED", "#65A30D"];
+                      const colors = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#EC4899", "#65A30D"];
                       const share = ((s.rejected / (m.rejected || 1)) * 100).toFixed(1);
                       return (
                         <div key={s.stageId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5 }}>
@@ -760,7 +760,7 @@ export default function Dashboard() {
                     <Empty label="No defect data available for this period." />
                   ) : (
                     m.defects.slice(0, 5).map((d, i) => {
-                      const colors = ["#C8421C", "#2563EB", "#D97706", "#0D9488", "#7C3AED"];
+                      const colors = ["#C8421C", "#2563EB", "#D97706", "#0D9488", "#EC4899"];
                       const rejRate = getDefectRejRate(d);
                       return (
                         <div key={d.label} style={{ 
