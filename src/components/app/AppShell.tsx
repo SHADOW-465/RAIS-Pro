@@ -740,25 +740,31 @@ export default function AppShell({
       {/* Topbar / Masthead */}
       <header style={{ 
         gridArea: "top", 
-        borderBottom: "1px solid var(--border)", 
-        background: "var(--surface)", 
+        background: "var(--bg)", 
         padding: "0 var(--space-4)", 
         display: "flex", 
         alignItems: "center", 
         justifyContent: "space-between", 
         position: "sticky", 
         top: 0, 
-        zIndex: 50
+        zIndex: 50,
+        height: "var(--header-h)"
       }}>
-        {/* left filter selectors */}
-        <div style={{ display: "flex", gap: "clamp(8px, 1vw, 16px)", alignItems: "center" }}>
-
-          {/* Global View (stage) selector — scopes the ENTIRE app to one process.
-              Compact dropdown (styled like Date Range below) replacing the old
-              always-visible 13-button strip; grouped into Factory Overview /
-              Stations (live data only) / Uploaded Data. */}
-          <div className="view-picker-container" style={{ display: "flex", flexDirection: "column", textAlign: "left", position: "relative" }}>
-            <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
+        {/* left filter selectors: Wrapped in a floating pillbox */}
+        <div style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          gap: 12, 
+          background: "var(--surface)", 
+          border: "1px solid var(--border-strong)", 
+          borderRadius: "30px", 
+          padding: "4px 12px", 
+          boxShadow: "var(--shadow-sm)",
+          height: 38
+        }}>
+          {/* Global View Selector */}
+          <div className="view-picker-container" style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
+            <span className="muted" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
               View
             </span>
             <div
@@ -767,19 +773,18 @@ export default function AppShell({
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: 600,
-                border: "1px solid var(--border-strong)",
-                borderRadius: "var(--radius-sm)",
-                padding: "4px 10px",
+                borderRadius: "20px",
+                padding: "3px 8px",
                 background: "var(--surface-2)",
                 cursor: "pointer",
-                minWidth: 140,
+                minWidth: 130,
               }}
             >
-              <Icon name="table" size={12} style={{ color: "var(--text-3)" }} />
-              <span style={{ flex: 1 }}>{currentView.label}</span>
-              <Icon name="arrow-right" size={10} style={{ transform: "rotate(90deg)", color: "var(--text-3)" }} />
+              <Icon name="table" size={11} style={{ color: "var(--text-3)" }} />
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentView.label}</span>
+              <Icon name="arrow-right" size={9} style={{ transform: "rotate(90deg)", color: "var(--text-3)" }} />
             </div>
 
             {showViewMenu && (
@@ -829,28 +834,29 @@ export default function AppShell({
             )}
           </div>
 
+          <div style={{ width: 1, height: 16, background: "var(--border)" }} />
+
           {/* D, W, M, FY Segmented Control */}
-          <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
-            <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2, display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span className="muted" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 4 }}>
               <span>Grain</span>
               {suggestedGrain && (
                 <span style={{
-                  fontSize: 8,
+                  fontSize: 7.5,
                   background: "var(--accent-weak)",
                   color: "var(--accent)",
-                  padding: "1px 4px",
-                  borderRadius: 3,
-                  fontWeight: 700,
+                  padding: "0px 3px",
+                  borderRadius: 2,
+                  fontWeight: 800,
                   textTransform: "uppercase"
                 }}>
-                  {suggestedGrain === "fy" ? "FY" : suggestedGrain} Suggested
+                  Sug.
                 </span>
               )}
             </span>
             <div style={{ 
               display: "flex",
-              border: "1px solid var(--border-strong)", 
-              borderRadius: "var(--radius-sm)", 
+              borderRadius: "20px", 
               padding: 2, 
               background: "var(--surface-2)",
               alignItems: "center"
@@ -867,7 +873,7 @@ export default function AppShell({
                       padding: "2px 8px",
                       fontSize: 10,
                       fontWeight: 700,
-                      borderRadius: 3,
+                      borderRadius: 10,
                       background: active ? "var(--accent)" : "transparent",
                       color: active ? "var(--text-invert)" : "var(--text-2)",
                       transition: "all 0.12s ease",
@@ -893,10 +899,12 @@ export default function AppShell({
             </div>
           </div>
 
+          <div style={{ width: 1, height: 16, background: "var(--border)" }} />
+
           {/* Interactive Date Range Selector */}
-          <div className="date-picker-container" style={{ display: "flex", flexDirection: "column", textAlign: "left", position: "relative" }}>
-            <span className="muted" style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
-              Date Range
+          <div className="date-picker-container" style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
+            <span className="muted" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+              Range
             </span>
             <div 
               onClick={(e) => { e.stopPropagation(); setShowPicker(!showPicker); }}
@@ -904,16 +912,15 @@ export default function AppShell({
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                fontSize: 12.5, 
+                fontSize: 12, 
                 fontWeight: 600, 
-                border: "1px solid var(--border-strong)", 
-                borderRadius: "var(--radius-sm)", 
-                padding: "4px 10px", 
+                borderRadius: "20px", 
+                padding: "3px 8px", 
                 background: "var(--surface-2)",
                 cursor: "pointer"
               }}
             >
-              <Icon name="file" size={12} style={{ color: "var(--text-3)" }} />
+              <Icon name="file" size={11} style={{ color: "var(--text-3)" }} />
               <span>
                 {t.datePreset === "all" && "All Data"}
                 {t.datePreset === "last-90-days" && "Last 90 Days"}
@@ -921,7 +928,7 @@ export default function AppShell({
                 {t.datePreset === "this-fy" && "This FY"}
                 {t.datePreset === "custom" && (t.dateFrom && t.dateTo ? `${t.dateFrom} to ${t.dateTo}` : "Custom Range")}
               </span>
-              <Icon name="arrow-right" size={10} style={{ transform: "rotate(90deg)", color: "var(--text-3)" }} />
+              <Icon name="arrow-right" size={9} style={{ transform: "rotate(90deg)", color: "var(--text-3)" }} />
             </div>
 
             {showPicker && (
@@ -1036,20 +1043,22 @@ export default function AppShell({
           </div>
         </div>
 
-        {/* right profile / actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 1vw, 16px)" }}>
+        {/* right profile / actions: styled cleanly in pillbox cards */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* Notifications */}
           <button style={{ 
             position: "relative",
-            width: 36,
-            height: 36,
+            width: 32,
+            height: 32,
             borderRadius: "50%",
-            border: "1px solid var(--border)",
+            border: "1px solid var(--border-strong)",
             display: "grid",
             placeItems: "center",
-            background: "var(--surface-2)"
+            background: "var(--surface)",
+            cursor: "pointer",
+            boxShadow: "var(--shadow-sm)"
           }}>
-            <Icon name="alert" size={16} />
+            <Icon name="alert" size={14} />
             <span style={{
               position: "absolute",
               top: -2,
@@ -1058,8 +1067,8 @@ export default function AppShell({
               color: "#fff",
               fontSize: 9,
               fontWeight: 800,
-              width: 15,
-              height: 15,
+              width: 14,
+              height: 14,
               borderRadius: "50%",
               display: "grid",
               placeItems: "center"
@@ -1070,23 +1079,35 @@ export default function AppShell({
           <button 
             onClick={toggleTheme}
             style={{ 
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               borderRadius: "50%",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--border-strong)",
               display: "grid",
               placeItems: "center",
-              background: "var(--surface-2)",
+              background: "var(--surface)",
+              cursor: "pointer",
+              boxShadow: "var(--shadow-sm)",
               transition: "transform 0.2s"
             }}>
-            <Icon name={mounted && isDark ? "sun" : "moon"} size={16} />
+            <Icon name={mounted && isDark ? "sun" : "moon"} size={14} />
           </button>
 
           {/* User Profile */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 8, 
+            background: "var(--surface)", 
+            border: "1px solid var(--border-strong)", 
+            borderRadius: "30px", 
+            padding: "2px 10px 2px 2px", 
+            boxShadow: "var(--shadow-sm)", 
+            height: 32 
+          }}>
             <div style={{ 
-              width: 34, 
-              height: 34, 
+              width: 26, 
+              height: 26, 
               borderRadius: "50%", 
               background: "var(--surface-3)", 
               color: "var(--text)", 
@@ -1094,34 +1115,54 @@ export default function AppShell({
               placeItems: "center",
               fontFamily: "var(--font-display)",
               fontWeight: 700,
-              fontSize: 12.5,
+              fontSize: 11,
               border: "1px solid var(--border-strong)"
             }}>
               RK
             </div>
             <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
-              <span style={{ fontSize: 13, fontWeight: 700 }}>Rajesh Kumar</span>
-              <span className="muted" style={{ fontSize: 10.5 }}>Quality Manager</span>
+              <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.1 }}>Rajesh Kumar</span>
+              <span className="muted" style={{ fontSize: 9, lineHeight: 1.1 }}>Quality Manager</span>
             </div>
           </div>
 
-          {/* Export Action */}
-          <button onClick={handleExport} disabled={exporting} style={{
-            background: "var(--accent)",
-            color: "var(--text-invert)", 
-            border: "none", 
-            borderRadius: "var(--radius-md)", 
-            padding: "8px 16px", 
-            fontSize: 13, 
-            fontWeight: 600, 
-            cursor: "pointer", 
-            display: "inline-flex", 
-            gap: 6, 
-            alignItems: "center",
-            boxShadow: "var(--shadow-1)",
-            minHeight: 36
-          }}>
-            <Icon name="print" size={13} /> {exporting ? "Exporting…" : "Export"} <Icon name="arrow-right" size={10} style={{ transform: "rotate(90deg)" }} />
+          {/* Export Action: Pillbox Card Button */}
+          <button 
+            onClick={handleExport} 
+            disabled={exporting} 
+            style={{
+              background: "var(--surface)",
+              color: "var(--text)", 
+              border: "1px solid var(--border-strong)", 
+              borderRadius: "30px", 
+              padding: "6px 14px", 
+              fontSize: 11.5, 
+              fontWeight: 700, 
+              cursor: "pointer", 
+              display: "inline-flex", 
+              gap: 6, 
+              alignItems: "center",
+              boxShadow: "var(--shadow-sm)",
+              transition: "all 0.2s ease",
+              minHeight: 32
+            }}
+            onMouseOver={(e) => {
+              if (!exporting) {
+                e.currentTarget.style.background = "var(--accent)";
+                e.currentTarget.style.color = "var(--text-invert)";
+                e.currentTarget.style.borderColor = "var(--accent)";
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!exporting) {
+                e.currentTarget.style.background = "var(--surface)";
+                e.currentTarget.style.color = "var(--text)";
+                e.currentTarget.style.borderColor = "var(--border-strong)";
+              }
+            }}
+          >
+            <Icon name="print" size={11} /> 
+            {exporting ? "Exporting…" : "Export"}
           </button>
         </div>
       </header>
@@ -1130,7 +1171,7 @@ export default function AppShell({
       <main style={{ 
         gridArea: "main", 
         overflowY: "auto", 
-        padding: "clamp(10px, 1.2vh, 16px) var(--space-4)",
+        padding: "var(--space-4)",
         background: "var(--bg)",
         position: "relative"
       }}>
