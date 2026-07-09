@@ -100,15 +100,16 @@ export default function AppShell({
   const [mounted, setMounted] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
-  const [activeOffsetTop, setActiveOffsetTop] = useState(-1000);
-  const [activeOffsetLeft, setActiveOffsetLeft] = useState(0);
-  const [activeHeight, setActiveHeight] = useState(0);
-  const [activeWidth, setActiveWidth] = useState(0);
+  const lastPos = typeof window !== "undefined" ? (window as any).__last_nav_pos : null;
+  const [activeOffsetTop, setActiveOffsetTop] = useState(lastPos ? lastPos.top : -1000);
+  const [activeOffsetLeft, setActiveOffsetLeft] = useState(lastPos ? lastPos.left : 0);
+  const [activeHeight, setActiveHeight] = useState(lastPos ? lastPos.height : 0);
+  const [activeWidth, setActiveWidth] = useState(lastPos ? lastPos.width : 0);
   // ponytail: highlight only glides once it has a real position to glide FROM.
   // Every navigation remounts AppShell (fresh state), so without this flag the
   // pill would tween in from its (-1000, 0) placeholder — reading as "always
   // slides in from the top-left" — on every single tab change.
-  const [highlightReady, setHighlightReady] = useState(false);
+  const [highlightReady, setHighlightReady] = useState(!!lastPos);
   const [showViewMenu, setShowViewMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
@@ -475,7 +476,7 @@ export default function AppShell({
       color: "var(--text)", 
       display: "grid", 
       gridTemplateColumns: sidebarCollapsed ? "64px 1fr" : "240px 1fr", 
-      gridTemplateRows: "70px 1fr 44px", 
+      gridTemplateRows: "56px 1fr 36px", 
       gridTemplateAreas: `"side top" "side main" "side status"`,
       transition: "grid-template-columns 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
     }}>
@@ -496,12 +497,12 @@ export default function AppShell({
       }}>
         {/* logo and collapse toggle */}
         <div style={{ 
-          padding: sidebarCollapsed ? "20px 20px" : "20px 18px", 
+          padding: sidebarCollapsed ? "12px 20px" : "12px 18px", 
           display: "flex", 
           alignItems: "center", 
           justifyContent: "flex-start",
           borderBottom: "1px solid var(--border)",
-          minHeight: "69px",
+          minHeight: "55px",
           transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
           overflow: "hidden"
         }}>
@@ -637,6 +638,18 @@ export default function AppShell({
                       data-nav-active={isActive}
                       onClick={() => {
                         if (n.href) {
+                          // Save current active tab coordinate to window before navigating
+                          if (typeof window !== "undefined" && navRef.current) {
+                            const activeEl = navRef.current.querySelector('[data-nav-active="true"]');
+                            if (activeEl && activeEl instanceof HTMLElement) {
+                              (window as any).__last_nav_pos = {
+                                top: activeEl.offsetTop,
+                                left: activeEl.offsetLeft,
+                                height: activeEl.offsetHeight,
+                                width: activeEl.offsetWidth
+                              };
+                            }
+                          }
                           router.push(n.href);
                         }
                       }}
@@ -1116,10 +1129,15 @@ export default function AppShell({
       <main style={{ 
         gridArea: "main", 
         overflowY: "auto", 
-        padding: "24px",
+        padding: "16px 24px",
         background: "var(--bg)",
         position: "relative"
       }}>
+        <div style={{
+          width: "100%",
+          maxWidth: "1400px",
+          margin: "0 auto"
+        }}>
         {isConfigured === false && active !== "staging" && active !== "settings" && active !== "clear-data" ? (
           <div style={{
             display: "flex",
@@ -1199,6 +1217,7 @@ export default function AppShell({
         ) : (
           children
         )}
+        </div>
       </main>
 
       {/* Footer Status Bar */}

@@ -269,7 +269,7 @@ export function Kpi({
         border: "1.5px solid var(--border)", 
         borderRadius: "var(--radius-lg)", 
         background: primary ? "color-mix(in srgb, var(--accent) 1.5%, var(--surface))" : "var(--surface)", 
-        padding: "20px",
+        padding: "12px 14px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
@@ -298,17 +298,17 @@ export function Kpi({
         <div className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, fontFamily: "var(--font-sans)", color: "var(--text-3)" }}>{label}</div>
         <div style={{
           fontFamily: /[\d%₹]/.test(value) && !/[a-zA-Z]{5,}/.test(value) ? "var(--font-mono)" : "var(--font-display)",
-          fontSize: primary ? 32 : 20,
+          fontSize: primary ? 24 : 18,
           fontWeight: 800,
           color,
-          margin: "12px 0 4px",
+          margin: "6px 0 2px",
           letterSpacing: "-0.015em",
           lineHeight: 1.15
         }}>
           <AnimatedValue value={value} />
         </div>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10, gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 6, gap: 12 }}>
         {sub && (
           <div className="muted" style={{ 
             fontSize: 11.5, 
@@ -396,7 +396,8 @@ export function LineChart({
   mean, 
   color = "var(--accent)",
   stage,
-  metric
+  metric,
+  height = 280
 }: { 
   points: SeriesPoint[]; 
   target?: number; 
@@ -405,6 +406,7 @@ export function LineChart({
   color?: string;
   stage?: string;
   metric?: string;
+  height?: number;
 }) {
   const [zoom, setZoom] = useState(1.0);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -418,7 +420,7 @@ export function LineChart({
     return <Empty label="No trend points available for the selected range." />;
   }
 
-  const H = 280, padX = 42, padTop = 22, padBottom = 72;
+  const H = height, padX = 42, padTop = 22, padBottom = 72;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
   const v = points.map((p) => p.value);
@@ -618,11 +620,13 @@ const SERIES_COLORS = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#EC4899", "#
 export function MultiLine({ 
   data, 
   stages, 
-  fmt 
+  fmt,
+  height = 296
 }: { 
   data: StageTrendPoint[]; 
   stages: { stageId: string; label: string }[]; 
-  fmt?: (n: number) => string 
+  fmt?: (n: number) => string;
+  height?: number;
 }) {
   const [zoom, setZoom] = useState(1.0);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -638,7 +642,7 @@ export function MultiLine({
 
   // Smart default: rates (≤1) render as %, counts render as integers.
   const fmtVal = fmt ?? ((n: number) => (n <= 1 ? `${(n * 100).toFixed(2)}%` : Math.round(n).toLocaleString("en-IN")));
-  const H = 296, padX = 42, padTop = 38, padBottom = 72;
+  const H = height, padX = 42, padTop = 38, padBottom = 72;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
 

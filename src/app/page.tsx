@@ -553,7 +553,7 @@ export default function Dashboard() {
       )}
 
       {m && !activeView.startsWith("dataset:") && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {activeView !== "cumulative" ? (
             (
               <StationView
@@ -576,7 +576,7 @@ export default function Dashboard() {
               not new math. Clicking any of the first 4 opens the 5-part drill-down
               na          <>
           {/* Section 1: Executive KPIs */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 16 }}>
             <Kpi
               primary
               label="Overall Rejection"
@@ -651,8 +651,8 @@ export default function Dashboard() {
           <div style={{ 
             display: "grid", 
             gridTemplateColumns: "repeat(3, minmax(0, 1fr))", 
-            gap: 20,
-            marginTop: 10
+            gap: 16,
+            marginTop: 16
           }}>
             {/* Card 1: Rejection Trend */}
             <Card 
@@ -662,7 +662,7 @@ export default function Dashboard() {
             >
               <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
                 <div style={{ flex: 1, minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                  <LineChart points={m.tr} target={targetRej} fmt={pct} mean />
+                  <LineChart points={m.tr} target={targetRej} fmt={pct} mean height={200} />
                 </div>
                 <div style={{ marginTop: 12, display: "flex" }}>
                   <a 
@@ -805,21 +805,21 @@ export default function Dashboard() {
           <div style={{ 
             display: "grid", 
             gridTemplateColumns: "1fr", 
-            gap: 20,
-            marginTop: 20
+            gap: 16,
+            marginTop: 16
           }}>
             <Card 
               title={`Stage-wise Rejection Trend (${grainLabel})`} 
               sub="per-stage + Total — hover for values" 
               onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Each line is a station's rejection rate over its own checked quantity; the Total line is the per-period sum of those stage rates. Recomputed from raw counts.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}
             >
-              <MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} />
+              <MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} height={200} />
             </Card>
           </div>
 
           {/* Row 4: Stage x Size Concentration Heatmap */}
           {m.stageSize.length > 0 && (
-            <div style={{ marginTop: 20 }}>
+            <div style={{ marginTop: 16 }}>
               <Card
                 title="Stage x Size Concentration"
                 sub="Rejection rate by stage and catheter size (warmer cells indicate concentration hotspots)"
@@ -845,8 +845,8 @@ export default function Dashboard() {
               <div style={{ 
                 display: "grid", 
                 gridTemplateColumns: gridCols, 
-                gap: 20,
-                marginTop: 20
+                gap: 16,
+                marginTop: 16
               }}>
                 <Card 
                   title="Rejection by Size (YTD)" 
@@ -883,7 +883,7 @@ export default function Dashboard() {
                         ))}
                       </select>
                     </div>
-                    <LineChart points={m.sizeTrend} fmt={pct} />
+                    <LineChart points={m.sizeTrend} fmt={pct} height={200} />
                   </Card>
                 )}
               </div>
@@ -902,15 +902,15 @@ export default function Dashboard() {
               <div style={{ 
                 display: "grid", 
                 gridTemplateColumns: gridCols, 
-                gap: 20,
-                marginTop: 20
+                gap: 16,
+                marginTop: 16
               }}>
                 {hasCopq && (
                   <Card 
                     title={`COPQ Trend (${grainLabel})`} 
                     onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}
                   >
-                    <LineChart points={m.copqTrend} fmt={rupee} />
+                    <LineChart points={m.copqTrend} fmt={rupee} height={200} />
                   </Card>
                 )}
 
@@ -948,7 +948,7 @@ export default function Dashboard() {
           })()}
 
           {/* Section 3: AI Diagnostics & Actionable Brief */}
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 16 }}>
             <Card title="AI Diagnostics & Actionable Brief">
               <div style={{ 
                 display: "grid", 
