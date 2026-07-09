@@ -27,6 +27,32 @@ function sizeOf(e: Event): string | null {
   return "size" in e ? ((e.size as string | null) ?? null) : null;
 }
 
+/** The week-of-month bucket containing `day` in `month`/`year`. Buckets are
+ *  fixed 7-day chunks counted from the 1st (1-7, 8-14, 15-21, 22-28, 29-31+)
+ *  — NOT real Monday-Sunday weeks. This is the one place that definition
+ *  lives; `periodKey`'s "week" case and Data Entry's week picker both call
+ *  this instead of re-deriving the math. */
+export function weekOfMonthBounds(year: number, month: number, day: number): { week: number; startDay: number; endDay: number } {
+  const week = Math.floor((day - 1) / 7) + 1;
+  const startDay = (week - 1) * 7 + 1;
+  const lastDayOfMonth = new Date(year, month, 0).getDate();
+  const endDay = Math.min(week * 7, lastDayOfMonth);
+  return { week, startDay, endDay };
+}
+
+/** The Apr-Mar fiscal year containing `dateIso`, with its label (matching
+ *  periodKey's "fy" format) and calendar bounds. */
+export function fyContaining(dateIso: string): { startYear: number; label: string; from: string; to: string } {
+  const [y, m] = dateIso.split("-").map(Number);
+  const startYear = m >= 4 ? y : y - 1;
+  return {
+    startYear,
+    label: periodKey(dateIso, "fy"),
+    from: `${startYear}-04-01`,
+    to: `${startYear + 1}-03-31`,
+  };
+}
+
 /** Apply the scope's date/stage/size filters. Events without a stage/size are
  *  kept (selectors decide relevance); date is matched on overlap. */
 export function scopeEvents(events: Event[], scope: Scope): Event[] {
@@ -58,7 +84,7 @@ export function periodKey(iso: string, grain: Grain): string {
       return `FY${fy}-${String((fy + 1) % 100).padStart(2, "0")}`;
     }
     case "week": {
-      const week = Math.floor((d - 1) / 7) + 1; // week-of-month 1..5
+      const { week } = weekOfMonthBounds(y, m, d);
       return `${y}-${String(m).padStart(2, "0")}-W${week}`;
     }
   }
