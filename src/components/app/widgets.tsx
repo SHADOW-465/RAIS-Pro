@@ -219,7 +219,7 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
         border: "1.5px solid var(--border)",
         borderRadius: "var(--radius-lg)",
         background: "var(--surface)",
-        padding: "16px 18px",
+        padding: "24px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
@@ -231,9 +231,9 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
       }}
     >
       {title && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-          <span style={{ fontSize: 12.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-3)", fontFamily: "var(--font-sans)" }}>{title}</span>
-          {sub && <span className="muted" style={{ fontSize: 10.5, fontFamily: "var(--font-mono)" }}>{sub}</span>}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-3)", fontFamily: "var(--font-sans)" }}>{title}</span>
+          {sub && <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>{sub}</span>}
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>{children}</div>
@@ -277,7 +277,7 @@ export function Kpi({
         border: "1.5px solid var(--border)",
         borderRadius: "var(--radius-lg)",
         background: primary ? "color-mix(in srgb, var(--accent) 1.5%, var(--surface))" : "var(--surface)",
-        padding: "14px 16px",
+        padding: "20px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
@@ -306,17 +306,17 @@ export function Kpi({
         <div className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, fontFamily: "var(--font-sans)", color: "var(--text-3)" }}>{label}</div>
         <div style={{
           fontFamily: /[\d%₹]/.test(value) && !/[a-zA-Z]{5,}/.test(value) ? "var(--font-mono)" : "var(--font-display)",
-          fontSize: primary ? 23 : 17,
+          fontSize: primary ? 32 : 20,
           fontWeight: 800,
           color,
-          margin: "8px 0 2px",
+          margin: "12px 0 4px",
           letterSpacing: "-0.015em",
           lineHeight: 1.15
         }}>
           <AnimatedValue value={value} />
         </div>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 6, gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10, gap: 12 }}>
         {sub && (
           <div className="muted" style={{ 
             fontSize: 11.5, 
@@ -414,29 +414,27 @@ export function GaugeChart({ value, label, subtext }: { value: number; label: st
   );
 }
 
-export function LineChart({
-  points,
-  target,
-  fmt,
-  mean,
+export function LineChart({ 
+  points, 
+  target, 
+  fmt, 
+  mean, 
   color = "var(--accent)",
   stage,
-  metric,
-  height = 280
-}: {
-  points: SeriesPoint[];
-  target?: number;
-  fmt: (n: number) => string;
-  mean?: boolean;
+  metric
+}: { 
+  points: SeriesPoint[]; 
+  target?: number; 
+  fmt: (n: number) => string; 
+  mean?: boolean; 
   color?: string;
   stage?: string;
   metric?: string;
-  height?: number;
 }) {
   const [zoom, setZoom] = useState(1.0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
-
+  
   const { t } = useTweaks();
   const { ref: containerRef, width: containerWidth } = useContainerWidth(660);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -445,7 +443,7 @@ export function LineChart({
     return <Empty label="No trend points available for the selected range." />;
   }
 
-  const H = height, padX = 42, padTop = 18, padBottom = 60;
+  const H = 280, padX = 42, padTop = 22, padBottom = 72;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
   const v = points.map((p) => p.value);
