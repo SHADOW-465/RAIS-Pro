@@ -208,14 +208,17 @@ export function AnimatedValue({ value }: { value: string }) {
 
 export function Card({ title, sub, children, span, onClick }: { title?: string; sub?: string; children: React.ReactNode; span?: number; onClick?: () => void }) {
   return (
-    <div 
+    <div
       onClick={onClick}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       className={onClick ? "card-hover" : ""}
-      style={{ 
-        gridColumn: span ? `span ${span}` : undefined, 
-        border: "1.5px solid var(--border)", 
-        borderRadius: "var(--radius-lg)", 
-        background: "var(--surface)", 
+      style={{
+        gridColumn: span ? `span ${span}` : undefined,
+        border: "1.5px solid var(--border)",
+        borderRadius: "var(--radius-lg)",
+        background: "var(--surface)",
         padding: "24px",
         display: "flex",
         flexDirection: "column",
@@ -242,33 +245,38 @@ export function Empty({ label }: { label: string }) {
   return <div className="muted" style={{ padding: "28px 8px", fontSize: 12, textAlign: "center" }}>{label}</div>;
 }
 
-export function Kpi({ 
-  label, 
-  value, 
-  sub, 
-  tone, 
-  primary, 
+export function Kpi({
+  label,
+  value,
+  sub,
+  tone,
+  primary,
   spark,
-  onClick
-}: { 
-  label: string; 
-  value: string; 
-  sub?: string; 
-  tone?: "good" | "warn" | "bad"; 
-  primary?: boolean; 
+  onClick,
+  href,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "good" | "warn" | "bad";
+  primary?: boolean;
   spark?: SeriesPoint[];
   onClick?: () => void;
+  href?: string;
 }) {
   const color = tone === "bad" ? "var(--critical)" : tone === "warn" ? "var(--warning)" : tone === "good" ? "var(--positive)" : "var(--text)";
-  
+
   return (
-    <div 
+    <div
       onClick={onClick}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       className={onClick ? "card-hover" : ""}
-      style={{ 
-        border: "1.5px solid var(--border)", 
-        borderRadius: "var(--radius-lg)", 
-        background: primary ? "color-mix(in srgb, var(--accent) 1.5%, var(--surface))" : "var(--surface)", 
+      style={{
+        border: "1.5px solid var(--border)",
+        borderRadius: "var(--radius-lg)",
+        background: primary ? "color-mix(in srgb, var(--accent) 1.5%, var(--surface))" : "var(--surface)",
         padding: "20px",
         display: "flex",
         flexDirection: "column",
@@ -325,6 +333,23 @@ export function Kpi({
           </div>
         )}
       </div>
+      {href && (
+        <a
+          href={href}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: "block",
+            marginTop: 10,
+            paddingTop: 2,
+            fontSize: 11.5,
+            fontWeight: 700,
+            color: "var(--accent)",
+            textDecoration: "none",
+          }}
+        >
+          View analysis →
+        </a>
+      )}
     </div>
   );
 }
