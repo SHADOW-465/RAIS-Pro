@@ -14,43 +14,31 @@ import type { StageDayRecord } from "@/lib/ingest/emit";
 import { buildReviewRows, applyEdit } from "@/lib/ingest/review";
 import { CAPTURE_LABEL, CAPTURE_FIELD, CAPTURE_TO_RECORD_FIELD, CORE_FIELD_BY_COL } from "@/lib/ingest/capture-fields";
 import { useEvents } from "@/components/app/EventsContext";
+import { type EntryGrain, resolvePeriod, stepPeriod, periodLabel } from "@/lib/entry/period";
 
-function currentYearMonth(): { year: number; month: number } {
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() + 1 }; // month: 1-12
-}
-
-/** Days in `month` (1-12) of `year` — day 0 of the next 0-indexed month is the
- *  last day of the target month. */
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate();
-}
-
-function isoDate(year: number, month: number, day: number): string {
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-/** Parses a "YYYY-MM-DD" string into { year, month } without going through
- *  `Date` parsing (which treats date-only strings as UTC and can shift the
- *  day depending on the browser's local timezone). */
-function yearMonthOf(dateStr: string): { year: number; month: number } {
-  const [y, m] = dateStr.split("-").map(Number);
-  return { year: y, month: m };
-}
-
-export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialDate, blockedReason, presetId }: {
+export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, anchorDate, onAnchorChange, blockedReason, presetId }: {
   onDirtyChange?: (dirty: boolean) => void;
   customFields?: Record<string, any>;
-  initialDate?: string;
+  /** Which row range to render — see src/lib/entry/period.ts. */
+  grain: EntryGrain;
+  /** Any date inside the range currently being edited. */
+  anchorDate: string;
+  /** Fired when Prev/Next nav moves the anchor, so a parent tracking its own
+   *  copy (e.g. the FY month-tabs row) can stay in sync. */
+  onAnchorChange?: (next: string) => void;
   blockedReason?: string | null;
   /** Which Data Entry preset's registry to render the grid against. Omit for the default preset. */
   presetId?: string | null;
-} = {}) {
+}) {
   const { refreshEvents } = useEvents();
   const [registry, setRegistry] = useState<any | null>(null);
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
   const [activeSize, setActiveSize] = useState<string | null>(null);
-  const [{ year, month }, setYearMonth] = useState(() => (initialDate ? yearMonthOf(initialDate) : currentYearMonth()));
+  const { from, to } = useMemo(() => resolvePeriod(grain, anchorDate), [grain, anchorDate]);
+  const { year, month } = useMemo(() => {
+    const [y, m] = anchorDate.split("-").map(Number);
+    return { year: y, month: m };
+  }, [anchorDate]);
 
   const [records, setRecords] = useState<StageDayRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -75,13 +63,11 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
   const activeRegistry = registry || DISPOSAFE_REGISTRY;
 
   const stageIds: string[] = useMemo(() => {
-    const monthEnd = isoDate(year, month, daysInMonth(year, month));
-    const monthStart = isoDate(year, month, 1);
     return activeRegistry.stages
-      .filter((s: any) => (s.effectiveFrom == null || s.effectiveFrom <= monthEnd) &&
-                     (s.effectiveTo == null || monthStart <= s.effectiveTo))
+      .filter((s: any) => (s.effectiveFrom == null || s.effectiveFrom <= to) &&
+                     (s.effectiveTo == null || from <= s.effectiveTo))
       .map((s: any) => s.stageId);
-  }, [activeRegistry, year, month]);
+  }, [activeRegistry, from, to]);
 
   useEffect(() => {
     if (activeStageId && stageIds.includes(activeStageId)) return;
@@ -170,11 +156,9 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
     });
   };
 
-  const loadMonth = useCallback(async () => {
+  const loadRange = useCallback(async () => {
     if (!activeStageId) return;
     setLoading(true); setError(null);
-    const from = isoDate(year, month, 1);
-    const to = isoDate(year, month, daysInMonth(year, month));
     const params = new URLSearchParams({ from, to, stageId: activeStageId });
     if (isSizeWise && activeSize) params.set("size", activeSize);
     try {
@@ -183,23 +167,28 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
       setRecords(data.records ?? []);
       setDirty(false);
     } catch (err) {
-      console.error("Error loading month:", err);
-      setError("Failed to load this month's data.");
+      console.error("Error loading range:", err);
+      setError("Failed to load this period's data.");
       setRecords([]);
       setDirty(false);
     } finally {
       setLoading(false);
     }
-  }, [activeStageId, activeSize, year, month, isSizeWise]);
+  }, [activeStageId, activeSize, from, to, isSizeWise]);
 
   useEffect(() => {
-    loadMonth();
-  }, [loadMonth]);
+    loadRange();
+  }, [loadRange]);
 
-  const days = useMemo(
-    () => Array.from({ length: daysInMonth(year, month) }, (_, i) => isoDate(year, month, i + 1)),
-    [year, month],
-  );
+  const days = useMemo(() => {
+    const out: string[] = [];
+    const start = new Date(`${from}T00:00:00Z`).getTime();
+    const end = new Date(`${to}T00:00:00Z`).getTime();
+    for (let t = start; t <= end; t += 86400000) {
+      out.push(new Date(t).toISOString().slice(0, 10));
+    }
+    return out;
+  }, [from, to]);
 
   const reviewByDate = useMemo(() => {
     const map = new Map<string, ReturnType<typeof buildReviewRows>[number]>();
@@ -213,20 +202,18 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
   const recordFor = (date: string): StageDayRecord | undefined =>
     records.find((r) => r.occurredOn.start === date && (r.size ?? "__line__") === rowKey);
 
-  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const rangeLabel = periodLabel(grain, anchorDate);
 
   const confirmDiscardIfDirty = (actionLabel: string): boolean => {
     if (!dirty) return true;
-    return confirm(`You have unsaved changes for ${monthLabel} that haven't been submitted yet. ${actionLabel} will discard them. Continue?`);
+    return confirm(`You have unsaved changes for ${rangeLabel} that haven't been submitted yet. ${actionLabel} will discard them. Continue?`);
   };
 
-  const goToMonth = (deltaMonths: number) => {
-    if (!confirmDiscardIfDirty("Changing the month")) return;
-    let m = month + deltaMonths;
-    let y = year;
-    while (m > 12) { m -= 12; y += 1; }
-    while (m < 1) { m += 12; y -= 1; }
-    setYearMonth({ year: y, month: m });
+  const goToPeriod = (delta: number) => {
+    const label = grain === "day" ? "Changing the day" : grain === "week" ? "Changing the week" : "Changing the month";
+    if (!confirmDiscardIfDirty(label)) return;
+    const next = stepPeriod(grain, anchorDate, delta);
+    onAnchorChange?.(next);
   };
 
   const invalidCount = Array.from(reviewByDate.values()).filter((r) => r.status === "invalid").length;
@@ -256,12 +243,12 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
       const res = await fetch("/api/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingestionId, fileName: `Monthly Entry ${monthLabel}`, records: payload, presetId }),
+        body: JSON.stringify({ ingestionId, fileName: `Data Entry ${rangeLabel}`, records: payload, presetId }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Save failed");
-      setSuccess(`${payload.length} day(s) saved for ${monthLabel}.`);
+      setSuccess(`${payload.length} day(s) saved for ${rangeLabel}.`);
       setDirty(false);
-      await loadMonth();
+      await loadRange();
       refreshEvents().catch(console.error);
     } catch (e: any) {
       setError(e?.message ?? "Save failed");
@@ -273,9 +260,9 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12 }}>
-        <button onClick={() => goToMonth(-1)} style={ghost} aria-label="Previous month">‹ Prev</button>
-        <div style={{ fontWeight: 700, minWidth: 140, textAlign: "center" }}>{monthLabel}</div>
-        <button onClick={() => goToMonth(1)} style={ghost} aria-label="Next month">Next ›</button>
+        <button onClick={() => goToPeriod(-1)} style={ghost} aria-label="Previous period">‹ Prev</button>
+        <div style={{ fontWeight: 700, minWidth: 160, textAlign: "center" }}>{rangeLabel}</div>
+        <button onClick={() => goToPeriod(1)} style={ghost} aria-label="Next period">Next ›</button>
         {isSizeWise && (
           <select value={activeSize ?? ""} onChange={(e) => { if (confirmDiscardIfDirty("Switching size")) setActiveSize(e.target.value); }} style={{ ...inp, width: 100, marginLeft: 12 }}>
             {sizes.map((s) => <option key={s.sizeId} value={s.sizeId}>{s.label}</option>)}
@@ -527,7 +514,7 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, initialD
         <button onClick={saveMonth} disabled={saving || invalidCount > 0 || !!blockedReason}
           style={{ background: "var(--status-good)", color: "#fff", border: "none", borderRadius: 9, padding: "10px 22px", fontSize: 14, fontWeight: 700,
             cursor: saving || invalidCount > 0 || blockedReason ? "not-allowed" : "pointer", opacity: saving || invalidCount > 0 || blockedReason ? 0.6 : 1 }}>
-          {saving ? "Saving Month…" : "Save Month"}
+          {saving ? "Saving…" : grain === "day" ? "Save Day" : grain === "week" ? "Save Week" : "Save Month"}
         </button>
       </div>
     </div>
