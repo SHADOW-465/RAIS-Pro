@@ -947,136 +947,152 @@ export default function Dashboard() {
             );
           })()}
 
-          {/* Section 3: Executive Brief */}
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr)", 
-            gap: 20,
-            marginTop: 20
-          }}>
-            {/* Brief Column 1: AI Executive Summary */}
-            <Card title="AI Executive Summary">
-              {execBrief ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 800, lineHeight: 1.45, color: "var(--text)" }}>
-                    {safeBolden(execBrief.headline)}
+          {/* Section 3: AI Diagnostics & Actionable Brief */}
+          <div style={{ marginTop: 20 }}>
+            <Card title="AI Diagnostics & Actionable Brief">
+              <div style={{ 
+                display: "grid", 
+                gridTemplateColumns: "minmax(0, 1.8fr) 1px minmax(0, 1.2fr)", 
+                gap: 32,
+                alignItems: "stretch"
+              }}>
+                {/* Left Side: Diagnostic Summary */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ 
+                      fontFamily: "var(--font-display)", 
+                      fontSize: 16, 
+                      fontWeight: 800, 
+                      lineHeight: 1.45, 
+                      color: "var(--text)" 
+                    }}>
+                      {execBrief ? safeBolden(execBrief.headline) : (exec[0] ? safeBolden(exec[0]) : "Diagnostics Brief")}
+                    </div>
+                    {execBrief ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13, lineHeight: 1.6 }}>
+                        <BriefRow label="COPQ Impact" value={execBrief.impact} />
+                        {execBrief.primaryDriver && <BriefRow label="Primary Driver" value={execBrief.primaryDriver} />}
+                      </div>
+                    ) : (
+                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.75 }}>
+                        {exec.slice(1).map((bullet, i) => (
+                          <li key={i} style={{ listStyleType: "none", position: "relative", paddingLeft: 4, marginBottom: 8 }}>
+                            <span style={{
+                              position: "absolute",
+                              left: -16,
+                              top: 8,
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              background: "var(--accent)"
+                            }} />
+                            {safeBolden(bullet)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13, lineHeight: 1.6 }}>
-                    <BriefRow label="Impact" value={execBrief.impact} />
-                    {execBrief.primaryDriver && <BriefRow label="Primary driver" value={execBrief.primaryDriver} />}
-                    {execBrief.recommendation && <BriefRow label="Recommendation" value={execBrief.recommendation} />}
-                  </div>
-                </div>
-              ) : (
-                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.75 }}>
-                  {exec.map((bullet, i) => {
-                    const colors = ["var(--accent)", "var(--positive)", "var(--critical)", "var(--warning)", "#C8421C"];
-                    return (
-                      <li key={i} style={{ listStyleType: "none", position: "relative", paddingLeft: 4, marginBottom: 8 }}>
-                        <span style={{
-                          position: "absolute",
-                          left: -16,
-                          top: 8,
-                          width: 6,
-                          height: 6,
-                          borderRadius: "50%",
-                          background: colors[i % colors.length]
+
+                  {/* Highlight Block: Worst Stage Bottleneck & Recovery */}
+                  <div style={{ 
+                    display: "grid", 
+                    gridTemplateColumns: "1.2fr 1fr", 
+                    gap: 16,
+                    background: "var(--surface-2)", 
+                    border: "1.5px solid var(--border)", 
+                    borderRadius: "var(--radius-lg)", 
+                    padding: "16px 20px",
+                    marginTop: "auto"
+                  }}>
+                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ 
+                          width: 10, 
+                          height: 10, 
+                          borderRadius: "50%", 
+                          background: "var(--critical)",
+                          boxShadow: "0 0 8px var(--critical)",
+                          animation: "pulse-ring 1.5s infinite"
                         }} />
-                        {safeBolden(bullet)}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </Card>
+                        <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--font-display)" }}>
+                          {worstStageByRejs} Bottleneck
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 12.5, lineHeight: 1.5, margin: 0, color: "var(--text-2)" }}>
+                        Quality deviation is concentrated here at a rejection rate of <strong>{worstStageRow ? pct(worstStageRow.rejRate) : "—"}</strong>.
+                      </p>
+                    </div>
 
-            {/* Brief Column 2: Biggest Improvement Opportunity */}
-            <Card title="Biggest Improvement Opportunity">
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ 
-                    width: 10, 
-                    height: 10, 
-                    borderRadius: "50%", 
-                    background: "var(--critical)",
-                    boxShadow: "0 0 8px var(--critical)",
-                    animation: "pulse-ring 1.5s infinite"
-                  }} />
-                  <span style={{ fontSize: 14.5, fontWeight: 700, fontFamily: "var(--font-display)" }}>
-                    {worstStageByRejs} Stage Gate
-                  </span>
-                </div>
-                <p style={{ fontSize: 13, lineHeight: 1.6, margin: 0, color: "var(--text-2)" }}>
-                  Quality deviation is heavily concentrated at the <strong>{worstStageByRejs}</strong> gate, operating at a rejection rate of <strong>{worstStageRow ? pct(worstStageRow.rejRate) : "—"}</strong>.
-                </p>
-                <div style={{ 
-                  background: "var(--surface-2)", 
-                  border: "1px solid var(--border)", 
-                  borderRadius: "var(--radius-md)", 
-                  padding: "12px 14px",
-                  marginTop: 4
-                }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)", marginBottom: 4 }}>
-                    Financial Recovery Potential
-                  </div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: "var(--critical)", fontFamily: "var(--font-mono)", letterSpacing: "-0.02em" }}>
-                    {rupee(m.savings)}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
-                    YTD scrap reduction & rework optimization potential.
+                    <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: 20, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)", marginBottom: 4 }}>
+                        Financial Recovery Potential
+                      </div>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: "var(--critical)", fontFamily: "var(--font-mono)", letterSpacing: "-0.02em" }}>
+                        {rupee(m.savings)}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+                        YTD scrap reduction potential.
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
 
-            {/* Brief Column 3: Recommended Action */}
-            <Card title="Recommended Actions (AI)">
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {recommendationCards.slice(0, 3).map((rec, i) => {
-                  const chipColor = rec.tone === "bad" ? "var(--critical)" : rec.tone === "warn" ? "var(--warning)" : "var(--positive)";
-                  const chipText = rec.tone === "bad" ? "Critical" : rec.tone === "warn" ? "Warning" : "Info";
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 6,
-                        padding: "10px 12px",
-                        background: "var(--surface-2)",
-                        border: "1.5px solid var(--border)",
-                        borderRadius: "var(--radius-md)",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                        <span
+                {/* Vertical Divider Line */}
+                <div style={{ background: "var(--border)", height: "100%" }} />
+
+                {/* Right Side: Action Plan (CAPA Items) */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-3)", display: "flex", alignItems: "center", gap: 8 }}>
+                    <Icon name="check" size={14} /> Recommended Actions
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1, justifyContent: "center" }}>
+                    {recommendationCards.slice(0, 3).map((rec, i) => {
+                      const chipColor = rec.tone === "bad" ? "var(--critical)" : rec.tone === "warn" ? "var(--warning)" : "var(--positive)";
+                      const chipText = rec.tone === "bad" ? "Critical" : rec.tone === "warn" ? "Warning" : "Info";
+                      return (
+                        <div
+                          key={i}
                           style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.04em",
-                            padding: "2px 8px",
-                            borderRadius: 5,
-                            color: chipColor,
-                            background: `color-mix(in srgb, ${chipColor} 14%, transparent)`,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                            padding: "12px 14px",
+                            background: "var(--surface-2)",
+                            border: "1.5px solid var(--border)",
+                            borderRadius: "var(--radius-md)",
                           }}
                         >
-                          {chipText}
-                        </span>
-                        <a
-                          href="/capa"
-                          style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}
-                        >
-                          Create CAPA →
-                        </a>
-                      </div>
-                      <div style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--text)" }}>{safeBolden(rec.text)}</div>
-                      {rec.evidence && (
-                        <div className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)", marginTop: 2 }}>{rec.evidence}</div>
-                      )}
-                    </div>
-                  );
-                })}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                            <span
+                              style={{
+                                fontSize: 9.5,
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.04em",
+                                padding: "2px 8px",
+                                borderRadius: 5,
+                                color: chipColor,
+                                background: `color-mix(in srgb, ${chipColor} 14%, transparent)`,
+                              }}
+                            >
+                              {chipText}
+                            </span>
+                            <a
+                              href="/capa"
+                              style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}
+                            >
+                              Create CAPA →
+                            </a>
+                          </div>
+                          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--text)" }}>{safeBolden(rec.text)}</div>
+                          {rec.evidence && (
+                            <div className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)", marginTop: 2 }}>{rec.evidence}</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </Card>
           </div>
