@@ -62,12 +62,14 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, a
 
   const activeRegistry = registry || DISPOSAFE_REGISTRY;
 
+  const { from: monthStart, to: monthEnd } = useMemo(() => resolvePeriod("month", anchorDate), [anchorDate]);
+
   const stageIds: string[] = useMemo(() => {
     return activeRegistry.stages
-      .filter((s: any) => (s.effectiveFrom == null || s.effectiveFrom <= to) &&
-                     (s.effectiveTo == null || from <= s.effectiveTo))
+      .filter((s: any) => (s.effectiveFrom == null || s.effectiveFrom <= monthEnd) &&
+                     (s.effectiveTo == null || monthStart <= s.effectiveTo))
       .map((s: any) => s.stageId);
-  }, [activeRegistry, from, to]);
+  }, [activeRegistry, monthStart, monthEnd]);
 
   useEffect(() => {
     if (activeStageId && stageIds.includes(activeStageId)) return;
