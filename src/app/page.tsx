@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import { useEvents } from "@/components/app/EventsContext";
-import Icon from "@/components/editorial/Icon";
 import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import {
@@ -16,7 +15,9 @@ import {
   BarsH,
   ProcessFlow,
   GaugeChart,
+  AuditVerificationTable,
   StageSizeHeatmap,
+  Donut,
   pct,
   rupee,
   num,
@@ -428,7 +429,7 @@ export default function Dashboard() {
       )}
 
       {m && !activeView.startsWith("dataset:") && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {activeView !== "cumulative" ? (
             (
               <StationView
@@ -445,25 +446,9 @@ export default function Dashboard() {
             )
           ) : (
           <>
-          {/* Verdict banner: single source of truth from qualityStatus() — the
-              same rate-vs-target/watch comparison every Kpi tone below already
-              uses, so the banner state can never contradict a tile. */}
-          <VerdictBanner
-            status={m.status}
-            impact={rupee(m.savings)}
-            primaryDriver={worstStageRow
-              ? `${worstStageRow.label} (${pct(worstStageRow.rejRate)} rejection rate, ${worstStageRow.contributionPct.toFixed(1)}% of total)`
-              : m.defects.length > 0
-                ? `${m.defects[0].label} (${m.defects[0].pct.toFixed(1)}% of all rejections)`
-                : null}
-            action={recommendationCards[0] ?? null}
-            completeness={m.audit.dataCompleteness}
-            onViewAudit={() => router.push("/audit")}
-          />
-
-          {/* KPI strip — one fact, one place. Rejection rate, COPQ, and the worst
-              stage/defect/size each appear exactly once on this page. */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 20 }}>
+          {/* KPI strip — one fact, one place. Rejection rate, the worst
+              stage/defect/size, and COPQ each appear exactly once here. */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
             <Kpi
               primary
               label="Overall Rejection"
@@ -477,20 +462,6 @@ export default function Dashboard() {
                 kpiNarrative("rate", `The rejection rate stands at ${pct(m.rate)}, compared to the target of ${pct(targetRej)} (${stats.rateDiff}).`),
                 <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>,
                 { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) },
-              )}
-            />
-            <Kpi
-              primary
-              label="Cost of Poor Quality"
-              value={rupee(m.copq)}
-              sub={stats.copqDiff}
-              tone={m.copq > 0 ? "warn" : "good"}
-              href="/copq"
-              onClick={() => openModal(
-                `COPQ (${grainLabel}) — Drill-down`,
-                kpiNarrative("copq", `Cost of poor quality stands at ${rupee(m.copq)} for the period (${stats.copqDiff}).`),
-                <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={stats.copqDiff} /></div>,
-                { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) },
               )}
             />
             <Kpi
@@ -535,105 +506,189 @@ export default function Dashboard() {
                 { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: pct(m.worstSize.rejRate) }
               )}
             />
+            <Kpi
+              primary
+              label="Cost of Poor Quality"
+              value={rupee(m.copq)}
+              sub={stats.copqDiff}
+              tone={m.copq > 0 ? "warn" : "good"}
+              href="/copq"
+              onClick={() => openModal(
+                `COPQ (${grainLabel}) — Drill-down`,
+                kpiNarrative("copq", `Cost of poor quality stands at ${rupee(m.copq)} for the period (${stats.copqDiff}).`),
+                <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={stats.copqDiff} /></div>,
+                { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) },
+              )}
+            />
           </div>
 
-          {/* Row 2: overall trend + process flow (per-stage share/units absorbs
-              the former standalone donut card — same fact, one home). */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)",
-            gap: 20,
-            marginTop: 10
-          }}>
-            <Card
-              title={`Overall Rejection Trend (${grainLabel})`}
-              sub={`Target (${(targetRej * 100).toFixed(0)}%) & Mean`}
-              onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}
-            >
-              <LineChart points={m.tr} target={targetRej} fmt={pct} mean />
-            </Card>
+          {/* Row 1: overall rejection trend — the single trend chart on the page. */}
+          <Card
+            title={`Overall Rejection Trend (${grainLabel})`}
+            sub={`Target (${(targetRej * 100).toFixed(0)}%) & Mean`}
+            onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}
+          >
+            <LineChart points={m.tr} target={targetRej} fmt={pct} mean height={190} />
+          </Card>
 
-            <Card
-              title="Process Flow"
-              sub="Rate · Share · YTD Units"
-              onClick={() => openModal("Process Flow Overview", "Catheter assembly process flow indicating quality yields at each gate, with each stage's share of total rejections.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <ProcessFlow rows={m.stages} />
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-                  {m.stages.map((s, idx) => {
-                    const colors = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#7C3AED", "#65A30D"];
-                    const share = ((s.rejected / (m.rejected || 1)) * 100).toFixed(1);
-                    return (
-                      <div key={s.stageId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5 }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: colors[idx % colors.length] }} />
-                          {s.label}
-                        </span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>
-                          {pct(s.rejRate)} <span className="muted" style={{ fontWeight: 500, fontSize: 11 }}>({share}% share · {s.rejected.toLocaleString()} units)</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Row 3: defect and size drivers */}
+          {/* Row 2: defect Pareto (left) + rejection-by-stage donut (right). */}
           {(() => {
             const hasPareto = m.defects.length > 0;
-            const hasSizeYtd = m.sizes.length > 0;
-            if (!hasPareto && !hasSizeYtd) return null;
-            const gridCols = hasPareto && hasSizeYtd ? "minmax(0, 1fr) minmax(0, 1fr)" : "minmax(0, 1fr)";
+            const hasStages = m.stages.length > 0;
+            if (!hasPareto && !hasStages) return null;
+            const gridCols = hasPareto && hasStages ? "minmax(0, 1.5fr) minmax(0, 1fr)" : "minmax(0, 1fr)";
             return (
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: gridCols,
-                gap: 20,
-                marginTop: 20
-              }}>
+              <div style={{ display: "grid", gridTemplateColumns: gridCols, gap: 12 }}>
                 {hasPareto && (
                   <Card
                     title="Defect Pareto (All Stages)"
-                    sub="Vital few defect classes responsible for quality deviation"
+                    sub="Vital few defect classes"
                     onClick={() => openModal("Defect Pareto (All Stages)", "Six Sigma Pareto analysis highlighting the vital few defect categories responsible for most rejects.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}
                   >
                     <ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} showTable={false} />
                   </Card>
                 )}
 
-                {hasSizeYtd && (
+                {hasStages && (
                   <Card
-                    title="Rejection by Size (YTD)"
-                    sub={m.worstSize ? `Worst: ${m.worstSize.size}` : "YTD"}
-                    onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" })}
+                    title="Rejection by Stage"
+                    sub="YTD Shares"
+                    onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected) })}
                   >
-                    <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} />
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "center", padding: "4px 0" }}>
+                        <Donut data={m.stages.map((s) => ({ label: s.label.split(" ")[0], value: s.rejected }))} size={110} fontSize={10} hideLegend={true} />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
+                        {m.stages.slice(0, 4).map((s, idx) => {
+                          const colors = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#7C3AED", "#65A30D"];
+                          const share = ((s.rejected / (m.rejected || 1)) * 100).toFixed(1);
+                          return (
+                            <div key={s.stageId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
+                                <span style={{ width: 7, height: 7, borderRadius: "50%", background: colors[idx % colors.length] }} />
+                                {s.label}
+                              </span>
+                              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>
+                                {pct(s.rejRate)} <span className="muted" style={{ fontWeight: 500, fontSize: 10 }}>({share}%)</span>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </Card>
                 )}
               </div>
             );
           })()}
 
-          {/* Row 4: stage x size concentration heatmap */}
-          {m.stageSize.length > 0 && (
-            <div style={{ marginTop: 20 }}>
-              <Card
-                title="Stage x Size Concentration"
-                sub="Rejection rate by stage and catheter size (warmer cells indicate concentration hotspots)"
-                onClick={() => openModal(
-                  "Stage x Size Concentration",
-                  "Rejection rate for every stage x size combination present in the selected period — darker/warmer cells indicate where quality problems concentrate.",
-                  <div style={{ minHeight: 200 }}><StageSizeHeatmap cells={m.stageSize} /></div>,
-                  { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? `${(Math.max(...m.stageSize.map(c => c.rejRate)) * 100).toFixed(1)}%` : "—" },
-                )}
-              >
-                <StageSizeHeatmap cells={m.stageSize} />
-              </Card>
+          {/* Row 3: size-wise bars (left) + stage x size heatmap (right) — the
+              two cross-cutting drivers side by side instead of stacked. */}
+          {(m.sizes.length > 0 || m.stageSize.length > 0) && (
+            <div style={{ display: "grid", gridTemplateColumns: m.sizes.length > 0 && m.stageSize.length > 0 ? "minmax(0, 1fr) minmax(0, 1.2fr)" : "minmax(0, 1fr)", gap: 12 }}>
+              {m.sizes.length > 0 && (
+                <Card
+                  title="Rejection by Size (YTD)"
+                  sub={m.worstSize ? `Worst: ${m.worstSize.size}` : "YTD"}
+                  onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" })}
+                >
+                  <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} />
+                </Card>
+              )}
+
+              {m.stageSize.length > 0 && (
+                <Card
+                  title="Stage x Size Concentration"
+                  sub="Warmer = hotspot"
+                  onClick={() => openModal(
+                    "Stage x Size Concentration",
+                    "Rejection rate for every stage x size combination present in the selected period — darker/warmer cells indicate where quality problems concentrate.",
+                    <div style={{ minHeight: 200 }}><StageSizeHeatmap cells={m.stageSize} /></div>,
+                    { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? `${(Math.max(...m.stageSize.map(c => c.rejRate)) * 100).toFixed(1)}%` : "—" },
+                  )}
+                >
+                  <StageSizeHeatmap cells={m.stageSize} />
+                </Card>
+              )}
             </div>
           )}
+
+          {/* Row 4: audit & verification shortcut. */}
+          <Card
+            title="Audit &amp; Verification"
+            onClick={() => openModal("Audit & Verification", `Ledger verification metrics derived from processed source files.`, <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable sourceFiles={m.audit.sourceFilesProcessed} validation={m.audit.dataValidationChecks} integrity={m.audit.formulaIntegrity} overrides={m.audit.manualOverrides} completeness={m.audit.dataCompleteness} /></div>)}
+          >
+            <AuditVerificationTable
+              sourceFiles={m.audit.sourceFilesProcessed}
+              validation={m.audit.dataValidationChecks}
+              integrity={m.audit.formulaIntegrity}
+              overrides={m.audit.manualOverrides}
+              completeness={m.audit.dataCompleteness}
+            />
+            <div style={{ marginTop: 10, display: "flex", justifyContent: "center" }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); router.push("/audit"); }}
+                style={{
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border-strong)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "5px 14px",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  width: "100%"
+                }}
+              >
+                View Audit Trail
+              </button>
+            </div>
+          </Card>
+
+          {/* Row 5: AI recommended action cards. */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+            {recommendationCards.slice(0, 3).map((rec, i) => {
+              const chipColor = rec.tone === "bad" ? "var(--critical)" : rec.tone === "warn" ? "var(--warning)" : "var(--positive)";
+              const chipText = rec.tone === "bad" ? "Critical" : rec.tone === "warn" ? "Warning" : "Info";
+              return (
+                <Card key={i} title={i === 0 ? "Recommended Actions (AI)" : undefined}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                          padding: "2px 8px",
+                          borderRadius: 5,
+                          color: chipColor,
+                          background: `color-mix(in srgb, ${chipColor} 14%, transparent)`,
+                        }}
+                      >
+                        {chipText}
+                      </span>
+                      <a
+                        href="/capa"
+                        style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}
+                      >
+                        Create CAPA →
+                      </a>
+                    </div>
+                    <div style={{ fontSize: 12, lineHeight: 1.45, color: "var(--text)" }}>{safeBolden(rec.text)}</div>
+                    {rec.evidence && (
+                      <div className="muted" style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", marginTop: 1 }}>{rec.evidence}</div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Row 6: "Should I intervene?" verdict — placed last per direction;
+              single source of truth from qualityStatus(), so it can never
+              disagree with the KPI tone chips above (same rate-vs-target math). */}
+          <InterveneBar status={m.status} onViewCapa={() => router.push("/capa")} />
           </>
           )}
         </div>
@@ -658,121 +713,48 @@ export default function Dashboard() {
   );
 }
 
-/** One labeled row (Impact / Primary driver) inside the verdict banner.
- *  Presentational only — values are computed by the caller. */
-function BriefRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-      <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)", minWidth: 108, flexShrink: 0 }}>
-        {label}
-      </span>
-      <span style={{ fontSize: 13, color: "var(--text)" }}>{safeBolden(value)}</span>
-    </div>
-  );
-}
-
-/** Single source of truth for "is the factory OK": status/reason come straight
- *  from qualityStatus(), so this banner can never disagree with a Kpi tone
- *  chip below it (both derive from the same rate-vs-target comparison). */
-function VerdictBanner({
-  status,
-  impact,
-  primaryDriver,
-  action,
-  completeness,
-  onViewAudit,
-}: {
+/** Slim "should I intervene?" strip. Status/reason come straight from
+ *  qualityStatus() — the same rate-vs-target/watch comparison every Kpi tone
+ *  chip above already uses, so this can never disagree with a tile. */
+function InterveneBar({ status, onViewCapa }: {
   status: { state: "ok" | "watch" | "at-risk"; reason: string };
-  impact: string;
-  primaryDriver: string | null;
-  action: { text: string; tone: "bad" | "warn" | "info"; evidence: string | null } | null;
-  completeness: number;
-  onViewAudit: () => void;
+  onViewCapa: () => void;
 }) {
   const tone = status.state === "at-risk" ? "var(--critical)" : status.state === "watch" ? "var(--warning)" : "var(--positive)";
-  const label = status.state === "at-risk" ? "Intervene" : status.state === "watch" ? "Watch" : "In Control";
-  const chipColor = action ? (action.tone === "bad" ? "var(--critical)" : action.tone === "warn" ? "var(--warning)" : "var(--positive)") : "var(--text-3)";
-  const chipText = action ? (action.tone === "bad" ? "Critical" : action.tone === "warn" ? "Warning" : "Info") : "";
-
+  const verdict = status.state === "at-risk" ? "YES, INTERVENE" : status.state === "watch" ? "MONITOR CLOSELY" : "NO, ON TRACK";
   return (
     <div style={{
-      display: "grid",
-      gridTemplateColumns: "1.3fr 1fr 1.3fr",
-      gap: 20,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 16,
       border: `1.5px solid ${tone}`,
       borderRadius: "var(--radius-lg)",
-      background: `color-mix(in srgb, ${tone} 5%, var(--surface))`,
-      padding: "20px 24px",
-      boxShadow: "var(--shadow-2)",
+      background: `color-mix(in srgb, ${tone} 6%, var(--surface))`,
+      padding: "12px 18px",
+      boxShadow: "var(--shadow-1)",
     }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{
-            width: 10,
-            height: 10,
-            borderRadius: "50%",
-            background: tone,
-            boxShadow: status.state === "at-risk" ? `0 0 8px ${tone}` : undefined,
-            animation: status.state === "at-risk" ? "pulse-ring 1.5s infinite" : undefined,
-          }} />
-          <span style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, letterSpacing: "-0.01em", color: tone }}>
-            {label}
-          </span>
-        </div>
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--text-2)" }}>{status.reason}</p>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        <span style={{
+          flexShrink: 0,
+          fontFamily: "var(--font-sans)",
+          fontSize: 11.5,
+          fontWeight: 800,
+          letterSpacing: "0.03em",
+          color: tone,
+          background: `color-mix(in srgb, ${tone} 16%, transparent)`,
+          padding: "4px 10px",
+          borderRadius: 5,
+        }}>
+          {verdict}
+        </span>
+        <span style={{ fontSize: 12.5, color: "var(--text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {status.reason}
+        </span>
       </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, borderLeft: "1px solid var(--border)", borderRight: "1px solid var(--border)", padding: "0 20px" }}>
-        <BriefRow label="Impact" value={impact} />
-        {primaryDriver && <BriefRow label="Primary driver" value={primaryDriver} />}
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {action ? (
-          <>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-                padding: "2px 8px",
-                borderRadius: 5,
-                color: chipColor,
-                background: `color-mix(in srgb, ${chipColor} 14%, transparent)`,
-              }}>
-                {chipText}
-              </span>
-              <a href="/capa" style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}>
-                Create CAPA →
-              </a>
-            </div>
-            <div style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--text)" }}>{safeBolden(action.text)}</div>
-          </>
-        ) : (
-          <div style={{ fontSize: 12.5, color: "var(--text-2)" }}>No actions flagged for this period.</div>
-        )}
-        <button
-          onClick={onViewAudit}
-          style={{
-            marginTop: "auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            background: "var(--surface-2)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-sm)",
-            padding: "6px 10px",
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: "pointer",
-            color: "var(--text-2)",
-          }}
-        >
-          <span>Data completeness</span>
-          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: completeness >= 95 ? "var(--positive)" : "var(--warning)" }}>{completeness}%</span>
-        </button>
-      </div>
+      <a href="/capa" onClick={(e) => { e.preventDefault(); onViewCapa(); }} style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}>
+        Create CAPA →
+      </a>
     </div>
   );
 }
