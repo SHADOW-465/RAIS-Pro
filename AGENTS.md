@@ -13,11 +13,18 @@ addressing uses `"provider/model"` strings, not provider-specific packages.
 
 ## Design direction (locked)
 
-This is "The Rejection Report" — an editorial diagnostic for pharma GMs.
-Warm paper background, near-black ink, **Fraunces** display serif, **Inter
-Tight** UI, **JetBrains Mono** for numbers. Burnt orange `#C8421C` accent.
-Flat / outlined / shadowed cards. **Not glassmorphism.** The old
+Enterprise Manufacturing Intelligence OS for GMs/QMs/engineers — Linear /
+Stripe Dashboard / Vercel register, not editorial. **Geist** for UI and
+headings, **Geist Mono** for technical data (IDs, logs, provenance, cell
+refs). Hierarchy comes from size/weight/spacing, not color. Burnt orange
+`#C8421C` accent reserved for status/accent, not headings. Flat / outlined /
+shadowed cards. **Not glassmorphism.** The old
 `glass-card`/`btn-primary`/`topbar` Tailwind utility classes are gone.
+
+Type scale (`globals.css`): `.kpi` 48px/700 (executive KPI values), `.h1`
+32px/700 (page titles), `.h2` 24px/600 (section titles), `.h3` 16px/500 (card
+titles), `.body` 14px/400, `.small` 13px/400 (secondary/metadata). Tabular
+numerals are on globally (`body { font-variant-numeric: tabular-nums }`).
 
 Theming flows through `<body data-density / data-bg / data-card /
 data-chart-style>` plus CSS variables (`--paper`, `--ink`, `--accent`,
