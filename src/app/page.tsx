@@ -817,7 +817,25 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Row 4: Size Analytics */}
+          {/* Row 4: Stage x Size Concentration Heatmap */}
+          {m.stageSize.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <Card
+                title="Stage x Size Concentration"
+                sub="Rejection rate by stage and catheter size (warmer cells indicate concentration hotspots)"
+                onClick={() => openModal(
+                  "Stage x Size Concentration",
+                  "Rejection rate for every stage x size combination present in the selected period — darker/warmer cells indicate where quality problems concentrate.",
+                  <div style={{ minHeight: 200 }}><StageSizeHeatmap cells={m.stageSize} /></div>,
+                  { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? `${(Math.max(...m.stageSize.map(c => c.rejRate)) * 100).toFixed(1)}%` : "—" },
+                )}
+              >
+                <StageSizeHeatmap cells={m.stageSize} />
+              </Card>
+            </div>
+          )}
+
+          {/* Row 5: Size Analytics */}
           {(() => {
             const hasSizeYtd = m.sizes.length > 0;
             const hasSizeTrend = hasSizeYtd && m.sizeTrend.length > 0;
@@ -871,24 +889,6 @@ export default function Dashboard() {
               </div>
             );
           })()}
-
-          {/* Row 5: Stage x Size Concentration Heatmap */}
-          {m.stageSize.length > 0 && (
-            <div style={{ marginTop: 20 }}>
-              <Card
-                title="Stage x Size Concentration"
-                sub="Rejection rate by stage and catheter size (warmer cells indicate concentration hotspots)"
-                onClick={() => openModal(
-                  "Stage x Size Concentration",
-                  "Rejection rate for every stage x size combination present in the selected period — darker/warmer cells indicate where quality problems concentrate.",
-                  <div style={{ minHeight: 200 }}><StageSizeHeatmap cells={m.stageSize} /></div>,
-                  { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? `${(Math.max(...m.stageSize.map(c => c.rejRate)) * 100).toFixed(1)}%` : "—" },
-                )}
-              >
-                <StageSizeHeatmap cells={m.stageSize} />
-              </Card>
-            </div>
-          )}
 
           {/* Row 6: COPQ & Audit Trail */}
           {(() => {
