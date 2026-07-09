@@ -467,29 +467,31 @@ export default function AppShell({
   const stationOptions = stationCandidates.filter((v) => stagesWithData.has(v.id));
   const allViewOptions = [{ id: "cumulative", label: "Factory Overview" }, ...stationOptions, ...datasetTabs];
   const currentView = allViewOptions.find((v) => v.id === t.stageView)
-  const sidebarBg = isDark ? "#1C1815" : "var(--surface)";
-  const sidebarBorder = isDark ? "1px solid #1F1F23" : "1px solid var(--border-strong)";
-  const dispoTextColor = isDark ? "#FFFFFF" : "var(--text)";
+    ?? { id: t.stageView, label: t.stageView === "cumulative" ? "Factory Overview" : t.stageView };
+  const activeDark = mounted && isDark;
+  const sidebarBg = activeDark ? "#1C1815" : "var(--surface)";
+  const sidebarBorder = activeDark ? "1px solid #1F1F23" : "1px solid var(--border-strong)";
+  const dispoTextColor = activeDark ? "#FFFFFF" : "var(--text)";
   const navTextColor = (isActive: boolean, soon?: boolean) => {
-    if (isActive) return isDark ? "#FFFFFF" : "var(--text)";
-    if (soon) return isDark ? "#3F3F46" : "var(--text-3)";
-    return isDark ? "#A1A1AA" : "var(--text-2)";
+    if (isActive) return activeDark ? "#FFFFFF" : "var(--text)";
+    if (soon) return activeDark ? "#3F3F46" : "var(--text-3)";
+    return activeDark ? "#A1A1AA" : "var(--text-2)";
   };
   const navIconColor = (isActive: boolean) => {
     if (isActive) return "var(--accent)";
-    return isDark ? "#71717A" : "var(--text-3)";
+    return activeDark ? "#71717A" : "var(--text-3)";
   };
-  const highlightBg = isDark 
+  const highlightBg = activeDark 
     ? "color-mix(in srgb, var(--accent) 12%, #121214)" 
     : "color-mix(in srgb, var(--accent) 8%, var(--surface-2))";
-  const highlightBorder = isDark 
+  const highlightBorder = activeDark 
     ? "1px solid color-mix(in srgb, var(--accent) 30%, #2D2D30)" 
     : "1px solid color-mix(in srgb, var(--accent) 15%, var(--border-strong))";
-  const sepBorderColor = isDark ? "#1F1F23" : "var(--border)";
-  const sectionHeaderColor = isDark ? "#52525B" : "var(--text-3)";
-  const toggleBtnBg = isDark ? "#1E1E20" : "var(--surface-2)";
-  const toggleBtnBorder = isDark ? "1px solid #2D2D30" : "1px solid var(--border-strong)";
-  const toggleBtnColor = isDark ? "#A1A1AA" : "var(--text-2)";
+  const sepBorderColor = activeDark ? "#1F1F23" : "var(--border)";
+  const sectionHeaderColor = activeDark ? "#52525B" : "var(--text-3)";
+  const toggleBtnBg = activeDark ? "#1E1E20" : "var(--surface-2)";
+  const toggleBtnBorder = activeDark ? "1px solid #2D2D30" : "1px solid var(--border-strong)";
+  const toggleBtnColor = activeDark ? "#A1A1AA" : "var(--text-2)";
 
   return (
     <div style={{ 
@@ -858,21 +860,8 @@ export default function AppShell({
 
           {/* D, W, M, FY Segmented Control */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span className="muted" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 4 }}>
-              <span>Interval</span>
-              {suggestedGrain && (
-                <span style={{
-                  fontSize: 7.5,
-                  background: "var(--accent-weak)",
-                  color: "var(--accent)",
-                  padding: "0px 3px",
-                  borderRadius: 2,
-                  fontWeight: 800,
-                  textTransform: "uppercase"
-                }}>
-                  Sug.
-                </span>
-              )}
+            <span className="muted" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              Interval
             </span>
             <div style={{ 
               display: "flex",
