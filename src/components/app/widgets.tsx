@@ -65,8 +65,6 @@ export function ChartTip({ leftPx, topPx, below, title, rows }: {
   const yTransform = activeBelow 
     ? "translate(-50%, 12px)" 
     : "translate(-50%, calc(-100% - 12px))";
-  
-  const isPositioned = offset.x !== 0 || offset.forceBelow !== null;
 
   return (
     <div 
@@ -77,8 +75,7 @@ export function ChartTip({ leftPx, topPx, below, title, rows }: {
         background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)",
         boxShadow: "0 6px 20px rgba(0,0,0,0.18)", padding: "8px 10px", pointerEvents: "none",
         zIndex: 30, minWidth: 130, whiteSpace: "nowrap",
-        opacity: isPositioned ? 1 : 0,
-        transition: "left var(--duration-dropdown) var(--ease-out), top var(--duration-dropdown) var(--ease-out), transform var(--duration-dropdown) var(--ease-out), opacity var(--duration-dropdown) ease"
+        transition: "left 0.1s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.1s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1)"
       }}
     >
       <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: rows.length ? 5 : 0, fontFamily: "var(--font-sans)" }}>{title}</div>
@@ -213,15 +210,21 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
   return (
     <div 
       onClick={onClick}
-      className={onClick ? "card card-hover" : "card"}
+      className={onClick ? "card-hover" : ""}
       style={{ 
         gridColumn: span ? `span ${span}` : undefined, 
+        border: "1.5px solid var(--border)", 
+        borderRadius: "var(--radius-lg)", 
+        background: "var(--surface)", 
+        padding: "var(--pad-card)",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         cursor: onClick ? "pointer" : "default",
         minWidth: 0,
-        position: "relative"
+        boxShadow: "var(--shadow-2)",
+        position: "relative",
+        transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)"
       }}
     >
       {title && (
