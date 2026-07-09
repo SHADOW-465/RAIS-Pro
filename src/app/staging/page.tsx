@@ -470,9 +470,9 @@ export default function StagingPage() {
     
     if (hasMismatch || (hasValidationFailure && isBalanceQuantity)) {
       return {
-        background: "#FFEBAA",
-        color: "#C8421C",
-        borderBottom: "2px solid #C8421C",
+        background: "var(--warning-weak)",
+        color: "var(--warning)",
+        borderBottom: "2px solid var(--warning)",
         transition: "background 0.3s, color 0.3s"
       };
     }

@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 /* =========================================================
-   MO!D — Clinical Enterprise Design System
+   MO!D — Modern SaaS Design System
    ========================================================= */
 
 :root, [data-theme="light"] {
@@ -13,30 +13,30 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Surfaces (cool clinical white / grey) */
-  --bg:            #F7F9FA;
+  /* Surfaces */
+  --bg:            #FAF8F5;   /* warm paper background */
   --surface:       #FFFFFF;   /* card background */
-  --surface-2:     #F1F4F5;   /* nested tables / strips */
-  --surface-3:     #E7ECEE;   /* deep wells */
-  --overlay:       rgba(15,23,26,0.4);
+  --surface-2:     #F3EFEA;   /* nested tables / strips */
+  --surface-3:     #EAE3DA;   /* deep wells */
+  --overlay:       rgba(28,25,23,0.4);
 
   /* Borders */
-  --border:        #E4E9EB;
-  --border-strong: #D2D9DC;
-  --ring:          #0D9488;   /* teal focus ring */
+  --border:        #EAE3DA;   /* crisp light border */
+  --border-strong: #D6CBBF;   /* solid divider */
+  --ring:          #C8421C;   /* burnt orange focus ring */
 
-  --text:          #16191C;   /* near-black, cool-toned */
-  --text-2:        #3A4146;   /* secondary text */
-  --text-3:        #6B7378;   /* muted labels */
+  --text:          #1C1917;   /* near-black charcoal */
+  --text-2:        #2E2A27;   /* darker secondary text */
+  --text-3:        #45403C;   /* darker muted labels */
   --text-invert:   #FFFFFF;
 
-  /* Accent (Teal — interface accent only, never chart colour) */
-  --accent:        #0D9488;
-  --accent-hover:  #0F766E;
-  --accent-weak:   #F0FBFA;
-  --accent-text:   #0D9488;
+  /* Accent (Burnt Orange) */
+  --accent:        #C8421C;
+  --accent-hover:  #B03514;
+  --accent-weak:   #FDF3F0;
+  --accent-text:   #C8421C;
 
-  /* Semantic status (never tinted by accent) */
+  /* Semantic status */
   --positive:      #15803D;
   --positive-weak: #F0FDF4;
   --warning:       #B45309;
@@ -49,12 +49,11 @@
   --status-bad:    var(--critical);
 
   /* Elevation (minimalist soft shadows) */
-  --shadow-1: 0 1px 2px rgba(16,24,27,0.03);
-  --shadow-2: 0 4px 6px -1px rgba(16,24,27,0.04), 0 2px 4px -1px rgba(16,24,27,0.02);
-  --shadow-3: 0 10px 15px -3px rgba(16,24,27,0.04), 0 4px 6px -2px rgba(16,24,27,0.02);
+  --shadow-1: 0 1px 2px rgba(28,25,23,0.03);
+  --shadow-2: 0 4px 6px -1px rgba(28,25,23,0.04), 0 2px 4px -1px rgba(28,25,23,0.02);
+  --shadow-3: 0 10px 15px -3px rgba(28,25,23,0.04), 0 4px 6px -2px rgba(28,25,23,0.02);
 
-  /* Data-visualization categorical palette — independent of UI theme/accent,
-     stays stable across light/dark so users keep colour memory per series */
+  /* Data-visualization categorical palette */
   --viz-1: #C8421C;
   --viz-2: #4F46E5;
   --viz-3: #0F766E;
@@ -66,30 +65,30 @@
 }
 
 [data-theme="dark"] {
-  /* Surfaces (deep charcoal, not pure black) */
-  --bg:            #14171A;
-  --surface:       #1B1F23;
-  --surface-2:     #21262A;
-  --surface-3:     #2A3034;
+  /* Surfaces */
+  --bg:            #12100E;   /* warm dark background */
+  --surface:       #1C1815;   /* warm dark surface card */
+  --surface-2:     #26211C;
+  --surface-3:     #322B25;
   --overlay:       rgba(0,0,0,0.6);
 
   /* Borders */
-  --border:        #262C30;
-  --border-strong: #363D42;
-  --ring:          #2DD4BF;
+  --border:        #2C2621;
+  --border-strong: #3D352E;
+  --ring:          #FF6B3D;
 
-  --text:          #F4F6F7;
-  --text-2:        #C9D1D6;   /* secondary text */
-  --text-3:        #8B959B;   /* muted text */
-  --text-invert:   #0F1214;
+  --text:          #FAF8F5;
+  --text-2:        #E8DFD3;   /* brighter secondary text */
+  --text-3:        #BFB2A5;   /* brighter muted text */
+  --text-invert:   #12100E;
 
-  /* Accent (Teal — interface accent only, never chart colour) */
-  --accent:        #2DD4BF;
-  --accent-hover:  #5EEAD4;
-  --accent-weak:   rgba(45, 212, 191, 0.1);
-  --accent-text:   #2DD4BF;
+  /* Accent (Electric Burnt Orange) */
+  --accent:        #FF6B3D;
+  --accent-hover:  #FF875E;
+  --accent-weak:   rgba(255, 107, 61, 0.08);
+  --accent-text:   #FF6B3D;
 
-  /* Semantic status (never tinted by accent) */
+  /* Semantic status */
   --positive:      #4ADE80;
   --positive-weak: rgba(74, 222, 128, 0.1);
   --warning:       #FBBF24;
@@ -102,10 +101,10 @@
   --shadow-2: 0 0 0 transparent;
   --shadow-3: 0 0 0 transparent;
 
-  /* Data-visualization categorical palette — independent of UI theme/accent */
-  --viz-1: #E8703A;
+  /* Data-visualization dark palette */
+  --viz-1: #FF6B3D;
   --viz-2: #818CF8;
-  --viz-3: #14B8A6;
+  --viz-3: #2DD4BF;
   --viz-4: #FB7185;
   --viz-5: #FBBF24;
   --viz-6: #38BDF8;

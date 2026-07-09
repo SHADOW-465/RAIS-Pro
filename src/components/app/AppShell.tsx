@@ -603,30 +603,25 @@ export default function AppShell({
   const allViewOptions = [{ id: "cumulative", label: "Factory Overview" }, ...stationOptions, ...datasetTabs];
   const currentView = allViewOptions.find((v) => v.id === t.stageView)
     ?? { id: t.stageView, label: t.stageView === "cumulative" ? "Factory Overview" : t.stageView };
-  const activeDark = mounted && isDark;
-  const sidebarBg = activeDark ? "#1C1815" : "var(--surface)";
-  const sidebarBorder = activeDark ? "1px solid #1F1F23" : "1px solid var(--border-strong)";
-  const dispoTextColor = activeDark ? "#FFFFFF" : "var(--text)";
+  const sidebarBg = "var(--surface)";
+  const sidebarBorder = "1px solid var(--border-strong)";
+  const dispoTextColor = "var(--text)";
   const navTextColor = (isActive: boolean, soon?: boolean) => {
-    if (isActive) return activeDark ? "#FFFFFF" : "var(--text)";
-    if (soon) return activeDark ? "#3F3F46" : "var(--text-3)";
-    return activeDark ? "#A1A1AA" : "var(--text-2)";
+    if (isActive) return "var(--text)";
+    if (soon) return "var(--text-3)";
+    return "var(--text-2)";
   };
   const navIconColor = (isActive: boolean) => {
     if (isActive) return "var(--accent)";
-    return activeDark ? "#71717A" : "var(--text-3)";
+    return "var(--text-3)";
   };
-  const highlightBg = activeDark 
-    ? "color-mix(in srgb, var(--accent) 12%, #121214)" 
-    : "color-mix(in srgb, var(--accent) 8%, var(--surface-2))";
-  const highlightBorder = activeDark 
-    ? "1px solid color-mix(in srgb, var(--accent) 30%, #2D2D30)" 
-    : "1px solid color-mix(in srgb, var(--accent) 15%, var(--border-strong))";
-  const sepBorderColor = activeDark ? "#1F1F23" : "var(--border)";
-  const sectionHeaderColor = activeDark ? "#52525B" : "var(--text-3)";
-  const toggleBtnBg = activeDark ? "#1E1E20" : "var(--surface-2)";
-  const toggleBtnBorder = activeDark ? "1px solid #2D2D30" : "1px solid var(--border-strong)";
-  const toggleBtnColor = activeDark ? "#A1A1AA" : "var(--text-2)";
+  const highlightBg = "color-mix(in srgb, var(--accent) 8%, var(--surface-2))";
+  const highlightBorder = "1px solid color-mix(in srgb, var(--accent) 15%, var(--border-strong))";
+  const sepBorderColor = "var(--border)";
+  const sectionHeaderColor = "var(--text-3)";
+  const toggleBtnBg = "var(--surface-2)";
+  const toggleBtnBorder = "1px solid var(--border-strong)";
+  const toggleBtnColor = "var(--text-2)";
 
   return (
     <div style={{ 
@@ -714,7 +709,7 @@ export default function AppShell({
               if (e.currentTarget) {
                 e.currentTarget.style.background = toggleBtnBg;
                 e.currentTarget.style.color = toggleBtnColor;
-                e.currentTarget.style.borderColor = isDark ? "#2D2D30" : "var(--border-strong)";
+                e.currentTarget.style.borderColor = "var(--border-strong)";
               }
             }}
           >
@@ -878,7 +873,7 @@ export default function AppShell({
                             borderRadius: 4,
                             padding: "1px 5px",
                             fontWeight: 800,
-                            border: isDark ? "1px solid #2D2D30" : "1px solid var(--border)"
+                            border: "1px solid var(--border)"
                           }}>AI</span>
                         ) : null}
                         {n.soon ? <span className="muted" style={{ fontSize: 9, marginLeft: 4 }}>soon</span> : null}
