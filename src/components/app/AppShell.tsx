@@ -839,7 +839,7 @@ export default function AppShell({
           {/* D, W, M, FY Segmented Control */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span className="muted" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 4 }}>
-              <span>Grain</span>
+              <span>Interval</span>
               {suggestedGrain && (
                 <span style={{
                   fontSize: 7.5,
