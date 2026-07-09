@@ -475,7 +475,7 @@ export default function AppShell({
       background: "var(--bg)", 
       color: "var(--text)", 
       display: "grid", 
-      gridTemplateColumns: sidebarCollapsed ? "56px 1fr" : "208px 1fr", 
+      gridTemplateColumns: sidebarCollapsed ? "48px 1fr" : "180px 1fr", 
       gridTemplateRows: "var(--header-h) 1fr var(--footer-h)", 
       gridTemplateAreas: `"side top" "side main" "side status"`,
       transition: "grid-template-columns 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
@@ -491,16 +491,16 @@ export default function AppShell({
         top: 0, 
         height: "100vh",
         zIndex: 100,
-        width: sidebarCollapsed ? "56px" : "208px",
+        width: sidebarCollapsed ? "48px" : "180px",
         transition: "width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
         overflow: "hidden"
       }}>
         {/* logo and collapse toggle */}
         <div style={{ 
-          padding: sidebarCollapsed ? "10px 14px" : "10px 12px", 
+          padding: sidebarCollapsed ? "10px 0" : "10px 12px", 
           display: "flex", 
           alignItems: "center", 
-          justifyContent: "flex-start",
+          justifyContent: sidebarCollapsed ? "center" : "flex-start",
           borderBottom: "1px solid var(--border)",
           minHeight: "calc(var(--header-h) - 1px)",
           transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
@@ -552,7 +552,7 @@ export default function AppShell({
               borderRadius: "var(--radius-sm)",
               transition: "background 0.2s",
               flexShrink: 0,
-              marginLeft: "auto"
+              marginLeft: sidebarCollapsed ? "0" : "auto"
             }}
             onMouseOver={(e) => e.currentTarget.style.background = "var(--surface-3)"}
             onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
@@ -659,9 +659,9 @@ export default function AppShell({
                         width: "100%",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "flex-start",
+                        justifyContent: sidebarCollapsed ? "center" : "flex-start",
                         gap: sidebarCollapsed ? 0 : 8,
-                        padding: sidebarCollapsed ? "8px 16px" : (isAnalyticsChild ? "6px 12px 6px 20px" : "8px 12px"),
+                        padding: sidebarCollapsed ? "8px 0" : (isAnalyticsChild ? "6px 12px 6px 20px" : "8px 12px"),
                         marginBottom: 1,
                         background: "transparent",
                         borderRadius: "30px",
