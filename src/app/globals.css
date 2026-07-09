@@ -398,10 +398,6 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
   border-color: var(--border-strong) !important;
   box-shadow: var(--shadow-2) !important;
 }
-.card-hover:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 
 /* =========================================================
    Masthead
