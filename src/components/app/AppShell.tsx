@@ -470,7 +470,7 @@ export default function AppShell({
   const sidebarBg = isDark ? "#1C1815" : "var(--surface)";
   const sidebarBorder = isDark ? "1px solid #1F1F23" : "1px solid var(--border-strong)";
   const dispoTextColor = isDark ? "#FFFFFF" : "var(--text)";
-  const navTextColor = (isActive: boolean, soon: boolean) => {
+  const navTextColor = (isActive: boolean, soon?: boolean) => {
     if (isActive) return isDark ? "#FFFFFF" : "var(--text)";
     if (soon) return isDark ? "#3F3F46" : "var(--text-3)";
     return isDark ? "#A1A1AA" : "var(--text-2)";
