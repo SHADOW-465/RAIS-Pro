@@ -10,7 +10,7 @@ import DatasetEntryForm from "@/components/DatasetEntryForm";
 import MonthlyEntryGrid from "@/components/MonthlyEntryGrid";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import WeekPicker from "@/components/WeekPicker";
-import { type EntryGrain, resolvePeriod } from "@/lib/entry/period";
+import { type EntryGrain } from "@/lib/entry/period";
 import { fyContaining } from "@/lib/analytics/scope";
 
 interface FieldDef {
@@ -44,13 +44,12 @@ const DEFAULT_FIELDS: FieldDef[] = [
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function DataEntryPage() {
-  const { refreshEvents } = useEvents();
+  const { refreshEvents, events } = useEvents();
   const [activeTab, setActiveTab] = useState<"entry" | "ledger" | "custom">("entry");
   const [monthlyDirty, setMonthlyDirty] = useState(false);
   const [date, setDate] = useState(today());
 
   const { t, setTweak } = useTweaks();
-  const { events } = useEvents();
 
   // FY grain doesn't have its own row range — it narrows to a fiscal year,
   // then a month tab within it drives the same Month case the grid already
@@ -770,7 +769,14 @@ Assign another field as Rejected Quantity.`;
               key={`${effectiveGrain}-${effectiveAnchor}-${selectedPresetId ?? "default"}`}
               grain={effectiveGrain}
               anchorDate={effectiveAnchor}
-              onAnchorChange={(next) => { if (t.grain === "fy") setFyOpenMonth(next); else setDate(next); }}
+              onAnchorChange={(next) => {
+                if (t.grain === "fy") {
+                  setFyOpenMonth(next);
+                  setFyStartYear(fyContaining(next).startYear);
+                } else {
+                  setDate(next);
+                }
+              }}
               presetId={selectedPresetId}
               customFields={entryCustomFields}
               blockedReason={hdr.operator.trim() ? null : "Operator name is required."}

@@ -35,10 +35,6 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, a
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
   const [activeSize, setActiveSize] = useState<string | null>(null);
   const { from, to } = useMemo(() => resolvePeriod(grain, anchorDate), [grain, anchorDate]);
-  const { year, month } = useMemo(() => {
-    const [y, m] = anchorDate.split("-").map(Number);
-    return { year: y, month: m };
-  }, [anchorDate]);
 
   const [records, setRecords] = useState<StageDayRecord[]>([]);
   const [loading, setLoading] = useState(false);
