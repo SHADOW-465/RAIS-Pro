@@ -372,9 +372,16 @@ export default function AppShell({
       }
     };
 
-    // 1. Initial measurement (placed with transitions off — see highlightReady
-    // effect below — so the pill appears already in place, not sliding in)
-    updatePosition();
+    // 1. Initial measurement (placed with transitions deferred when lastPos exists)
+    let frame1 = 0;
+    let frame2 = 0;
+    if (lastPos) {
+      frame1 = requestAnimationFrame(() => {
+        frame2 = requestAnimationFrame(updatePosition);
+      });
+    } else {
+      updatePosition();
+    }
 
     // 2. Observe size changes (during transitions)
     const observer = new ResizeObserver(() => {
@@ -398,6 +405,8 @@ export default function AppShell({
       observer.disconnect();
       window.removeEventListener("resize", updatePosition);
       timers.forEach(clearTimeout);
+      if (frame1) cancelAnimationFrame(frame1);
+      if (frame2) cancelAnimationFrame(frame2);
     };
   }, [active, sidebarCollapsed, collapsedSections, mounted, viewStages, datasetTabs]);
 
@@ -639,6 +648,7 @@ export default function AppShell({
                       data-nav-active={isActive}
                       onClick={() => {
                         if (n.href) {
+                          const targetHref = n.href;
                           // Save current active tab coordinate to window before navigating
                           if (typeof window !== "undefined" && navRef.current) {
                             const activeEl = navRef.current.querySelector('[data-nav-active="true"]');
@@ -651,7 +661,13 @@ export default function AppShell({
                               };
                             }
                           }
-                          router.push(n.href);
+                          if (typeof document !== "undefined" && (document as any).startViewTransition) {
+                            (document as any).startViewTransition(() => {
+                              router.push(targetHref);
+                            });
+                          } else {
+                            router.push(targetHref);
+                          }
                         }
                       }}
                       title={n.soon ? "Coming soon" : n.label}
@@ -1180,85 +1196,87 @@ export default function AppShell({
           maxWidth: "1400px",
           margin: "0 auto"
         }}>
-        {isConfigured === false && active !== "staging" && active !== "settings" && active !== "clear-data" ? (
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "70vh",
-            width: "100%"
-          }}>
-            <div style={{
-              background: "var(--paper)",
-              border: "2px solid var(--ink)",
-              borderRadius: "var(--radius-lg)",
-              padding: "40px",
-              boxShadow: "8px 8px 0px var(--ink)",
-              maxWidth: "600px",
-              width: "100%",
-              textAlign: "center",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 20
-            }}>
+          <div key={active} style={{ animation: "page-enter var(--duration-route) var(--ease-out) both" }}>
+            {isConfigured === false && active !== "staging" && active !== "settings" && active !== "clear-data" ? (
               <div style={{
-                background: "color-mix(in srgb, var(--status-bad) 12%, transparent)",
-                color: "var(--status-bad)",
-                border: "2px solid var(--ink)",
-                borderRadius: "50%",
-                width: 64,
-                height: 64,
-                display: "grid",
-                placeItems: "center",
-                boxShadow: "3px 3px 0 var(--ink)"
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: "70vh",
+                width: "100%"
               }}>
-                <Icon name="alert" size={32} />
-              </div>
-              <h2 style={{ fontFamily: "var(--font-display)", fontSize: 26, margin: 0, color: "var(--ink)", fontWeight: 800 }}>
-                Cockpit Locked
-              </h2>
-              <p style={{ fontSize: 14, color: "var(--text-2)", lineHeight: "1.6", margin: 0 }}>
-                The manufacturing cockpit is currently unconfigured. No plant-wide schema, stages, or defect types have been established in the database ledger.
-              </p>
-              <div style={{
-                background: "var(--surface-2)",
-                border: "1.5px solid var(--border-strong)",
-                borderRadius: "var(--radius-md)",
-                padding: "14px 18px",
-                fontSize: 13,
-                color: "var(--text-2)",
-                textAlign: "left",
-                fontFamily: "var(--font-sans)",
-                margin: "10px 0",
-                borderStyle: "dashed"
-              }}>
-                <strong>Administrative Action Required:</strong> Ingest a pristine master workbook on the Staging page to extract your manufacturing line's stages and defects and unlock all analytics.
-              </div>
-              <button 
-                onClick={() => router.push("/staging")}
-                style={{
-                  background: "var(--accent)",
-                  color: "#fff",
+                <div style={{
+                  background: "var(--paper)",
                   border: "2px solid var(--ink)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "12px 28px",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  boxShadow: "4px 4px 0 var(--ink)",
-                  display: "inline-flex",
+                  borderRadius: "var(--radius-lg)",
+                  padding: "40px",
+                  boxShadow: "8px 8px 0px var(--ink)",
+                  maxWidth: "600px",
+                  width: "100%",
+                  textAlign: "center",
+                  display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
-                  gap: 8
-                }}
-              >
-                <Icon name="upload" size={16} /> Establish Master Schema Configuration
-              </button>
-            </div>
+                  gap: 20
+                }}>
+                  <div style={{
+                    background: "color-mix(in srgb, var(--status-bad) 12%, transparent)",
+                    color: "var(--status-bad)",
+                    border: "2px solid var(--ink)",
+                    borderRadius: "50%",
+                    width: 64,
+                    height: 64,
+                    display: "grid",
+                    placeItems: "center",
+                    boxShadow: "3px 3px 0 var(--ink)"
+                  }}>
+                    <Icon name="alert" size={32} />
+                  </div>
+                  <h2 style={{ fontFamily: "var(--font-display)", fontSize: 26, margin: 0, color: "var(--ink)", fontWeight: 800 }}>
+                    Cockpit Locked
+                  </h2>
+                  <p style={{ fontSize: 14, color: "var(--text-2)", lineHeight: "1.6", margin: 0 }}>
+                    The manufacturing cockpit is currently unconfigured. No plant-wide schema, stages, or defect types have been established in the database ledger.
+                  </p>
+                  <div style={{
+                    background: "var(--surface-2)",
+                    border: "1.5px solid var(--border-strong)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "14px 18px",
+                    fontSize: 13,
+                    color: "var(--text-2)",
+                    textAlign: "left",
+                    fontFamily: "var(--font-sans)",
+                    margin: "10px 0",
+                    borderStyle: "dashed"
+                  }}>
+                    <strong>Administrative Action Required:</strong> Ingest a pristine master workbook on the Staging page to extract your manufacturing line's stages and defects and unlock all analytics.
+                  </div>
+                  <button 
+                    onClick={() => router.push("/staging")}
+                    style={{
+                      background: "var(--accent)",
+                      color: "#fff",
+                      border: "2px solid var(--ink)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "12px 28px",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      boxShadow: "4px 4px 0 var(--ink)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <Icon name="upload" size={16} /> Establish Master Schema Configuration
+                  </button>
+                </div>
+              </div>
+            ) : (
+              children
+            )}
           </div>
-        ) : (
-          children
-        )}
         </div>
       </main>
 

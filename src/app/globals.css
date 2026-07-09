@@ -10,7 +10,15 @@
   --duration-fast: 120ms;
   --duration-medium: 300ms;
   --duration-slow: 600ms;
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-hover: 160ms;
+  --duration-press: 100ms;
+  --duration-dropdown: 180ms;
+  --duration-drawer: 300ms;
+  --duration-expansion: 380ms;
+  --duration-route: 350ms;
+  --duration-chart: 750ms;
+  --duration-kpi: 600ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Surfaces */
@@ -535,22 +543,24 @@ td,
 aside, 
 main, 
 header {
-  transition: background-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
-              border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
-              color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
-              box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
-              opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
-              transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: background-color var(--duration-hover) var(--ease-out),
+              border-color var(--duration-hover) var(--ease-out),
+              color var(--duration-hover) var(--ease-out),
+              box-shadow var(--duration-hover) var(--ease-out),
+              opacity var(--duration-hover) var(--ease-out),
+              transform var(--duration-hover) var(--ease-out);
 }
 
 /* Smooth fade-in overlay for the verification modal and slide-up dialog */
 .modal-backdrop {
-  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: opacity var(--duration-drawer) var(--ease-out),
+              visibility var(--duration-drawer) var(--ease-out),
+              backdrop-filter var(--duration-drawer) var(--ease-out) !important;
 }
 
 .modal-panel {
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: transform var(--duration-expansion) var(--ease-out),
+              opacity var(--duration-expansion) var(--ease-out) !important;
 }
 
 /* Premium micro-animations for dropdowns, panels, and staging logs */
@@ -560,7 +570,7 @@ header {
 }
 
 .dropdown-panel {
-  animation: dropdown-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: dropdown-in var(--duration-dropdown) var(--ease-out) both;
   transform-origin: top left;
 }
 
@@ -570,7 +580,7 @@ header {
 }
 
 .comment-box-panel {
-  animation: comment-box-in 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: comment-box-in var(--duration-drawer) var(--ease-out) both;
 }
 
 @keyframes slide-down {
@@ -579,15 +589,112 @@ header {
 }
 
 .expand-panel {
-  animation: slide-down 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: slide-down var(--duration-drawer) var(--ease-out) both;
   overflow: hidden;
 }
 
 /* Tactile Microinteractions */
 button, .card-hover {
-  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-medium) var(--ease-out), background-color var(--duration-medium) var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out), 
+              box-shadow var(--duration-hover) var(--ease-out), 
+              background-color var(--duration-hover) var(--ease-out),
+              border-color var(--duration-hover) var(--ease-out);
 }
 
-button:active:not(:disabled), .card-hover:active {
+button:active:not(:disabled) {
+  transform: scale(0.965);
+}
+
+.card-hover:active {
   transform: scale(0.985);
+  box-shadow: var(--shadow-1) !important;
+  transition: transform var(--duration-press) var(--ease-out) !important;
+}
+
+/* Native CSS View Transitions for route changes */
+::view-transition-old(root) {
+  animation: page-exit var(--duration-route) var(--ease-out) both;
+}
+::view-transition-new(root) {
+  animation: page-enter var(--duration-route) var(--ease-out) both;
+}
+
+@keyframes page-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Premium Skeleton Shimmer animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--surface-3) 50%,
+    var(--surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+
+/* Table Row slide/fade entry animation */
+@keyframes row-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.table-row-animate {
+  animation: row-enter 300ms var(--ease-out) both;
+}
+
+/* General Dialog emergence animation */
+@keyframes dialog-emerge {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.dialog-animate {
+  animation: dialog-emerge 200ms var(--ease-out) both;
+}
+
+/* SVG Path and line transitions */
+svg path {
+  transition: d var(--duration-expansion) var(--ease-out),
+              stroke-dashoffset var(--duration-chart) var(--ease-out),
+              fill-opacity var(--duration-dropdown) ease,
+              stroke var(--duration-dropdown) ease;
+}
+
+.draw-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-line var(--duration-chart) var(--ease-out) forwards;
+}
+
+/* Respect user's motion settings */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-delay: -1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    background-attachment: scroll !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }

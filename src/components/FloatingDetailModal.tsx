@@ -88,26 +88,87 @@ export default function FloatingDetailModal({
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const [beams, setBeams] = useState<Beam[]>([]);
 
-  // FLIP Transition logic using Web Animations API
+  const [localOpen, setLocalOpen] = useState(false);
+  const lastClickRect = useRef<DOMRect | null>(null);
+
+  // Sync localOpen state with isOpen prop
   useEffect(() => {
-    if (isOpen && originRect && panelRef.current) {
+    if (isOpen) {
+      setLocalOpen(true);
+    } else {
+      setLocalOpen(false);
+    }
+  }, [isOpen]);
+
+  // Capture last clicked card/button globally for universal FLIP origin fallback
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement).closest('.card, button, [role="button"], tr, td');
+      if (el) {
+        lastClickRect.current = el.getBoundingClientRect();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("click", handler, true);
+    }
+    return () => {
+      if (typeof document !== "undefined") {
+        document.removeEventListener("click", handler, true);
+      }
+    };
+  }, []);
+
+  const resolvedOrigin = originRect || lastClickRect.current;
+
+  // FLIP Transition logic on Open using Web Animations API
+  useEffect(() => {
+    if (isOpen && resolvedOrigin && panelRef.current) {
       const panel = panelRef.current;
       const targetRect = panel.getBoundingClientRect();
-      const scaleX = originRect.width / targetRect.width;
-      const scaleY = originRect.height / targetRect.height;
-      const transX = originRect.left - targetRect.left;
-      const transY = originRect.top - targetRect.top;
+      const scaleX = resolvedOrigin.width / targetRect.width;
+      const scaleY = resolvedOrigin.height / targetRect.height;
+      const transX = resolvedOrigin.left - targetRect.left;
+      const transY = resolvedOrigin.top - targetRect.top;
 
       panel.animate([
         { transform: `translate(${transX}px, ${transY}px) scale(${scaleX}, ${scaleY})`, transformOrigin: 'top left', opacity: 0, borderRadius: 'var(--radius-lg)' },
         { transform: `translate(0, 0) scale(1)`, transformOrigin: 'top left', opacity: 1, borderRadius: 'var(--radius-lg)' }
       ], {
-        duration: 500,
-        easing: "cubic-bezier(0.34, 1.56, 0.64, 1)", // Soft spring overshoot
+        duration: 380, // Card Expansion: 350-450ms
+        easing: "cubic-bezier(0.16, 1, 0.3, 1)", // Premium clean ease-out curve (var(--ease-out))
         fill: "forwards"
       });
     }
-  }, [isOpen, originRect]);
+  }, [isOpen, resolvedOrigin]);
+
+  // Handle close by running reverse FLIP animation
+  const handleClose = React.useCallback(() => {
+    if (resolvedOrigin && panelRef.current) {
+      const panel = panelRef.current;
+      const targetRect = panel.getBoundingClientRect();
+      const scaleX = resolvedOrigin.width / targetRect.width;
+      const scaleY = resolvedOrigin.height / targetRect.height;
+      const transX = resolvedOrigin.left - targetRect.left;
+      const transY = resolvedOrigin.top - targetRect.top;
+
+      const anim = panel.animate([
+        { transform: `translate(0, 0) scale(1)`, transformOrigin: 'top left', opacity: 1, borderRadius: 'var(--radius-lg)' },
+        { transform: `translate(${transX}px, ${transY}px) scale(${scaleX}, ${scaleY})`, transformOrigin: 'top left', opacity: 0, borderRadius: 'var(--radius-lg)' }
+      ], {
+        duration: 380,
+        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        fill: "forwards"
+      });
+
+      setLocalOpen(false);
+      anim.onfinish = () => {
+        onClose();
+      };
+    } else {
+      setLocalOpen(false);
+      onClose();
+    }
+  }, [resolvedOrigin, onClose]);
 
   // rawSheets (prop) only ever holds the CURRENT browser session's cached
   // upload — sourceRows can span the full historical ledger, built from
@@ -299,11 +360,11 @@ export default function FloatingDetailModal({
         display: "grid",
         placeItems: "center",
         padding: 24,
-        opacity: isOpen ? 1 : 0,
-        visibility: isOpen ? "visible" : "hidden",
-        transition: "opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.45s cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 0.45s cubic-bezier(0.16, 1, 0.3, 1)",
+        opacity: localOpen ? 1 : 0,
+        visibility: localOpen ? "visible" : "hidden",
+        transition: "opacity var(--duration-drawer) var(--ease-out), visibility var(--duration-drawer) var(--ease-out), backdrop-filter var(--duration-drawer) var(--ease-out)",
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div
         ref={panelRef}
@@ -320,9 +381,9 @@ export default function FloatingDetailModal({
           flexDirection: "column",
           maxHeight: "92vh",
           overflow: "hidden",
-          opacity: isOpen && !originRect ? 1 : (originRect ? undefined : 0),
-          transform: isOpen && !originRect ? "translateY(0) scale(1)" : (originRect ? undefined : "translateY(24px) scale(0.985)"),
-          transition: originRect ? "max-width var(--duration-medium) var(--ease-out)" : "max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+          opacity: localOpen && !resolvedOrigin ? 1 : (resolvedOrigin ? undefined : 0),
+          transform: localOpen && !resolvedOrigin ? "translateY(0) scale(1)" : (resolvedOrigin ? undefined : "translateY(24px) scale(0.985)"),
+          transition: resolvedOrigin ? "max-width var(--duration-medium) var(--ease-out)" : "max-width var(--duration-expansion) var(--ease-out), transform var(--duration-expansion) var(--ease-out), opacity var(--duration-expansion) var(--ease-out)",
         }}
       >
         {/* Title bar — transparent / no borders */}
@@ -355,7 +416,7 @@ export default function FloatingDetailModal({
               </button>
             )}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               aria-label="Close"
               style={{
                 background: "var(--surface)",
@@ -432,7 +493,7 @@ export default function FloatingDetailModal({
           ) : (
             <>
               {/* SOURCE TRACE: computed value ⟶ source schema rows, beam-connected */}
-              <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 28, alignItems: "start" }}>
+              <div className="fade-up" style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 28, alignItems: "start" }}>
                 <div ref={anchorRef} style={{ position: "sticky", top: 0, border: "1px solid var(--accent)", borderRadius: "var(--radius-md)", background: "var(--surface)", padding: "16px 18px" }}>
                   <span className="eyebrow accent" style={{ fontWeight: 700, fontSize: 10.5 }}>Computed value</span>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 32, fontWeight: 800, color: "var(--accent)", margin: "6px 0 4px", wordBreak: "break-word" }}>{primaryValue ?? "—"}</div>
