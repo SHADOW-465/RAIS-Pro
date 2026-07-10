@@ -34,7 +34,7 @@ function customStageRecord(): StageDayRecord {
 // workbook's extracted-and-saved schema/preset would look like.
 const customRegistry = {
   ...DISPOSAFE_REGISTRY,
-  stages: [{ stageId: CUSTOM_STAGE_ID, label: "Custom Dip Line", effectiveFrom: null, effectiveTo: null, upstream: [], captures: ["checked", "accepted", "rejected"] }],
+  stages: [{ stageId: CUSTOM_STAGE_ID, label: "Custom Dip Line", effectiveFrom: null, effectiveTo: null, upstream: [], captures: ["checked", "accepted", "rejected"] as ("checked" | "accepted" | "hold" | "rejected")[] }],
 };
 
 const scope: Scope = { grain: "month" };
