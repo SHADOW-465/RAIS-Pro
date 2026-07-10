@@ -9,7 +9,11 @@ const config: Config = {
   // .claude/worktrees/ holds nested git worktrees (each a full checkout) --
   // without this, jest discovers and re-runs their tests too, multiplying
   // counts and duplicating any pre-existing failures once per worktree.
-  testPathIgnorePatterns: ['/node_modules/', '/__tests__/fixtures/', '/.claude/worktrees/'],
+  // Anchored to <rootDir> (not a bare substring) so this only excludes
+  // worktrees NESTED under wherever jest is actually run from -- a worktree
+  // run from inside itself still finds its own tests, since its own path
+  // isn't "<its rootDir>/.claude/worktrees/...".
+  testPathIgnorePatterns: ['/node_modules/', '/__tests__/fixtures/', '<rootDir>/.claude/worktrees/'],
   // Set MOID_STORE=memory before any module loads so tests never hit a live Supabase project.
   setupFiles: ['<rootDir>/jest.setup.ts'],
 };
