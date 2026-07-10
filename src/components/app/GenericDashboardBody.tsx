@@ -66,12 +66,14 @@ export default function GenericDashboardBody({
   publishBanner,
   dataset,
   rows,
+  onConfirmStage,
 }: {
   d: GenericDashboard;
   caption?: string;
   publishBanner?: PublishBannerProps;
   dataset?: Dataset;
   rows?: DatasetRow[];
+  onConfirmStage?: (datasetId: string, stageId: string) => void;
 }) {
   const trendKpis = d.kpis.filter((k) => k.trend.length > 0);
   const hasPareto = !!d.defectPareto && d.defectPareto.length > 0;
@@ -130,6 +132,31 @@ export default function GenericDashboardBody({
             <span style={{ fontSize: 12, fontWeight: 600, color: publishBanner.message.tone === "ok" ? "var(--positive)" : "var(--critical)" }}>
               {publishBanner.message.text}
             </span>
+          )}
+        </div>
+      )}
+
+      {dataset && dataset.recognizedStageId && dataset.recognitionConfidence !== null && dataset.recognitionConfidence < 0.8 && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          border: "1px solid var(--border-strong)", borderRadius: "var(--radius-md)",
+          background: "var(--surface-2)", padding: "10px 14px",
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>
+            Needs review — recognized as {dataset.recognizedStageId} at {Math.round(dataset.recognitionConfidence * 100)}% confidence
+          </span>
+          {onConfirmStage && (
+            <button
+              type="button"
+              onClick={() => onConfirmStage(dataset.id, dataset.recognizedStageId!)}
+              style={{
+                fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12,
+                cursor: "pointer", color: "var(--paper)", background: "var(--accent)",
+                border: "none", padding: "6px 14px", borderRadius: "var(--radius-sm)",
+              }}
+            >
+              Confirm
+            </button>
           )}
         </div>
       )}

@@ -174,6 +174,11 @@ export default function WorkbooksPage() {
     setExpandedFiles((p) => ({ ...p, [fileName]: !p[fileName] }));
   }
 
+  function confirmStageAlias(datasetId: string, stageId: string) {
+    // ponytail: stub — Task 6 replaces this with the real /api/registry-alias call.
+    console.warn("not yet wired — Task 6", datasetId, stageId);
+  }
+
   async function publishToCumulative(ds: Dataset, dsRows: DatasetRow[]) {
     setPublishing(true);
     setPublishMsg(null);
@@ -425,6 +430,7 @@ export default function WorkbooksPage() {
                 publishing={publishing}
                 publishMsg={publishMsg}
                 onPublish={publishToCumulative}
+                onConfirmStage={confirmStageAlias}
               />
             )}
 
@@ -438,6 +444,7 @@ export default function WorkbooksPage() {
                 publishing={publishing}
                 publishMsg={publishMsg}
                 onPublish={publishToCumulative}
+                onConfirmStage={confirmStageAlias}
               />
             )}
           </div>
@@ -447,7 +454,7 @@ export default function WorkbooksPage() {
   );
 }
 
-function SheetDashboard({ selection, dataset, rows, loading, publishing, publishMsg, onPublish }: {
+function SheetDashboard({ selection, dataset, rows, loading, publishing, publishMsg, onPublish, onConfirmStage }: {
   selection: { fileName: string; sheetName: string; datasetId: string };
   dataset: Dataset | null;
   rows: DatasetRow[] | undefined;
@@ -455,6 +462,7 @@ function SheetDashboard({ selection, dataset, rows, loading, publishing, publish
   publishing: boolean;
   publishMsg: { tone: "ok" | "err"; text: string } | null;
   onPublish: (ds: Dataset, rows: DatasetRow[]) => void;
+  onConfirmStage: (datasetId: string, stageId: string) => void;
 }) {
   if (!dataset) return <Empty label="This dataset no longer exists — it may have been cleared." />;
   if (loading || rows === undefined) return <PageLoader message="Loading sheet…" minHeight="30vh" />;
@@ -481,6 +489,7 @@ function SheetDashboard({ selection, dataset, rows, loading, publishing, publish
       dataset={dataset}
       rows={sheetRows}
       caption={`Source: ${selection.fileName} → ${selection.sheetName}`}
+      onConfirmStage={onConfirmStage}
       publishBanner={
         stageLabel
           ? { stageLabel, publishing, onPublish: () => onPublish(dataset, sheetRows), message: publishMsg }
@@ -491,7 +500,7 @@ function SheetDashboard({ selection, dataset, rows, loading, publishing, publish
   );
 }
 
-function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDatasetIds, publishing, publishMsg, onPublish }: {
+function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDatasetIds, publishing, publishMsg, onPublish, onConfirmStage }: {
   fileName: string;
   fileNode: FileNode | null;
   datasets: Dataset[];
@@ -500,6 +509,7 @@ function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDataset
   publishing: boolean;
   publishMsg: { tone: "ok" | "err"; text: string } | null;
   onPublish: (ds: Dataset, rows: DatasetRow[]) => void;
+  onConfirmStage: (datasetId: string, stageId: string) => void;
 }) {
   if (!fileNode) return <Empty label="This file is no longer present in the dataset list." />;
 
@@ -540,6 +550,7 @@ function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDataset
               d={d}
               dataset={dataset}
               rows={fileRows}
+              onConfirmStage={onConfirmStage}
               publishBanner={
                 stageLabel
                   ? { stageLabel, publishing, onPublish: () => onPublish(dataset, fileRows), message: publishMsg }

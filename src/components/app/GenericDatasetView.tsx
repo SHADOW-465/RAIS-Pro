@@ -16,7 +16,13 @@ import type { Dataset, DatasetRow } from "@/lib/dataset/types";
  *  NOT (yet) recognized as a known Disposafe stage — see spec component [F1].
  *  Fetches its own data (dataset metadata + rows) so it stays fully decoupled
  *  from AppShell's tab list, which only needs id/title to render the tab. */
-export default function GenericDatasetView({ datasetId }: { datasetId: string }) {
+export default function GenericDatasetView({
+  datasetId,
+  onConfirmStage,
+}: {
+  datasetId: string;
+  onConfirmStage?: (datasetId: string, stageId: string) => void;
+}) {
   const { refreshEvents } = useEvents();
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [rows, setRows] = useState<DatasetRow[] | null>(null);
@@ -105,6 +111,7 @@ export default function GenericDatasetView({ datasetId }: { datasetId: string })
       d={d}
       dataset={dataset}
       rows={rows}
+      onConfirmStage={onConfirmStage}
       publishBanner={
         stageLabel
           ? {
