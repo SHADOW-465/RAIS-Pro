@@ -588,68 +588,88 @@ git commit -m "feat: attach recognition confidence to Dataset"
 
 ### Task 5: Surface confidence + accept/override in the UI
 
+> **Retargeted after pre-flight review (2026-07-10):** the plan originally targeted `GenericDatasetView.tsx` + `workbooks/page.tsx` directly, assuming `GenericDatasetView` takes a `dataset` prop and is rendered from the Workbooks page. Neither is true: `GenericDatasetView` takes only `{ datasetId }` and self-fetches (rendered from `src/app/page.tsx`, the main Cumulative dashboard), and `workbooks/page.tsx` renders its own local `SheetDashboard`/`FileDashboard` wrappers. Both of those callers already delegate to **`GenericDashboardBody.tsx`** — its own doc comment calls it "the shared presentational core of GenericDatasetView, reused by the /workbooks L2 (file/section) and L3 (sheet) views." `GenericDashboardBody` already accepts an optional `dataset?: Dataset` prop from both call sites, so this task adds the badge/confirm control there once, and it surfaces on both the main dashboard and Workbooks for free — matching the plan's goal of surfacing this "through the existing Staging/Workbooks UI." Human-confirmed via AskUserQuestion before Task 5 was dispatched.
+
 **Files:**
-- Modify: `src/components/app/GenericDatasetView.tsx`
-- Modify: `src/app/workbooks/page.tsx`
-- Test: `src/components/app/__tests__/GenericDatasetView.test.tsx` (create if no existing test file for this component; otherwise extend it)
+- Modify: `src/components/app/GenericDashboardBody.tsx` — add the badge + confirm control (the shared render surface).
+- Modify: `src/components/app/GenericDatasetView.tsx` — thread a new `onConfirmStage` prop through to its existing `<GenericDashboardBody dataset={dataset} .../>` call (lines 104-118).
+- Modify: `src/app/workbooks/page.tsx` — thread the same prop through `SheetDashboard`'s existing `<GenericDashboardBody dataset={dataset} .../>` call (it already has `dataset` in scope at the point it builds `d = buildGenericDashboard(dataset, sheetRows)`).
+- Test: `src/components/app/__tests__/GenericDashboardBody.test.tsx` (create — no test dir exists yet under `src/components/app/`).
 
 **Interfaces:**
-- Consumes: `Dataset.recognitionConfidence`/`recognitionBasis` (Task 4).
-- Produces: an `onConfirmStage(datasetId: string, stageId: string) => void` callback prop on `GenericDatasetView`, wired in `workbooks/page.tsx` to call the alias-write path built in Task 6.
+- Consumes: `Dataset.recognitionConfidence`/`recognitionBasis` (Task 4). `GenericDashboard` type (`src/lib/dataset/dashboard.ts`): `{ datasetId, title, dateRange, kpis, breakdowns, defectPareto }`.
+- Produces: `onConfirmStage?: (datasetId: string, stageId: string) => void` prop on `GenericDashboardBody`, called from both `GenericDatasetView` and `workbooks/page.tsx`'s `SheetDashboard`; wired in both to the alias-write path built in Task 6.
 
-- [ ] **Step 1: Read the current component before writing the test**
-
-Read `src/components/app/GenericDatasetView.tsx` in full and note its existing props interface and how it currently renders `recognizedStageId` (if at all), so this step's test targets real DOM output rather than an assumed structure. The implementer must not invent a props shape the file doesn't already have room for — extend the existing props interface, do not replace it.
-
-- [ ] **Step 2: Write the failing test**
+- [ ] **Step 1: Write the failing test**
 
 ```typescript
-// src/components/app/__tests__/GenericDatasetView.test.tsx
+// src/components/app/__tests__/GenericDashboardBody.test.tsx
 import { render, screen, fireEvent } from "@testing-library/react";
-import GenericDatasetView from "../GenericDatasetView";
+import GenericDashboardBody from "../GenericDashboardBody";
+import type { Dataset } from "@/lib/dataset/types";
+import type { GenericDashboard } from "@/lib/dataset/dashboard";
 
-const lowConfidenceDataset = {
+const baseDataset: Dataset = {
   id: "ds1", signatureHash: "ds1", title: "Visual QC", columns: [], sources: [],
-  totalRows: 10, recognizedStageId: "visual", recognitionConfidence: 0.6, recognitionBasis: "heuristic" as const,
+  totalRows: 10, recognizedStageId: "visual", recognitionConfidence: 0.6, recognitionBasis: "heuristic",
+};
+const emptyDashboard: GenericDashboard = {
+  datasetId: "ds1", title: "Visual QC", dateRange: null, kpis: [], breakdowns: [], defectPareto: null,
 };
 
-describe("GenericDatasetView recognition confidence", () => {
+describe("GenericDashboardBody recognition confidence", () => {
   it("shows a needs-review badge below 0.8 confidence", () => {
-    render(<GenericDatasetView dataset={lowConfidenceDataset} onConfirmStage={jest.fn()} />);
+    render(<GenericDashboardBody d={emptyDashboard} dataset={baseDataset} rows={[]} onConfirmStage={jest.fn()} />);
     expect(screen.getByText(/needs review/i)).toBeInTheDocument();
   });
 
   it("does not show a needs-review badge at or above 0.8 confidence", () => {
-    render(<GenericDatasetView dataset={{ ...lowConfidenceDataset, recognitionConfidence: 0.9 }} onConfirmStage={jest.fn()} />);
+    render(<GenericDashboardBody d={emptyDashboard} dataset={{ ...baseDataset, recognitionConfidence: 0.9 }} rows={[]} onConfirmStage={jest.fn()} />);
     expect(screen.queryByText(/needs review/i)).not.toBeInTheDocument();
   });
 
   it("calls onConfirmStage with the dataset id and stage id when the user confirms", () => {
     const onConfirmStage = jest.fn();
-    render(<GenericDatasetView dataset={lowConfidenceDataset} onConfirmStage={onConfirmStage} />);
+    render(<GenericDashboardBody d={emptyDashboard} dataset={baseDataset} rows={[]} onConfirmStage={onConfirmStage} />);
     fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
     expect(onConfirmStage).toHaveBeenCalledWith("ds1", "visual");
+  });
+
+  it("renders nothing extra when no dataset is provided (static-render callers unaffected)", () => {
+    render(<GenericDashboardBody d={emptyDashboard} />);
+    expect(screen.queryByText(/needs review/i)).not.toBeInTheDocument();
   });
 });
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest src/components/app/__tests__/GenericDatasetView.test.tsx`
+Run: `npx jest src/components/app/__tests__/GenericDashboardBody.test.tsx`
 Expected: FAIL — no "needs review" text, no `onConfirmStage` prop, no confirm button exist yet.
 
-- [ ] **Step 4: Implement the confidence badge and confirm control**
+- [ ] **Step 3: Implement the confidence badge and confirm control**
 
-Extend `GenericDatasetView.tsx`'s props interface with `onConfirmStage?: (datasetId: string, stageId: string) => void`. Inside the component, where the dataset's recognized stage is currently rendered, add:
+Extend `GenericDashboardBody.tsx`'s props destructure (currently `{ d, caption, publishBanner, dataset, rows }`) with `onConfirmStage?: (datasetId: string, stageId: string) => void`, and its type literal with the matching optional field. Render the badge near the existing `publishBanner` block (lines 108-135), using the same `var(--accent)` / `var(--surface-2)` / `var(--border-strong)` tokens that block already uses so it matches the surrounding design system:
 
 ```tsx
-{dataset.recognizedStageId && dataset.recognitionConfidence !== null && dataset.recognitionConfidence < 0.8 && (
-  <div className="small" style={{ color: "var(--accent)" }}>
-    Needs review — recognized as {dataset.recognizedStageId} at {Math.round(dataset.recognitionConfidence * 100)}% confidence
+{dataset && dataset.recognizedStageId && dataset.recognitionConfidence !== null && dataset.recognitionConfidence < 0.8 && (
+  <div style={{
+    display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+    border: "1px solid var(--border-strong)", borderRadius: "var(--radius-md)",
+    background: "var(--surface-2)", padding: "10px 14px",
+  }}>
+    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>
+      Needs review — recognized as {dataset.recognizedStageId} at {Math.round(dataset.recognitionConfidence * 100)}% confidence
+    </span>
     {onConfirmStage && (
       <button
         type="button"
         onClick={() => onConfirmStage(dataset.id, dataset.recognizedStageId!)}
+        style={{
+          fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12,
+          cursor: "pointer", color: "var(--paper)", background: "var(--accent)",
+          border: "none", padding: "6px 14px", borderRadius: "var(--radius-sm)",
+        }}
       >
         Confirm
       </button>
@@ -658,22 +678,27 @@ Extend `GenericDatasetView.tsx`'s props interface with `onConfirmStage?: (datase
 )}
 ```
 
-Match the surrounding file's existing styling conventions (CSS variables per AGENTS.md's design-direction rules) rather than the placeholder inline style above — the implementer replaces `style={{ color: "var(--accent)" }}` with whatever class/token the file's other badges already use, confirmed by reading the file, not invented.
+- [ ] **Step 4: Run tests to verify they pass**
 
-- [ ] **Step 5: Wire the callback in `workbooks/page.tsx`**
+Run: `npx jest src/components/app/__tests__/GenericDashboardBody.test.tsx`
+Expected: PASS (4/4)
 
-Read `src/app/workbooks/page.tsx`'s current render of `GenericDatasetView`/`GenericDashboardBody` and pass `onConfirmStage={(datasetId, stageId) => confirmStageAlias(datasetId, stageId)}`, where `confirmStageAlias` is a new local function calling the API route built in Task 6 (`POST /api/registry-alias`). Stub it as a `console.warn("not yet wired — Task 6")` if Task 6 hasn't landed yet in a partial-execution scenario; the real implementation replaces the stub once Task 6's route exists.
+- [ ] **Step 5: Thread the prop through both callers**
 
-- [ ] **Step 6: Run tests to verify they pass**
+In `GenericDatasetView.tsx`, add `onConfirmStage?: (datasetId: string, stageId: string) => void` to its own props (`{ datasetId, onConfirmStage }`) and pass it straight through to its existing `<GenericDashboardBody ... />` call (lines 104-118).
 
-Run: `npx jest src/components/app/__tests__/GenericDatasetView.test.tsx`
-Expected: PASS (3/3)
+In `workbooks/page.tsx`, read `SheetDashboard`'s current props and its `<GenericDashboardBody d={d} dataset={dataset} .../>` call site (around line 463 onward) and its parent (the page component that owns `activePresetId`/preset state and already has `datasets` in scope). Thread an `onConfirmStage` prop down from the page component into `SheetDashboard`, then into `GenericDashboardBody`, wired to a new local `confirmStageAlias(datasetId, stageId)` function. Stub `confirmStageAlias` as `console.warn("not yet wired — Task 6", datasetId, stageId)` for now — Task 6 replaces the stub with the real `/api/registry-alias` call.
+
+- [ ] **Step 6: Run the full component test suite as a regression check**
+
+Run: `npx jest src/components/app/__tests__/GenericDashboardBody.test.tsx src/app/workbooks`
+Expected: PASS, no regressions in existing Workbooks tests (if any exist).
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/components/app/GenericDatasetView.tsx src/app/workbooks/page.tsx src/components/app/__tests__/GenericDatasetView.test.tsx
-git commit -m "feat: surface recognition confidence and confirm control in Workbooks UI"
+git add src/components/app/GenericDashboardBody.tsx src/components/app/GenericDatasetView.tsx src/app/workbooks/page.tsx src/components/app/__tests__/GenericDashboardBody.test.tsx
+git commit -m "feat: surface recognition confidence and confirm control in GenericDashboardBody"
 ```
 
 ---
