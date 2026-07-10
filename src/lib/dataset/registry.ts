@@ -1,6 +1,7 @@
 import type { Dataset, DatasetSource, ProfiledTableInput } from "./types";
+import type { StageAlias } from "@/lib/store/types";
 import { deriveTitle } from "./title";
-import { recognizeSheetStage } from "./recognize";
+import { recognizeSheetStage, recognizeStageScored } from "./recognize";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 
 function basisKey(cols: { role: string; name: string }[]): string {
@@ -25,7 +26,10 @@ function stageLabel(stageId: string): string | null {
  *  recognize as different Disposafe stages therefore land in different
  *  datasets, and a recognized dataset carries its stage id (labeling only —
  *  publishing to the canonical store stays an explicit user action). */
-export function groupIntoDatasets(inputs: ProfiledTableInput[]): Dataset[] {
+export function groupIntoDatasets(
+  inputs: ProfiledTableInput[],
+  stageAliases: Record<string, StageAlias> = {},
+): Dataset[] {
   const byKey = new Map<string, { hash: string; basis: string; stage: string | null; group: ProfiledTableInput[] }>();
 
   for (const inp of inputs) {
@@ -69,14 +73,21 @@ export function groupIntoDatasets(inputs: ProfiledTableInput[]): Dataset[] {
       // A recognized stream is named by its stage (far clearer in the View
       // dropdown); unrecognized groups keep the deterministic derived title.
       const title = (recognizedStageId && stageLabel(recognizedStageId)) || deriveTitle(columns, sources);
+
+      // Re-score with alias awareness once the dataset shape is known — cheap,
+      // and keeps recognizeStageScored (which needs the assembled Dataset) as
+      // the single source of truth for confidence instead of duplicating the
+      // vote logic here.
+      const provisional: Dataset = {
+        id, signatureHash: hash, title, columns, sources, totalRows,
+        recognizedStageId, recognitionConfidence: null, recognitionBasis: null,
+      };
+      const scored = recognizedStageId ? recognizeStageScored(provisional, stageAliases) : null;
+
       datasets.push({
-        id,
-        signatureHash: hash,
-        title,
-        columns,
-        sources,
-        totalRows,
-        recognizedStageId,
+        ...provisional,
+        recognitionConfidence: scored?.confidence ?? null,
+        recognitionBasis: scored?.basis ?? null,
       });
     });
   }

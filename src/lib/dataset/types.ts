@@ -21,6 +21,9 @@ export interface Dataset {
   /** Known Disposafe stage this dataset was recognized as (labeling only —
    *  never triggers auto-ingestion), or null when unrecognized. */
   recognizedStageId: string | null;
+  /** Confidence behind recognizedStageId; null when recognizedStageId is null. */
+  recognitionConfidence: number | null;
+  recognitionBasis: "alias" | "heuristic" | null;
 }
 
 /** A profiled table ready to be grouped. */

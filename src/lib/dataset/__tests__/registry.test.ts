@@ -1,6 +1,8 @@
 import { groupIntoDatasets } from "../registry";
+import { normalizeAliasKey } from "../recognize";
 import type { ProfiledTableInput } from "../types";
 import type { SchemaSignature } from "@/lib/schema/types";
+import type { StageAlias } from "@/lib/store/types";
 
 const sig = (hash: string): SchemaSignature => ({
   hash,
@@ -44,5 +46,31 @@ describe("groupIntoDatasets", () => {
     const ds = groupIntoDatasets([a, b]);
     expect(ds).toHaveLength(2);
     expect(new Set(ds.map((d) => d.id)).size).toBe(2); // ids must differ despite the same hash
+  });
+});
+
+describe("groupIntoDatasets — recognition confidence", () => {
+  it("attaches heuristic confidence when a stage is recognized without an alias", () => {
+    const datasets = groupIntoDatasets([input("apr.xlsx", "VISUAL", "aaaa", 10)]);
+    const visual = datasets.find((d) => d.recognizedStageId === "visual");
+    expect(visual?.recognitionConfidence).toBe(0.9);
+    expect(visual?.recognitionBasis).toBe("heuristic");
+  });
+
+  it("leaves recognitionConfidence null for unrecognized datasets", () => {
+    const datasets = groupIntoDatasets([input("misc.xlsx", "MISC", "cccc", 5)]);
+    const unrecognized = datasets.find((d) => d.recognizedStageId === null);
+    expect(unrecognized?.recognitionConfidence).toBeNull();
+    expect(unrecognized?.recognitionBasis).toBeNull();
+  });
+
+  it("prefers alias confidence when a stageAliases map is passed", () => {
+    const aliases: Record<string, StageAlias> = {
+      [normalizeAliasKey("Visual QC")]: { stageId: "visual", confidence: 0.97, basis: "alias", learnedAt: "2026-07-10T00:00:00.000Z" },
+    };
+    const datasets = groupIntoDatasets([input("apr.xlsx", "Visual QC", "dddd", 10)], aliases);
+    const visual = datasets.find((d) => d.recognizedStageId === "visual");
+    expect(visual?.recognitionConfidence).toBe(0.97);
+    expect(visual?.recognitionBasis).toBe("alias");
   });
 });
