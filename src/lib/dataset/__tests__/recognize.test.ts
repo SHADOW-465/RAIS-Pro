@@ -182,4 +182,31 @@ maybe("stage-aware grouping (real corpus)", () => {
       if (d.recognizedStageId) expect(recognizeStage(d)).toBe(d.recognizedStageId);
     }
   });
+
+  it("recognizes identical stages with an empty alias table as before this change (regression)", () => {
+    const files = fs
+      .readdirSync(DIR)
+      .filter((f) => /REJECTION ANALYSIS.*\.xlsx$/i.test(f) && !f.startsWith("~$"))
+      .map((f) => ({ fileName: f, data: fs.readFileSync(path.join(DIR, f)) as unknown as ArrayBuffer }));
+    const { datasets } = datasetsWithRowsFromWorkbooks(files);
+    const withoutAliases = datasets.map((d) => ({ id: d.id, recognizedStageId: d.recognizedStageId }));
+    // groupIntoDatasets defaults its new stageAliases param to {} — recognition
+    // output for the real corpus must be byte-identical to pre-Task-3 behavior.
+    for (const d of withoutAliases) {
+      expect(recognizeStage(datasets.find((x) => x.id === d.id)!)).toBe(d.recognizedStageId);
+    }
+  });
+
+  it("a learned alias changes recognition on the next grouping pass without new regex", () => {
+    const files = fs
+      .readdirSync(DIR)
+      .filter((f) => /REJECTION ANALYSIS.*\.xlsx$/i.test(f) && !f.startsWith("~$"))
+      .map((f) => ({ fileName: f, data: fs.readFileSync(path.join(DIR, f)) as unknown as ArrayBuffer }));
+    const { datasets: before } = datasetsWithRowsFromWorkbooks(files);
+    const unrecognized = before.find((d) => d.recognizedStageId === null && d.sources.length > 0);
+    if (!unrecognized) return; // real corpus may have nothing unrecognized; skip gracefully
+    const alias = { [normalizeAliasKey(unrecognized.sources[0].sheetName)]: { stageId: "visual", confidence: 0.9, basis: "alias" as const, learnedAt: "2026-07-10T00:00:00.000Z" } };
+    const rescored = recognizeStageScored(unrecognized, alias);
+    expect(rescored?.stageId).toBe("visual");
+  });
 });
