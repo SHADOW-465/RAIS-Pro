@@ -165,7 +165,8 @@ export class MemoryRegistryStore implements RegistryStore {
   }
 
   async get(presetId: string): Promise<RegistryRow | null> {
-    return this.byId.get(presetId) ?? null;
+    const row = this.byId.get(presetId) ?? null;
+    return row ? { ...row, stageAliases: row.stageAliases ?? {} } : null;
   }
 
   async first(): Promise<RegistryRow | null> {

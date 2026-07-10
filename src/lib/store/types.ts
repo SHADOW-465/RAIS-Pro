@@ -67,6 +67,13 @@ export interface RegistryPresetSummary {
  *  workbook (extractSchemaFromWorkbook), never the hardcoded DISPOSAFE_REGISTRY.
  *  `stages`/`defects`/`sizes` are loosely typed (`any[]`) because registries are
  *  user-defined and vary per preset. */
+export interface StageAlias {
+  stageId: string;
+  confidence: number;
+  basis: "alias";
+  learnedAt: string; // ISO datetime
+}
+
 export interface RegistryRow {
   presetId: string;
   name: string;
@@ -76,6 +83,8 @@ export interface RegistryRow {
   stages: any[];
   defects: any[];
   sizes: any[];
+  /** Company-learned sheet/file-name -> stage mappings, keyed by normalizeAliasKey(). */
+  stageAliases: Record<string, StageAlias>;
 }
 
 export interface RegistryStore {

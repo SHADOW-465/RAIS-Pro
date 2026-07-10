@@ -352,6 +352,7 @@ function toRegistryRow(data: any): RegistryRow {
   const rawStages = typeof data.stages === "string" ? JSON.parse(data.stages) : data.stages;
   const rawDefects = typeof data.defects === "string" ? JSON.parse(data.defects) : data.defects;
   const rawSizes = typeof data.sizes === "string" ? JSON.parse(data.sizes) : data.sizes;
+  const rawAliases = typeof data.stage_aliases === "string" ? JSON.parse(data.stage_aliases) : data.stage_aliases;
   return {
     presetId: data.client_id,
     name: data.name || data.client_id,
@@ -361,6 +362,7 @@ function toRegistryRow(data: any): RegistryRow {
     stages: rawStages || [],
     defects: rawDefects || [],
     sizes: rawSizes || [],
+    stageAliases: rawAliases || {},
   };
 }
 
@@ -398,6 +400,7 @@ export class SupabaseRegistryStore implements RegistryStore {
       stages: row.stages,
       defects: row.defects,
       sizes: row.sizes,
+      stage_aliases: row.stageAliases ?? {},
     };
     if (row.name) dbRow.name = row.name;
     if (row.createdFromFilename) dbRow.created_from_filename = row.createdFromFilename;

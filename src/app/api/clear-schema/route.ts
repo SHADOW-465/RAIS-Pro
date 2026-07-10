@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
       stages: DISPOSAFE_REGISTRY.stages,
       defects: DISPOSAFE_REGISTRY.defects,
       sizes: DISPOSAFE_REGISTRY.sizes,
+      stageAliases: {},
     });
 
     return NextResponse.json({ success: true, cleared: true, registry: DISPOSAFE_REGISTRY });

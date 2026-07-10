@@ -147,6 +147,7 @@ export async function POST(req: NextRequest) {
       stages,
       defects,
       sizes,
+      stageAliases: {},
     });
 
     return NextResponse.json({
