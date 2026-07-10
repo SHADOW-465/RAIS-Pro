@@ -1,24 +1,25 @@
 // src/app/api/clear-schema/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getStores } from "@/lib/store";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 
 export async function POST(req: NextRequest) {
   try {
-    const db = createServerClient();
+    const { registries } = getStores();
     const presetId = req.nextUrl.searchParams.get("presetId") || "disposafe";
 
     // Reset only the targeted preset's stages/defects to defaults — other
     // presets are untouched.
-    const { error } = await db.from("registries").upsert({
-      client_id: presetId,
-      registry_version: "1.0.0",
-      fiscal_year_start_month: 4,
+    await registries.upsert({
+      presetId,
+      name: presetId,
+      createdFromFilename: null,
+      registryVersion: "1.0.0",
+      fiscalYearStartMonth: 4,
       stages: DISPOSAFE_REGISTRY.stages,
       defects: DISPOSAFE_REGISTRY.defects,
-    }, { onConflict: "client_id" });
-
-    if (error) throw error;
+      sizes: DISPOSAFE_REGISTRY.sizes,
+    });
 
     return NextResponse.json({ success: true, cleared: true, registry: DISPOSAFE_REGISTRY });
   } catch (err: any) {

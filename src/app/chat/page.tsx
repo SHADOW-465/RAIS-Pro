@@ -5,6 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
+import { useRegistry } from "@/components/app/RegistryContext";
+import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import InsightSlide from "@/components/InsightSlide";
 import type { DashboardConfig, InsightSlide as InsightSlideType } from "@/types/dashboard";
 import type { Event } from "@/lib/store/types";
@@ -55,6 +57,8 @@ function ChatContent() {
 
   const { events: contextEvents } = useEvents();
   const events = useMemo(() => contextEvents ?? [], [contextEvents]);
+  const { registry } = useRegistry();
+  const activeRegistry = registry || DISPOSAFE_REGISTRY;
 
   const threadEndRef = useRef<HTMLDivElement>(null);
 
@@ -62,13 +66,13 @@ function ChatContent() {
   useEffect(() => {
     if (events.length > 0) {
       const scope = { grain: "month" as const };
-      const rate = rejectionRate(events, scope).value;
+      const rate = rejectionRate(events, scope, activeRegistry).value;
       const rejected = totalRejected(events, scope).value;
-      const checked = totalChecked(events, scope).value;
-      const fpyVal = fpy(events, scope).value;
-      const stages = byStage(events, scope);
-      const defects = byDefect(events, scope);
-      const tr = trend(events, scope, "rejectionRate");
+      const checked = totalChecked(events, scope, activeRegistry).value;
+      const fpyVal = fpy(events, scope, activeRegistry).value;
+      const stages = byStage(events, scope, activeRegistry);
+      const defects = byDefect(events, scope, activeRegistry);
+      const tr = trend(events, scope, "rejectionRate", activeRegistry);
       const copqRes = copq(events, scope);
       const savings = savingsOpportunity(events, scope);
       const trust = trustScore(events, scope);
@@ -109,7 +113,7 @@ function ChatContent() {
       setActiveConfig(computedConfig);
       setActiveSummary(JSON.stringify(computedConfig.insights));
     }
-  }, [events]);
+  }, [events, activeRegistry]);
 
   // Scroll to bottom
   const scrollToBottom = () => {

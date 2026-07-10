@@ -8,8 +8,9 @@ import {
   MemoryEventStore,
   MemoryFindingStore,
   MemoryRulebookStore,
+  MemoryRegistryStore,
 } from "./memory";
-import type { EventStore, FindingStore, RulebookStore } from "./types";
+import type { EventStore, FindingStore, RulebookStore, RegistryStore } from "./types";
 import { parseWorkbookBuffer } from "../parser";
 import { classifyRejectionSheets, toISODate } from "../ingest/from-rejection-sheets";
 import { emitMany } from "../ingest/emit";
@@ -18,6 +19,7 @@ export interface Stores {
   events: EventStore;
   findings: FindingStore;
   rulebook: RulebookStore;
+  registries: RegistryStore;
   backend: "supabase" | "memory";
 }
 
@@ -45,6 +47,7 @@ export function getStores(): Stores {
       SupabaseEventStore,
       SupabaseRulebookStore,
       SupabaseFindingStore,
+      SupabaseRegistryStore,
     } = require("./supabase") as typeof import("./supabase");
     const rulebook = new SupabaseRulebookStore();
     const events = new SupabaseEventStore();
@@ -52,6 +55,7 @@ export function getStores(): Stores {
       events,
       rulebook,
       findings: new SupabaseFindingStore(rulebook),
+      registries: new SupabaseRegistryStore(),
       backend: "supabase",
     };
     seedStore(events);
@@ -62,6 +66,7 @@ export function getStores(): Stores {
       events,
       rulebook,
       findings: new MemoryFindingStore(rulebook),
+      registries: new MemoryRegistryStore(),
       backend: "memory",
     };
     seedStore(events);

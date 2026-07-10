@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import { useEvents } from "@/components/app/EventsContext";
+import { useRegistry } from "@/components/app/RegistryContext";
+import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import Icon from "@/components/editorial/Icon";
 import {
   rejectionRate,
@@ -347,6 +349,8 @@ function GlobalDefectMatrix({
 
 export default function ReportsPage() {
   const { events: contextEvents, isLoading } = useEvents();
+  const { registry } = useRegistry();
+  const activeRegistry = registry || DISPOSAFE_REGISTRY;
   const events = contextEvents ?? [];
   const [fingerprint, setFingerprint] = useState("");
 
@@ -377,10 +381,10 @@ export default function ReportsPage() {
   const m = useMemo(() => {
     if (events.length === 0) return null;
     const scope = { grain: "month" as const };
-    const rateVal = rejectionRate(events, scope).value;
+    const rateVal = rejectionRate(events, scope, activeRegistry).value;
     const rejectedVal = totalRejected(events, scope).value;
-    const checkedVal = totalChecked(events, scope).value;
-    const fpyVal = fpy(events, scope).value;
+    const checkedVal = totalChecked(events, scope, activeRegistry).value;
+    const fpyVal = fpy(events, scope, activeRegistry).value;
     const trust = trustScore(events, scope);
 
     // Extract window date boundaries
@@ -561,7 +565,7 @@ export default function ReportsPage() {
       sizeDefectMatrix,
       correctionsLog
     };
-  }, [events]);
+  }, [events, activeRegistry]);
 
   const verificationToken = fingerprint ? fingerprint.substring(0, 16) + "-SECURE-PKG" : "PENDING";
 

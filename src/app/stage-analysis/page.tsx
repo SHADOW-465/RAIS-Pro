@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
+import { useRegistry } from "@/components/app/RegistryContext";
 import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
@@ -61,6 +62,8 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
 export default function StageAnalysisPage() {
   const { t } = useTweaks();
   const { events: contextEvents, isLoading } = useEvents();
+  const { registry } = useRegistry();
+  const activeRegistry = registry || DISPOSAFE_REGISTRY;
   const events = contextEvents ? (contextEvents as any[]) : null;
   const [targetRej, setTargetRej] = useState(0.10);
   const [modalOpen, setModalOpen] = useState(false);
@@ -121,12 +124,12 @@ export default function StageAnalysisPage() {
     const allPeriods = periodsIn(events, t.grain);
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
-    const rate = rejectionRate(events, scope).value;
-    const stages = byStage(events, scope);
+    const rate = rejectionRate(events, scope, activeRegistry).value;
+    const stages = byStage(events, scope, activeRegistry);
     const order = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
     const orderedStages = [...stages].sort((a, b) => order.indexOf(a.stageId) - order.indexOf(b.stageId));
-    const tr = trend(events, scope, "rejectionRate");
-    const st = stageTrend(events, scope);
+    const tr = trend(events, scope, "rejectionRate", activeRegistry);
+    const st = stageTrend(events, scope, activeRegistry);
 
     return {
       rate,
@@ -135,7 +138,7 @@ export default function StageAnalysisPage() {
       stageTrend: st,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
-  }, [events, scope, t.grain]);
+  }, [events, scope, t.grain, activeRegistry]);
 
   return (
     <AppShell active="stage" dateRange={m?.latestPeriodLabel}>
@@ -185,8 +188,8 @@ export default function StageAnalysisPage() {
               {hasLeft && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
                   {m.stageTrend.length > 0 && (
-                    <Card title={`Stage-wise Rejection Trend (${grainLabel})`} onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Visual Inspection continues to drive the highest defect volume, followed by Valve Integrity and Balloon Inspection.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.stageTrend} stages={DISPOSAFE_REGISTRY.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
-                      <MultiLine data={m.stageTrend} stages={DISPOSAFE_REGISTRY.stages} />
+                    <Card title={`Stage-wise Rejection Trend (${grainLabel})`} onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Visual Inspection continues to drive the highest defect volume, followed by Valve Integrity and Balloon Inspection.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.stageTrend} stages={activeRegistry.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+                      <MultiLine data={m.stageTrend} stages={activeRegistry.stages} />
                     </Card>
                   )}
 

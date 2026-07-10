@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
+import { useRegistry } from "@/components/app/RegistryContext";
 import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
@@ -59,6 +60,8 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
 export default function SizeAnalysisPage() {
   const { t } = useTweaks();
   const { events: contextEvents, isLoading } = useEvents();
+  const { registry } = useRegistry();
+  const activeRegistry = registry || DISPOSAFE_REGISTRY;
   const events = contextEvents ? (contextEvents as any[]) : null;
   const [selectedSize, setSelectedSize] = useState("Fr16");
   const [modalOpen, setModalOpen] = useState(false);
@@ -123,7 +126,7 @@ export default function SizeAnalysisPage() {
     // Pivot sizes for Heatmap
     // rows = top defects, cols = sizes, matrix = 2D array
     const activeSizes = ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"];
-    const defects = byDefect(events, scope);
+    const defects = byDefect(events, scope, activeRegistry);
     const topDefectLabels = defects.slice(0, 8).map(d => d.label);
 
     const heatMatrix = topDefectLabels.map(def => {
@@ -146,7 +149,7 @@ export default function SizeAnalysisPage() {
       heatMatrix,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
-  }, [events, scope, t.grain, selectedSize]);
+  }, [events, scope, t.grain, selectedSize, activeRegistry]);
 
   // Synchronize selected size with the available sizes dataset
   useEffect(() => {

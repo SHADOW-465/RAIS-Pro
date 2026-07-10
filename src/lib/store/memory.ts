@@ -6,6 +6,9 @@ import type {
   EventStore,
   FindingStore,
   RulebookStore,
+  RegistryStore,
+  RegistryRow,
+  RegistryPresetSummary,
   Event,
   EventFilter,
   FindingT,
@@ -144,6 +147,49 @@ export class MemoryFindingStore implements FindingStore {
       (a, b) =>
         sev[a.severity] - sev[b.severity] ||
         (b.evidence.magnitude ?? 0) - (a.evidence.magnitude ?? 0)
+    );
+  }
+}
+
+/** Data Entry schema presets, in-memory. Order of creation is preserved
+ *  (an insertion counter, not a timestamp) so `first()` — the "no presetId
+ *  given" default every page falls back to — is deterministic across a test
+ *  run even when two presets are created within the same millisecond. */
+export class MemoryRegistryStore implements RegistryStore {
+  private byId = new Map<string, RegistryRow>();
+  private order = new Map<string, number>();
+  private counter = 0;
+
+  async list(): Promise<RegistryPresetSummary[]> {
+    return this.sortedRows().map((r) => ({ presetId: r.presetId, name: r.name, stageCount: r.stages.length }));
+  }
+
+  async get(presetId: string): Promise<RegistryRow | null> {
+    return this.byId.get(presetId) ?? null;
+  }
+
+  async first(): Promise<RegistryRow | null> {
+    return this.sortedRows()[0] ?? null;
+  }
+
+  async upsert(row: RegistryRow): Promise<void> {
+    if (!this.order.has(row.presetId)) this.order.set(row.presetId, this.counter++);
+    this.byId.set(row.presetId, row);
+  }
+
+  async rename(presetId: string, name: string): Promise<void> {
+    const row = this.byId.get(presetId);
+    if (row) this.byId.set(presetId, { ...row, name });
+  }
+
+  async delete(presetId: string): Promise<void> {
+    this.byId.delete(presetId);
+    this.order.delete(presetId);
+  }
+
+  private sortedRows(): RegistryRow[] {
+    return Array.from(this.byId.values()).sort(
+      (a, b) => (this.order.get(a.presetId) ?? 0) - (this.order.get(b.presetId) ?? 0)
     );
   }
 }

@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
+import { useRegistry } from "@/components/app/RegistryContext";
+import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import {
@@ -57,6 +59,8 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
 export default function DefectAnalysisPage() {
   const { t } = useTweaks();
   const { events: contextEvents, isLoading } = useEvents();
+  const { registry } = useRegistry();
+  const activeRegistry = registry || DISPOSAFE_REGISTRY;
   const events = contextEvents ? (contextEvents as any[]) : null;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -114,15 +118,15 @@ export default function DefectAnalysisPage() {
     const allPeriods = periodsIn(events, t.grain);
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
-    const defects = byDefect(events, scope);
-    const trend = defectTrend(events, scope);
+    const defects = byDefect(events, scope, activeRegistry);
+    const trend = defectTrend(events, scope, 5, activeRegistry);
 
     return {
       defects,
       defectTrend: trend,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
-  }, [events, scope, t.grain]);
+  }, [events, scope, t.grain, activeRegistry]);
 
   const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
 

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import { useEvents } from "@/components/app/EventsContext";
+import { useRegistry } from "@/components/app/RegistryContext";
 import Icon from "@/components/editorial/Icon";
 import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
@@ -95,6 +96,8 @@ export default function Dashboard() {
   const router = useRouter();
   const { t } = useTweaks();
   const { events, isLoading } = useEvents();
+  const { registry } = useRegistry();
+  const activeRegistry = registry || DISPOSAFE_REGISTRY;
   const [selectedSize, setSelectedSize] = useState("Fr16");
   const [targetRej, setTargetRej] = useState<number>(0.03);
   const [modalOpen, setModalOpen] = useState(false);
@@ -174,30 +177,30 @@ export default function Dashboard() {
     // Headline metrics aggregate over the SELECTED date range (scope). Grain only
     // controls trend bucketing below — so changing the date range moves every tile,
     // and weekly/daily views are never empty just because the latest period is sparse.
-    const rate = rejectionRate(events, scope).value;
+    const rate = rejectionRate(events, scope, activeRegistry).value;
     const rejected = totalRejected(events, scope).value;
-    const checked = totalChecked(events, scope).value;
-    const fpyVal = fpy(events, scope).value;
-    const stages = byStage(events, scope);
-    const defects = byDefect(events, scope);
-    
+    const checked = totalChecked(events, scope, activeRegistry).value;
+    const fpyVal = fpy(events, scope, activeRegistry).value;
+    const stages = byStage(events, scope, activeRegistry);
+    const defects = byDefect(events, scope, activeRegistry);
+
     // Ensure all 5 stages from mockup are mapped correctly (Visual, Eye Punching, Balloon, Valve, Final)
     const order = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
     const orderedStages = [...stages].sort((a, b) => order.indexOf(a.stageId) - order.indexOf(b.stageId));
 
-    const tr = trend(events, trendScope, "rejectionRate");
-    const st = stageTrend(events, trendScope);
+    const tr = trend(events, trendScope, "rejectionRate", activeRegistry);
+    const st = stageTrend(events, trendScope, activeRegistry);
     // Cumulative-by-stage trend (stations + additive Total) and the single Total
     // line that matches the workbook's "REJECTION TRENDS" chart.
-    const cumTrend = cumulativeStageTrend(events, trendScope);
+    const cumTrend = cumulativeStageTrend(events, trendScope, activeRegistry);
     const totalTrend = cumTrend.map((p) => ({ period: p.period, label: p.label, value: p.perStage[CUM_TOTAL_KEY] ?? 0 }));
     // Every stage that has data anywhere — keeps the station tabs stable/discoverable
     // even when the selected date range is sparse for some stations.
     const order2 = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
-    const stagesAll = [...byStage(events, { grain: t.grain })].sort((a, b) => order2.indexOf(a.stageId) - order2.indexOf(b.stageId));
-    const dt = defectTrend(events, trendScope, 5);
+    const stagesAll = [...byStage(events, { grain: t.grain }, activeRegistry)].sort((a, b) => order2.indexOf(a.stageId) - order2.indexOf(b.stageId));
+    const dt = defectTrend(events, trendScope, 5, activeRegistry);
     const sizes = bySize(events, scope);
-    
+
     // Sort sizes numerically: Fr10, Fr12, Fr14, Fr16, Fr18
     const orderedSizes = [...sizes].sort((a, b) => {
       const an = parseInt(a.size.replace(/\D/g, ""), 10);
@@ -205,8 +208,8 @@ export default function Dashboard() {
       return an - bn;
     });
 
-    const stageSize = stageBySize(events, scope);
-    const weekly = weeklyTrend(events, trendScope);
+    const stageSize = stageBySize(events, scope, activeRegistry);
+    const weekly = weeklyTrend(events, trendScope, activeRegistry);
     const copqRes = copq(events, scope);
     const savings = savingsOpportunity(events, scope);
     const trust = trustScore(events, scope);
@@ -256,7 +259,7 @@ export default function Dashboard() {
       trendScope,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
-  }, [events, scope, t.grain, selectedSize]);
+  }, [events, scope, t.grain, selectedSize, activeRegistry]);
 
   // The active view is the GLOBAL stage scope from the header (TweaksContext).
   const activeView = t.stageView;
@@ -433,8 +436,8 @@ export default function Dashboard() {
 
   const getDefectRejRate = (defect: any) => {
     if (!m) return 0;
-    const regDef = DISPOSAFE_REGISTRY.defects.find(
-      (d) => d.label === defect.label || d.defectCode === defect.defectCode
+    const regDef = activeRegistry.defects.find(
+      (d: any) => d.label === defect.label || d.defectCode === defect.defectCode
     );
     const stagesList = regDef?.stages ?? [];
     let checkedSum = 0;
@@ -566,6 +569,7 @@ export default function Dashboard() {
                 targetRej={targetRej}
                 openModal={openModal}
                 srcRows={srcRows}
+                registry={activeRegistry}
               />
             )
           ) : (
@@ -1136,7 +1140,7 @@ function BriefRow({ label, value }: { label: string; value: string }) {
 /** A single inspection station, scoped to the selected date range — KPIs, daily-%
  *  trend, and (when present) its defect Pareto. Mirrors a station sheet in the
  *  workbook; all numbers recomputed from raw counts via the shared selectors. */
-function StationView({ events, stageId, label, scope, trendScope, grainLabel, targetRej, openModal, srcRows }: {
+function StationView({ events, stageId, label, scope, trendScope, grainLabel, targetRej, openModal, srcRows, registry }: {
   events: Event[];
   stageId: string;
   label: string;
@@ -1146,19 +1150,20 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
   targetRej: number;
   openModal: (title: string, insight: string | string[], content: React.ReactNode, source?: { rows: SourceRow[]; value: string }) => void;
   srcRows: (filter?: { stageId?: string; defectCode?: string; size?: string; types?: string[] }) => SourceRow[];
+  registry: typeof DISPOSAFE_REGISTRY;
 }) {
   const d = useMemo(() => {
     const snap: Scope = { ...scope, stageIds: [stageId] };
     const tr: Scope = { ...trendScope, stageIds: [stageId] };
     return {
-      rate: rejectionRate(events, snap).value,
-      checked: totalChecked(events, snap).value,
+      rate: rejectionRate(events, snap, registry).value,
+      checked: totalChecked(events, snap, registry).value,
       rejected: totalRejected(events, snap).value,
-      fpy: fpy(events, snap).value,
-      trend: trend(events, tr, "rejectionRate"),
-      defects: byDefect(events, snap),
+      fpy: fpy(events, snap, registry).value,
+      trend: trend(events, tr, "rejectionRate", registry),
+      defects: byDefect(events, snap, registry),
     };
-  }, [events, stageId, scope, trendScope]);
+  }, [events, stageId, scope, trendScope, registry]);
 
   if (d.checked === 0 && d.rejected === 0) {
     return <Empty label={`No ${label} data in the selected date range — widen the range (top bar) or pick a period that has ${label} data (e.g. the month its workbook covers).`} />;

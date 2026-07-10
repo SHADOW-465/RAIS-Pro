@@ -7,6 +7,9 @@ import type {
   EventStore,
   FindingStore,
   RulebookStore,
+  RegistryStore,
+  RegistryRow,
+  RegistryPresetSummary,
   Event,
   EventFilter,
   FindingT,
@@ -335,5 +338,92 @@ export class SupabaseRulebookStore implements RulebookStore {
       ingestionId: r.ingestion_id,
       appliedAt: r.applied_at,
     }));
+  }
+}
+
+function sortRegistryRows(rows: any[]): any[] {
+  return [...rows].sort((a, b) => {
+    if (a.created_at && b.created_at) return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    return (a.client_id || "").localeCompare(b.client_id || "");
+  });
+}
+
+function toRegistryRow(data: any): RegistryRow {
+  const rawStages = typeof data.stages === "string" ? JSON.parse(data.stages) : data.stages;
+  const rawDefects = typeof data.defects === "string" ? JSON.parse(data.defects) : data.defects;
+  const rawSizes = typeof data.sizes === "string" ? JSON.parse(data.sizes) : data.sizes;
+  return {
+    presetId: data.client_id,
+    name: data.name || data.client_id,
+    createdFromFilename: data.created_from_filename || null,
+    registryVersion: data.registry_version,
+    fiscalYearStartMonth: data.fiscal_year_start_month,
+    stages: rawStages || [],
+    defects: rawDefects || [],
+    sizes: rawSizes || [],
+  };
+}
+
+export class SupabaseRegistryStore implements RegistryStore {
+  private get client() {
+    return createServerClient();
+  }
+
+  async list(): Promise<RegistryPresetSummary[]> {
+    const { data, error } = await this.client.from("registries").select("*");
+    if (error) throw error;
+    return sortRegistryRows(data || []).map((r: any) => ({
+      presetId: r.client_id, name: r.name || r.client_id, stageCount: (r.stages || []).length,
+    }));
+  }
+
+  async get(presetId: string): Promise<RegistryRow | null> {
+    const { data, error } = await this.client.from("registries").select("*").eq("client_id", presetId).maybeSingle();
+    if (error) throw error;
+    return data ? toRegistryRow(data) : null;
+  }
+
+  async first(): Promise<RegistryRow | null> {
+    const { data, error } = await this.client.from("registries").select("*");
+    if (error) throw error;
+    const sorted = sortRegistryRows(data || []);
+    return sorted[0] ? toRegistryRow(sorted[0]) : null;
+  }
+
+  async upsert(row: RegistryRow): Promise<void> {
+    const dbRow: Record<string, any> = {
+      client_id: row.presetId,
+      registry_version: row.registryVersion,
+      fiscal_year_start_month: row.fiscalYearStartMonth,
+      stages: row.stages,
+      defects: row.defects,
+      sizes: row.sizes,
+    };
+    if (row.name) dbRow.name = row.name;
+    if (row.createdFromFilename) dbRow.created_from_filename = row.createdFromFilename;
+
+    const { error } = await this.client.from("registries").upsert(dbRow, { onConflict: "client_id" });
+    if (!error) return;
+
+    // Fallback: migration not pushed to remote DB yet, so name/created_from_filename
+    // columns may not exist. Retry without them rather than failing the save.
+    const isColErr = error.message.includes("column") && error.message.includes("does not exist");
+    if (!isColErr) throw error;
+    const fallbackRow = {
+      client_id: row.presetId, registry_version: row.registryVersion,
+      fiscal_year_start_month: row.fiscalYearStartMonth, stages: row.stages, defects: row.defects, sizes: row.sizes,
+    };
+    const { error: fallbackError } = await this.client.from("registries").upsert(fallbackRow, { onConflict: "client_id" });
+    if (fallbackError) throw fallbackError;
+  }
+
+  async rename(presetId: string, name: string): Promise<void> {
+    const { error } = await this.client.from("registries").update({ name }).eq("client_id", presetId);
+    if (error) throw error;
+  }
+
+  async delete(presetId: string): Promise<void> {
+    const { error } = await this.client.from("registries").delete().eq("client_id", presetId);
+    if (error) throw error;
   }
 }

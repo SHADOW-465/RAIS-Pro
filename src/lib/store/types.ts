@@ -56,3 +56,34 @@ export interface RulebookStore {
   recordApplication(app: RuleApplicationT): Promise<void>;
   applicationsFor(findingId: string): Promise<RuleApplicationT[]>;
 }
+
+export interface RegistryPresetSummary {
+  presetId: string;
+  name: string;
+  stageCount: number;
+}
+
+/** A saved Data Entry schema preset — dynamically derived from an uploaded
+ *  workbook (extractSchemaFromWorkbook), never the hardcoded DISPOSAFE_REGISTRY.
+ *  `stages`/`defects`/`sizes` are loosely typed (`any[]`) because registries are
+ *  user-defined and vary per preset. */
+export interface RegistryRow {
+  presetId: string;
+  name: string;
+  createdFromFilename: string | null;
+  registryVersion: string;
+  fiscalYearStartMonth: number;
+  stages: any[];
+  defects: any[];
+  sizes: any[];
+}
+
+export interface RegistryStore {
+  list(): Promise<RegistryPresetSummary[]>;
+  get(presetId: string): Promise<RegistryRow | null>;
+  /** Oldest saved preset — the "no presetId given" default every caller uses. */
+  first(): Promise<RegistryRow | null>;
+  upsert(row: RegistryRow): Promise<void>;
+  rename(presetId: string, name: string): Promise<void>;
+  delete(presetId: string): Promise<void>;
+}

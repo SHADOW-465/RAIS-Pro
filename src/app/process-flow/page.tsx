@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
+import { useRegistry } from "@/components/app/RegistryContext";
+import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import FloatingDetailModal from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
@@ -25,6 +27,8 @@ import type { StageRow } from "@/lib/analytics";
 export default function ProcessFlowPage() {
   const { t } = useTweaks();
   const { events: contextEvents, isLoading } = useEvents();
+  const { registry } = useRegistry();
+  const activeRegistry = registry || DISPOSAFE_REGISTRY;
   const events = contextEvents ? (contextEvents as any[]) : null;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -49,7 +53,7 @@ export default function ProcessFlowPage() {
     const allPeriods = periodsIn(events, t.grain);
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
-    const stages = byStage(events, scope);
+    const stages = byStage(events, scope, activeRegistry);
     const order = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
     const orderedStages = [...stages].sort((a, b) => order.indexOf(a.stageId) - order.indexOf(b.stageId));
 
@@ -57,7 +61,7 @@ export default function ProcessFlowPage() {
       stages: orderedStages,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
-  }, [events, scope, t.grain]);
+  }, [events, scope, t.grain, activeRegistry]);
 
   return (
     <AppShell active="process-flow" dateRange={m?.latestPeriodLabel}>

@@ -138,11 +138,11 @@ export function byStage(events: Event[], scope: Scope, registry: Registry = DISP
 
 export interface SeriesPoint { period: string; label: string; value: number; rejected?: number; checked?: number }
 
-type MetricFn = (events: Event[], scope: Scope) => MetricValue;
+type MetricFn = (events: Event[], scope: Scope, registry?: Registry) => MetricValue;
 const METRICS: Record<string, MetricFn> = { rejectionRate, totalRejected, totalChecked, fpy };
 
 /** A metric bucketed over time by scope.grain. */
-export function trend(events: Event[], scope: Scope, metric: keyof typeof METRICS = "rejectionRate"): SeriesPoint[] {
+export function trend(events: Event[], scope: Scope, metric: keyof typeof METRICS = "rejectionRate", registry: Registry = DISPOSAFE_REGISTRY): SeriesPoint[] {
   const ev = scopeEvents(events, scope);
   const fn = METRICS[metric];
   const periods = periodsIn(ev, scope.grain, { from: scope.dateFrom, to: scope.dateTo });
@@ -153,9 +153,9 @@ export function trend(events: Event[], scope: Scope, metric: keyof typeof METRIC
     return {
       period: p,
       label: periodLabel(p),
-      value: fn(bucket, sub).value,
+      value: fn(bucket, sub, registry).value,
       rejected: totalRejected(bucket, sub).value,
-      checked: totalChecked(bucket, sub).value,
+      checked: totalChecked(bucket, sub, registry).value,
     };
   });
 }
@@ -180,8 +180,8 @@ export function stageTrend(events: Event[], scope: Scope, registry: Registry = D
 }
 
 /** Weekly rejection-rate trend within the scoped window (week-of-month). */
-export function weeklyTrend(events: Event[], scope: Scope): SeriesPoint[] {
-  return trend(events, { ...scope, grain: "week" }, "rejectionRate");
+export function weeklyTrend(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): SeriesPoint[] {
+  return trend(events, { ...scope, grain: "week" }, "rejectionRate", registry);
 }
 
 /** Series key for the additive cumulative-total line in `cumulativeStageTrend`. */

@@ -1,18 +1,25 @@
 // src/app/api/schema/route.ts
 //
-// registries.client_id is reused as the preset identity (see
-// 20260708_registry_presets.sql) — each row is one independently reusable
-// Data Entry preset, never merged/overwritten across presets. Callers pick
-// a preset explicitly:
+// A "preset" is one independently reusable Data Entry registry, never merged/
+// overwritten across presets. Callers pick a preset explicitly:
 //   GET  /api/schema               -> list all presets (summary)
 //   GET  /api/schema?presetId=X    -> one preset's full registry
+//   GET  /api/schema?list=true     -> preset list (same as no-presetId list mode)
 //   POST /api/schema {name, registry}            -> create a new preset
 //   POST /api/schema {presetId, registry}        -> extend an existing preset
 //   PATCH  /api/schema?presetId=X  {name}        -> rename
 //   DELETE /api/schema?presetId=X                -> delete
+//
+// Goes through the shared getStores().registries abstraction (same pattern as
+// events/findings/rulebook) so this works against the in-memory store when
+// Supabase isn't configured, instead of hard-failing — a workbook's extracted
+// schema was previously unsaveable without Supabase, silently forcing every
+// page back onto the hardcoded DISPOSAFE_REGISTRY fallback below regardless
+// of what was actually uploaded.
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { getStores } from "@/lib/store";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import type { RegistryRow } from "@/lib/store/types";
 
 function slugify(s: string): string {
   return s.toLowerCase().trim()
@@ -30,65 +37,45 @@ const DEFAULT_FIELDS = [
   { name: "Rejected Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" }
 ];
 
-function toRegistry(data: any) {
-  const rawStages = typeof data.stages === "string" ? JSON.parse(data.stages) : data.stages;
-  const enrichedStages = (rawStages || []).map((stage: any) => ({
+/** RegistryRow (persistence shape) -> the client-facing registry contract:
+ *  fills in DEFAULT_FIELDS per stage and falls back sizes to the hardcoded
+ *  list only when the preset itself didn't specify any. */
+function toClientRegistry(row: RegistryRow) {
+  const enrichedStages = (row.stages || []).map((stage: any) => ({
     ...stage,
-    fields: stage.fields || DEFAULT_FIELDS
+    fields: stage.fields || DEFAULT_FIELDS,
   }));
-  const rawDefects = typeof data.defects === "string" ? JSON.parse(data.defects) : data.defects;
-  const rawSizes = typeof data.sizes === "string" ? JSON.parse(data.sizes) : data.sizes;
   return {
-    presetId: data.client_id,
-    clientId: data.client_id,
-    name: data.name || data.client_id,
-    createdFromFilename: data.created_from_filename || null,
-    registryVersion: data.registry_version,
-    fiscalYearStartMonth: data.fiscal_year_start_month,
+    presetId: row.presetId,
+    clientId: row.presetId,
+    name: row.name,
+    createdFromFilename: row.createdFromFilename,
+    registryVersion: row.registryVersion,
+    fiscalYearStartMonth: row.fiscalYearStartMonth,
     stages: enrichedStages,
-    defects: rawDefects || [],
-    sizes: rawSizes || DISPOSAFE_REGISTRY.sizes,
+    defects: row.defects || [],
+    sizes: (row.sizes && row.sizes.length ? row.sizes : DISPOSAFE_REGISTRY.sizes),
   };
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const db = createServerClient();
+    const { registries } = getStores();
     const presetId = req.nextUrl.searchParams.get("presetId");
     const wantList = req.nextUrl.searchParams.get("list") === "true";
 
-    // Select * to be resilient to missing columns (like name/created_at) on older schemas
-    const { data, error } = await db.from("registries").select("*");
-    if (error) throw error;
-
-    const rows = data || [];
-
-    // Sort in memory: if created_at is present, order by it; otherwise fallback to client_id
-    const sortedRows = [...rows].sort((a: any, b: any) => {
-      if (a.created_at && b.created_at) {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      }
-      return (a.client_id || "").localeCompare(b.client_id || "");
-    });
-
     if (wantList) {
-      return NextResponse.json({
-        presets: sortedRows.map((r: any) => ({
-          presetId: r.client_id,
-          name: r.name || r.client_id,
-          stageCount: (r.stages || []).length,
-        })),
-      });
+      return NextResponse.json({ presets: await registries.list() });
     }
 
-    const matchedRow = presetId
-      ? rows.find((r: any) => r.client_id === presetId)
-      : sortedRows[0];
+    const matchedRow = presetId ? await registries.get(presetId) : await registries.first();
 
     if (matchedRow) {
-      return NextResponse.json({ registry: toRegistry(matchedRow), configured: true });
+      return NextResponse.json({ registry: toClientRegistry(matchedRow), configured: true });
     }
 
+    // Genuinely nothing saved yet (no preset ever created, in either backend)
+    // — the intentional v1 bootstrap default, not a failure mode.
     const defaultEnrichedStages = DISPOSAFE_REGISTRY.stages.map((stage: any) => ({
       ...stage,
       fields: stage.fields || DEFAULT_FIELDS
@@ -104,6 +91,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const { registries } = getStores();
     const body = await req.json();
     const payload = body.registry || body.schema;
     const requestedPresetId: string | undefined = body.presetId;
@@ -139,57 +127,32 @@ export async function POST(req: NextRequest) {
     const defects = payload.defects || DISPOSAFE_REGISTRY.defects;
     const sizes = payload.sizes || DISPOSAFE_REGISTRY.sizes;
 
-    const db = createServerClient();
-    let clientId = requestedPresetId;
-    if (!clientId) {
+    let presetId = requestedPresetId;
+    if (!presetId) {
       const base = slugify(name!) || "preset";
-      clientId = base;
+      presetId = base;
       let suffix = 1;
       // Guarantee uniqueness rather than colliding with an existing preset.
-      while (true) {
-        const { data: existing, error: existingError } = await db.from("registries").select("client_id").eq("client_id", clientId).maybeSingle();
-        if (existingError) throw existingError;
-        if (!existing) break;
-        clientId = `${base}-${++suffix}`;
+      while (await registries.get(presetId)) {
+        presetId = `${base}-${++suffix}`;
       }
     }
 
-    const row: Record<string, any> = {
-      client_id: clientId,
-      registry_version: "1.0.0",
-      fiscal_year_start_month: 4,
+    await registries.upsert({
+      presetId,
+      name: name || presetId,
+      createdFromFilename: createdFromFilename || null,
+      registryVersion: "1.0.0",
+      fiscalYearStartMonth: 4,
       stages,
       defects,
       sizes,
-    };
-    if (name) row.name = name;
-    if (createdFromFilename) row.created_from_filename = createdFromFilename;
-
-    let { error } = await db.from("registries").upsert(row, { onConflict: "client_id" });
-    if (error) {
-      // Fallback: If migration was not pushed to remote DB, the registries table
-      // may lack name or created_from_filename columns. Catch and retry stripping them.
-      const isColErr = error.message.includes("column") && error.message.includes("does not exist");
-      if (isColErr) {
-        const fallbackRow = {
-          client_id: clientId,
-          registry_version: "1.0.0",
-          fiscal_year_start_month: 4,
-          stages,
-          defects,
-          sizes,
-        };
-        const { error: fallbackError } = await db.from("registries").upsert(fallbackRow, { onConflict: "client_id" });
-        if (fallbackError) throw fallbackError;
-      } else {
-        throw error;
-      }
-    }
+    });
 
     return NextResponse.json({
       success: true,
       configured: true,
-      registry: { presetId: clientId, clientId, name: name || clientId, registryVersion: "1.0.0", fiscalYearStartMonth: 4, stages, defects, sizes },
+      registry: { presetId, clientId: presetId, name: name || presetId, registryVersion: "1.0.0", fiscalYearStartMonth: 4, stages, defects, sizes },
     });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? "Failed to save registry" }, { status: 500 });
@@ -198,14 +161,13 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const { registries } = getStores();
     const presetId = req.nextUrl.searchParams.get("presetId");
     if (!presetId) return NextResponse.json({ error: "presetId required" }, { status: 400 });
     const { name } = await req.json();
     if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
 
-    const db = createServerClient();
-    const { error } = await db.from("registries").update({ name }).eq("client_id", presetId);
-    if (error) throw error;
+    await registries.rename(presetId, name);
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? "Failed to rename preset" }, { status: 500 });
@@ -214,12 +176,11 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const { registries } = getStores();
     const presetId = req.nextUrl.searchParams.get("presetId");
     if (!presetId) return NextResponse.json({ error: "presetId required" }, { status: 400 });
 
-    const db = createServerClient();
-    const { error } = await db.from("registries").delete().eq("client_id", presetId);
-    if (error) throw error;
+    await registries.delete(presetId);
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? "Failed to delete preset" }, { status: 500 });
