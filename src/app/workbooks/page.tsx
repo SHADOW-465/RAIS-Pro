@@ -189,10 +189,11 @@ export default function WorkbooksPage() {
       }),
     });
     if (!res.ok) return;
-    // Locally patch so the "needs review" badge clears without a full reload.
-    setDatasets((prev) =>
-      prev?.map((d) => (d.id === datasetId ? { ...d, recognitionConfidence: 1, recognitionBasis: "alias" } : d)) ?? prev,
-    );
+    // ponytail: don't locally fake recognitionConfidence to 1 here — the alias
+    // is saved to the registry, but nothing on this upload path re-reads
+    // stageAliases into groupIntoDatasets yet (tracked follow-up), so claiming
+    // confidence improved would be inaccurate. The badge/button honestly stay
+    // as-is until the next real classification pass consults the alias.
   }
 
   async function publishToCumulative(ds: Dataset, dsRows: DatasetRow[]) {
