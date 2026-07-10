@@ -19,12 +19,11 @@ import {
   AnnotationEvent,
   Period,
   ClientRegistry,
+  ConfidenceBasis,
 } from "@/lib/contract/d1";
 import { hashEvent } from "@/lib/contract/hash";
 import { resolveDefect } from "@/lib/registry/disposafe";
 import type { Event } from "@/lib/store/types";
-
-type ConfidenceBasis = "exact" | "heuristic" | "llm" | "external-cached";
 
 /** A single value read from one source cell (Excel) or typed in a form (direct entry). */
 export interface SourcedValue {

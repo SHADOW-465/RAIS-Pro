@@ -59,6 +59,8 @@ export const ConfidenceBasis = z.enum([
   "heuristic",
   "llm",
   "external-cached",
+  "alias",
+  "fuzzy",
 ]);
 
 export const Confidence = z
@@ -69,6 +71,10 @@ export const Confidence = z
   .refine(
     (c) => c.basis !== "external-cached" || c.score <= 0.5,
     "external-cached confidence is capped at 0.5"
+  )
+  .refine(
+    (c) => c.basis !== "fuzzy" || c.score <= 0.75,
+    "fuzzy confidence is capped at 0.75"
   );
 
 const envelopeFields = {
