@@ -13,6 +13,8 @@ const dataset: Dataset = {
     { role: "defect", name: "sd" },
   ],
   sources: [{ fileName: "a.xlsx", sheetName: "VISUAL", rowCount: 2 }],
+  recognitionConfidence: null,
+  recognitionBasis: null,
   totalRows: 2,
   recognizedStageId: "visual",
 };

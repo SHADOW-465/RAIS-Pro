@@ -2,7 +2,7 @@ import { MemoryDatasetStore } from "../store-memory";
 import type { Dataset } from "../types";
 
 const ds = (id: string, totalRows = 5): Dataset => ({
-  id, signatureHash: id, title: `Dataset ${id}`, columns: [], sources: [], totalRows, recognizedStageId: null,
+  id, signatureHash: id, title: `Dataset ${id}`, columns: [], sources: [], totalRows, recognizedStageId: null, recognitionConfidence: null, recognitionBasis: null,
 });
 
 describe("MemoryDatasetStore", () => {

@@ -19,6 +19,8 @@ const baseDataset = (overrides: Partial<Dataset>): Dataset => ({
   sources: [{ fileName: "01 REJECTION ANALYSIS-APRIL 2025.xlsx", sheetName: "VISUAL", rowCount: 10 }],
   totalRows: 10,
   recognizedStageId: null,
+  recognitionConfidence: null,
+  recognitionBasis: null,
   ...overrides,
 });
 

@@ -16,6 +16,8 @@ const dataset: Dataset = {
   sources: [{ fileName: "a.xlsx", sheetName: "VISUAL", rowCount: 3 }],
   totalRows: 3,
   recognizedStageId: null,
+  recognitionConfidence: null,
+  recognitionBasis: null,
 };
 
 const row = (date: string, checked: number, rejection: number, size: string, coag: number, sd: number): DatasetRow => ({

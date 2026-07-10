@@ -36,6 +36,9 @@ function fromRow(r: DatasetRow): Dataset {
     sources: r.sources,
     totalRows: r.total_rows,
     recognizedStageId: r.recognized_stage_id ?? null,
+    // ponytail: Supabase doesn't persist these yet; default to null until that lands.
+    recognitionConfidence: null,
+    recognitionBasis: null,
   };
 }
 

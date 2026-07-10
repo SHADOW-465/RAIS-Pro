@@ -57,13 +57,13 @@ export interface StageDayRecord {
 
 const SCHEMA_VERSION = "1.0.0";
 
-function basisFor(extractedBy: string): ConfidenceBasis {
+function basisFor(extractedBy: string): z.infer<typeof ConfidenceBasis> {
   if (extractedBy === "direct-entry") return "exact";
   if (extractedBy.startsWith("llm")) return "llm";
   return "heuristic";
 }
 
-function scoreFor(basis: ConfidenceBasis): number {
+function scoreFor(basis: z.infer<typeof ConfidenceBasis>): number {
   return basis === "exact" ? 1 : basis === "heuristic" ? 0.9 : 0.85;
 }
 
