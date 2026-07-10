@@ -3,13 +3,15 @@ import type { StageAlias } from "@/lib/store/types";
 import { deriveTitle } from "./title";
 import { recognizeSheetStage, recognizeStageScored } from "./recognize";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import type { z } from "zod";
+import type { ClientRegistry } from "@/lib/contract/d1";
 
 function basisKey(cols: { role: string; name: string }[]): string {
   return cols.map((c) => `${c.role}:${c.name}`).join("|");
 }
 
-function stageLabel(stageId: string): string | null {
-  return DISPOSAFE_REGISTRY.stages.find((s) => s.stageId === stageId)?.label ?? null;
+function stageLabel(stageId: string, reg: z.infer<typeof ClientRegistry> = DISPOSAFE_REGISTRY): string | null {
+  return reg.stages.find((s) => s.stageId === stageId)?.label ?? null;
 }
 
 /** Group profiled tables by schema-signature hash into datasets. Pure and

@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { recognizeSheetStage, recognizeStage } from "../recognize";
+import { recognizeSheetStage, recognizeStage, knownStage } from "../recognize";
 import { datasetsWithRowsFromWorkbooks } from "../from-workbooks";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { Dataset } from "../types";
@@ -129,6 +129,18 @@ describe("recognizeStageScored", () => {
   });
 });
 
+describe("knownStage with an explicit registry", () => {
+  it("recognizes a stage defined only in the passed-in registry, not DISPOSAFE_REGISTRY", () => {
+    const customRegistry = { ...DISPOSAFE_REGISTRY, stages: [{ ...DISPOSAFE_REGISTRY.stages[0], stageId: "custom-stage" }] };
+    const ds = baseDataset({ sources: [{ fileName: "x.xlsx", sheetName: "CUSTOM STAGE FILE", rowCount: 5 }] });
+    // recognizeSheetStage only knows the 5 hardcoded STAGE_PATTERNS regexes, so this
+    // test targets knownStage directly rather than going through recognizeStage —
+    // confirming the registry parameter is actually consulted.
+    expect(knownStage("custom-stage", customRegistry)).toBe(true);
+    expect(knownStage("custom-stage")).toBe(false); // default (DISPOSAFE_REGISTRY) still doesn't know it
+  });
+});
+
 describe("recognizeStage (regression — unscored callers unaffected)", () => {
   it("keeps returning a bare stageId string, not the scored shape", () => {
     const ds = baseDataset({
@@ -142,12 +154,11 @@ const DIR = path.join(process.cwd(), "ANALYTICAL DATA", "REJECTION ANALYSIS 2025
 const maybe = fs.existsSync(DIR) ? describe : describe.skip;
 
 maybe("stage-aware grouping (real corpus)", () => {
-  const files = fs
-    .readdirSync(DIR)
-    .filter((f) => /REJECTION ANALYSIS.*\.xlsx$/i.test(f) && !f.startsWith("~$"))
-    .map((f) => ({ fileName: f, data: fs.readFileSync(path.join(DIR, f)) as unknown as ArrayBuffer }));
-
   it("splits the shared-signature stage sheets into per-stage recognized datasets", () => {
+    const files = fs
+      .readdirSync(DIR)
+      .filter((f) => /REJECTION ANALYSIS.*\.xlsx$/i.test(f) && !f.startsWith("~$"))
+      .map((f) => ({ fileName: f, data: fs.readFileSync(path.join(DIR, f)) as unknown as ArrayBuffer }));
     const { datasets } = datasetsWithRowsFromWorkbooks(files);
     const recognized = datasets
       .map((d) => d.recognizedStageId)

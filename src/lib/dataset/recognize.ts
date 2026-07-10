@@ -1,6 +1,8 @@
 import type { Dataset } from "./types";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { StageAlias } from "@/lib/store/types";
+import type { z } from "zod";
+import type { ClientRegistry } from "@/lib/contract/d1";
 
 // Reuses the same sheet/file naming signal schema-extractor.ts's resolveStageId
 // already relies on — sheet/file names are the strongest, already-proven signal
@@ -13,8 +15,8 @@ const STAGE_PATTERNS: { re: RegExp; id: string }[] = [
   { re: /visual/i, id: "visual" },
 ];
 
-function knownStage(id: string): boolean {
-  return DISPOSAFE_REGISTRY.stages.some((st) => st.stageId === id);
+export function knownStage(id: string, reg: z.infer<typeof ClientRegistry> = DISPOSAFE_REGISTRY): boolean {
+  return reg.stages.some((st) => st.stageId === id);
 }
 
 /** Recognize one physical sheet (fileName+sheetName) as a known Disposafe stage,
