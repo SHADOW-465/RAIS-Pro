@@ -11,6 +11,8 @@ interface DatasetRow {
   sources: Dataset["sources"];
   total_rows: number;
   recognized_stage_id?: string | null;
+  recognition_confidence?: number | null;
+  recognition_basis?: Dataset["recognitionBasis"];
   updated_at: string;
 }
 
@@ -23,6 +25,8 @@ function toRow(d: Dataset): DatasetRow {
     sources: d.sources,
     total_rows: d.totalRows,
     recognized_stage_id: d.recognizedStageId ?? null,
+    recognition_confidence: d.recognitionConfidence ?? null,
+    recognition_basis: d.recognitionBasis ?? null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -36,9 +40,8 @@ function fromRow(r: DatasetRow): Dataset {
     sources: r.sources,
     totalRows: r.total_rows,
     recognizedStageId: r.recognized_stage_id ?? null,
-    // ponytail: Supabase doesn't persist these yet; default to null until that lands.
-    recognitionConfidence: null,
-    recognitionBasis: null,
+    recognitionConfidence: r.recognition_confidence ?? null,
+    recognitionBasis: r.recognition_basis ?? null,
   };
 }
 
@@ -56,11 +59,23 @@ export class SupabaseDatasetStore implements DatasetStore {
     const { error } = await this.client.from("datasets").upsert(rows, { onConflict: "id" });
     if (error) {
       // Transitional: until supabase/migrations/20260702_dataset_recognized_stage.sql
-      // is applied, the live table lacks recognized_stage_id and the upsert fails
-      // on the unknown column. Retry once without it so persistence keeps working
-      // (recognition simply won't survive a round-trip until the migration lands).
-      if (/recognized_stage_id/i.test(error.message ?? "")) {
-        const legacyRows = rows.map(({ recognized_stage_id: _drop, ...rest }) => rest);
+      // and/or 20260711_dataset_recognition_confidence.sql are applied, the live
+      // table lacks one or more of these columns and the upsert fails on the
+      // unknown column. Retry once without whichever ones the error names, so
+      // persistence keeps working (recognition/confidence simply won't survive
+      // a round-trip until the migration lands).
+      const msg = error.message ?? "";
+      const dropRecognizedStage = /recognized_stage_id/i.test(msg);
+      const dropConfidence = /recognition_confidence/i.test(msg);
+      const dropBasis = /recognition_basis/i.test(msg);
+      if (dropRecognizedStage || dropConfidence || dropBasis) {
+        const legacyRows = rows.map((row) => {
+          const r = { ...row };
+          if (dropRecognizedStage) delete r.recognized_stage_id;
+          if (dropConfidence) delete r.recognition_confidence;
+          if (dropBasis) delete r.recognition_basis;
+          return r;
+        });
         const { error: retryError } = await this.client.from("datasets").upsert(legacyRows, { onConflict: "id" });
         if (retryError) throw retryError;
         return;
