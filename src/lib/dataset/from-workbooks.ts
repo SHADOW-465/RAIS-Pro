@@ -3,6 +3,7 @@ import { profileTable } from "@/lib/schema/profile";
 import { computeSignature, normalizeName } from "@/lib/schema/signature";
 import { groupIntoDatasets } from "./registry";
 import type { Dataset, DatasetRow, ProfiledTableInput } from "./types";
+import type { StageAlias } from "@/lib/store/types";
 
 export interface WorkbookInput {
   fileName: string;
@@ -34,7 +35,10 @@ function rowValueKeys(nonMetaCols: { name: string; colLetter: string }[]): Map<n
 /** Same grouping as datasetsFromWorkbooks, but also extracts every non-meta
  *  column's value for every row (uncapped — see buildProfilingTables maxRows),
  *  tagged with the Dataset id they belong to. */
-export function datasetsWithRowsFromWorkbooks(files: WorkbookInput[]): DatasetsWithRows {
+export function datasetsWithRowsFromWorkbooks(
+  files: WorkbookInput[],
+  stageAliases: Record<string, StageAlias> = {},
+): DatasetsWithRows {
   const inputs: (ProfiledTableInput & { rowsRaw: import("@/lib/schema/types").ProfilingCell[][] })[] = [];
 
   for (const f of files) {
@@ -52,7 +56,7 @@ export function datasetsWithRowsFromWorkbooks(files: WorkbookInput[]): DatasetsW
     }
   }
 
-  const datasets = groupIntoDatasets(inputs);
+  const datasets = groupIntoDatasets(inputs, stageAliases);
 
   const idFor = new Map<string, string>();
   for (const d of datasets) for (const s of d.sources) idFor.set(`${s.fileName}::${s.sheetName}`, d.id);
@@ -83,6 +87,9 @@ export function datasetsWithRowsFromWorkbooks(files: WorkbookInput[]): DatasetsW
 
 /** End-to-end: raw workbooks → profiled tables → datasets grouped by signature.
  *  The only dataset file that (transitively) touches xlsx. */
-export function datasetsFromWorkbooks(files: WorkbookInput[]): Dataset[] {
-  return datasetsWithRowsFromWorkbooks(files).datasets;
+export function datasetsFromWorkbooks(
+  files: WorkbookInput[],
+  stageAliases: Record<string, StageAlias> = {},
+): Dataset[] {
+  return datasetsWithRowsFromWorkbooks(files, stageAliases).datasets;
 }

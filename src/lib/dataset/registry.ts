@@ -70,24 +70,36 @@ export function groupIntoDatasets(
       // Defensive gate: a recognized stage only sticks when the dataset carries
       // at least one raw measure column — a stray filename coincidence on a
       // derived-only summary sheet must not become a recognized stage stream.
+      // recognizeStageScored re-applies this same gate internally, so it's the
+      // single enforcement point below, not duplicated here.
       const hasMeasure = columns.some((c) => c.role === "measure");
-      const recognizedStageId = hasMeasure ? stage : null;
+      const regexStageId = hasMeasure ? stage : null;
+
+      // Re-score with alias awareness once the dataset shape is known. This is
+      // NOT just a confidence bump on an already-regex-recognized group: a
+      // group the grouping key above filed under stage=null (regex found
+      // nothing) can still be promoted to a real recognizedStageId here when
+      // the company has confirmed a learned alias for this sheet/file name —
+      // closing the loop from POST /api/registry-alias back into recognition.
+      // With an empty stageAliases (the default), recognizeStageScored's own
+      // regex fallback agrees with `stage` for every pre-existing group (same
+      // per-source recognizeSheetStage, same sources), so this is a no-op
+      // change in behavior when no aliases exist — see the Task 8 regression
+      // guard in __tests__/recognize.test.ts.
+      const provisional: Dataset = {
+        id, signatureHash: hash, title: "", columns, sources, totalRows,
+        recognizedStageId: regexStageId, recognitionConfidence: null, recognitionBasis: null,
+      };
+      const scored = recognizeStageScored(provisional, stageAliases);
+      const recognizedStageId = scored?.stageId ?? regexStageId;
       // A recognized stream is named by its stage (far clearer in the View
       // dropdown); unrecognized groups keep the deterministic derived title.
       const title = (recognizedStageId && stageLabel(recognizedStageId)) || deriveTitle(columns, sources);
 
-      // Re-score with alias awareness once the dataset shape is known — cheap,
-      // and keeps recognizeStageScored (which needs the assembled Dataset) as
-      // the single source of truth for confidence instead of duplicating the
-      // vote logic here.
-      const provisional: Dataset = {
-        id, signatureHash: hash, title, columns, sources, totalRows,
-        recognizedStageId, recognitionConfidence: null, recognitionBasis: null,
-      };
-      const scored = recognizedStageId ? recognizeStageScored(provisional, stageAliases) : null;
-
       datasets.push({
         ...provisional,
+        recognizedStageId,
+        title,
         recognitionConfidence: scored?.confidence ?? null,
         recognitionBasis: scored?.basis ?? null,
       });

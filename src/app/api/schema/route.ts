@@ -55,6 +55,12 @@ function toClientRegistry(row: RegistryRow) {
     stages: enrichedStages,
     defects: row.defects || [],
     sizes: (row.sizes && row.sizes.length ? row.sizes : DISPOSAFE_REGISTRY.sizes),
+    // Company-learned sheet/file-name -> stage aliases (src/lib/dataset/recognize.ts's
+    // recognizeStageScored). Exposed here so the client can thread it into
+    // groupIntoDatasets/datasetsWithRowsFromWorkbooks at Staging-upload time —
+    // closing the loop between a confirmed alias (POST /api/registry-alias)
+    // and the next recognition pass.
+    stageAliases: row.stageAliases || {},
   };
 }
 

@@ -129,7 +129,10 @@ export default function StagingPage() {
           const inputs = await Promise.all(
             files.map(async (f) => ({ fileName: f.name, data: await f.arrayBuffer() })),
           );
-          const { datasets, rows } = datasetsWithRowsFromWorkbooks(inputs);
+          // Thread the active registry's learned aliases through so a previously
+          // confirmed stage (POST /api/registry-alias) is recognized on this pass,
+          // not just the hardcoded regex patterns.
+          const { datasets, rows } = datasetsWithRowsFromWorkbooks(inputs, activeRegistry?.stageAliases ?? {});
           if (datasets.length > 0) {
             setDetectedSummary(datasets); // surface to the C1 reveal panel (informational only)
             await fetch("/api/datasets", {
