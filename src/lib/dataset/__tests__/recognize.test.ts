@@ -155,6 +155,9 @@ const maybe = fs.existsSync(DIR) ? describe : describe.skip;
 
 maybe("stage-aware grouping (real corpus)", () => {
   it("splits the shared-signature stage sheets into per-stage recognized datasets", () => {
+    // NOTE: fs.readdirSync moved into the it() callback (not the describe body) to prevent
+    // latent crashes during Jest collection when the corpus directory is absent, even though
+    // the suite is skipped via describe.skip. See Task 7 for context.
     const files = fs
       .readdirSync(DIR)
       .filter((f) => /REJECTION ANALYSIS.*\.xlsx$/i.test(f) && !f.startsWith("~$"))

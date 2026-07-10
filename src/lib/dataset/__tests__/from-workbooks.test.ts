@@ -7,6 +7,9 @@ const DIR = path.join(process.cwd(), "ANALYTICAL DATA", "REJECTION ANALYSIS 2025
 const maybe = fs.existsSync(DIR) ? describe : describe.skip;
 
 maybe("datasetsFromWorkbooks (real corpus)", () => {
+  // NOTE: This file I/O (readdirSync/readFileSync) happens in the describe body, which executes
+  // during Jest collection even when describe.skip is active. If DIR is absent, this crashes.
+  // Latent risk — deliberately left unfixed here; Task 8 regression suite should address.
   const files = fs
     .readdirSync(DIR)
     .filter((f) => /REJECTION ANALYSIS.*\.xlsx$/i.test(f) && !f.startsWith("~$"))
