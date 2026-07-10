@@ -1,5 +1,6 @@
 import type { Dataset } from "./types";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import type { StageAlias } from "@/lib/store/types";
 
 // Reuses the same sheet/file naming signal schema-extractor.ts's resolveStageId
 // already relies on — sheet/file names are the strongest, already-proven signal
@@ -51,4 +52,51 @@ export function recognizeStage(dataset: Dataset): string | null {
   // Require the winner to cover a clear majority of sources, not a stray match.
   if (topCount < dataset.sources.length * 0.5) return null;
   return topId;
+}
+
+/** Case/whitespace-insensitive key so "Visual QC", "visual qc", and " Visual  QC "
+ *  all learn/hit the same alias. Mirrors disposafe.ts's normDefect discipline
+ *  (collapse before compare) without stripping non-alphanumerics — sheet/file
+ *  names carry meaningful spacing structure defect codes don't. */
+export function normalizeAliasKey(sheetOrFileName: string): string {
+  return sheetOrFileName.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Scored version of recognizeStage. Checks the company's learned aliases
+ *  (both sheet and file name, sheet first — same precedence as
+ *  recognizeSheetStage) before falling back to the hardcoded STAGE_PATTERNS,
+ *  and returns null (never a low-confidence guess) when nothing matches. */
+export function recognizeStageScored(
+  dataset: Dataset,
+  aliases: Record<string, StageAlias>,
+): { stageId: string; confidence: number; basis: "alias" | "heuristic" } | null {
+  const hasMeasure = dataset.columns.some((c) => c.role === "measure");
+  if (!hasMeasure) return null;
+
+  // Alias lookup: same majority-vote-across-sources discipline as recognizeStage,
+  // but a source matches via a learned alias key OR the regex fallback.
+  const votes: Record<string, { count: number; confidence: number; basis: "alias" | "heuristic" }> = {};
+  for (const s of dataset.sources) {
+    const sheetAlias = aliases[normalizeAliasKey(s.sheetName)];
+    const fileAlias = aliases[normalizeAliasKey(s.fileName)];
+    const alias = sheetAlias ?? fileAlias;
+    const id = alias ? alias.stageId : recognizeSheetStage(s.fileName, s.sheetName);
+    if (!id) continue;
+    const entry = votes[id] ?? { count: 0, confidence: 0, basis: "heuristic" as const };
+    entry.count += 1;
+    if (alias) {
+      entry.confidence = Math.max(entry.confidence, alias.confidence);
+      entry.basis = "alias";
+    } else {
+      entry.confidence = Math.max(entry.confidence, 0.9);
+    }
+    votes[id] = entry;
+  }
+
+  const entries = Object.entries(votes);
+  if (entries.length === 0) return null;
+  entries.sort((a, b) => b[1].count - a[1].count);
+  const [topId, top] = entries[0];
+  if (top.count < dataset.sources.length * 0.5) return null;
+  return { stageId: topId, confidence: top.confidence, basis: top.basis };
 }

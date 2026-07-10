@@ -4,6 +4,8 @@ import { recognizeSheetStage, recognizeStage } from "../recognize";
 import { datasetsWithRowsFromWorkbooks } from "../from-workbooks";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { Dataset } from "../types";
+import { recognizeStageScored, normalizeAliasKey } from "../recognize";
+import type { StageAlias } from "@/lib/store/types";
 
 const baseDataset = (overrides: Partial<Dataset>): Dataset => ({
   id: "ds1",
@@ -82,6 +84,57 @@ describe("recognizeStage", () => {
     });
     // Only 1 of 3 sources matches "visual" — below the 0.5 majority threshold.
     expect(recognizeStage(ds)).toBeNull();
+  });
+});
+
+describe("normalizeAliasKey", () => {
+  it("collapses case and whitespace so 'Visual QC' and 'visual qc' match", () => {
+    expect(normalizeAliasKey("Visual QC")).toBe(normalizeAliasKey("visual qc"));
+  });
+});
+
+describe("recognizeStageScored", () => {
+  it("returns high confidence exact-pattern match with basis heuristic when no alias exists", () => {
+    const ds = baseDataset({
+      sources: [{ fileName: "01 REJECTION ANALYSIS-APRIL 2025.xlsx", sheetName: "VISUAL", rowCount: 30 }],
+    });
+    const result = recognizeStageScored(ds, {});
+    expect(result).toEqual({ stageId: "visual", confidence: 0.9, basis: "heuristic" });
+  });
+
+  it("prefers a learned alias over the regex pattern, with basis alias", () => {
+    const ds = baseDataset({
+      sources: [{ fileName: "x.xlsx", sheetName: "Visual QC", rowCount: 10 }],
+    });
+    const aliases: Record<string, StageAlias> = {
+      [normalizeAliasKey("Visual QC")]: { stageId: "visual", confidence: 0.99, basis: "alias", learnedAt: "2026-07-10T00:00:00.000Z" },
+    };
+    const result = recognizeStageScored(ds, aliases);
+    expect(result).toEqual({ stageId: "visual", confidence: 0.99, basis: "alias" });
+  });
+
+  it("returns null (not a low-confidence guess) when nothing matches and no alias exists", () => {
+    const ds = baseDataset({
+      sources: [{ fileName: "3 JUNE 26.xlsx", sheetName: "16FR", rowCount: 5 }],
+    });
+    expect(recognizeStageScored(ds, {})).toBeNull();
+  });
+
+  it("still requires a measure column, same defensive gate as recognizeStage", () => {
+    const ds = baseDataset({
+      columns: [{ role: "dimension-date", name: "date" }, { role: "derived", name: "rej %" }],
+      sources: [{ fileName: "x.xlsx", sheetName: "VISUAL", rowCount: 10 }],
+    });
+    expect(recognizeStageScored(ds, {})).toBeNull();
+  });
+});
+
+describe("recognizeStage (regression — unscored callers unaffected)", () => {
+  it("keeps returning a bare stageId string, not the scored shape", () => {
+    const ds = baseDataset({
+      sources: [{ fileName: "01 REJECTION ANALYSIS-APRIL 2025.xlsx", sheetName: "VISUAL", rowCount: 30 }],
+    });
+    expect(recognizeStage(ds)).toBe("visual");
   });
 });
 
