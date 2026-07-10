@@ -174,9 +174,25 @@ export default function WorkbooksPage() {
     setExpandedFiles((p) => ({ ...p, [fileName]: !p[fileName] }));
   }
 
-  function confirmStageAlias(datasetId: string, stageId: string) {
-    // ponytail: stub — Task 6 replaces this with the real /api/registry-alias call.
-    console.warn("not yet wired — Task 6", datasetId, stageId);
+  async function confirmStageAlias(datasetId: string, stageId: string) {
+    const dataset = datasets?.find((d) => d.id === datasetId);
+    if (!dataset || dataset.sources.length === 0) return;
+    // No preset picker exists on this page yet — "disposafe" is the same
+    // default every other route (api/ingest/route.ts:177) falls back to.
+    const res = await fetch("/api/registry-alias", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        presetId: "disposafe",
+        sheetName: dataset.sources[0].sheetName,
+        stageId,
+      }),
+    });
+    if (!res.ok) return;
+    // Locally patch so the "needs review" badge clears without a full reload.
+    setDatasets((prev) =>
+      prev?.map((d) => (d.id === datasetId ? { ...d, recognitionConfidence: 1, recognitionBasis: "alias" } : d)) ?? prev,
+    );
   }
 
   async function publishToCumulative(ds: Dataset, dsRows: DatasetRow[]) {
