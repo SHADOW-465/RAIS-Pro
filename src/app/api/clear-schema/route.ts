@@ -1,28 +1,41 @@
 // src/app/api/clear-schema/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getStores } from "@/lib/store";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { getStores, getActiveRegistryRow } from "@/lib/store";
 
 export async function POST(req: NextRequest) {
   try {
     const { registries } = getStores();
-    const presetId = req.nextUrl.searchParams.get("presetId") || "disposafe";
+    let presetId = req.nextUrl.searchParams.get("presetId");
+    if (!presetId) {
+      const active = await getActiveRegistryRow();
+      presetId = active?.presetId ?? "default";
+    }
 
-    // Reset only the targeted preset's stages/defects to defaults — other
-    // presets are untouched.
+    const existing = await registries.get(presetId);
+
+    // Reset only the targeted preset's stages/defects/sizes to genuinely
+    // empty — clearing schema must not repopulate DISPOSAFE_REGISTRY's
+    // hardcoded stage list, or the dashboard can never actually go blank
+    // for a fresh plant. Learned aliases are preserved (clearing the schema
+    // shape isn't the same as forgetting what a company already taught us).
     await registries.upsert({
       presetId,
-      name: presetId,
-      createdFromFilename: null,
-      registryVersion: "1.0.0",
-      fiscalYearStartMonth: 4,
-      stages: DISPOSAFE_REGISTRY.stages,
-      defects: DISPOSAFE_REGISTRY.defects,
-      sizes: DISPOSAFE_REGISTRY.sizes,
-      stageAliases: {},
+      name: existing?.name ?? presetId,
+      createdFromFilename: existing?.createdFromFilename ?? null,
+      registryVersion: existing?.registryVersion ?? "1.0.0",
+      fiscalYearStartMonth: existing?.fiscalYearStartMonth ?? 4,
+      stages: [],
+      defects: [],
+      sizes: [],
+      stageAliases: existing?.stageAliases ?? {},
     });
+    if (!existing) await registries.setActive(presetId);
 
-    return NextResponse.json({ success: true, cleared: true, registry: DISPOSAFE_REGISTRY });
+    return NextResponse.json({
+      success: true,
+      cleared: true,
+      registry: { presetId, stages: [], defects: [], sizes: [] },
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? "Failed to clear schema registry" }, { status: 500 });
   }
