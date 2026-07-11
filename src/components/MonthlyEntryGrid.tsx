@@ -325,6 +325,17 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, a
                       </th>
                     );
                   })}
+                  {rIdx === 0 && extraDefects.map((d: any) => (
+                    <th
+                      key={d.defectCode}
+                      rowSpan={activeStage.headerRows.length}
+                      colSpan={1}
+                      style={eth}
+                      title={d.label}
+                    >
+                      {d.defectCode}
+                    </th>
+                  ))}
                 </tr>
               ))}
             </thead>
@@ -434,6 +445,36 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, a
                           }}
                         >
                           {displayVal}
+                        </td>
+                      );
+                    })}
+                    {extraDefects.map((d: any, dIdx: number) => {
+                      const colName = d.defectCode;
+                      const val = (() => {
+                        const df = rec?.defects.find((x) => x.raw === colName);
+                        return df ? String(df.value) : "";
+                      })();
+
+                      const review = reviewByDate.get(`${date}|${rowKey}`);
+                      const isCulprit = review?.invalidFields.includes(colName);
+
+                      return (
+                        <td key={`def-${dIdx}`} style={{ ...etd, padding: "3px 4px" }}>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={val}
+                            onChange={(e) => updateCell(date, colName, e.target.value)}
+                            style={{
+                              ...inp,
+                              width: 84,
+                              padding: "4px 8px",
+                              height: 30,
+                              fontFamily: "var(--font-mono)",
+                              textAlign: "right",
+                              borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)"
+                            }}
+                          />
                         </td>
                       );
                     })}
