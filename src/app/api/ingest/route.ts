@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { emitMany, type StageDayRecord } from "@/lib/ingest/emit";
 import { checkRecord } from "@/lib/entry/validate-entry";
-import { getStores, shouldUseSupabase } from "@/lib/store";
+import { getStores, shouldUseSupabase, getActiveRegistryRow } from "@/lib/store";
 import { createServerClient } from "@/lib/supabase";
 
 interface IngestBody {
@@ -173,22 +173,21 @@ export async function POST(req: NextRequest) {
     // 2. Emit canonical events and append (idempotent on content hash).
     let activeRegistry = undefined;
     try {
-      const db = createServerClient();
-      const targetPresetId = body.presetId || "disposafe";
-      const { data: regRow } = await db
-        .from("registries")
-        .select("*")
-        .eq("client_id", targetPresetId)
-        .maybeSingle();
+      const { registries } = getStores();
+      const targetPresetId = body.presetId || (await getActiveRegistryRow())?.presetId;
+      const regRow = targetPresetId ? await registries.get(targetPresetId) : null;
       if (regRow) {
         activeRegistry = {
-          clientId: regRow.client_id,
-          registryVersion: regRow.registry_version,
-          fiscalYearStartMonth: regRow.fiscal_year_start_month,
+          clientId: regRow.presetId,
+          registryVersion: regRow.registryVersion,
+          fiscalYearStartMonth: regRow.fiscalYearStartMonth,
           stages: regRow.stages,
           defects: regRow.defects,
           sizes: regRow.sizes || [],
-          costConfig: regRow.cost_config || null,
+          // Not modeled on RegistryRow (no write path in this codebase ever
+          // sets it) — always null, matching DISPOSAFE_REGISTRY's own
+          // costConfig default.
+          costConfig: null,
         };
       }
     } catch (err) {
