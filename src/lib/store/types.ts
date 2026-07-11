@@ -92,6 +92,10 @@ export interface RegistryStore {
   get(presetId: string): Promise<RegistryRow | null>;
   /** Oldest saved preset — the "no presetId given" default every caller uses. */
   first(): Promise<RegistryRow | null>;
+  /** The single preset flagged is_active, or null if none is flagged yet. */
+  getActive(): Promise<RegistryRow | null>;
+  /** Flags this preset active, clearing the flag on every other preset. */
+  setActive(presetId: string): Promise<void>;
   upsert(row: RegistryRow): Promise<void>;
   rename(presetId: string, name: string): Promise<void>;
   delete(presetId: string): Promise<void>;

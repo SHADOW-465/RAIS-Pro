@@ -429,4 +429,25 @@ export class SupabaseRegistryStore implements RegistryStore {
     const { error } = await this.client.from("registries").delete().eq("client_id", presetId);
     if (error) throw error;
   }
+
+  async getActive(): Promise<RegistryRow | null> {
+    const { data, error } = await this.client.from("registries").select("*").eq("is_active", true).maybeSingle();
+    if (error) {
+      const isColErr = error.message?.includes("column") && error.message?.includes("does not exist");
+      if (isColErr) return null; // migration not applied yet — no active-flag concept exists there yet
+      throw error;
+    }
+    return data ? toRegistryRow(data) : null;
+  }
+
+  async setActive(presetId: string): Promise<void> {
+    const { error: clearError } = await this.client.from("registries").update({ is_active: false }).neq("client_id", presetId);
+    if (clearError) {
+      const isColErr = clearError.message?.includes("column") && clearError.message?.includes("does not exist");
+      if (isColErr) return; // migration not applied yet — setActive is a no-op until it lands
+      throw clearError;
+    }
+    const { error: setError } = await this.client.from("registries").update({ is_active: true }).eq("client_id", presetId);
+    if (setError) throw setError;
+  }
 }

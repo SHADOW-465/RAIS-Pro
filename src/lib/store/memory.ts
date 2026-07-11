@@ -159,6 +159,7 @@ export class MemoryRegistryStore implements RegistryStore {
   private byId = new Map<string, RegistryRow>();
   private order = new Map<string, number>();
   private counter = 0;
+  private activePresetId: string | null = null;
 
   async list(): Promise<RegistryPresetSummary[]> {
     return this.sortedRows().map((r) => ({ presetId: r.presetId, name: r.name, stageCount: r.stages.length }));
@@ -171,6 +172,15 @@ export class MemoryRegistryStore implements RegistryStore {
 
   async first(): Promise<RegistryRow | null> {
     return this.sortedRows()[0] ?? null;
+  }
+
+  async getActive(): Promise<RegistryRow | null> {
+    if (!this.activePresetId) return null;
+    return this.get(this.activePresetId);
+  }
+
+  async setActive(presetId: string): Promise<void> {
+    this.activePresetId = presetId;
   }
 
   async upsert(row: RegistryRow): Promise<void> {
