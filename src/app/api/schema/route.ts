@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       configured: true,
-      registry: { presetId, clientId: presetId, name: name || presetId, registryVersion: "1.0.0", fiscalYearStartMonth: 4, stages, defects, sizes },
+      registry: { presetId, clientId: presetId, name: name || presetId, registryVersion: "1.0.0", fiscalYearStartMonth: existing?.fiscalYearStartMonth ?? 4, stages, defects, sizes, stageAliases: existing?.stageAliases ?? {} },
     });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? "Failed to save registry" }, { status: 500 });

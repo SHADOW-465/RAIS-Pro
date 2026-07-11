@@ -142,4 +142,30 @@ describe("/api/schema (memory store — no Supabase configured)", () => {
     const json = await res.json();
     expect(json.registry.presetId).toBe("second-created");
   });
+
+  it("POST response reflects preserved fiscalYearStartMonth and stageAliases on merge, not stale defaults", async () => {
+    // Create initial preset
+    await POST(post({ schema: sampleSchema, name: "Response Merge Test" }));
+
+    // Manually set custom values in the store to simulate prior configuration
+    const { getStores } = await import("@/lib/store");
+    const { registries } = getStores();
+    const existing = (await registries.get("response-merge-test"))!;
+    await registries.upsert({
+      ...existing,
+      fiscalYearStartMonth: 7, // Non-default
+      stageAliases: { "qc inspection": { stageId: "visual", confidence: 1, basis: "alias", learnedAt: "2026-07-10T00:00:00.000Z" } },
+    });
+
+    // POST to the same preset to extend/merge it
+    const res = await POST(post({ schema: sampleSchema, presetId: "response-merge-test" }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+
+    // Response should reflect the preserved values, not hardcoded defaults
+    expect(json.registry.fiscalYearStartMonth).toBe(7);
+    expect(json.registry.stageAliases["qc inspection"]).toEqual({
+      stageId: "visual", confidence: 1, basis: "alias", learnedAt: "2026-07-10T00:00:00.000Z",
+    });
+  });
 });
