@@ -6,10 +6,13 @@ import { datasetsFromWorkbooks, datasetsWithRowsFromWorkbooks } from "../from-wo
 const DIR = path.join(process.cwd(), "ANALYTICAL DATA", "REJECTION ANALYSIS 2025-26");
 const maybe = fs.existsSync(DIR) ? describe : describe.skip;
 
-maybe("datasetsFromWorkbooks (real corpus)", () => {
-  // NOTE: This file I/O (readdirSync/readFileSync) happens in the describe body, which executes
-  // during Jest collection even when describe.skip is active. If DIR is absent, this crashes.
-  // Latent risk — deliberately left unfixed here; Task 8 regression suite should address.
+describe("datasetsFromWorkbooks (real corpus)", () => {
+  const hasDir = fs.existsSync(DIR);
+  if (!hasDir) {
+    it.skip("skips because corpus directory is missing", () => {});
+    return;
+  }
+
   const files = fs
     .readdirSync(DIR)
     .filter((f) => /REJECTION ANALYSIS.*\.xlsx$/i.test(f) && !f.startsWith("~$"))
