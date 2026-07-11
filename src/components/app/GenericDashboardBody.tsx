@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, Kpi, LineChart, BarsH, Empty } from "@/components/app/widgets";
 import ParetoChart from "@/components/ParetoChart";
 import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
+import StageConfirmPicker from "@/components/app/StageConfirmPicker";
 import { calculatePareto } from "@/lib/dashboard-builder";
 import type { GenericDashboard } from "@/lib/dataset/dashboard";
 import type { Dataset, DatasetRow } from "@/lib/dataset/types";
@@ -67,6 +68,7 @@ export default function GenericDashboardBody({
   dataset,
   rows,
   onConfirmStage,
+  knownStages,
 }: {
   d: GenericDashboard;
   caption?: string;
@@ -74,6 +76,7 @@ export default function GenericDashboardBody({
   dataset?: Dataset;
   rows?: DatasetRow[];
   onConfirmStage?: (datasetId: string, stageId: string) => void;
+  knownStages?: { stageId: string; label: string }[];
 }) {
   const trendKpis = d.kpis.filter((k) => k.trend.length > 0);
   const hasPareto = !!d.defectPareto && d.defectPareto.length > 0;
@@ -145,7 +148,15 @@ export default function GenericDashboardBody({
           <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>
             Needs review — recognized as {dataset.recognizedStageId} at {Math.round(dataset.recognitionConfidence * 100)}% confidence
           </span>
-          {onConfirmStage && (
+          {onConfirmStage && knownStages && knownStages.length > 0 ? (
+            <StageConfirmPicker
+              key={dataset.id}
+              datasetId={dataset.id}
+              defaultStageId={dataset.recognizedStageId!}
+              knownStages={knownStages}
+              onConfirm={onConfirmStage}
+            />
+          ) : onConfirmStage && (
             <button
               type="button"
               onClick={() => onConfirmStage(dataset.id, dataset.recognizedStageId!)}

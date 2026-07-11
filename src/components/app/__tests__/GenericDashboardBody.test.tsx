@@ -37,4 +37,17 @@ describe("GenericDashboardBody recognition confidence", () => {
     render(<GenericDashboardBody d={emptyDashboard} />);
     expect(screen.queryByText(/needs review/i)).not.toBeInTheDocument();
   });
+
+  it("renders StageConfirmPicker instead of the plain button when knownStages is provided", () => {
+    const knownStages = [{ stageId: "visual", label: "Visual Inspection" }, { stageId: "final", label: "Final Inspection" }];
+    render(<GenericDashboardBody d={emptyDashboard} dataset={baseDataset} rows={[]} onConfirmStage={jest.fn()} knownStages={knownStages} />);
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^confirm$/i })).toBeInTheDocument(); // the picker's own Confirm button
+  });
+
+  it("falls back to the plain Confirm button when knownStages is omitted (backward compatible)", () => {
+    render(<GenericDashboardBody d={emptyDashboard} dataset={baseDataset} rows={[]} onConfirmStage={jest.fn()} />);
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /confirm/i })).toBeInTheDocument();
+  });
 });

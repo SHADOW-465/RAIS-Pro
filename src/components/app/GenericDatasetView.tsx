@@ -19,9 +19,11 @@ import type { Dataset, DatasetRow } from "@/lib/dataset/types";
 export default function GenericDatasetView({
   datasetId,
   onConfirmStage,
+  knownStages,
 }: {
   datasetId: string;
   onConfirmStage?: (datasetId: string, stageId: string) => void;
+  knownStages?: { stageId: string; label: string }[];
 }) {
   const { refreshEvents } = useEvents();
   const [dataset, setDataset] = useState<Dataset | null>(null);
@@ -112,6 +114,7 @@ export default function GenericDatasetView({
       dataset={dataset}
       rows={rows}
       onConfirmStage={onConfirmStage}
+      knownStages={knownStages}
       publishBanner={
         stageLabel
           ? {
