@@ -190,9 +190,17 @@ export default function DataEntryPage() {
       const data = await res.json();
       const list = data.presets || [];
       setPresets(list);
-      // Default to the first preset (matches the API's own "no presetId"
-      // fallback) so the picker and the loaded registry agree from the start.
-      const initial = list[0]?.presetId ?? null;
+
+      // Fetch the active registry to find out which preset is active
+      const activeRes = await fetch("/api/schema");
+      const activeData = await activeRes.json();
+      const activePresetId = activeData.registry?.presetId || activeData.registry?.clientId || null;
+
+      // Default to the active preset, or fall back to the first preset in the list
+      const initial = activePresetId && list.some((p: any) => p.presetId === activePresetId)
+        ? activePresetId
+        : (list[0]?.presetId ?? null);
+
       setSelectedPresetId(initial);
       await loadRegistry(initial);
     } catch (err) {
