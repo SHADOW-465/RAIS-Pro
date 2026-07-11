@@ -17,7 +17,7 @@
 // page back onto the hardcoded DISPOSAFE_REGISTRY fallback below regardless
 // of what was actually uploaded.
 import { NextRequest, NextResponse } from "next/server";
-import { getStores } from "@/lib/store";
+import { getStores, getActiveRegistryRow } from "@/lib/store";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { RegistryRow } from "@/lib/store/types";
 
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ presets: await registries.list() });
     }
 
-    const matchedRow = presetId ? await registries.get(presetId) : await registries.first();
+    const matchedRow = presetId ? await registries.get(presetId) : await getActiveRegistryRow();
 
     if (matchedRow) {
       return NextResponse.json({ registry: toClientRegistry(matchedRow), configured: true });
@@ -144,16 +144,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const existing = await registries.get(presetId);
+
     await registries.upsert({
       presetId,
-      name: name || presetId,
-      createdFromFilename: createdFromFilename || null,
+      name: name || existing?.name || presetId,
+      createdFromFilename: createdFromFilename || existing?.createdFromFilename || null,
       registryVersion: "1.0.0",
-      fiscalYearStartMonth: 4,
+      fiscalYearStartMonth: existing?.fiscalYearStartMonth ?? 4,
       stages,
       defects,
       sizes,
-      stageAliases: {},
+      // Preserve previously-learned aliases — this upsert only replaces the
+      // schema shape (stages/defects/sizes), never the company's learned
+      // sheet-name -> stage mappings.
+      stageAliases: existing?.stageAliases ?? {},
     });
 
     return NextResponse.json({

@@ -115,4 +115,31 @@ describe("/api/schema (memory store — no Supabase configured)", () => {
     // Not found by that presetId -> falls back to the hardcoded default, unconfigured.
     expect(json.configured).toBe(false);
   });
+
+  it("POST with an existing presetId preserves previously-learned stageAliases (regression: must not wipe them)", async () => {
+    await POST(post({ schema: sampleSchema, name: "Alias Keeper" }));
+    const { getStores } = await import("@/lib/store");
+    const { registries } = getStores();
+    const existing = (await registries.get("alias-keeper"))!;
+    await registries.upsert({
+      ...existing,
+      stageAliases: { "visual qc": { stageId: "visual", confidence: 1, basis: "alias", learnedAt: "2026-07-10T00:00:00.000Z" } },
+    });
+    await POST(post({ schema: sampleSchema, presetId: "alias-keeper" }));
+    const row = await registries.get("alias-keeper");
+    expect(row?.stageAliases["visual qc"]).toEqual({
+      stageId: "visual", confidence: 1, basis: "alias", learnedAt: "2026-07-10T00:00:00.000Z",
+    });
+  });
+
+  it("GET with no presetId prefers the explicitly-activated preset over the oldest one", async () => {
+    await POST(post({ schema: sampleSchema, name: "First Created" }));
+    await POST(post({ schema: sampleSchema, name: "Second Created" }));
+    const { getStores } = await import("@/lib/store");
+    const { registries } = getStores();
+    await registries.setActive("second-created");
+    const res = await GET(get());
+    const json = await res.json();
+    expect(json.registry.presetId).toBe("second-created");
+  });
 });
