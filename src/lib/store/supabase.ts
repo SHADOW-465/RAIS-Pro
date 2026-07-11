@@ -448,6 +448,10 @@ export class SupabaseRegistryStore implements RegistryStore {
       throw clearError;
     }
     const { error: setError } = await this.client.from("registries").update({ is_active: true }).eq("client_id", presetId);
-    if (setError) throw setError;
+    if (setError) {
+      const isColErr = setError.message?.includes("column") && setError.message?.includes("does not exist");
+      if (isColErr) return; // migration not applied yet — setActive is a no-op until it lands
+      throw setError;
+    }
   }
 }
