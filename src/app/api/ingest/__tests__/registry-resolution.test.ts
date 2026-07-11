@@ -46,9 +46,6 @@ describe("POST /api/ingest resolves defects against the correct registry", () =>
         ingestionId: "ing-active-registry-test",
       }],
     }));
-    if (res.status !== 200) {
-      console.log("BODY", await res.clone().json());
-    }
     expect(res.status).toBe(200);
 
     const stored = await events.effective({ from: "2026-07-11", to: "2026-07-11" });
