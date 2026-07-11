@@ -108,6 +108,10 @@ export function classifyRejectionSheets(
     const rejectedColumn = pickColumn(cols, /reject|rej/i, /%|percent/i);
     const pctColumn = pickColumn(cols, /%|percent/i);
 
+    // Identify defect columns: any columns that are not the standard metadata/summary fields
+    const nonDefectRegex = /date|check|quantity|qty|rec|reject|rej|%|percent|total|trolley|batch|s\.?\s*no|remark/i;
+    const defectCols = cols.filter(c => c && !nonDefectRegex.test(c.trim()));
+
     // sheet.name is "<fileName> - <sheetName>" (RawSheet's cross-file display
     // key, built in src/lib/parser.ts for the Workbooks explorer) — NOT the
     // true Excel sheet name. Every other family parser's source.sheet holds
@@ -142,6 +146,19 @@ export function classifyRejectionSheets(
         const rejected = rejectedColumn ? toNumber(row[rejectedColumn]) : null;
         if (checked == null && rejected == null) return;
         const pctVal = pctColumn ? toNumber(row[pctColumn]) : null;
+
+        const defects: { raw: string; value: number; cell: string }[] = [];
+        defectCols.forEach((colName) => {
+          const val = toNumber(row[colName]);
+          if (val != null && val > 0) {
+            defects.push({
+              raw: colName.trim(),
+              value: Math.round(val),
+              cell: a1(colName, row, rowIdx),
+            });
+          }
+        });
+
         records.push({
           occurredOn: { kind: "day", start: iso, end: iso },
           stageId: stage.stageId,
@@ -150,7 +167,7 @@ export function classifyRejectionSheets(
           acceptedGood: null,
           rework: null,
           rejected: rejected != null && rejected >= 0 ? { value: Math.round(rejected), cell: a1(rejectedColumn!, row, rowIdx), header: rejectedColumn! } : null,
-          defects: [],
+          defects,
           statedPct: pctVal != null && pctColumn ? { value: pctVal, cell: a1(pctColumn, row, rowIdx), formula: null } : null,
           extractedBy: "heuristic",
           ingestionId,
