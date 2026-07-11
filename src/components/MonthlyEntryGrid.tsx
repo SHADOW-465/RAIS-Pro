@@ -126,6 +126,21 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, a
 
   const isCustomPreset = !!(activeStage?.headerRows && activeStage?.columns);
 
+  // Registry defects that apply to the active stage but whose codes are NOT
+  // already present as named columns in the custom preset's own column list.
+  // In isCustomPreset mode the Excel header is mirrored exactly, so defect
+  // columns already in the sheet are already rendered. extraDefects appends
+  // any registry defect codes the sheet doesn't have, at the far right.
+  const extraDefects = useMemo(() => {
+    if (!isCustomPreset || !activeStage?.columns) return [];
+    const inSheet = new Set(
+      (activeStage.columns as string[]).map((c: string) => c.trim().toUpperCase())
+    );
+    return activeDefects.filter(
+      (d: any) => !inSheet.has((d.defectCode ?? d.defectCode).toUpperCase())
+    );
+  }, [isCustomPreset, activeStage, activeDefects]);
+
   const updateCell = (date: string, colName: string, val: string) => {
     const prop = getFieldPropertyForCol(colName);
     if (!prop) return; // ignore read-only columns
