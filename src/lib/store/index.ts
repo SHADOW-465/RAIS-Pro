@@ -74,6 +74,23 @@ export function getStores(): Stores {
   return g.__moidStores;
 }
 
+import type { RegistryRow } from "./types";
+
+/** The single source of truth for "which registry preset is active" — every
+ *  caller that used to guess (registries.first(), a hardcoded "disposafe"
+ *  literal, or a raw Supabase bypass) should call this instead. Returns null
+ *  ONLY when zero presets exist at all (a fresh install); callers fall back
+ *  to DISPOSAFE_REGISTRY's bootstrap shape in that case, same as today. When
+ *  presets exist but none has ever been explicitly activated, the oldest one
+ *  wins (registries.first()) — that preserves every existing single-preset
+ *  deployment's behavior unchanged. */
+export async function getActiveRegistryRow(): Promise<RegistryRow | null> {
+  const { registries } = getStores();
+  const rows = await registries.list();
+  if (rows.length === 0) return null;
+  return (await registries.getActive()) ?? (await registries.first());
+}
+
 import { seedFromDisk } from "./seed";
 
 // Auto-seeding from the ANALYTICAL DATA/ folder is OFF by default. The app
