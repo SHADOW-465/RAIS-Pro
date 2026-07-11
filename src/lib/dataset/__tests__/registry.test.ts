@@ -73,4 +73,18 @@ describe("groupIntoDatasets — recognition confidence", () => {
     expect(visual?.recognitionConfidence).toBe(0.97);
     expect(visual?.recognitionBasis).toBe("alias");
   });
+
+  it("splits two same-signature sheets into separate datasets when they alias to different stages", () => {
+    const aliases: Record<string, StageAlias> = {
+      [normalizeAliasKey("16FR")]: { stageId: "custom-a", confidence: 1, basis: "alias", learnedAt: "2026-07-10T00:00:00.000Z" },
+      [normalizeAliasKey("18FR")]: { stageId: "custom-b", confidence: 1, basis: "alias", learnedAt: "2026-07-10T00:00:00.000Z" },
+    };
+    const ds = groupIntoDatasets([
+      input("x.xlsx", "16FR", "hhhh"),
+      input("x.xlsx", "18FR", "hhhh"),
+    ], aliases);
+    expect(ds).toHaveLength(2);
+    const ids = ds.map((d) => d.recognizedStageId).sort();
+    expect(ids).toEqual(["custom-a", "custom-b"]);
+  });
 });

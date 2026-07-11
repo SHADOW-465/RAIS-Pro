@@ -1,7 +1,7 @@
 import type { Dataset, DatasetSource, ProfiledTableInput } from "./types";
 import type { StageAlias } from "@/lib/store/types";
 import { deriveTitle } from "./title";
-import { recognizeSheetStage, recognizeStageScored } from "./recognize";
+import { recognizeSheetStage, recognizeStageScored, normalizeAliasKey } from "./recognize";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { z } from "zod";
 import type { ClientRegistry } from "@/lib/contract/d1";
@@ -37,7 +37,13 @@ export function groupIntoDatasets(
   for (const inp of inputs) {
     const hash = inp.signature.hash;
     const basis = basisKey(inp.signature.columns);
-    const stage = recognizeSheetStage(inp.fileName, inp.sheetName);
+    // Alias-aware grouping: a learned alias (sheet name, then file name — same
+    // precedence recognizeStageScored already uses) determines the grouping
+    // key, not just the post-grouping confidence score. With an empty
+    // stageAliases (the default), this agrees with the plain regex fallback
+    // for every pre-existing group — see the Task 8 regression guard.
+    const alias = stageAliases[normalizeAliasKey(inp.sheetName)] ?? stageAliases[normalizeAliasKey(inp.fileName)];
+    const stage = alias ? alias.stageId : recognizeSheetStage(inp.fileName, inp.sheetName);
     const key = `${hash}::${basis}::${stage ?? ""}`;
     let entry = byKey.get(key);
     if (!entry) {
