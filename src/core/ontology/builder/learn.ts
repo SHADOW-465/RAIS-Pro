@@ -21,9 +21,11 @@ export function knowledgeFromMod(mod: ModRowT): Omit<KnowledgeEntry, "learnedAt"
     if (e.kind === "stage") {
       // A size tab ("16FR") must never become a stage alias — it would poison
       // every other size-wise workbook. The FILE name carries the stage there.
+      // Otherwise the entity's header IS the learnable label: the region label
+      // ("VALVE INTEGRITY") on multi-table sheets, the sheet name elsewhere.
       const key = SIZE_SHEET_RE.test(e.original.sheet)
         ? normalizeKey(mod.document.workbook.fileName)
-        : normalizeKey(e.original.sheet);
+        : normalizeKey(e.original.header);
       push({ companyId: mod.companyId, kind: "stage-alias", key, canonicalId: e.canonical, confidence: 1, learnedFrom: mod.modId });
     } else if (e.original.colLetter !== null) {
       // Every verified column mapping (measures, defects, dimensions, dates).

@@ -17,6 +17,11 @@ import { collapseKey } from "@/core/ontology/normalize";
 export interface ResolverSheet {
   fileName: string;
   sheetName: string;
+  /** Table region within the sheet ("t1", "t2", …). Absent ⇒ "t1". */
+  tableId?: string;
+  /** Group-header text spanning this region (e.g. "VALVE INTEGRITY") — the
+   *  strongest stage signal a multi-table sheet carries. */
+  regionLabel?: string | null;
   columns: ColumnProfile[];
 }
 
@@ -139,33 +144,43 @@ export async function resolveWorkbook(sheets: ResolverSheet[], ctx: ResolverCont
   const proposals: MappingProposalT[] = [];
 
   for (const sheet of sheets) {
-    // ---- Sheet-level entity: what does this SHEET represent? ----
+    const tableId = sheet.tableId ?? "t1";
+    const idSuffix = tableId === "t1" ? "" : `#${tableId}`; // t1 keeps the pre-region id shape
+    // The region label ("VALVE INTEGRITY") is the region's own name — the
+    // verbatim label learned/matched for stages; falls back to the sheet name.
+    const stageLabel = sheet.regionLabel?.trim() || sheet.sheetName;
+
+    // ---- Region-level entities: what does this SHEET/REGION represent? ----
     const sizeMatch = sheet.sheetName.trim().match(SIZE_SHEET_RE);
-    if (sizeMatch) {
+    if (sizeMatch && tableId === "t1") {
       // A per-size tab ("16FR"): the sheet IS a size slice; its stage comes
       // from the file name (same precedence recognize.ts proved out).
       proposals.push(toProposal(`sheet:${sheet.sheetName}`,
-        { sheet: sheet.sheetName, colLetter: null, header: sheet.sheetName },
+        { sheet: sheet.sheetName, tableId, colLetter: null, header: sheet.sheetName },
         [{ canonical: `SIZE:Fr${sizeMatch[1]}`, kind: "size", confidence: 0.9, resolvedBy: "rule", reason: "sheet named as a French size tab" }],
       ));
     }
 
     const stageHits: Hit[] = [];
-    const exactStage = ctx.exact.get(`stage|${normalizeKey(sheet.sheetName)}`) ?? ctx.exact.get(`stage|${normalizeKey(sheet.fileName)}`);
+    const exactStage = ctx.exact.get(`stage|${normalizeKey(stageLabel)}`)
+      ?? ctx.exact.get(`stage|${normalizeKey(sheet.sheetName)}`)
+      ?? ctx.exact.get(`stage|${normalizeKey(sheet.fileName)}`);
     if (exactStage) {
       stageHits.push({ canonical: exactStage.canonical, kind: "stage", confidence: 1, resolvedBy: "exact", reason: "verbatim match against a previously verified MOD" });
     }
-    const aliasHit = (await ctx.knowledge.lookup(ctx.companyId, "stage-alias", sheet.sheetName))
+    const aliasHit = (await ctx.knowledge.lookup(ctx.companyId, "stage-alias", stageLabel))
+      ?? (await ctx.knowledge.lookup(ctx.companyId, "stage-alias", sheet.sheetName))
       ?? (await ctx.knowledge.lookup(ctx.companyId, "stage-alias", sheet.fileName));
     if (aliasHit) {
       stageHits.push({ canonical: aliasHit.canonicalId, kind: "stage", confidence: aliasHit.confidence, resolvedBy: "knowledge", reason: `learned company alias (from MOD ${aliasHit.learnedFrom ?? "unknown"})` });
     }
     if (stageHits.length === 0) {
-      stageHits.push({ canonical: null, kind: "stage", confidence: 0.3, resolvedBy: "rule", reason: "sheet carries data but its stage is unknown — name it once and the company learns it" });
+      stageHits.push({ canonical: null, kind: "stage", confidence: 0.3, resolvedBy: "rule", reason: "region carries data but its stage is unknown — name it once and the company learns it" });
     }
-    // EVERY sheet gets a stage proposal (possibly unresolved) — nothing is
+    // EVERY region gets a stage proposal (possibly unresolved) — nothing is
     // omitted; a size tab's stage usually resolves via the file-name alias.
-    proposals.push(toProposal(`stage:${sheet.sheetName}`, { sheet: sheet.sheetName, colLetter: null, header: sheet.sheetName }, stageHits));
+    proposals.push(toProposal(`stage:${sheet.sheetName}${idSuffix}`,
+      { sheet: sheet.sheetName, tableId, colLetter: null, header: stageLabel }, stageHits));
 
     // ---- Column entities ----
     for (const col of sheet.columns) {
@@ -183,8 +198,8 @@ export async function resolveWorkbook(sheets: ResolverSheet[], ctx: ResolverCont
       const r = ruleHit(col);
       if (r) hits.push(r);
 
-      proposals.push(toProposal(`col:${sheet.sheetName}:${col.colLetter}`,
-        { sheet: sheet.sheetName, colLetter: col.colLetter, header: col.name }, hits));
+      proposals.push(toProposal(`col:${sheet.sheetName}${idSuffix}:${col.colLetter}`,
+        { sheet: sheet.sheetName, tableId, colLetter: col.colLetter, header: col.name }, hits));
     }
   }
 

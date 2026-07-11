@@ -35,11 +35,18 @@ export interface ProfilingCell {
 }
 
 /** A rectangular table ready for profiling. Row/col indices are 0-based; the
- *  true Excel sheet row of `rows[r]` is `firstDataRow + r` (1-based). */
+ *  true Excel sheet row of `rows[r]` is `firstDataRow + r` (1-based).
+ *  A sheet with side-by-side table regions (e.g. the Balloon | Valve Integrity
+ *  layout) yields one ProfilingTable per region — distinguished by tableId. */
 export interface ProfilingTable {
   sheetName: string;
+  /** "t1", "t2", … — region within the sheet. Absent ⇒ "t1" (single region). */
+  tableId?: string;
+  /** Group-header text spanning this region (e.g. "VALVE INTEGRITY"), if any.
+   *  The strongest stage-identity signal a region carries. */
+  regionLabel?: string | null;
   header: string[];        // normalized header, by column index
-  colLetters: string[];    // Excel column letter, by column index
+  colLetters: string[];    // Excel column letter, by column index (TRUE sheet letters)
   firstDataRow: number;    // 1-based sheet row number of rows[0]
   rows: ProfilingCell[][]; // [rowIndex][colIndex]
 }

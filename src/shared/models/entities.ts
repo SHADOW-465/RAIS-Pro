@@ -20,6 +20,7 @@ export const MappingProposal = z.object({
   kind: ModEntityKind,
   original: z.object({
     sheet: z.string(),
+    tableId: z.string().nullable().optional(),
     colLetter: z.string().nullable(),
     header: z.string(),
   }),

@@ -26,15 +26,20 @@ export function proposalToEntity(p: MappingProposalT, verified: boolean): ModEnt
   };
 }
 
+/** Table-region key: a multi-table sheet resolves a stage PER REGION. */
+const regionKey = (e: { original: { sheet: string; tableId?: string | null } }) =>
+  `${e.original.sheet}::${e.original.tableId ?? "t1"}`;
+
 /** Derive the canonical stage/defect/size catalogs from entities. Pure. */
 export function deriveCatalogs(entities: ModEntityT[]): Pick<ModDocumentT, "stages" | "defects" | "sizes" | "relationships"> {
-  // sheet → stage id resolved for that sheet
+  // sheet::tableId → stage id resolved for that region
   const stageOfSheet = new Map<string, string>();
   for (const e of entities) {
     if (e.kind === "stage" && e.canonical?.startsWith("STAGE:")) {
-      stageOfSheet.set(e.original.sheet, e.canonical.slice("STAGE:".length));
+      stageOfSheet.set(regionKey(e), e.canonical.slice("STAGE:".length));
     }
   }
+  // size entities are sheet-level (a size tab slices the WHOLE sheet)
   const sizeSheets = new Set(entities.filter((e) => e.kind === "size" && e.canonical).map((e) => e.original.sheet));
 
   const stages = new Map<string, ModDocumentT["stages"][number]>();
@@ -61,7 +66,7 @@ export function deriveCatalogs(entities: ModEntityT[]): Pick<ModDocumentT, "stag
     if (e.kind !== "measure" || !e.canonical) continue;
     const capture = CAPTURE_BY_CONCEPT[e.canonical];
     if (!capture) continue;
-    const stageId = stageOfSheet.get(e.original.sheet);
+    const stageId = stageOfSheet.get(regionKey(e));
     const stage = stageId ? stages.get(stageId) : undefined;
     if (stage && !stage.captures!.includes(capture)) stage.captures!.push(capture);
   }
@@ -73,7 +78,7 @@ export function deriveCatalogs(entities: ModEntityT[]): Pick<ModDocumentT, "stag
   for (const e of entities) {
     if (e.kind !== "defect" || !e.canonical?.startsWith("DEFECT:")) continue;
     const code = e.canonical.slice("DEFECT:".length);
-    const stageId = stageOfSheet.get(e.original.sheet);
+    const stageId = stageOfSheet.get(regionKey(e));
     const existing = defects.get(code);
     if (existing) {
       if (!existing.aliases.includes(e.original.header)) existing.aliases.push(e.original.header);
@@ -101,7 +106,7 @@ export function deriveCatalogs(entities: ModEntityT[]): Pick<ModDocumentT, "stag
     if (e.kind === "size" && e.canonical) relationships.push({ kind: "size-of-sheet", from: e.original.sheet, to: e.canonical });
     if (e.kind === "measure" && e.canonical) relationships.push({ kind: "column-measures", from: e.entityId, to: e.canonical });
     if (e.kind === "defect" && e.canonical) {
-      const stageId = stageOfSheet.get(e.original.sheet);
+      const stageId = stageOfSheet.get(regionKey(e));
       if (stageId) relationships.push({ kind: "defect-of-stage", from: e.entityId, to: `STAGE:${stageId}` });
     }
   }
@@ -160,11 +165,14 @@ export function buildModDocument(args: {
         headerRows.push(row);
       }
     }
+    const tableId = s.table.tableId ?? "t1";
+    const idSuffix = tableId === "t1" ? "" : `#${tableId}`; // matches the resolver's entityId scheme
     return {
       sheet: s.table.sheetName,
+      tableId,
       headerRows,
       merges: (snapSheet?.merges ?? []).filter((m) => m.e.r < headerEnd),
-      columnOrder: s.columns.map((c) => `col:${s.table.sheetName}:${c.colLetter}`),
+      columnOrder: s.columns.map((c) => `col:${s.table.sheetName}${idSuffix}:${c.colLetter}`),
     };
   });
 

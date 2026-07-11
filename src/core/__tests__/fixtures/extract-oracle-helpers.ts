@@ -27,14 +27,21 @@ export function legacyRecords(buf: Buffer, fileName: string): StageDayRecord[] {
 }
 
 /** MOD path: snapshot → profile → resolve → verify (stage identity injected
- *  from the legacy parse — extraction parity, not recognition) → extract. */
-export async function modPathRecords(fileName: string, buf: Buffer, stageOfSheet: Map<string, string>): Promise<StageDayRecord[]> {
+ *  from the legacy parse — extraction parity, not recognition; columnOverrides
+ *  emulate rung-6 user decisions for company-specific columns the heuristics
+ *  can't name, e.g. the valve book's "STRUCK BALLOON" defect) → extract. */
+export async function modPathRecords(
+  fileName: string,
+  buf: Buffer,
+  stageOfSheet: Map<string, string>,
+  columnOverrides: Map<string, string> = new Map(), // normalized header -> canonical
+): Promise<StageDayRecord[]> {
   const snapshot = await readWorkbookSnapshot(buf, fileName);
   const sheets: ProfiledSheet[] = buildProfilingTables(buf, fileName).map((table) => ({
     table, columns: profileTable(table).columns,
   }));
   const resolverSheets: ResolverSheet[] = sheets.map((s) => ({
-    fileName, sheetName: s.table.sheetName, columns: s.columns,
+    fileName, sheetName: s.table.sheetName, tableId: s.table.tableId, regionLabel: s.table.regionLabel, columns: s.columns,
   }));
   const proposals = await resolveWorkbook(resolverSheets, {
     companyId: "oracle-co", exact: new Map(), knowledge: getKnowledgeStore(), concepts: GLOBAL_ONTOLOGY_SEED,
@@ -42,13 +49,27 @@ export async function modPathRecords(fileName: string, buf: Buffer, stageOfSheet
 
   const entities = proposals.map((p) => {
     if (p.kind === "stage") {
-      const stageId = stageOfSheet.get(p.original.sheet);
+      // Region-aware override key "<sheet>::<tableId>" first, then plain sheet.
+      const stageId = stageOfSheet.get(`${p.original.sheet}::${p.original.tableId ?? "t1"}`)
+        ?? stageOfSheet.get(p.original.sheet);
       return {
         ...proposalToEntity(p, true),
         canonical: stageId ? `STAGE:${stageId}` : null,
         resolvedBy: "user" as const,
         confidence: 1,
       };
+    }
+    if (p.original.colLetter !== null) {
+      const override = columnOverrides.get(p.original.header.trim().toLowerCase());
+      if (override) {
+        return {
+          ...proposalToEntity(p, true),
+          canonical: override,
+          kind: override.startsWith("DEFECT:") ? ("defect" as const) : p.kind,
+          resolvedBy: "user" as const,
+          confidence: 1,
+        };
+      }
     }
     return proposalToEntity(p, true);
   });

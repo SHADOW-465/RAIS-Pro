@@ -50,6 +50,8 @@ export async function POST(req: NextRequest) {
       const resolverSheets: ResolverSheet[] = sheets.map((s) => ({
         fileName: file.name,
         sheetName: s.table.sheetName,
+        tableId: s.table.tableId,
+        regionLabel: s.table.regionLabel,
         columns: s.columns,
       }));
 

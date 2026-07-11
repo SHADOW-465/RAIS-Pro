@@ -56,12 +56,18 @@ interface SheetPlan {
   defects: ModEntityT[];
 }
 
-function planFor(sheet: string, entities: ModEntityT[]): SheetPlan | null {
-  const here = entities.filter((e) => e.original.sheet === sheet && e.verified && e.canonical);
+function planFor(sheet: string, tableId: string, entities: ModEntityT[]): SheetPlan | null {
+  const here = entities.filter(
+    (e) => e.original.sheet === sheet && (e.original.tableId ?? "t1") === tableId && e.verified && e.canonical,
+  );
   const stage = here.find((e) => e.kind === "stage" && e.canonical!.startsWith("STAGE:"));
-  if (!stage) return null; // a sheet with no verified stage never reaches the ledger
+  if (!stage) return null; // a region with no verified stage never reaches the ledger
 
-  const size = here.find((e) => e.kind === "size" && e.canonical!.startsWith("SIZE:"));
+  // Size entities are sheet-level (a size tab slices the whole sheet), so they
+  // are looked up across ALL of the sheet's regions.
+  const size = entities.find(
+    (e) => e.original.sheet === sheet && e.verified && e.kind === "size" && e.canonical?.startsWith("SIZE:"),
+  );
   const byCanonical = (c: string) => here.find((e) => e.original.colLetter !== null && e.canonical === c) ?? null;
 
   return {
@@ -86,7 +92,8 @@ export function extractFromMod(
   const records: StageDayRecord[] = [];
 
   for (const layout of doc.layout) {
-    const plan = planFor(layout.sheet, doc.entities);
+    const tableId = layout.tableId ?? "t1";
+    const plan = planFor(layout.sheet, tableId, doc.entities);
     if (!plan || !plan.dateCol) continue; // no stage or no time axis → nothing day-level to extract
 
     const snapSheet = snapshot.sheets.find((s) => s.name === layout.sheet);
@@ -129,7 +136,7 @@ export function extractFromMod(
         occurredOn: { kind: "day", start: iso, end: iso },
         stageId: plan.stageId,
         size: plan.size,
-        source: { file: snapshot.fileName, fileHash: snapshot.snapshotId, sheet: layout.sheet, tableId: "t1" },
+        source: { file: snapshot.fileName, fileHash: snapshot.snapshotId, sheet: layout.sheet, tableId },
         checked: sourced(rel, plan.checked),
         acceptedGood: sourced(rel, plan.accepted),
         rework: sourced(rel, plan.rework),

@@ -25,8 +25,10 @@ export const ModEntity = z.object({
   kind: ModEntityKind,
   original: z.object({
     sheet: z.string(),
-    colLetter: z.string().nullable(),              // null for sheet-level entities
-    header: z.string(),                            // verbatim source label
+    /** Table region within the sheet ("t1", "t2", …). Nullable ⇒ "t1". */
+    tableId: z.string().nullable().optional(),
+    colLetter: z.string().nullable(),              // null for sheet/region-level entities
+    header: z.string(),                            // verbatim source label (region label for stages)
   }),
   /** Canonical id, e.g. "REJECTED_QTY", "DEFECT:PINH", "STAGE:visual". Null =
    *  unresolved (kept visible, never dropped). */
@@ -56,9 +58,11 @@ export const ModFormula = z.object({
   translated: z.string().nullable(),               // header-name form, e.g. "[REJ]/[CHECKED]*100"
 });
 
-/** Per-sheet layout captured for data-entry generation + view-source. */
+/** Per-table-region layout captured for data-entry generation + view-source. */
 export const ModLayout = z.object({
   sheet: z.string(),
+  /** Table region within the sheet. Nullable ⇒ "t1". */
+  tableId: z.string().nullable().optional(),
   headerRows: z.array(z.array(z.union([z.string(), z.number()]).nullable())),
   merges: z.array(z.object({
     s: z.object({ r: z.number().int(), c: z.number().int() }),
