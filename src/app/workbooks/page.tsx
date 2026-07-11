@@ -20,6 +20,8 @@ import GenericDashboardBody from "@/components/app/GenericDashboardBody";
 import { buildGenericDashboard } from "@/lib/dataset/dashboard";
 import { toStageRecords } from "@/lib/dataset/to-stage-records";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { useRegistry } from "@/components/app/RegistryContext";
+import { resolveConfirmPresetId, isNewStageLabel } from "@/lib/dataset/confirm-stage";
 import { useEvents } from "@/components/app/EventsContext";
 import type { Dataset, DatasetRow } from "@/lib/dataset/types";
 
@@ -84,6 +86,9 @@ function buildTree(datasets: Dataset[]): FileNode[] {
 export default function WorkbooksPage() {
   const router = useRouter();
   const { refreshEvents } = useEvents();
+  const { registry, refreshRegistry } = useRegistry();
+  const activeRegistry = registry || DISPOSAFE_REGISTRY;
+  const knownStages = (activeRegistry.stages || []).map((s: any) => ({ stageId: s.stageId, label: s.label }));
   const [datasets, setDatasets] = useState<Dataset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -174,26 +179,51 @@ export default function WorkbooksPage() {
     setExpandedFiles((p) => ({ ...p, [fileName]: !p[fileName] }));
   }
 
-  async function confirmStageAlias(datasetId: string, stageId: string) {
+  async function confirmStageAlias(datasetId: string, stageIdOrLabel: string) {
     const dataset = datasets?.find((d) => d.id === datasetId);
     if (!dataset || dataset.sources.length === 0) return;
-    // No preset picker exists on this page yet — "disposafe" is the same
-    // default every other route (api/ingest/route.ts:177) falls back to.
-    const res = await fetch("/api/registry-alias", {
+
+    const presetId = resolveConfirmPresetId(activeRegistry);
+    let stageId = stageIdOrLabel;
+
+    if (isNewStageLabel(stageIdOrLabel, activeRegistry.stages || [])) {
+      // Brand-new stage: append it to the active preset's stages before
+      // persisting the alias. Passing defects/sizes through explicitly is
+      // required — /api/schema's POST falls back to DISPOSAFE_REGISTRY's
+      // values for whichever of those two arrays is omitted.
+      const res = await fetch("/api/schema", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          presetId,
+          registry: {
+            stages: [...(activeRegistry.stages || []), { label: stageIdOrLabel }],
+            defects: activeRegistry.defects,
+            sizes: activeRegistry.sizes,
+          },
+        }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const created = data.registry.stages.find((s: any) => s.label === stageIdOrLabel);
+      if (!created) return;
+      stageId = created.stageId;
+      refreshRegistry();
+    }
+
+    await fetch("/api/registry-alias", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        presetId: "disposafe",
+        presetId,
         sheetName: dataset.sources[0].sheetName,
         stageId,
       }),
     });
-    if (!res.ok) return;
     // ponytail: don't locally fake recognitionConfidence to 1 here — the alias
     // is saved to the registry, but nothing on this upload path re-reads
-    // stageAliases into groupIntoDatasets yet (tracked follow-up), so claiming
-    // confidence improved would be inaccurate. The badge/button honestly stay
-    // as-is until the next real classification pass consults the alias.
+    // stageAliases into groupIntoDatasets until the NEXT upload/classification
+    // pass. The badge/button honestly stay as-is until then.
   }
 
   async function publishToCumulative(ds: Dataset, dsRows: DatasetRow[]) {
@@ -448,6 +478,7 @@ export default function WorkbooksPage() {
                 publishMsg={publishMsg}
                 onPublish={publishToCumulative}
                 onConfirmStage={confirmStageAlias}
+                knownStages={knownStages}
               />
             )}
 
@@ -462,6 +493,7 @@ export default function WorkbooksPage() {
                 publishMsg={publishMsg}
                 onPublish={publishToCumulative}
                 onConfirmStage={confirmStageAlias}
+                knownStages={knownStages}
               />
             )}
           </div>
@@ -471,7 +503,7 @@ export default function WorkbooksPage() {
   );
 }
 
-function SheetDashboard({ selection, dataset, rows, loading, publishing, publishMsg, onPublish, onConfirmStage }: {
+function SheetDashboard({ selection, dataset, rows, loading, publishing, publishMsg, onPublish, onConfirmStage, knownStages }: {
   selection: { fileName: string; sheetName: string; datasetId: string };
   dataset: Dataset | null;
   rows: DatasetRow[] | undefined;
@@ -480,6 +512,7 @@ function SheetDashboard({ selection, dataset, rows, loading, publishing, publish
   publishMsg: { tone: "ok" | "err"; text: string } | null;
   onPublish: (ds: Dataset, rows: DatasetRow[]) => void;
   onConfirmStage: (datasetId: string, stageId: string) => void;
+  knownStages: { stageId: string; label: string }[];
 }) {
   if (!dataset) return <Empty label="This dataset no longer exists — it may have been cleared." />;
   if (loading || rows === undefined) return <PageLoader message="Loading sheet…" minHeight="30vh" />;
@@ -507,6 +540,7 @@ function SheetDashboard({ selection, dataset, rows, loading, publishing, publish
       rows={sheetRows}
       caption={`Source: ${selection.fileName} → ${selection.sheetName}`}
       onConfirmStage={onConfirmStage}
+      knownStages={knownStages}
       publishBanner={
         stageLabel
           ? { stageLabel, publishing, onPublish: () => onPublish(dataset, sheetRows), message: publishMsg }
@@ -517,7 +551,7 @@ function SheetDashboard({ selection, dataset, rows, loading, publishing, publish
   );
 }
 
-function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDatasetIds, publishing, publishMsg, onPublish, onConfirmStage }: {
+function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDatasetIds, publishing, publishMsg, onPublish, onConfirmStage, knownStages }: {
   fileName: string;
   fileNode: FileNode | null;
   datasets: Dataset[];
@@ -527,6 +561,7 @@ function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDataset
   publishMsg: { tone: "ok" | "err"; text: string } | null;
   onPublish: (ds: Dataset, rows: DatasetRow[]) => void;
   onConfirmStage: (datasetId: string, stageId: string) => void;
+  knownStages: { stageId: string; label: string }[];
 }) {
   if (!fileNode) return <Empty label="This file is no longer present in the dataset list." />;
 
@@ -568,6 +603,7 @@ function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDataset
               dataset={dataset}
               rows={fileRows}
               onConfirmStage={onConfirmStage}
+              knownStages={knownStages}
               publishBanner={
                 stageLabel
                   ? { stageLabel, publishing, onPublish: () => onPublish(dataset, fileRows), message: publishMsg }
