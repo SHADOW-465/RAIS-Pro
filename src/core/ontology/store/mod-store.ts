@@ -32,8 +32,12 @@ export interface ModStore {
   get(modId: string, version?: number): Promise<ModRowT | null>;
   /** The single verified version of a lineage, or null. */
   activeFor(modId: string): Promise<ModRowT | null>;
+  /** All verified rows for a company (one per lineage — the exact-match corpus). */
+  verified(companyId: string): Promise<ModRowT[]>;
   /** Append the next version of a lineage as a draft. Returns the saved row. */
   saveDraft(row: Omit<ModRowT, "version" | "status" | "createdAt" | "verifiedBy" | "verifiedAt" | "supersedes">): Promise<ModRowT>;
+  /** Replace a DRAFT's document (verification decisions land here). */
+  updateDraft(modId: string, version: number, document: ModRowT["document"]): Promise<ModRowT>;
   /** Verify a draft; the previously verified version (if any) becomes superseded. */
   publish(modId: string, version: number, verifiedBy: string): Promise<ModRowT>;
   /** Merged stage/defect/size catalog across a company's verified MODs —
@@ -76,6 +80,16 @@ class MemoryModStore implements ModStore {
   async activeFor(modId: string) {
     return this.rows.find((r) => r.modId === modId && r.status === "verified") ?? null;
   }
+  async verified(companyId: string) {
+    return this.rows.filter((r) => r.companyId === companyId && r.status === "verified");
+  }
+  async updateDraft(modId: string, version: number, document: ModRowT["document"]) {
+    const row = this.rows.find((r) => r.modId === modId && r.version === version);
+    if (!row) throw new Error(`No MOD ${modId} v${version}`);
+    if (row.status !== "draft") throw new Error(`MOD ${modId} v${version} is ${row.status}, not draft`);
+    row.document = document;
+    return row;
+  }
   async saveDraft(row: Omit<ModRowT, "version" | "status" | "createdAt" | "verifiedBy" | "verifiedAt" | "supersedes">) {
     const latest = await this.get(row.modId);
     const saved: ModRowT = {
@@ -102,7 +116,7 @@ class MemoryModStore implements ModStore {
     return row;
   }
   async catalogFor(companyId: string) {
-    return mergeCatalog(this.rows.filter((r) => r.companyId === companyId && r.status === "verified"));
+    return mergeCatalog(await this.verified(companyId));
   }
 }
 
@@ -143,6 +157,20 @@ class SupabaseModStore implements ModStore {
     if (error) throw error;
     return data ? fromDb(data) : null;
   }
+  async verified(companyId: string) {
+    const { data, error } = await this.db().from("mods").select("*")
+      .eq("company_id", companyId).eq("status", "verified");
+    if (error) throw error;
+    return (data ?? []).map(fromDb);
+  }
+  async updateDraft(modId: string, version: number, document: ModRowT["document"]) {
+    const { data, error } = await this.db().from("mods").update({ document })
+      .eq("mod_id", modId).eq("version", version).eq("status", "draft")
+      .select("*").maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error(`No draft MOD ${modId} v${version}`);
+    return fromDb(data);
+  }
   async saveDraft(row: Omit<ModRowT, "version" | "status" | "createdAt" | "verifiedBy" | "verifiedAt" | "supersedes">) {
     const latest = await this.get(row.modId);
     const version = (latest?.version ?? 0) + 1;
@@ -168,10 +196,7 @@ class SupabaseModStore implements ModStore {
     return fromDb(data);
   }
   async catalogFor(companyId: string) {
-    const { data, error } = await this.db().from("mods").select("*")
-      .eq("company_id", companyId).eq("status", "verified");
-    if (error) throw error;
-    return mergeCatalog((data ?? []).map(fromDb));
+    return mergeCatalog(await this.verified(companyId));
   }
 }
 

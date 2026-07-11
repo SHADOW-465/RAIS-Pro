@@ -1,0 +1,89 @@
+// src/app/api/workbooks/route.ts
+// MOD pipeline entry (ADD §9): upload → lossless snapshot → profile → resolve
+// → draft MOD + proposals. Nothing here writes events or knowledge — the draft
+// waits for human verification (/api/mods/verify) and publication (/api/mods).
+
+import { NextRequest, NextResponse } from "next/server";
+import { readWorkbookSnapshot } from "@/core/workbook/reader";
+import { getSnapshotStore } from "@/core/workbook/snapshot-store";
+import { buildProfilingTables } from "@/core/profiler/from-workbook";
+import { profileTable } from "@/core/profiler/profile";
+import { resolveWorkbook, type ResolverSheet } from "@/core/ontology/resolver/ladder";
+import { buildExactIndex } from "@/core/ontology/resolver/exact-index";
+import { llmResolve } from "@/core/ontology/resolver/llm";
+import { buildModDocument, type ProfiledSheet } from "@/core/ontology/builder/build-mod";
+import { getModStore } from "@/core/ontology/store/mod-store";
+import { getKnowledgeStore } from "@/core/ontology/store/knowledge-store";
+import { availableBackends } from "@/lib/ai";
+
+export const runtime = "nodejs";
+
+function companyId(): string {
+  return process.env.MOID_COMPANY_ID || "default";
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const form = await req.formData();
+    const files = form.getAll("file").filter((f): f is File => f instanceof File);
+    if (files.length === 0) {
+      return NextResponse.json({ error: "No files uploaded." }, { status: 400 });
+    }
+    const useLlm = form.get("llm") !== "off" && availableBackends().length > 0;
+
+    const company = companyId();
+    const [exact, concepts] = await Promise.all([
+      buildExactIndex(company),
+      getKnowledgeStore().concepts(),
+    ]);
+
+    const mods = [];
+    for (const file of files) {
+      const buf = Buffer.from(await file.arrayBuffer());
+      const snapshot = await readWorkbookSnapshot(buf, file.name);
+      await getSnapshotStore().put(snapshot);
+
+      const sheets: ProfiledSheet[] = buildProfilingTables(buf, file.name).map((table) => ({
+        table,
+        columns: profileTable(table).columns,
+      }));
+      const resolverSheets: ResolverSheet[] = sheets.map((s) => ({
+        fileName: file.name,
+        sheetName: s.table.sheetName,
+        columns: s.columns,
+      }));
+
+      const proposals = await resolveWorkbook(resolverSheets, {
+        companyId: company,
+        exact,
+        knowledge: getKnowledgeStore(),
+        concepts,
+        llm: useLlm ? llmResolve : undefined,
+      });
+
+      const document = buildModDocument({ companyId: company, snapshot, sheets, proposals });
+      const draft = await getModStore().saveDraft({
+        modId: snapshot.snapshotId,
+        companyId: company,
+        snapshotId: snapshot.snapshotId,
+        document,
+      });
+
+      mods.push({
+        modId: draft.modId,
+        version: draft.version,
+        fileName: file.name,
+        snapshotId: snapshot.snapshotId,
+        proposals,
+        stages: document.stages,
+        defects: document.defects,
+        sizes: document.sizes,
+      });
+    }
+
+    return NextResponse.json({ mods, llmUsed: useLlm });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Workbook processing failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

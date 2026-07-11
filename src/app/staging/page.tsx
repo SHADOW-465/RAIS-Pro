@@ -16,6 +16,8 @@ import type { StageDayRecord } from "@/lib/ingest/emit";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import { matchAgainstPresets, type PresetMatch } from "@/lib/registry/match-preset";
 import type { Dataset } from "@/lib/dataset/types";
+import { MOD_PIPELINE } from "@/lib/flags";
+import MappingVerificationPanel, { type UploadedMod } from "@/components/app/MappingVerificationPanel";
 
 export default function StagingPage() {
   const router = useRouter();
@@ -67,6 +69,8 @@ export default function StagingPage() {
   // New Column Mapping Carryover
   const [newColumns, setNewColumns] = useState<{ stageId: string; colName: string; type: string }[]>([]);
   const [confirmMappings, setConfirmMappings] = useState<Record<string, boolean>>({});
+  // MOD pipeline (Phase 2, flag-gated): draft-MOD proposals from /api/workbooks.
+  const [modUploads, setModUploads] = useState<UploadedMod[]>([]);
 
   useEffect(() => {
     fetch("/api/schema")
@@ -120,6 +124,24 @@ export default function StagingPage() {
     try {
       if (!files || files.length === 0) return;
       setBusy(true);
+
+      // MOD pipeline (Phase 2, flag-gated): snapshot + profile + resolve on the
+      // server; renders the mapping-verification panel. Never blocks or throws
+      // into the legacy flow below — both run side by side until Phase 5.
+      if (MOD_PIPELINE) {
+        setModUploads([]);
+        void (async () => {
+          try {
+            const fd = new FormData();
+            for (const f of files) fd.append("file", f);
+            const res = await fetch("/api/workbooks", { method: "POST", body: fd });
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.mods)) setModUploads(data.mods);
+          } catch {
+            // best-effort; the legacy pipeline is unaffected
+          }
+        })();
+      }
 
       // Fire-and-forget: profile the same buffers for the new Dataset system.
       // Never blocks or throws into the existing upload/review flow.
@@ -620,10 +642,14 @@ export default function StagingPage() {
         <button onClick={() => router.push("/")} style={{ background: "var(--status-good)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>View dashboard →</button>
       </div>}
 
+      {MOD_PIPELINE && modUploads.length > 0 && (
+        <MappingVerificationPanel mods={modUploads} />
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 18 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Card 
-            title="Upload" 
+          <Card
+            title="Upload"
             sub="Ingest raw workbook (.xlsx) — establishes layout or logs production entries"
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
