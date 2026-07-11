@@ -111,6 +111,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "A new preset requires a name." }, { status: 400 });
     }
 
+    // new-stage creation must never silently overwrite an existing stage: if
+    // two entries in this request resolve to the same stageId (e.g. a typed
+    // label that slugifies to a stageId already present), reject up front
+    // rather than letting the second one shadow the first in the final array.
+    const seenStageIds = new Set<string>();
+    for (const stage of payload.stages) {
+      const candidateId = stage.stageId || slugify(stage.label || stage.name);
+      if (seenStageIds.has(candidateId)) {
+        return NextResponse.json(
+          { error: `Duplicate stageId "${candidateId}" in submitted stages.` },
+          { status: 400 }
+        );
+      }
+      seenStageIds.add(candidateId);
+    }
+
     const stages = payload.stages.map((stage: any, sIdx: number) => {
       const stageId = stage.stageId || slugify(stage.label || stage.name);
       const upstream = stage.upstream || (sIdx > 0 ? [payload.stages[sIdx - 1].stageId || slugify(payload.stages[sIdx - 1].label || payload.stages[sIdx - 1].name)] : []);

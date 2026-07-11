@@ -143,6 +143,21 @@ describe("/api/schema (memory store — no Supabase configured)", () => {
     expect(json.registry.presetId).toBe("second-created");
   });
 
+  it("POST rejects a request whose stages resolve to a duplicate stageId (new-stage label collides with an existing stageId)", async () => {
+    await POST(post({ schema: sampleSchema, name: "Collision Preset" }));
+    const res = await POST(post({
+      presetId: "collision-preset",
+      registry: {
+        stages: [...sampleSchema.stages, { label: "Visual" }], // slugifies to "visual" — already taken
+        defects: sampleSchema.defects,
+        sizes: sampleSchema.sizes,
+      },
+    }));
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toMatch(/visual/i);
+  });
+
   it("POST response reflects preserved fiscalYearStartMonth and stageAliases on merge, not stale defaults", async () => {
     // Create initial preset
     await POST(post({ schema: sampleSchema, name: "Response Merge Test" }));
