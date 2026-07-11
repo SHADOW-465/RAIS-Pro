@@ -14,6 +14,10 @@ interface IngestBody {
   fileName: string;
   records: StageDayRecord[];
   presetId?: string;
+  /** MOD v2 (Phase 3): resolve entities via this MOD lineage's company catalog
+   *  instead of the registry-preset chain. */
+  modId?: string;
+  modVersion?: number;
   /** per-mapping-row comments keyed by mapping id (carried for provenance/audit) */
   comments?: Record<string, string>;
 }
@@ -172,7 +176,21 @@ export async function POST(req: NextRequest) {
 
     // 2. Emit canonical events and append (idempotent on content hash).
     let activeRegistry = undefined;
-    try {
+    if (body.modId) {
+      // MOD path: the company's merged verified-MOD catalog is the registry.
+      const { getModStore } = require("@/core/ontology/store/mod-store") as typeof import("@/core/ontology/store/mod-store");
+      const company = process.env.MOID_COMPANY_ID || "default";
+      const catalog = await getModStore().catalogFor(company);
+      activeRegistry = {
+        clientId: company,
+        registryVersion: `mod:${body.modId}@${body.modVersion ?? "latest"}`,
+        fiscalYearStartMonth: catalog.fiscalYearStartMonth,
+        stages: catalog.stages,
+        defects: catalog.defects,
+        sizes: catalog.sizes,
+        costConfig: null,
+      };
+    } else try {
       const { registries } = getStores();
       const targetPresetId = body.presetId || (await getActiveRegistryRow())?.presetId;
       const regRow = targetPresetId ? await registries.get(targetPresetId) : null;

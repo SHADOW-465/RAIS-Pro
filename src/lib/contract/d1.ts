@@ -52,6 +52,10 @@ export const Provenance = z.object({
   provenance_coordinate: z.string().optional(),
   provenance_hash: z.string().optional(),
   is_direct_entry: z.boolean().optional(),
+  // MOD v2 (Phase 3): which Manufacturing Ontology Document version interpreted
+  // this value. Nullable+optional so pre-MOD events still parse.
+  modId: z.string().nullable().optional(),
+  modVersion: z.number().int().nullable().optional(),
 });
 
 export const ConfidenceBasis = z.enum([

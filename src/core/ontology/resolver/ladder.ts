@@ -46,11 +46,20 @@ const CONCEPT_KIND: Record<string, MappingProposalT["kind"]> = {
   MACHINE: "dimension", SHIFT: "dimension",
 };
 
+const PCTISH_RE = /%|percent|\brate\b|\bfpy\b|\byield\b/i;
+
 /** Which concepts a column of a given profiler role may match (guards against
  *  "REJ %" resolving to REJECTED_QTY instead of STATED_PCT). */
-function conceptsForRole(role: ColumnProfile["role"], concepts: OntologyConcept[]): OntologyConcept[] {
+function conceptsForRole(role: ColumnProfile["role"], header: string, concepts: OntologyConcept[]): OntologyConcept[] {
   switch (role) {
-    case "derived":        return concepts.filter((c) => c.conceptId === "STATED_PCT");
+    case "derived":
+      // A percent/rate column is a stated CLAIM. But a row-derived QUANTITY
+      // (e.g. "REJ. QTY" = SUM of the defect columns) is the stage's real
+      // rejected count — the classic "formula-linked raw measurement gets
+      // discarded" bug. Non-pct derived columns may resolve as measures.
+      return PCTISH_RE.test(header)
+        ? concepts.filter((c) => c.conceptId === "STATED_PCT")
+        : concepts.filter((c) => c.kind === "measure" && c.conceptId !== "STATED_PCT");
     case "measure":        return concepts.filter((c) => c.kind === "measure" && c.conceptId !== "STATED_PCT");
     case "dimension-date": return concepts.filter((c) => c.conceptId === "DATE");
     case "dimension":      return concepts.filter((c) => c.kind === "dimension");
@@ -62,7 +71,7 @@ function conceptsForRole(role: ColumnProfile["role"], concepts: OntologyConcept[
 function globalHit(header: string, role: ColumnProfile["role"], concepts: OntologyConcept[]): Hit | null {
   const h = header.toLowerCase();
   let best: { concept: OntologyConcept; len: number } | null = null;
-  for (const concept of conceptsForRole(role, concepts)) {
+  for (const concept of conceptsForRole(role, header, concepts)) {
     for (const term of concept.matchTerms) {
       const found = /\w/.test(term)
         ? new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i").test(h)
@@ -154,12 +163,9 @@ export async function resolveWorkbook(sheets: ResolverSheet[], ctx: ResolverCont
     if (stageHits.length === 0) {
       stageHits.push({ canonical: null, kind: "stage", confidence: 0.3, resolvedBy: "rule", reason: "sheet carries data but its stage is unknown — name it once and the company learns it" });
     }
-    const stageEntityId = `stage:${sheet.sheetName}`;
-    // Per-size tabs are size slices, not stages — only non-size sheets (or size
-    // sheets whose FILE resolves a stage) get a stage entity.
-    if (!sizeMatch || stageHits.some((h) => h.canonical !== null)) {
-      proposals.push(toProposal(stageEntityId, { sheet: sheet.sheetName, colLetter: null, header: sheet.sheetName }, stageHits));
-    }
+    // EVERY sheet gets a stage proposal (possibly unresolved) — nothing is
+    // omitted; a size tab's stage usually resolves via the file-name alias.
+    proposals.push(toProposal(`stage:${sheet.sheetName}`, { sheet: sheet.sheetName, colLetter: null, header: sheet.sheetName }, stageHits));
 
     // ---- Column entities ----
     for (const col of sheet.columns) {

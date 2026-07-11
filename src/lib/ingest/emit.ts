@@ -49,16 +49,21 @@ export interface StageDayRecord {
   rejected: SourcedValue | null;
   defects: DefectValue[];
   statedPct: { value: number | string; cell: string; formula: string | null } | null;
-  extractedBy: string;       // "heuristic" | "llm:<model>" | "direct-entry"
+  extractedBy: string;       // "heuristic" | "llm:<model>" | "direct-entry" | "mod"
   ingestionId: string;
   comment?: string | null;
   customFields?: Record<string, any>;
+  /** MOD v2: the ontology version that interpreted this record (Phase 3). */
+  modId?: string | null;
+  modVersion?: number | null;
 }
 
 const SCHEMA_VERSION = "1.0.0";
 
 function basisFor(extractedBy: string): z.infer<typeof ConfidenceBasis> {
   if (extractedBy === "direct-entry") return "exact";
+  // MOD extraction reads cells through HUMAN-VERIFIED mappings — exact basis.
+  if (extractedBy === "mod") return "exact";
   if (extractedBy.startsWith("llm")) return "llm";
   return "heuristic";
 }
@@ -89,6 +94,8 @@ function envelope(rec: StageDayRecord, cells: string[], header: string, formulaT
       provenance_coordinate: `${rec.source.sheet}!${cells[0] ?? ""}`,
       provenance_hash: rec.source.fileHash,
       is_direct_entry: isDirect,
+      modId: rec.modId ?? null,
+      modVersion: rec.modVersion ?? null,
     },
     confidence: { score: scoreFor(basis), basis },
     extractedBy: rec.extractedBy,
