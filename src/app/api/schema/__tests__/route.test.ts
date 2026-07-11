@@ -89,9 +89,21 @@ describe("/api/schema (memory store — no Supabase configured)", () => {
     expect(res.status).toBe(200);
   });
 
-  it("two presets: GET with no presetId returns the FIRST one created (documents RC2's ordering)", async () => {
+  it("two presets: GET with no presetId returns the MOST RECENTLY saved one, not the oldest", async () => {
+    // POST marks whichever preset it just touched as active -- otherwise
+    // "active" would silently stay pinned to the oldest preset ever created,
+    // ignoring every schema actually uploaded/saved afterward.
     await POST(post({ schema: sampleSchema, name: "First Created" }));
     await POST(post({ schema: sampleSchema, name: "Second Created" }));
+    const res = await GET(get());
+    const json = await res.json();
+    expect(json.registry.presetId).toBe("second-created");
+  });
+
+  it("re-saving an older preset makes it active again", async () => {
+    await POST(post({ schema: sampleSchema, name: "First Created" }));
+    await POST(post({ schema: sampleSchema, name: "Second Created" }));
+    await POST(post({ schema: sampleSchema, presetId: "first-created" }));
     const res = await GET(get());
     const json = await res.json();
     expect(json.registry.presetId).toBe("first-created");

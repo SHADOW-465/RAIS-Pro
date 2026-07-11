@@ -176,6 +176,11 @@ export async function POST(req: NextRequest) {
       // sheet-name -> stage mappings.
       stageAliases: existing?.stageAliases ?? {},
     });
+    // Whichever preset was just created or edited becomes the active one --
+    // otherwise "active" silently stays pinned to the oldest preset ever
+    // created (getActiveRegistryRow()'s fallback), ignoring every schema the
+    // user actually uploads/saves afterward.
+    await registries.setActive(presetId);
 
     return NextResponse.json({
       success: true,
