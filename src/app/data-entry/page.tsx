@@ -108,6 +108,7 @@ export default function DataEntryPage() {
 
   // Registry state
   const [registry, setRegistry] = useState<any | null>(null);
+  const [loadingRegistry, setLoadingRegistry] = useState(true);
 
   // Preset state — which uploaded-workbook-derived Data Entry preset is active.
   const [presets, setPresets] = useState<{ presetId: string; name: string; stageCount: number }[]>([]);
@@ -173,6 +174,7 @@ export default function DataEntryPage() {
   };
 
   const loadRegistry = async (presetId?: string | null) => {
+    setLoadingRegistry(true);
     try {
       const res = await fetch(presetId ? `/api/schema?presetId=${encodeURIComponent(presetId)}` : "/api/schema");
       const data = await res.json();
@@ -181,10 +183,13 @@ export default function DataEntryPage() {
       }
     } catch (err) {
       console.error("Error loading registry:", err);
+    } finally {
+      setLoadingRegistry(false);
     }
   };
 
   const loadPresets = async () => {
+    setLoadingRegistry(true);
     try {
       const res = await fetch("/api/schema?list=true");
       const data = await res.json();
@@ -206,6 +211,8 @@ export default function DataEntryPage() {
     } catch (err) {
       console.error("Error loading presets:", err);
       await loadRegistry(null);
+    } finally {
+      setLoadingRegistry(false);
     }
   };
 
@@ -649,130 +656,138 @@ Assign another field as Rejected Quantity.`;
       {activeTab === "custom" ? (
         <DatasetEntryForm />
       ) : activeTab === "entry" ? (
-        <div>
-          <div style={{ display: "flex", gap: 14, alignItems: "flex-end", marginBottom: 16, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12 }}>
-            <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
-              {t.grain === "day" && "Report Date"}
-              {t.grain === "week" && "Report Week"}
-              {t.grain === "month" && "Report Month"}
-              {t.grain === "fy" && "Report FY"}
+        loadingRegistry ? (
+          <div className="muted" style={{ padding: 48, textAlign: "center" }}>Loading schema registry…</div>
+        ) : presets.length === 0 || !registry || !registry.stages || registry.stages.length === 0 ? (
+          <div style={{ padding: 48, textAlign: "center", background: "var(--surface)", border: "1px dashed var(--border)", borderRadius: 12, color: "var(--text-2)" }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: "var(--text)" }}>No Active Schema for Data Entry</h3>
+            <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+              There is currently no schema configured for manual data entry. You need to upload a workbook to establish a schema registry.
+            </p>
+            <a href="/staging" style={{ display: "inline-block", padding: "8px 16px", borderRadius: 6, background: "var(--accent)", color: "var(--text-invert)", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+              Go to Excel Upload / Staging
+            </a>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: "flex", gap: 14, alignItems: "flex-end", marginBottom: 16, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12 }}>
+              <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
+                {t.grain === "day" && "Report Date"}
+                {t.grain === "week" && "Report Week"}
+                {t.grain === "month" && "Report Month"}
+                {t.grain === "fy" && "Report FY"}
 
-              {t.grain === "day" && (
-                <input type="date" value={date} onChange={(e) => {
-                  const newDate = e.target.value;
-                  if (!confirmLeaveEntryGrid()) return;
-                  setDate(newDate);
-                }} style={{ ...inp, width: 160 }} />
-              )}
+                {t.grain === "day" && (
+                  <input type="date" value={date} onChange={(e) => {
+                    const newDate = e.target.value;
+                    if (!confirmLeaveEntryGrid()) return;
+                    setDate(newDate);
+                  }} style={{ ...inp, width: 160 }} />
+                )}
 
-              {t.grain === "week" && (
-                <WeekPicker value={date} onChange={(next) => {
-                  if (!confirmLeaveEntryGrid()) return;
-                  setDate(next);
-                }} />
-              )}
+                {t.grain === "week" && (
+                  <WeekPicker value={date} onChange={(next) => {
+                    if (!confirmLeaveEntryGrid()) return;
+                    setDate(next);
+                  }} />
+                )}
 
-              {t.grain === "month" && (
-                <input type="month" value={date.slice(0, 7)} onChange={(e) => {
-                  if (!confirmLeaveEntryGrid()) return;
-                  setDate(`${e.target.value}-01`);
-                }} style={{ ...inp, width: 160 }} />
-              )}
+                {t.grain === "month" && (
+                  <input type="month" value={date.slice(0, 7)} onChange={(e) => {
+                    if (!confirmLeaveEntryGrid()) return;
+                    setDate(`${e.target.value}-01`);
+                  }} style={{ ...inp, width: 160 }} />
+                )}
 
-              {t.grain === "fy" && (
-                <select value={fyStartYear} onChange={(e) => {
-                  if (!confirmLeaveEntryGrid()) return;
-                  const y = Number(e.target.value);
-                  setFyStartYear(y);
-                  setFyOpenMonth(`${y}-04-01`);
-                }} style={{ ...inp, width: 160 }}>
-                  {fyOptions.map((y) => (
-                    <option key={y} value={y}>FY{y}-{String((y + 1) % 100).padStart(2, "0")}</option>
+                {t.grain === "fy" && (
+                  <select value={fyStartYear} onChange={(e) => {
+                    if (!confirmLeaveEntryGrid()) return;
+                    const y = Number(e.target.value);
+                    setFyStartYear(y);
+                    setFyOpenMonth(`${y}-04-01`);
+                  }} style={{ ...inp, width: 160 }}>
+                    {fyOptions.map((y) => (
+                      <option key={y} value={y}>FY{y}-{String((y + 1) % 100).padStart(2, "0")}</option>
+                    ))}
+                  </select>
+                )}
+              </label>
+              <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
+                Excel Preset
+                <select
+                  value={selectedPresetId ?? ""}
+                  onChange={(e) => handlePresetChange(e.target.value)}
+                  style={{ ...inp, width: 220 }}
+                >
+                  {presets.length === 0 && <option value="">Default Registry</option>}
+                  {presets.map((p) => (
+                    <option key={p.presetId} value={p.presetId}>{p.name} ({p.stageCount} stages)</option>
                   ))}
                 </select>
-              )}
-            </label>
-            <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
-              Excel Preset
-              <select
-                value={selectedPresetId ?? ""}
-                onChange={(e) => handlePresetChange(e.target.value)}
-                style={{ ...inp, width: 220 }}
-              >
-                {presets.length === 0 && <option value="">Default Registry</option>}
-                {presets.map((p) => (
-                  <option key={p.presetId} value={p.presetId}>{p.name} ({p.stageCount} stages)</option>
-                ))}
-              </select>
-            </label>
-            <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
-              Shift
-              <select value={hdr.shift} onChange={(e) => updateHdrField("shift", e.target.value)} style={{ ...inp, width: 140 }}>
-                <option>Day Shift</option>
-                <option>Night Shift</option>
-              </select>
-            </label>
-          </div>
-
-          <Section title="Operator & Batch Information">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-              <Field label="Operator *">
-                <input style={inp} value={hdr.operator} onChange={(e) => updateHdrField("operator", e.target.value)} placeholder="Required" />
-              </Field>
-              <Field label="Supervisor">
-                <input style={inp} value={hdr.supervisor} onChange={(e) => updateHdrField("supervisor", e.target.value)} placeholder="Supervisor name" />
-              </Field>
-              <Field label="Product">
-                <input style={inp} value={hdr.product} onChange={(e) => updateHdrField("product", e.target.value)} />
-              </Field>
-              <Field label="Size (French)">
-                <input style={inp} value={hdr.size} onChange={(e) => updateHdrField("size", e.target.value)} />
-              </Field>
-              <Field label="Machine">
-                <input style={inp} value={hdr.machine} onChange={(e) => updateHdrField("machine", e.target.value)} />
-              </Field>
-              <Field label="Batch / Lot No.">
-                <input style={inp} value={hdr.batch} onChange={(e) => updateHdrField("batch", e.target.value)} placeholder="e.g. LOT-123" />
-              </Field>
+              </label>
+              <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
+                Shift
+                <select value={hdr.shift} onChange={(e) => updateHdrField("shift", e.target.value)} style={{ ...inp, width: 140 }}>
+                  <option>Day Shift</option>
+                  <option>Night Shift</option>
+                </select>
+              </label>
             </div>
-          </Section>
 
-          <Section title="Additional Notes / Remarks">
-            <Field label="Remarks">
-              <textarea
-                style={{ ...inp, minHeight: 60, fontFamily: "inherit" }}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="General shift report remarks or notes..."
-              />
-            </Field>
-          </Section>
+            <Section title="Operator & Batch Information">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                <Field label="Operator *">
+                  <input style={inp} value={hdr.operator} onChange={(e) => updateHdrField("operator", e.target.value)} placeholder="Required" />
+                </Field>
+                <Field label="Supervisor">
+                  <input style={inp} value={hdr.supervisor} onChange={(e) => updateHdrField("supervisor", e.target.value)} placeholder="Supervisor name" />
+                </Field>
+                <Field label="Product">
+                  <input style={inp} value={hdr.product} onChange={(e) => updateHdrField("product", e.target.value)} />
+                </Field>
+                <Field label="Size (French)">
+                  <input style={inp} value={hdr.size} onChange={(e) => updateHdrField("size", e.target.value)} />
+                </Field>
+                <Field label="Machine">
+                  <input style={inp} value={hdr.machine} onChange={(e) => updateHdrField("machine", e.target.value)} />
+                </Field>
+                <Field label="Batch / Lot No.">
+                  <input style={inp} value={hdr.batch} onChange={(e) => updateHdrField("batch", e.target.value)} placeholder="e.g. LOT-123" />
+                </Field>
+              </div>
+            </Section>
 
-          {t.grain === "fy" && (
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 16 }}>
-              {Array.from({ length: 12 }, (_, i) => {
-                const month = ((i + 3) % 12) + 1; // Apr(4)..Mar(3): i=0 -> 4, ..., i=8 -> 12, i=9 -> 1, ...
-                const year = month >= 4 ? fyStartYear : fyStartYear + 1;
-                const anchor = `${year}-${String(month).padStart(2, "0")}-01`;
-                const on = fyOpenMonth.slice(0, 7) === anchor.slice(0, 7);
-                const label = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][month - 1];
-                return (
-                  <button key={anchor} onClick={() => { if (confirmLeaveEntryGrid()) setFyOpenMonth(anchor); }}
-                    style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border-strong)",
-                      background: on ? "var(--accent)" : "var(--surface-2)",
-                      color: on ? "var(--text-invert)" : "var(--text-2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+            <Section title="Additional Notes / Remarks">
+              <Field label="Remarks">
+                <textarea
+                  style={{ ...inp, minHeight: 60, fontFamily: "inherit" }}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="General shift report remarks or notes..."
+                />
+              </Field>
+            </Section>
 
-          {presets.length === 0 ? (
-            <div style={{ padding: 24, textAlign: "center", background: "var(--surface)", border: "1px dashed var(--border)", borderRadius: 12, color: "var(--text-2)" }}>
-              No Data Entry presets yet. Upload a workbook on <a href="/staging" style={{ color: "var(--accent)" }}>Excel Upload / Staging</a> to create the first one.
-            </div>
-          ) : (
+            {t.grain === "fy" && (
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 16 }}>
+                {Array.from({ length: 12 }, (_, i) => {
+                  const month = ((i + 3) % 12) + 1; // Apr(4)..Mar(3): i=0 -> 4, ..., i=8 -> 12, i=9 -> 1, ...
+                  const year = month >= 4 ? fyStartYear : fyStartYear + 1;
+                  const anchor = `${year}-${String(month).padStart(2, "0")}-01`;
+                  const on = fyOpenMonth.slice(0, 7) === anchor.slice(0, 7);
+                  const label = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][month - 1];
+                  return (
+                    <button key={anchor} onClick={() => { if (confirmLeaveEntryGrid()) setFyOpenMonth(anchor); }}
+                      style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border-strong)",
+                        background: on ? "var(--accent)" : "var(--surface-2)",
+                        color: on ? "var(--text-invert)" : "var(--text-2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <MonthlyEntryGrid
               key={`${effectiveGrain}-${effectiveAnchor}-${selectedPresetId ?? "default"}`}
               grain={effectiveGrain}
@@ -790,8 +805,8 @@ Assign another field as Rejected Quantity.`;
               blockedReason={hdr.operator.trim() ? null : "Operator name is required."}
               onDirtyChange={setMonthlyDirty}
             />
-          )}
-        </div>
+          </div>
+        )
       ) : (
         /* Data Ledger / Entry History View */
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 16 }}>
