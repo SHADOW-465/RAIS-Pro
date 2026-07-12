@@ -8,23 +8,7 @@ import { buildModDocument, proposalToEntity, deriveCatalogs, type ProfiledSheet 
 import { extractFromMod } from "@/core/ingest/extract-from-mod";
 import { getKnowledgeStore } from "@/core/ontology/store/knowledge-store";
 import { GLOBAL_ONTOLOGY_SEED } from "@/core/ontology/global-ontology";
-import { recordsFromBuffer, dedupeByPrecedence } from "@/lib/ingest/parsers";
 import type { StageDayRecord } from "@/lib/ingest/emit";
-
-/** The legacy record set staging actually produces for a file: family parsers
- *  first, generic classifier fallback (same preference as handleUpload). */
-export function legacyRecords(buf: Buffer, fileName: string): StageDayRecord[] {
-  const preceded = recordsFromBuffer(buf, fileName);
-  if (preceded.length > 0) return dedupeByPrecedence(preceded).kept.map((p: { record: StageDayRecord }) => p.record);
-  const { extractSchemaFromWorkbook, classifyWithSchema } =
-    require("@/lib/ingest/schema-extractor") as typeof import("@/lib/ingest/schema-extractor");
-  const XLSX = require("xlsx") as typeof import("xlsx");
-  const { parseWorkbookBuffer } = require("@/lib/parser") as typeof import("@/lib/parser");
-  const wb = XLSX.read(buf, { cellFormula: true });
-  const schema = extractSchemaFromWorkbook(wb, fileName);
-  const { rawSheets } = parseWorkbookBuffer(buf, fileName);
-  return classifyWithSchema(rawSheets, schema, "oracle");
-}
 
 /** MOD path: snapshot → profile → resolve → verify (stage identity injected
  *  from the legacy parse — extraction parity, not recognition; columnOverrides
