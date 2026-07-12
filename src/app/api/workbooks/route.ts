@@ -22,6 +22,29 @@ function companyId(): string {
   return process.env.MOID_COMPANY_ID || "default";
 }
 
+/** GET /api/workbooks — uploaded snapshots joined with their MOD lineage
+ *  (the Workbooks explorer's data source; replaces /api/datasets). */
+export async function GET() {
+  try {
+    const [snapshots, mods] = await Promise.all([
+      getSnapshotStore().list(),
+      getModStore().list(companyId()),
+    ]);
+    const latestByLineage = new Map<string, (typeof mods)[number]>();
+    for (const m of mods) {
+      const cur = latestByLineage.get(m.modId);
+      if (!cur || m.version > cur.version) latestByLineage.set(m.modId, m);
+    }
+    const workbooks = snapshots.map((s) => ({
+      ...s,
+      mod: latestByLineage.get(s.snapshotId) ?? null, // lineage id = first snapshot hash
+    }));
+    return NextResponse.json({ workbooks });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to list workbooks" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
