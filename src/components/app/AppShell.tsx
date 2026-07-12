@@ -76,7 +76,6 @@ const NAV_SECTIONS: NavSection[] = [
       { key: "capa", label: "CAPA & Actions", icon: "check", href: "/capa" },
       { key: "ask", label: "Ask MOID", icon: "comment", href: "/chat", aiBadge: true },
       { key: "audit", label: "Audit Trail", icon: "search", href: "/audit" },
-      { key: "schema", label: "Data Schema", icon: "split", href: "/schema" },
       { key: "settings", label: "Settings", icon: "external", href: "/settings" },
     ],
   },
