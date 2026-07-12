@@ -5,41 +5,13 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import DatasetEntryForm from "@/components/DatasetEntryForm";
 import MonthlyEntryGrid from "@/components/MonthlyEntryGrid";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import WeekPicker from "@/components/WeekPicker";
 import { type EntryGrain } from "@/lib/entry/period";
 import { fyContaining } from "@/lib/analytics/scope";
-
-interface FieldDef {
-  name: string;
-  type: "number" | "text" | "date" | "dropdown" | "boolean";
-  required: boolean;
-  addAs: "column";
-  appliesTo: "all" | "selected";
-  selectedStages?: string[];
-  unit?: string;
-  isDefect?: boolean;
-  dropdownOptions?: string[];
-}
-
-interface StageDef {
-  stageId: string;
-  label: string;
-  fields: FieldDef[];
-  upstream: string[];
-  effectiveFrom: string | null;
-  effectiveTo: string | null;
-}
-
-const DEFAULT_FIELDS: FieldDef[] = [
-  { name: "Checked Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" },
-  { name: "Good Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
-  { name: "Rework Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
-  { name: "Rejected Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" }
-];
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -110,37 +82,15 @@ export default function DataEntryPage() {
   const [registry, setRegistry] = useState<any | null>(null);
   const [loadingRegistry, setLoadingRegistry] = useState(true);
 
-  // Preset state — which uploaded-workbook-derived Data Entry preset is active.
-  const [presets, setPresets] = useState<{ presetId: string; name: string; stageCount: number }[]>([]);
-  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
-
   // Ledger state
   const [ledgerRecords, setLedgerRecords] = useState<any[]>([]);
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [ledgerSort, setLedgerSort] = useState<{ col: string; desc: boolean }>({ col: "date", desc: true });
 
-  // Schema Editor state
-  const [showSchemaModal, setShowSchemaModal] = useState(false);
-  const [schemaError, setSchemaError] = useState<string | null>(null);
-  const [draftStages, setDraftStages] = useState<StageDef[]>([]);
-
-  // Column field definition editor
-  const [editingColName, setEditingColName] = useState<string | null>(null);
-  const [colDraft, setColDraft] = useState<Partial<FieldDef>>({
-    name: "",
-    type: "number",
-    required: false,
-    appliesTo: "all",
-    selectedStages: [],
-    unit: "",
-    isDefect: false,
-    dropdownOptions: []
-  });
-
   // Load registry, ledger records, and prefilled header fields on mount.
   // The spreadsheet itself (MonthlyEntryGrid) loads its own month of data.
   useEffect(() => {
-    loadPresets();
+    loadRegistry(null);
     loadLedger();
     if (typeof window !== "undefined") {
       const savedOperator = localStorage.getItem("rais_hdr_operator");
@@ -188,40 +138,6 @@ export default function DataEntryPage() {
     }
   };
 
-  const loadPresets = async () => {
-    setLoadingRegistry(true);
-    try {
-      const res = await fetch("/api/schema?list=true");
-      const data = await res.json();
-      const list = data.presets || [];
-      setPresets(list);
-
-      // Fetch the active registry to find out which preset is active
-      const activeRes = await fetch("/api/schema");
-      const activeData = await activeRes.json();
-      const activePresetId = activeData.registry?.presetId || activeData.registry?.clientId || null;
-
-      // Default to the active preset, or fall back to the first preset in the list
-      const initial = activePresetId && list.some((p: any) => p.presetId === activePresetId)
-        ? activePresetId
-        : (list[0]?.presetId ?? null);
-
-      setSelectedPresetId(initial);
-      await loadRegistry(initial);
-    } catch (err) {
-      console.error("Error loading presets:", err);
-      await loadRegistry(null);
-    } finally {
-      setLoadingRegistry(false);
-    }
-  };
-
-  const handlePresetChange = async (presetId: string) => {
-    if (!confirmLeaveEntryGrid()) return;
-    setSelectedPresetId(presetId);
-    await loadRegistry(presetId);
-  };
-
   const loadLedger = async () => {
     try {
       const res = await fetch("/api/manual-entries");
@@ -243,7 +159,7 @@ export default function DataEntryPage() {
   };
 
   const activeRegistry = useMemo(() => {
-    return registry || DISPOSAFE_REGISTRY;
+    return registry || EMPTY_REGISTRY;
   }, [registry]);
 
   // customFields merged onto every record MonthlyEntryGrid saves — the same
@@ -257,240 +173,6 @@ export default function DataEntryPage() {
     }),
     [hdr, notes],
   );
-
-  // Schema Editor - Safety check
-  const validateSchemaSafety = (stages: any[]): string | null => {
-    for (const stage of stages) {
-      const fields = stage.fields || [];
-      const hasChecked = fields.some((f: any) =>
-        /^(checked qty|checked quantity|input|input qty|input quantity)$/i.test(f.name)
-      );
-      const hasRejected = fields.some((f: any) =>
-        /^(rejected qty|rejected quantity|rejected|reject qty|rejection qty|rejection quantity)$/i.test(f.name)
-      );
-      if (!hasChecked) {
-        return `Cannot remove Checked Quantity.
-
-Affected Features:
-- Rejection Rate
-- Yield Analysis
-- Trend Charts
-
-Suggested Fix:
-Assign another field as Checked Quantity.`;
-      }
-      if (!hasRejected) {
-        return `Cannot remove Rejected Quantity.
-
-Affected Features:
-- Rejection Rate
-- Yield Analysis
-- Trend Charts
-
-Suggested Fix:
-Assign another field as Rejected Quantity.`;
-      }
-    }
-    return null;
-  };
-
-  const handleOpenSchemaModal = () => {
-    // Clone registry stages to draft
-    const clone = activeRegistry.stages.map((s: any) => ({
-      ...s,
-      fields: s.fields ? [...s.fields] : [...DEFAULT_FIELDS]
-    }));
-    setDraftStages(clone);
-    setSchemaError(null);
-    setEditingColName(null);
-    setShowSchemaModal(true);
-  };
-
-  const handleAddStage = () => {
-    const name = prompt("Enter new Inspection Stage Name:");
-    if (!name || !name.trim()) return;
-    const stageId = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-");
-
-    if (draftStages.some(s => s.stageId === stageId)) {
-      alert("A stage with this ID already exists.");
-      return;
-    }
-
-    const newStage: StageDef = {
-      stageId,
-      label: name.trim(),
-      fields: [...DEFAULT_FIELDS],
-      upstream: draftStages.length > 0 ? [draftStages[draftStages.length - 1].stageId] : [],
-      effectiveFrom: null,
-      effectiveTo: null
-    };
-
-    setDraftStages([...draftStages, newStage]);
-  };
-
-  const handleRemoveStage = (stageId: string) => {
-    if (draftStages.length <= 1) {
-      alert("Cannot delete the only remaining stage. The registry must have at least one stage.");
-      return;
-    }
-    if (!confirm("Are you sure you want to delete this stage? All data entries for this stage will be removed from the schema.")) return;
-    setDraftStages(draftStages.filter(s => s.stageId !== stageId));
-  };
-
-  const handleAddColumn = () => {
-    setColDraft({
-      name: "",
-      type: "number",
-      required: false,
-      appliesTo: "all",
-      selectedStages: [],
-      unit: "",
-      isDefect: false,
-      dropdownOptions: []
-    });
-    setEditingColName("__new__");
-  };
-
-  const handleEditColumn = (colName: string) => {
-    // Find representative field definition
-    let repField: any = null;
-    const stagesApplies: string[] = [];
-
-    draftStages.forEach((s) => {
-      const f = s.fields.find((field) => field.name === colName);
-      if (f) {
-        repField = f;
-        stagesApplies.push(s.stageId);
-      }
-    });
-
-    if (!repField) return;
-
-    setColDraft({
-      ...repField,
-      appliesTo: stagesApplies.length === draftStages.length ? "all" : "selected",
-      selectedStages: stagesApplies
-    });
-    setEditingColName(colName);
-  };
-
-  const handleRemoveColumn = (colName: string) => {
-    // Safety check first
-    const isCore = ["Checked Qty", "Rejected Qty", "Good Qty", "Rework Qty"].includes(colName);
-
-    // Apply removal to all draft stages
-    const nextStages = draftStages.map((s) => ({
-      ...s,
-      fields: s.fields.filter((f) => f.name !== colName)
-    }));
-
-    if (isCore) {
-      const err = validateSchemaSafety(nextStages);
-      if (err) {
-        alert(err);
-        return;
-      }
-    }
-
-    if (!confirm(`Are you sure you want to delete column "${colName}"?`)) return;
-    setDraftStages(nextStages);
-  };
-
-  const handleSaveColumnDraft = () => {
-    const name = colDraft.name?.trim();
-    if (!name) {
-      alert("Column name is required.");
-      return;
-    }
-
-    const type = colDraft.type || "number";
-    const required = !!colDraft.required;
-    const appliesTo = colDraft.appliesTo || "all";
-    const selectedStages = colDraft.selectedStages || [];
-    const unit = colDraft.unit || "";
-    const isDefect = !!colDraft.isDefect;
-    const dropdownOptions = colDraft.dropdownOptions || [];
-
-    const fieldObj: FieldDef = {
-      name,
-      type,
-      required,
-      addAs: "column",
-      appliesTo,
-      selectedStages,
-      unit,
-      isDefect,
-      dropdownOptions
-    };
-
-    // Update draftStages
-    const updated = draftStages.map((stage) => {
-      let fields = [...stage.fields];
-
-      // Determine if field applies to this stage
-      const applies = appliesTo === "all" || selectedStages.includes(stage.stageId);
-
-      // Filter out previous version of this column
-      if (editingColName && editingColName !== "__new__") {
-        fields = fields.filter((f) => f.name !== editingColName);
-      }
-
-      if (applies) {
-        // If updating name or new column
-        fields.push(fieldObj);
-      }
-
-      return {
-        ...stage,
-        fields
-      };
-    });
-
-    // Check safety if modifying core fields
-    const safetyErr = validateSchemaSafety(updated);
-    if (safetyErr) {
-      alert(safetyErr);
-      return;
-    }
-
-    setDraftStages(updated);
-    setEditingColName(null);
-  };
-
-  const handleSaveSchemaRegistry = async () => {
-    const safetyErr = validateSchemaSafety(draftStages);
-    if (safetyErr) {
-      setSchemaError(safetyErr);
-      return;
-    }
-
-    setBusyAction("schema-save");
-    try {
-      const res = await fetch("/api/schema", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          presetId: selectedPresetId ?? activeRegistry.presetId ?? activeRegistry.clientId,
-          registry: {
-            stages: draftStages,
-            defects: activeRegistry.defects
-          }
-        })
-      });
-
-      if (!res.ok) throw new Error("Failed to save schema registry");
-      const data = await res.json();
-      if (data.registry) {
-        setRegistry(data.registry);
-      }
-      setShowSchemaModal(false);
-      setSuccess("Schema registry updated immediately. Direct entry spreadsheet grid reloaded.");
-    } catch (e: any) {
-      setSchemaError(e.message || "Failed to save registry");
-    } finally {
-      setBusyAction(null);
-    }
-  };
 
   // Ledger Actions — Edit/Duplicate jump the entry grid to the relevant date;
   // MonthlyEntryGrid is remounted via `key={date}` below, so it reloads
@@ -584,11 +266,8 @@ Assign another field as Rejected Quantity.`;
     }));
   };
 
-  // State flag for global busy states (e.g. saving registry)
-  const [busyAction, setBusyAction] = useState<string | null>(null);
-
   return (
-    <AppShell active="data-entry" presetId={selectedPresetId}>
+    <AppShell active="data-entry">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 4 }}>
           <button
@@ -638,12 +317,7 @@ Assign another field as Rejected Quantity.`;
           </button>
         </div>
 
-        <button
-          onClick={handleOpenSchemaModal}
-          style={{ ...ghost, padding: "8px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}
-        >
-          <Icon name="settings" size={13} /> Manage Schema
-        </button>
+        
       </div>
 
       {success && (
@@ -658,7 +332,7 @@ Assign another field as Rejected Quantity.`;
       ) : activeTab === "entry" ? (
         loadingRegistry ? (
           <div className="muted" style={{ padding: 48, textAlign: "center" }}>Loading schema registry…</div>
-        ) : presets.length === 0 || !registry || !registry.stages || registry.stages.length === 0 ? (
+        ) : !registry || !registry.stages || registry.stages.length === 0 ? (
           <div style={{ padding: 48, textAlign: "center", background: "var(--surface)", border: "1px dashed var(--border)", borderRadius: 12, color: "var(--text-2)" }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: "var(--text)" }}>No Active Schema for Data Entry</h3>
             <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
@@ -712,19 +386,7 @@ Assign another field as Rejected Quantity.`;
                   </select>
                 )}
               </label>
-              <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
-                Excel Preset
-                <select
-                  value={selectedPresetId ?? ""}
-                  onChange={(e) => handlePresetChange(e.target.value)}
-                  style={{ ...inp, width: 220 }}
-                >
-                  {presets.length === 0 && <option value="">Default Registry</option>}
-                  {presets.map((p) => (
-                    <option key={p.presetId} value={p.presetId}>{p.name} ({p.stageCount} stages)</option>
-                  ))}
-                </select>
-              </label>
+              
               <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
                 Shift
                 <select value={hdr.shift} onChange={(e) => updateHdrField("shift", e.target.value)} style={{ ...inp, width: 140 }}>
@@ -789,7 +451,7 @@ Assign another field as Rejected Quantity.`;
             )}
 
             <MonthlyEntryGrid
-              key={`${effectiveGrain}-${effectiveAnchor}-${selectedPresetId ?? "default"}`}
+              key={`${effectiveGrain}-${effectiveAnchor}`}
               grain={effectiveGrain}
               anchorDate={effectiveAnchor}
               onAnchorChange={(next) => {
@@ -800,7 +462,7 @@ Assign another field as Rejected Quantity.`;
                   setDate(next);
                 }
               }}
-              presetId={selectedPresetId}
+              presetId={null}
               customFields={entryCustomFields}
               blockedReason={hdr.operator.trim() ? null : "Operator name is required."}
               onDirtyChange={setMonthlyDirty}
@@ -919,231 +581,6 @@ Assign another field as Rejected Quantity.`;
         </div>
       )}
 
-      {/* SCHEMA REGISTRY CONFIGURATION MODAL */}
-      {showSchemaModal && (
-        <div
-          className="modal-backdrop"
-          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(18,16,14,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowSchemaModal(false); }}
-        >
-          <div
-            className="modal-panel"
-            style={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-3)", width: "100%", maxWidth: "800px", display: "flex", flexDirection: "column", color: "var(--text)", maxHeight: "90vh" }}
-          >
-            <div style={{ padding: "16px 20px", borderBottom: "2px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: 0 }}>Manage Registry Data Schema</h3>
-              <button onClick={() => setShowSchemaModal(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--text-2)" }}>&times;</button>
-            </div>
-
-            <div style={{ padding: 20, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
-              {schemaError && (
-                <div style={{ padding: "10px 14px", borderRadius: 8, background: "color-mix(in srgb, var(--status-bad) 12%, transparent)", border: "1px solid var(--status-bad)", color: "var(--status-bad)", fontSize: 12.5, whiteSpace: "pre-line" }}>
-                  {schemaError}
-                </div>
-              )}
-
-              {/* Column/Field Definition Editor Subsection */}
-              {editingColName !== null && (
-                <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
-                  <h4 style={{ margin: "0 0 10px 0", fontSize: 13, fontWeight: 700 }}>
-                    {editingColName === "__new__" ? "Add New Column / Field" : `Configure Field: ${editingColName}`}
-                  </h4>
-                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 10, alignItems: "end", marginBottom: 12 }}>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <span className="muted" style={{ fontSize: 10, fontWeight: 600 }}>Field Name</span>
-                      <input
-                        type="text"
-                        value={colDraft.name || ""}
-                        onChange={(e) => setColDraft({ ...colDraft, name: e.target.value })}
-                        placeholder="e.g. Machine No"
-                        style={{ ...inp, padding: "5px 8px", fontSize: 12 }}
-                      />
-                    </label>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <span className="muted" style={{ fontSize: 10, fontWeight: 600 }}>Field Type</span>
-                      <select
-                        value={colDraft.type || "number"}
-                        onChange={(e: any) => setColDraft({ ...colDraft, type: e.target.value })}
-                        style={{ ...inp, padding: "5px 8px", fontSize: 12 }}
-                      >
-                        <option value="number">Number</option>
-                        <option value="text">Text</option>
-                        <option value="date">Date</option>
-                        <option value="dropdown">Dropdown</option>
-                        <option value="boolean">Boolean (Checkbox)</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  {colDraft.type === "dropdown" && (
-                    <label style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 12 }}>
-                      <span className="muted" style={{ fontSize: 10, fontWeight: 600 }}>Dropdown Options (comma-separated)</span>
-                      <input
-                        type="text"
-                        placeholder="A, B, C, D"
-                        value={colDraft.dropdownOptions?.join(", ") || ""}
-                        onChange={(e) => setColDraft({ ...colDraft, dropdownOptions: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
-                        style={{ ...inp, padding: "5px 8px", fontSize: 12 }}
-                      />
-                    </label>
-                  )}
-
-                  <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 12, marginBottom: 12 }}>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <span className="muted" style={{ fontSize: 10, fontWeight: 600 }}>Applies To</span>
-                      <select
-                        value={colDraft.appliesTo || "all"}
-                        onChange={(e: any) => setColDraft({ ...colDraft, appliesTo: e.target.value })}
-                        style={{ ...inp, padding: "5px 8px", fontSize: 12 }}
-                      >
-                        <option value="all">All Stages</option>
-                        <option value="selected">Selected Stages</option>
-                      </select>
-                    </label>
-                    {colDraft.appliesTo === "selected" && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        <span className="muted" style={{ fontSize: 10, fontWeight: 600 }}>Select Stages</span>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, background: "var(--bg)", border: "1px solid var(--border)", padding: 6, borderRadius: 6 }}>
-                          {draftStages.map(s => {
-                            const active = colDraft.selectedStages?.includes(s.stageId) ?? false;
-                            return (
-                              <label key={s.stageId} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, cursor: "pointer" }}>
-                                <input
-                                  type="checkbox"
-                                  checked={active}
-                                  onChange={(e) => {
-                                    const next = e.target.checked
-                                      ? [...(colDraft.selectedStages || []), s.stageId]
-                                      : (colDraft.selectedStages || []).filter(id => id !== s.stageId);
-                                    setColDraft({ ...colDraft, selectedStages: next });
-                                  }}
-                                />
-                                <span>{s.label}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                    <button onClick={() => setEditingColName(null)} style={{ ...btnSmallGhost }}>Cancel</button>
-                    <button onClick={handleSaveColumnDraft} style={{ ...btnSmallPrimary }}>Apply Changes</button>
-                  </div>
-                </div>
-              )}
-
-              {/* Columns/Fields Management Section */}
-              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>Data Schema Columns (Fields)</h4>
-                  <button onClick={handleAddColumn} style={{ ...btnSmallPrimary, background: "var(--accent)", color: "#fff" }}>
-                    + Add Column Field
-                  </button>
-                </div>
-                <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10, borderBottom: "1px solid var(--border)" }}>
-                      <th style={{ padding: "6px 8px" }}>Name</th>
-                      <th style={{ padding: "6px 8px" }}>Type</th>
-                      <th style={{ padding: "6px 8px" }}>Required</th>
-                      <th style={{ padding: "6px 8px" }}>Defect?</th>
-                      <th style={{ padding: "6px 8px" }}>Scope</th>
-                      <th style={{ padding: "6px 8px", textAlign: "right" }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Get all unique field definitions */}
-                    {(() => {
-                      const allFields: any[] = [];
-                      draftStages.forEach((s) => {
-                        s.fields.forEach((f) => {
-                          if (!allFields.some((x) => x.name === f.name)) {
-                            allFields.push(f);
-                          }
-                        });
-                      });
-
-                      return allFields.map((f) => {
-                        const stagesApplies: string[] = [];
-                        draftStages.forEach((s) => {
-                          if (s.fields.some((x) => x.name === f.name)) {
-                            stagesApplies.push(s.label);
-                          }
-                        });
-
-                        return (
-                          <tr key={f.name} style={{ borderBottom: "1px solid var(--border)" }}>
-                            <td style={{ padding: "6px 8px", fontWeight: 700 }}>{f.name}</td>
-                            <td style={{ padding: "6px 8px", textTransform: "capitalize" }}>{f.type}</td>
-                            <td style={{ padding: "6px 8px" }}>{f.required ? "Yes" : "No"}</td>
-                            <td style={{ padding: "6px 8px" }}>{f.isDefect ? "Yes" : "No"}</td>
-                            <td style={{ padding: "6px 8px", fontSize: 11, color: "var(--text-2)" }}>
-                              {stagesApplies.length === draftStages.length ? "All Stages" : `${stagesApplies.length} Selected`}
-                            </td>
-                            <td style={{ padding: "6px 8px", textAlign: "right" }}>
-                              <div style={{ display: "inline-flex", gap: 8 }}>
-                                <button onClick={() => handleEditColumn(f.name)} style={{ background: "transparent", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>Configure</button>
-                                <button onClick={() => handleRemoveColumn(f.name)} style={{ background: "transparent", border: "none", color: "var(--status-bad)", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>Delete</button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Stages Management Section */}
-              <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>Inspection Stages (Rows)</h4>
-                  <button onClick={handleAddStage} style={{ ...btnSmallPrimary, background: "var(--accent)", color: "#fff" }}>
-                    + Add Stage Row
-                  </button>
-                </div>
-                <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10, borderBottom: "1px solid var(--border)" }}>
-                      <th style={{ padding: "6px 8px" }}>Stage ID</th>
-                      <th style={{ padding: "6px 8px" }}>Stage Label</th>
-                      <th style={{ padding: "6px 8px" }}>Columns Count</th>
-                      <th style={{ padding: "6px 8px", textAlign: "right" }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {draftStages.map((stage) => (
-                      <tr key={stage.stageId} style={{ borderBottom: "1px solid var(--border)" }}>
-                        <td style={{ padding: "6px 8px", fontFamily: "var(--font-mono)" }}>{stage.stageId}</td>
-                        <td style={{ padding: "6px 8px", fontWeight: 700 }}>{stage.label}</td>
-                        <td style={{ padding: "6px 8px" }}>{stage.fields.length} Columns</td>
-                        <td style={{ padding: "6px 8px", textAlign: "right" }}>
-                          <button onClick={() => handleRemoveStage(stage.stageId)} style={{ background: "transparent", border: "none", color: "var(--status-bad)", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-                            Delete Stage
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div style={{ padding: "12px 20px", borderTop: "1.5px solid var(--border)", background: "var(--surface-2)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button onClick={() => setShowSchemaModal(false)} style={btnGhost}>Cancel</button>
-              <button
-                onClick={handleSaveSchemaRegistry}
-                disabled={busyAction === "schema-save"}
-                style={{ ...btnPrimary, background: "var(--accent)", color: "#fff" }}
-              >
-                {busyAction === "schema-save" ? "Saving..." : "Save Schema Registry"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AppShell>
   );
 }

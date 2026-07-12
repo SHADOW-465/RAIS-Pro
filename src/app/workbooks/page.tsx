@@ -19,7 +19,7 @@ import PageLoader from "@/components/app/PageLoader";
 import GenericDashboardBody from "@/components/app/GenericDashboardBody";
 import { buildGenericDashboard } from "@/lib/dataset/dashboard";
 import { toStageRecords } from "@/lib/dataset/to-stage-records";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { resolveConfirmPresetId, isNewStageLabel } from "@/lib/dataset/confirm-stage";
 import { useEvents } from "@/components/app/EventsContext";
@@ -42,8 +42,8 @@ type Selection =
   | { level: "file"; fileName: string }
   | { level: "sheet"; fileName: string; sheetName: string; datasetId: string };
 
-function stageLabelFor(stageId: string): string {
-  return DISPOSAFE_REGISTRY.stages.find((s) => s.stageId === stageId)?.label ?? stageId;
+function stageLabelFor(stageId: string, stages: any[]): string {
+  return stages.find((s: any) => s.stageId === stageId)?.label ?? stageId;
 }
 
 /** Invert datasets[].sources into file -> sheets, per the plan's data-model
@@ -51,7 +51,7 @@ function stageLabelFor(stageId: string): string {
  *  (e.g. a monthly workbook with both a raw sheet and a cleaned copy), the
  *  second+ occurrence is suffixed with its raw sheet name so the tree never
  *  shows two identically-labeled nodes. */
-function buildTree(datasets: Dataset[]): FileNode[] {
+function buildTree(datasets: Dataset[], stages: any[]): FileNode[] {
   const byFile = new Map<string, SheetNode[]>();
   for (const ds of datasets) {
     for (const src of ds.sources) {
@@ -60,7 +60,7 @@ function buildTree(datasets: Dataset[]): FileNode[] {
         sheetName: src.sheetName,
         datasetId: ds.id,
         recognizedStageId: ds.recognizedStageId,
-        displayLabel: ds.recognizedStageId ? stageLabelFor(ds.recognizedStageId) : src.sheetName,
+        displayLabel: ds.recognizedStageId ? stageLabelFor(ds.recognizedStageId, stages) : src.sheetName,
         rowCount: src.rowCount,
       });
       byFile.set(src.fileName, list);
@@ -87,7 +87,7 @@ export default function WorkbooksPage() {
   const router = useRouter();
   const { refreshEvents } = useEvents();
   const { registry, refreshRegistry } = useRegistry();
-  const activeRegistry = registry || DISPOSAFE_REGISTRY;
+  const activeRegistry = registry || EMPTY_REGISTRY;
   const knownStages = (activeRegistry.stages || []).map((s: any) => ({ stageId: s.stageId, label: s.label }));
   const [datasets, setDatasets] = useState<Dataset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,13 +122,13 @@ export default function WorkbooksPage() {
         const list = (json.datasets ?? []) as Dataset[];
         setDatasets(list);
         // First file expanded by default.
-        const tree = buildTree(list);
+        const tree = buildTree(list, activeRegistry.stages ?? []);
         if (tree.length > 0) setExpandedFiles({ [tree[0].fileName]: true });
       })
       .catch((err) => setError(err?.message ?? "Failed to load datasets"));
   }, []);
 
-  const tree = useMemo(() => (datasets ? buildTree(datasets) : []), [datasets]);
+  const tree = useMemo(() => (datasets ? buildTree(datasets, activeRegistry.stages ?? []) : []), [datasets, activeRegistry.stages]);
 
   const filteredTree = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -514,13 +514,15 @@ function SheetDashboard({ selection, dataset, rows, loading, publishing, publish
   onConfirmStage: (datasetId: string, stageId: string) => void;
   knownStages: { stageId: string; label: string }[];
 }) {
+  const { registry } = useRegistry();
+  const activeRegistry = registry || EMPTY_REGISTRY;
   if (!dataset) return <Empty label="This dataset no longer exists — it may have been cleared." />;
   if (loading || rows === undefined) return <PageLoader message="Loading sheet…" minHeight="30vh" />;
 
   const sheetRows = rows.filter((r) => r.fileName === selection.fileName && r.sheetName === selection.sheetName);
   const d = buildGenericDashboard(dataset, sheetRows);
   const stageLabel = dataset.recognizedStageId
-    ? DISPOSAFE_REGISTRY.stages.find((s) => s.stageId === dataset.recognizedStageId)?.label ?? dataset.recognizedStageId
+    ? activeRegistry.stages.find((s: any) => s.stageId === dataset.recognizedStageId)?.label ?? dataset.recognizedStageId
     : null;
 
   return (
@@ -563,6 +565,8 @@ function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDataset
   onConfirmStage: (datasetId: string, stageId: string) => void;
   knownStages: { stageId: string; label: string }[];
 }) {
+  const { registry } = useRegistry();
+  const activeRegistry = registry || EMPTY_REGISTRY;
   if (!fileNode) return <Empty label="This file is no longer present in the dataset list." />;
 
   // One section per dataset represented in this file — a file can carry rows
@@ -585,7 +589,7 @@ function FileDashboard({ fileName, fileNode, datasets, rowsCache, loadingDataset
         const fileRows = rows.filter((r) => r.fileName === fileName);
         const d = buildGenericDashboard(dataset, fileRows);
         const stageLabel = dataset.recognizedStageId
-          ? DISPOSAFE_REGISTRY.stages.find((s) => s.stageId === dataset.recognizedStageId)?.label ?? dataset.recognizedStageId
+          ? activeRegistry.stages.find((s: any) => s.stageId === dataset.recognizedStageId)?.label ?? dataset.recognizedStageId
           : null;
         return (
           <div key={datasetId} style={{ display: "flex", flexDirection: "column", gap: 12 }}>

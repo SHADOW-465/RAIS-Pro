@@ -17,7 +17,7 @@ import {
   num
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import {
   bySize,
   sizeTrend,
@@ -61,7 +61,7 @@ export default function SizeAnalysisPage() {
   const { t } = useTweaks();
   const { events: contextEvents, isLoading } = useEvents();
   const { registry } = useRegistry();
-  const activeRegistry = registry || DISPOSAFE_REGISTRY;
+  const activeRegistry = registry || EMPTY_REGISTRY;
   const events = contextEvents ? (contextEvents as any[]) : null;
   const [selectedSize, setSelectedSize] = useState("Fr16");
   const [modalOpen, setModalOpen] = useState(false);

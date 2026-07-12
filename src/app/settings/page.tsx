@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import { Card } from "@/components/app/widgets";
 import Icon from "@/components/editorial/Icon";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import { useEvents } from "@/components/app/EventsContext";
+import { useRegistry } from "@/components/app/RegistryContext";
 
 export default function SettingsPage() {
   const { refreshEvents } = useEvents();
+  const { registry } = useRegistry();
+  const activeRegistry = registry || EMPTY_REGISTRY;
   const [targetRej, setTargetRej] = useState("10.00");
   const [watchRej, setWatchRej] = useState("5.00");
   const [unitCost, setUnitCost] = useState("20.00");
@@ -114,13 +117,15 @@ export default function SettingsPage() {
       } catch { /* ignore malformed */ }
 
       const weights: Record<string, string> = {};
-      DISPOSAFE_REGISTRY.stages.forEach(s => {
+      activeRegistry.stages.forEach((s: any) => {
         const stored = localStorage.getItem(`rais_settings_weight_${s.stageId}`);
         weights[s.stageId] = stored || (s.stageId === "visual" ? "0.60" : s.stageId === "eye-punching" ? "0.70" : s.stageId === "balloon" ? "0.80" : s.stageId === "valve-integrity" ? "0.90" : "1.00");
       });
       setStageWeights(weights);
     }
-  }, []);
+    // Re-derive when the catalog arrives (async fetch).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRegistry.stages.length]);
 
   const handleWeightChange = (stageId: string, val: string) => {
     setStageWeights(prev => ({
@@ -263,7 +268,7 @@ export default function SettingsPage() {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <span className="muted" style={{ fontSize: 11.5, fontWeight: 600, marginBottom: 2 }}>Stage-wise Added Value Cost Weights</span>
-                  {DISPOSAFE_REGISTRY.stages.map(s => (
+                  {activeRegistry.stages.map((s: any) => (
                     <div key={s.stageId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
                       <span className="muted" style={{ fontWeight: 500 }}>{s.label}</span>
                       <div style={{ position: "relative", display: "flex", alignItems: "center", width: 100 }}>
@@ -301,13 +306,13 @@ export default function SettingsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {DISPOSAFE_REGISTRY.defects.map(d => (
+                    {activeRegistry.defects.map((d: any) => (
                       <tr key={d.defectCode} style={{ borderTop: "1px solid var(--border)" }}>
                         <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{d.defectCode}</td>
                         <td style={tdStyle}>{d.label}</td>
                         <td style={tdStyle}>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                            {d.aliases.map(a => (
+                            {d.aliases.map((a: string) => (
                               <span key={a} style={{ fontSize: 10, background: "var(--surface-3)", padding: "1px 6px", borderRadius: 4, border: "1px solid var(--border)" }}>
                                 {a}
                               </span>

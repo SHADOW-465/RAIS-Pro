@@ -6,7 +6,8 @@ import PageLoader from "@/components/app/PageLoader";
 import GenericDashboardBody from "@/components/app/GenericDashboardBody";
 import { buildGenericDashboard } from "@/lib/dataset/dashboard";
 import { toStageRecords } from "@/lib/dataset/to-stage-records";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
+import { useRegistry } from "@/components/app/RegistryContext";
 import { useEvents } from "@/components/app/EventsContext";
 import type { Dataset, DatasetRow } from "@/lib/dataset/types";
 
@@ -25,6 +26,8 @@ export default function GenericDatasetView({
   onConfirmStage?: (datasetId: string, stageId: string) => void;
   knownStages?: { stageId: string; label: string }[];
 }) {
+  const { registry } = useRegistry();
+  const activeRegistry = registry || EMPTY_REGISTRY;
   const { refreshEvents } = useEvents();
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [rows, setRows] = useState<DatasetRow[] | null>(null);
@@ -105,7 +108,7 @@ export default function GenericDatasetView({
   const d = buildGenericDashboard(dataset, rows);
 
   const stageLabel = dataset.recognizedStageId
-    ? DISPOSAFE_REGISTRY.stages.find((s) => s.stageId === dataset.recognizedStageId)?.label ?? dataset.recognizedStageId
+    ? activeRegistry.stages.find((s: any) => s.stageId === dataset.recognizedStageId)?.label ?? dataset.recognizedStageId
     : null;
 
   return (

@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import Icon from "@/components/editorial/Icon";
 import {
   rejectionRate,
@@ -350,7 +350,7 @@ function GlobalDefectMatrix({
 export default function ReportsPage() {
   const { events: contextEvents, isLoading } = useEvents();
   const { registry } = useRegistry();
-  const activeRegistry = registry || DISPOSAFE_REGISTRY;
+  const activeRegistry = registry || EMPTY_REGISTRY;
   const events = contextEvents ?? [];
   const [fingerprint, setFingerprint] = useState("");
 

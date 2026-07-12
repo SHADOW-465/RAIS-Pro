@@ -9,7 +9,7 @@
 // else (see docs/superpowers/specs/2026-07-07-data-entry-unify-design.md).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { buildReviewRows, applyEdit } from "@/lib/ingest/review";
 import { CAPTURE_LABEL, CAPTURE_FIELD, CAPTURE_TO_RECORD_FIELD, CORE_FIELD_BY_COL } from "@/lib/ingest/capture-fields";
@@ -56,7 +56,7 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, a
       .catch(() => setRegistry(null));
   }, [presetId]);
 
-  const activeRegistry = registry || DISPOSAFE_REGISTRY;
+  const activeRegistry = registry || EMPTY_REGISTRY;
 
   const { from: monthStart, to: monthEnd } = useMemo(() => resolvePeriod("month", anchorDate), [anchorDate]);
 

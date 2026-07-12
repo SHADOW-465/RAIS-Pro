@@ -26,7 +26,7 @@ import {
   Donut
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import PageLoader from "@/components/app/PageLoader";
 import ParetoChart from "@/components/ParetoChart";
 import GenericDatasetView from "@/components/app/GenericDatasetView";
@@ -97,7 +97,7 @@ export default function Dashboard() {
   const { t } = useTweaks();
   const { events, isLoading } = useEvents();
   const { registry } = useRegistry();
-  const activeRegistry = registry || DISPOSAFE_REGISTRY;
+  const activeRegistry = registry || EMPTY_REGISTRY;
   const [selectedSize, setSelectedSize] = useState("Fr16");
   const [targetRej, setTargetRej] = useState<number>(0.03);
   const [modalOpen, setModalOpen] = useState(false);
@@ -1150,7 +1150,7 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
   targetRej: number;
   openModal: (title: string, insight: string | string[], content: React.ReactNode, source?: { rows: SourceRow[]; value: string }) => void;
   srcRows: (filter?: { stageId?: string; defectCode?: string; size?: string; types?: string[] }) => SourceRow[];
-  registry: typeof DISPOSAFE_REGISTRY;
+  registry: typeof EMPTY_REGISTRY;
 }) {
   const d = useMemo(() => {
     const snap: Scope = { ...scope, stageIds: [stageId] };

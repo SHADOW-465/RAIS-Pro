@@ -6,7 +6,7 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import InsightSlide from "@/components/InsightSlide";
 import type { DashboardConfig, InsightSlide as InsightSlideType } from "@/types/dashboard";
 import type { Event } from "@/lib/store/types";
@@ -58,7 +58,7 @@ function ChatContent() {
   const { events: contextEvents } = useEvents();
   const events = useMemo(() => contextEvents ?? [], [contextEvents]);
   const { registry } = useRegistry();
-  const activeRegistry = registry || DISPOSAFE_REGISTRY;
+  const activeRegistry = registry || EMPTY_REGISTRY;
 
   const threadEndRef = useRef<HTMLDivElement>(null);
 
