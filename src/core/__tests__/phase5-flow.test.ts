@@ -3,7 +3,6 @@
 // upload → proposals → verify (stage overrides) → publish → extract records →
 // ingest into the ledger with the MOD catalog. No family parser, no schema
 // extractor, no preset is touched anywhere on this path.
-process.env.MOD_PIPELINE = "1";
 
 import * as fs from "fs";
 import * as path from "path";

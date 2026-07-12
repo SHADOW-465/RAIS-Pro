@@ -20,7 +20,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStores, getActiveRegistryRow } from "@/lib/store";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { RegistryRow } from "@/lib/store/types";
-import { MOD_PIPELINE } from "@/lib/flags";
 import { getModStore } from "@/core/ontology/store/mod-store";
 
 function slugify(s: string): string {
@@ -72,7 +71,6 @@ function toClientRegistry(row: RegistryRow) {
  *  pages consume, so data-entry/staging keep working unchanged until Phase 5
  *  deletes this route. Falls through to the legacy preset chain otherwise. */
 async function modCatalogRegistry() {
-  if (!MOD_PIPELINE) return null;
   const company = process.env.MOID_COMPANY_ID || "default";
   const catalog = await getModStore().catalogFor(company);
   if (catalog.stages.length === 0) return null;

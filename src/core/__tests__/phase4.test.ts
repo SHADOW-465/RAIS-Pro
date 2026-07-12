@@ -5,8 +5,6 @@
 //   - /api/entry-template: generated grid definition straight from the MOD,
 //   - /api/schema compat shim: with the flag on, the "active registry" is the
 //     MOD catalog in the exact shape legacy pages consume (A/B parity).
-process.env.MOD_PIPELINE = "1";
-process.env.NEXT_PUBLIC_MOD_PIPELINE = "1";
 
 import { migrate } from "../../../scripts/migrate-presets-to-mods";
 import { getStores } from "@/lib/store";
