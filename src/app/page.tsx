@@ -61,6 +61,9 @@ import {
   cumulativeStageTrend,
   CUM_TOTAL_KEY
 } from "@/lib/analytics";
+import { decide } from "@/core/decision/engine";
+import { SEED_DECISION_RULES } from "@/core/decision/seed-rules";
+import type { RecommendationT } from "@/shared/models/decision";
 
 const STAGE_LABELS: Record<string, string> = {
   visual: "Visual Inspection", "eye-punching": "Eye Punching", balloon: "Balloon Testing",
@@ -307,81 +310,52 @@ export default function Dashboard() {
     return lines;
   }, [m]);
 
-  const recommendations = useMemo(() => {
-    if (!m || m.checked === 0) return [
-      "Upload quality records to generate action items.",
-      "Configure target quality metrics in Settings."
-    ];
+  // Phase 6: Recommended Actions come from the decision engine (versioned
+  // rules over canonical vars). Numbers are already on the events; rules only
+  // match predicates and fill templates — never invent metrics.
+  const [engineRecs, setEngineRecs] = useState<RecommendationT[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { recommendations: recs } = await decide(events ?? [], scope, {
+        registry: activeRegistry,
+        rules: SEED_DECISION_RULES,
+        targetRate: targetRej,
+        limit: 4,
+      });
+      if (!cancelled) setEngineRecs(recs);
+    })();
+    return () => { cancelled = true; };
+  }, [events, scope, activeRegistry, targetRej]);
 
-    const list: string[] = [];
+  const recommendations = useMemo(
+    () => (engineRecs.length > 0 ? engineRecs.map((r) => r.text) : ["Upload quality records to generate action items."]),
+    [engineRecs],
+  );
 
-    // Find highest rejection stage
-    const highestStage = [...m.stages].sort((a, b) => b.rejRate - a.rejRate)[0];
-    if (highestStage && highestStage.rejRate > 0) {
-      list.push(`Audit quality gates and operator logs at ${highestStage.label} stage (rejection rate: ${(highestStage.rejRate * 100).toFixed(1)}%).`);
-    }
-
-    // Find top defect
-    const topDefect = m.defects[0];
-    if (topDefect && topDefect.rejected > 0) {
-      list.push(`Investigate root cause for ${topDefect.label} defects (responsible for ${topDefect.pct.toFixed(1)}% of all rejections).`);
-    }
-
-    // Check sizes
-    const badSize = [...m.sizes].sort((a, b) => b.rejRate - a.rejRate)[0];
-    if (badSize && badSize.rejRate > 0) {
-      list.push(`Review material batch consistency and tensile strength for size ${badSize.size} (rejection rate: ${(badSize.rejRate * 100).toFixed(1)}%).`);
-    }
-
-    // Default actions if list is too short
-    if (list.length < 3) {
-      list.push("Review machine maintenance logs for the active period.");
-      list.push("Confirm that all operators have completed the monthly SOP training refresh.");
-    }
-
-    return list.slice(0, 4);
-  }, [m, targetRej]);
-
-  /** C2: pair each `recommendations` string with a severity chip + evidence line
-   *  for the action-card rendering, WITHOUT inventing new numbers — severity is
-   *  derived by re-matching the recommendation against the same `m.stages` /
-   *  `m.defects` / `m.sizes` rows it was built from and comparing against
-   *  `targetRej`, the same threshold already used for Kpi `tone` above (e.g.
-   *  `tone={m.rate > targetRej ? "bad" : "good"}`). Evidence is the metric value
-   *  that triggered the line, already present in `m`. */
   const recommendationCards = useMemo(() => {
-    if (!m) return recommendations.map((text) => ({ text, tone: "warn" as const, evidence: null as string | null }));
-
-    return recommendations.map((text) => {
-      const stageMatch = m.stages.find((s) => text.includes(s.label));
-      if (stageMatch) {
-        return {
-          text,
-          tone: (stageMatch.rejRate > targetRej ? "bad" : "warn") as "bad" | "warn",
-          evidence: `${stageMatch.label}: ${pct(stageMatch.rejRate)} rejection rate vs ${pct(targetRej)} target`,
-        };
-      }
-      const defectMatch = m.defects.find((d) => text.includes(d.label));
-      if (defectMatch) {
-        return {
-          text,
-          tone: "warn" as const,
-          evidence: `${defectMatch.label}: ${defectMatch.pct.toFixed(1)}% of all rejections`,
-        };
-      }
-      const sizeMatch = m.sizes.find((s) => text.includes(s.size));
-      if (sizeMatch) {
-        return {
-          text,
-          tone: (sizeMatch.rejRate > targetRej ? "bad" : "warn") as "bad" | "warn",
-          evidence: `Size ${sizeMatch.size}: ${pct(sizeMatch.rejRate)} rejection rate vs ${pct(targetRej)} target`,
-        };
-      }
-      // Fallback / default lines (SOP training, maintenance logs, upload prompts) —
-      // no rejection-rate breach implied, so these read as informational, not urgent.
-      return { text, tone: "info" as const, evidence: null as string | null };
+    if (engineRecs.length === 0) {
+      return recommendations.map((text) => ({ text, tone: "info" as const, evidence: null as string | null }));
+    }
+    return engineRecs.map((r) => {
+      const tone = (r.severity === "critical" ? "bad" : r.severity === "warning" ? "warn" : "info") as "bad" | "warn" | "info";
+      const varBits = Object.entries(r.vars)
+        .slice(0, 3)
+        .map(([k, v]) => {
+          const asPct =
+            typeof v === "number" &&
+            v <= 1 &&
+            (k.includes("rate") || k === "fpy" || k.includes("share"));
+          return `${k}=${asPct ? `${(v * 100).toFixed(1)}%` : v}`;
+        })
+        .join(" · ");
+      return {
+        text: r.text,
+        tone,
+        evidence: `${r.ruleId} v${r.ruleVersion}${varBits ? ` · ${varBits}` : ""}`,
+      };
     });
-  }, [m, recommendations, targetRej]);
+  }, [engineRecs, recommendations]);
 
   const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
 
