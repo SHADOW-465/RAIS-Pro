@@ -20,6 +20,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStores, getActiveRegistryRow } from "@/lib/store";
 import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import type { RegistryRow } from "@/lib/store/types";
+import { MOD_PIPELINE } from "@/lib/flags";
+import { getModStore } from "@/core/ontology/store/mod-store";
 
 function slugify(s: string): string {
   return s.toLowerCase().trim()
@@ -64,11 +66,47 @@ function toClientRegistry(row: RegistryRow) {
   };
 }
 
+/** Phase 4 compat shim (MOD-MIGRATION-PLAN §Phase 4): with the MOD pipeline
+ *  on and at least one verified MOD, the "active registry" IS the company's
+ *  merged verified-MOD catalog — served in the exact registry shape existing
+ *  pages consume, so data-entry/staging keep working unchanged until Phase 5
+ *  deletes this route. Falls through to the legacy preset chain otherwise. */
+async function modCatalogRegistry() {
+  if (!MOD_PIPELINE) return null;
+  const company = process.env.MOID_COMPANY_ID || "default";
+  const catalog = await getModStore().catalogFor(company);
+  if (catalog.stages.length === 0) return null;
+  const stages = catalog.stages.map((stage) => ({
+    ...stage,
+    fields: (stage.captures ?? []).map((c) => ({
+      name: c === "checked" ? "Checked Qty" : c === "accepted" ? "Good Qty" : c === "hold" ? "Rework Qty" : "Rejected Qty",
+      type: "number", required: c === "checked" || c === "rejected", addAs: "column", appliesTo: "all", unit: "",
+    })),
+  }));
+  return {
+    presetId: "mod-catalog",
+    clientId: company,
+    name: "Verified ontology (MOD)",
+    createdFromFilename: null,
+    registryVersion: "mod",
+    fiscalYearStartMonth: catalog.fiscalYearStartMonth,
+    stages,
+    defects: catalog.defects,
+    sizes: catalog.sizes,
+    stageAliases: {},
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { registries } = getStores();
     const presetId = req.nextUrl.searchParams.get("presetId");
     const wantList = req.nextUrl.searchParams.get("list") === "true";
+
+    if (!presetId && !wantList) {
+      const modRegistry = await modCatalogRegistry();
+      if (modRegistry) return NextResponse.json({ registry: modRegistry, configured: true });
+    }
 
     if (wantList) {
       return NextResponse.json({ presets: await registries.list() });
