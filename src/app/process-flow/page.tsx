@@ -21,7 +21,7 @@ import {
   resolveScope,
   type Scope
 } from "@/lib/analytics";
-import { FBC_PROCESS } from "@/lib/registry/fbc-process";
+import { FBC_PROCESS } from "./fbc-process-data";
 import type { StageRow } from "@/lib/analytics";
 
 export default function ProcessFlowPage() {

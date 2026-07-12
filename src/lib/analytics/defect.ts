@@ -2,13 +2,12 @@
 // Returns [] (→ empty-state) when no per-defect data is present.
 
 import type { Event } from "@/lib/store/types";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import { type Scope, scopeEvents, periodKey, periodLabel, periodsIn } from "./scope";
 import type { SeriesPoint } from "./rejection";
 
-type Registry = typeof DISPOSAFE_REGISTRY;
+import { DERIVED_REGISTRY, type Registry } from "./rejection";
 
-function defectLabel(code: string | null, raw: string, registry: Registry): string {
+function defectLabel(code: string | null, raw: string, registry: Registry = DERIVED_REGISTRY): string {
   if (!code) return raw; // unresolved label shown verbatim (→ V-007 finding elsewhere)
   return registry.defects.find((d) => d.defectCode === code)?.label ?? code;
 }
@@ -22,7 +21,7 @@ export interface DefectRow {
 }
 
 /** Defect Pareto: rejected qty by defect, desc, with cumulative %. */
-export function byDefect(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): DefectRow[] {
+export function byDefect(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): DefectRow[] {
   const ev = scopeEvents(events, scope).filter((e) => e.eventType === "rejection");
   if (ev.length === 0) return [];
   const sums = new Map<string, { code: string | null; raw: string; qty: number }>();
@@ -48,7 +47,7 @@ export function byDefect(events: Event[], scope: Scope, registry: Registry = DIS
 export interface DefectTrendPoint { period: string; label: string; perDefect: Record<string, number> }
 
 /** Top-N defects' qty over time. */
-export function defectTrend(events: Event[], scope: Scope, topN = 5, registry: Registry = DISPOSAFE_REGISTRY): DefectTrendPoint[] {
+export function defectTrend(events: Event[], scope: Scope, topN = 5, registry: Registry = DERIVED_REGISTRY): DefectTrendPoint[] {
   const ev = scopeEvents(events, scope).filter((e) => e.eventType === "rejection");
   if (ev.length === 0) return [];
   const top = byDefect(events, scope, registry).slice(0, topN).map((d) => d.label);

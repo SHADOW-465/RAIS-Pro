@@ -1,4 +1,5 @@
 import { emitStageDay, emitMany, type StageDayRecord } from "@/lib/ingest/emit";
+import { DISPOSAFE_REGISTRY as REG } from "./fixtures/disposafe-registry";
 import { checkRecord, checkSpike } from "@/lib/entry/validate-entry";
 import { MemoryEventStore } from "@/lib/store/memory";
 
@@ -40,7 +41,7 @@ describe("emit (rejection-only, real April-1 visual numbers)", () => {
         { raw: "BALLOON BRUST", value: 300, cell: "H6" },
         { raw: "MYSTERY", value: 154, cell: "I6" },
       ],
-    }));
+    }), REG);
     const rej = events.filter((e) => e.eventType === "rejection");
     const codes = rej.map((e) => (e.eventType === "rejection" ? e.defectCode : null));
     expect(codes).toEqual(["THSP", "BLBR", null]);
@@ -58,8 +59,8 @@ describe("emit (rejection-only, real April-1 visual numbers)", () => {
   test("emitMany + store: identical records are idempotent", async () => {
     const records = [rec(), rec({ stageId: "balloon", checked: { value: 9627, cell: "F6", header: "BALLOON CHKD" }, rejected: { value: 15, cell: "H6", header: "REJ QTY" } })];
     const store = new MemoryEventStore();
-    const first = await store.append(emitMany(records));
-    const second = await store.append(emitMany(records)); // re-ingest same sheet
+    const first = await store.append(emitMany(records, REG));
+    const second = await store.append(emitMany(records, REG)); // re-ingest same sheet
     expect(first.inserted).toBe(4); // 2 production + 2 inspection
     expect(second).toEqual({ inserted: 0, deduped: 4 });
   });

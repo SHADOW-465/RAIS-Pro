@@ -3,8 +3,9 @@
 //    exist (the old `(a.good || checked-rejected)/checked` reported ~0% yield).
 //  - Defect alias resolution must be separator-insensitive (90-10 == 90/10).
 import { emitMany, type StageDayRecord } from "@/lib/ingest/emit";
+import { DISPOSAFE_REGISTRY as REG } from "./fixtures/disposafe-registry";
 import { byStage } from "@/lib/analytics/rejection";
-import { resolveDefect } from "@/lib/registry/disposafe";
+import { resolveDefect } from "./fixtures/disposafe-registry";
 import type { Scope } from "@/lib/analytics/scope";
 
 const FY: Scope = { grain: "month", dateFrom: "2025-04-01", dateTo: "2026-03-31" };
@@ -31,7 +32,7 @@ describe("audit — stage yield is the complement of rejection rate", () => {
       rejected: sv(50, "REJ"),
       acceptedGood: sv(10, "ACCEPT"),
     })]);
-    const visual = byStage(events, FY).find((s) => s.stageId === "visual")!;
+    const visual = byStage(events, FY, REG).find((s) => s.stageId === "visual")!;
     expect(visual.rejRate).toBeCloseTo(0.05, 9);
     expect(visual.yield).toBeCloseTo(0.95, 9);          // NOT 0.01
     expect(visual.yield).toBeCloseTo(1 - visual.rejRate, 9);
@@ -39,7 +40,7 @@ describe("audit — stage yield is the complement of rejection rate", () => {
 
   test("yield falls back cleanly when no accepted events exist", () => {
     const events = emitMany([rec({ stageId: "balloon", checked: sv(2000, "CHECKED"), rejected: sv(10, "REJ") })]);
-    const balloon = byStage(events, FY).find((s) => s.stageId === "balloon")!;
+    const balloon = byStage(events, FY, REG).find((s) => s.stageId === "balloon")!;
     expect(balloon.yield).toBeCloseTo(1990 / 2000, 9);
   });
 });

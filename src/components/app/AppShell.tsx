@@ -124,7 +124,6 @@ export default function AppShell({
   const [exporting, setExporting] = useState(false);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
   const [viewStages, setViewStages] = useState<{ id: string; label: string }[]>([]);
-  const [datasetTabs, setDatasetTabs] = useState<{ id: string; label: string }[]>([]);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [dateMinMax, setDateMinMax] = useState<{ min: string; max: string } | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -319,7 +318,7 @@ export default function AppShell({
 
   useEffect(() => {
     setMounted(true);
-    fetch(presetId ? `/api/schema?presetId=${encodeURIComponent(presetId)}` : "/api/schema")
+    fetch("/api/schema")
       .then((res) => res.json())
       .then((data) => {
         setIsConfigured(data.configured !== false);
@@ -331,40 +330,6 @@ export default function AppShell({
       });
   }, [presetId]);
 
-  useEffect(() => {
-    fetch("/api/datasets")
-      .then((res) => res.json())
-      .then((data) => {
-        const list = (data.datasets ?? []) as { id: string; title: string; recognizedStageId?: string | null }[];
-        // A recognized dataset duplicates a legacy stage tab only once that
-        // stage actually HAS event data (i.e. the dataset was published, or the
-        // stage was fed by the classic pipeline). Until then the dataset tab is
-        // the ONLY place its data — and its Publish action — can be seen, so it
-        // must stay visible; it self-hides after publishing lands events.
-        const legacyIds = new Set(
-          (viewStages.length ? viewStages : VIEW_OPTIONS.slice(1)).map((v) => v.id),
-        );
-        const stagesWithData = new Set((events ?? []).map((e: any) => e.stageId).filter(Boolean));
-        // Prefix with "dataset:" so these ids can never collide with a legacy
-        // stageId (which are short kebab-case strings like "visual"), and so
-        // page.tsx can cheaply tell the two kinds of tab apart.
-        setDatasetTabs(
-          list
-            .filter(
-              (d) =>
-                !d.recognizedStageId ||
-                !legacyIds.has(d.recognizedStageId) ||
-                !stagesWithData.has(d.recognizedStageId),
-            )
-            .map((d) => ({ id: `dataset:${d.id}`, label: d.title })),
-        );
-      })
-      .catch(() => {
-        // best-effort — the existing stage tabs still render fine without this
-      });
-    // viewStages / events each load asynchronously; re-filter when either
-    // arrives so fetch completion order doesn't change which tabs are hidden.
-  }, [viewStages, events]);
 
   useEffect(() => {
     if (events && events.length > 0) {
@@ -533,7 +498,7 @@ export default function AppShell({
       window.removeEventListener("resize", updatePosition);
       timers.forEach(clearTimeout);
     };
-  }, [active, sidebarCollapsed, collapsedSections, mounted, viewStages, datasetTabs]);
+  }, [active, sidebarCollapsed, collapsedSections, mounted, viewStages]);
 
   // Enable the pill's slide transition only after its first real position has
   // painted (two rAFs = one committed frame), so it never tweens in from the
@@ -599,7 +564,7 @@ export default function AppShell({
   const stationCandidates = viewStages.length ? viewStages : VIEW_OPTIONS.slice(1);
   const stagesWithData = new Set((events ?? []).map((e: any) => e.stageId).filter(Boolean));
   const stationOptions = stationCandidates.filter((v) => stagesWithData.has(v.id));
-  const allViewOptions = [{ id: "cumulative", label: "Factory Overview" }, ...stationOptions, ...datasetTabs];
+  const allViewOptions = [{ id: "cumulative", label: "Factory Overview" }, ...stationOptions];
   const currentView = allViewOptions.find((v) => v.id === t.stageView)
     ?? { id: t.stageView, label: t.stageView === "cumulative" ? "Factory Overview" : t.stageView };
   const sidebarBg = "var(--surface)";
@@ -974,14 +939,7 @@ export default function AppShell({
                   activeId={t.stageView}
                   onSelect={(id) => { setTweak("stageView", id); setShowViewMenu(false); }}
                 />
-                <ViewMenuGroup
-                  label="Uploaded Data"
-                  options={datasetTabs}
-                  emptyLabel="No uploaded datasets yet"
-                  activeId={t.stageView}
-                  onSelect={(id) => { setTweak("stageView", id); setShowViewMenu(false); }}
-                />
-              </div>
+                              </div>
             )}
           </div>
 

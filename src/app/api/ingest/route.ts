@@ -6,14 +6,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { emitMany, type StageDayRecord } from "@/lib/ingest/emit";
 import { checkRecord } from "@/lib/entry/validate-entry";
-import { getStores, shouldUseSupabase, getActiveRegistryRow } from "@/lib/store";
+import { getStores, shouldUseSupabase } from "@/lib/store";
 import { createServerClient } from "@/lib/supabase";
 
 interface IngestBody {
   ingestionId: string;
   fileName: string;
   records: StageDayRecord[];
-  presetId?: string;
   /** MOD v2 (Phase 3): resolve entities via this MOD lineage's company catalog
    *  instead of the registry-preset chain. */
   modId?: string;
@@ -113,7 +112,7 @@ export async function POST(req: NextRequest) {
     }));
 
     // Reconcile conflicts
-    const { reconcileConflicts } = require("@/lib/ingest/parsers/reconcile");
+    const { reconcileConflicts } = require("@/core/ingest/reconcile");
     const { toWrite, conflicts } = reconcileConflicts(existingRecords, recordsWithComments);
 
     // Turn conflicts into Findings and upsert them
@@ -190,26 +189,6 @@ export async function POST(req: NextRequest) {
         sizes: catalog.sizes,
         costConfig: null,
       };
-    } else try {
-      const { registries } = getStores();
-      const targetPresetId = body.presetId || (await getActiveRegistryRow())?.presetId;
-      const regRow = targetPresetId ? await registries.get(targetPresetId) : null;
-      if (regRow) {
-        activeRegistry = {
-          clientId: regRow.presetId,
-          registryVersion: regRow.registryVersion,
-          fiscalYearStartMonth: regRow.fiscalYearStartMonth,
-          stages: regRow.stages,
-          defects: regRow.defects,
-          sizes: regRow.sizes || [],
-          // Not modeled on RegistryRow (no write path in this codebase ever
-          // sets it) — always null, matching DISPOSAFE_REGISTRY's own
-          // costConfig default.
-          costConfig: null,
-        };
-      }
-    } catch (err) {
-      console.warn("Could not fetch active registry (non-fatal, falling back to static default):", err);
     }
 
     const events = emitMany(toWrite, activeRegistry);

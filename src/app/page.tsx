@@ -29,9 +29,8 @@ import type { Event } from "@/lib/store/types";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import PageLoader from "@/components/app/PageLoader";
 import ParetoChart from "@/components/ParetoChart";
-import GenericDatasetView from "@/components/app/GenericDatasetView";
 import { safeBolden } from "@/components/app/widgets";
-import { calculatePareto } from "@/lib/dashboard-builder";
+import { calculatePareto } from "@/lib/analytics/pareto";
 import {
   rejectionRate,
   totalRejected,
@@ -526,13 +525,7 @@ export default function Dashboard() {
       {isLoading && (
         <PageLoader message="Initializing the intelligence ledger..." minHeight="60vh" />
       )}
-      {/* Dataset views read from the dataset store, not the event ledger — they
-          must render even when zero events exist (e.g. a fresh upload whose
-          recognized data hasn't been published to Cumulative yet). */}
-      {!isLoading && activeView.startsWith("dataset:") && (
-        <GenericDatasetView datasetId={activeView.slice("dataset:".length)} />
-      )}
-      {!isLoading && !activeView.startsWith("dataset:") && events && events.length === 0 && (
+      {!isLoading && events && events.length === 0 && (
         <div style={{ padding: "72px 32px", textAlign: "center" }}>
           <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 12 }}>
             No data yet
@@ -555,7 +548,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {m && !activeView.startsWith("dataset:") && (
+      {m && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {activeView !== "cumulative" ? (
             (

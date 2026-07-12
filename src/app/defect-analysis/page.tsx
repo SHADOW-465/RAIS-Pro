@@ -17,7 +17,7 @@ import {
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
 import ParetoChart from "@/components/ParetoChart";
-import { calculatePareto } from "@/lib/dashboard-builder";
+import { calculatePareto } from "@/lib/analytics/pareto";
 import {
   byDefect,
   defectTrend,

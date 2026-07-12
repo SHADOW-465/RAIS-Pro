@@ -1,6 +1,6 @@
 // src/types/dashboard.ts
 
-import type { ParetoAnalysis } from "./metrics";
+import type { ParetoAnalysis } from "@/lib/analytics/pareto";
 
 export interface KPI {
   label: string;

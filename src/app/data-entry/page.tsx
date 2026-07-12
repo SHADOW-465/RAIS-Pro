@@ -6,7 +6,6 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
-import DatasetEntryForm from "@/components/DatasetEntryForm";
 import MonthlyEntryGrid from "@/components/MonthlyEntryGrid";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import WeekPicker from "@/components/WeekPicker";
@@ -17,7 +16,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function DataEntryPage() {
   const { refreshEvents, events } = useEvents();
-  const [activeTab, setActiveTab] = useState<"entry" | "ledger" | "custom">("entry");
+  const [activeTab, setActiveTab] = useState<"entry" | "ledger">("entry");
   const [monthlyDirty, setMonthlyDirty] = useState(false);
   const [date, setDate] = useState(today());
 
@@ -300,22 +299,7 @@ export default function DataEntryPage() {
           >
             Entry History / Data Ledger
           </button>
-          <button
-            onClick={() => { if (confirmLeaveEntryGrid()) setActiveTab("custom"); }}
-            style={{
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "0 8px 8px 0",
-              background: activeTab === "custom" ? "var(--accent)" : "var(--surface-2)",
-              color: activeTab === "custom" ? "var(--text-invert)" : "var(--text-2)",
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: "pointer"
-            }}
-          >
-            Custom Datasets
-          </button>
-        </div>
+                  </div>
 
         
       </div>
@@ -327,9 +311,7 @@ export default function DataEntryPage() {
         </div>
       )}
 
-      {activeTab === "custom" ? (
-        <DatasetEntryForm />
-      ) : activeTab === "entry" ? (
+      {activeTab === "entry" ? (
         loadingRegistry ? (
           <div className="muted" style={{ padding: 48, textAlign: "center" }}>Loading schema registry…</div>
         ) : !registry || !registry.stages || registry.stages.length === 0 ? (
@@ -462,7 +444,6 @@ export default function DataEntryPage() {
                   setDate(next);
                 }
               }}
-              presetId={null}
               customFields={entryCustomFields}
               blockedReason={hdr.operator.trim() ? null : "Operator name is required."}
               onDirtyChange={setMonthlyDirty}

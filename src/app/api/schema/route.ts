@@ -1,257 +1,46 @@
 // src/app/api/schema/route.ts
-//
-// A "preset" is one independently reusable Data Entry registry, never merged/
-// overwritten across presets. Callers pick a preset explicitly:
-//   GET  /api/schema               -> list all presets (summary)
-//   GET  /api/schema?presetId=X    -> one preset's full registry
-//   GET  /api/schema?list=true     -> preset list (same as no-presetId list mode)
-//   POST /api/schema {name, registry}            -> create a new preset
-//   POST /api/schema {presetId, registry}        -> extend an existing preset
-//   PATCH  /api/schema?presetId=X  {name}        -> rename
-//   DELETE /api/schema?presetId=X                -> delete
-//
-// Goes through the shared getStores().registries abstraction (same pattern as
-// events/findings/rulebook) so this works against the in-memory store when
-// Supabase isn't configured, instead of hard-failing — a workbook's extracted
-// schema was previously unsaveable without Supabase, silently forcing every
-// page back onto the hardcoded DISPOSAFE_REGISTRY fallback below regardless
-// of what was actually uploaded.
-import { NextRequest, NextResponse } from "next/server";
-import { getStores, getActiveRegistryRow } from "@/lib/store";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
-import type { RegistryRow } from "@/lib/store/types";
+// The active-catalog endpoint (MOD v2 Phase 5): GET returns the company's
+// merged verified-MOD catalog in the registry shape pages consume. Preset
+// CRUD (POST/PATCH/DELETE) is gone — schema changes happen by verifying a new
+// MOD version in staging. Returns configured:false with an EMPTY catalog when
+// no MOD has been verified yet (never a hardcoded company).
+
+import { NextResponse } from "next/server";
 import { getModStore } from "@/core/ontology/store/mod-store";
+import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 
-function slugify(s: string): string {
-  return s.toLowerCase().trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '');
-}
-
-const DEFAULT_FIELDS = [
-  { name: "Checked Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" },
-  { name: "Good Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
-  { name: "Rework Qty", type: "number", required: false, addAs: "column", appliesTo: "all", unit: "" },
-  { name: "Rejected Qty", type: "number", required: true, addAs: "column", appliesTo: "all", unit: "" }
-];
-
-/** RegistryRow (persistence shape) -> the client-facing registry contract:
- *  fills in DEFAULT_FIELDS per stage and falls back sizes to the hardcoded
- *  list only when the preset itself didn't specify any. */
-function toClientRegistry(row: RegistryRow) {
-  const enrichedStages = (row.stages || []).map((stage: any) => ({
-    ...stage,
-    fields: stage.fields || DEFAULT_FIELDS,
-  }));
-  return {
-    presetId: row.presetId,
-    clientId: row.presetId,
-    name: row.name,
-    createdFromFilename: row.createdFromFilename,
-    registryVersion: row.registryVersion,
-    fiscalYearStartMonth: row.fiscalYearStartMonth,
-    stages: enrichedStages,
-    defects: row.defects || [],
-    sizes: (row.sizes && row.sizes.length ? row.sizes : DISPOSAFE_REGISTRY.sizes),
-    // Company-learned sheet/file-name -> stage aliases (src/lib/dataset/recognize.ts's
-    // recognizeStageScored). Exposed here so the client can thread it into
-    // groupIntoDatasets/datasetsWithRowsFromWorkbooks at Staging-upload time —
-    // closing the loop between a confirmed alias (POST /api/registry-alias)
-    // and the next recognition pass.
-    stageAliases: row.stageAliases || {},
-  };
-}
-
-/** Phase 4 compat shim (MOD-MIGRATION-PLAN §Phase 4): with the MOD pipeline
- *  on and at least one verified MOD, the "active registry" IS the company's
- *  merged verified-MOD catalog — served in the exact registry shape existing
- *  pages consume, so data-entry/staging keep working unchanged until Phase 5
- *  deletes this route. Falls through to the legacy preset chain otherwise. */
-async function modCatalogRegistry() {
-  const company = process.env.MOID_COMPANY_ID || "default";
-  const catalog = await getModStore().catalogFor(company);
-  if (catalog.stages.length === 0) return null;
-  const stages = catalog.stages.map((stage) => ({
-    ...stage,
-    fields: (stage.captures ?? []).map((c) => ({
-      name: c === "checked" ? "Checked Qty" : c === "accepted" ? "Good Qty" : c === "hold" ? "Rework Qty" : "Rejected Qty",
-      type: "number", required: c === "checked" || c === "rejected", addAs: "column", appliesTo: "all", unit: "",
-    })),
-  }));
-  return {
-    presetId: "mod-catalog",
-    clientId: company,
-    name: "Verified ontology (MOD)",
-    createdFromFilename: null,
-    registryVersion: "mod",
-    fiscalYearStartMonth: catalog.fiscalYearStartMonth,
-    stages,
-    defects: catalog.defects,
-    sizes: catalog.sizes,
-    stageAliases: {},
-  };
-}
-
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const { registries } = getStores();
-    const presetId = req.nextUrl.searchParams.get("presetId");
-    const wantList = req.nextUrl.searchParams.get("list") === "true";
-
-    if (!presetId && !wantList) {
-      const modRegistry = await modCatalogRegistry();
-      if (modRegistry) return NextResponse.json({ registry: modRegistry, configured: true });
+    const company = process.env.MOID_COMPANY_ID || "default";
+    const catalog = await getModStore().catalogFor(company);
+    if (catalog.stages.length === 0) {
+      return NextResponse.json({ registry: EMPTY_REGISTRY, configured: false });
     }
 
-    if (wantList) {
-      return NextResponse.json({ presets: await registries.list() });
-    }
-
-    const matchedRow = presetId ? await registries.get(presetId) : await getActiveRegistryRow();
-
-    if (matchedRow) {
-      return NextResponse.json({ registry: toClientRegistry(matchedRow), configured: true });
-    }
-
-    // Genuinely nothing saved yet (no preset ever created, in either backend)
-    // — the intentional v1 bootstrap default, not a failure mode.
-    const defaultEnrichedStages = DISPOSAFE_REGISTRY.stages.map((stage: any) => ({
+    const stages = catalog.stages.map((stage) => ({
       ...stage,
-      fields: stage.fields || DEFAULT_FIELDS
+      fields: (stage.captures ?? []).map((c) => ({
+        name: c === "checked" ? "Checked Qty" : c === "accepted" ? "Good Qty" : c === "hold" ? "Rework Qty" : "Rejected Qty",
+        type: "number", required: c === "checked" || c === "rejected", addAs: "column", appliesTo: "all", unit: "",
+      })),
     }));
-    return NextResponse.json({
-      registry: { ...DISPOSAFE_REGISTRY, presetId: null, stages: defaultEnrichedStages },
-      configured: false,
-    });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? "Failed to load registry" }, { status: 500 });
-  }
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const { registries } = getStores();
-    const body = await req.json();
-    const payload = body.registry || body.schema;
-    const requestedPresetId: string | undefined = body.presetId;
-    const name: string | undefined = body.name;
-    const createdFromFilename: string | undefined = body.createdFromFilename;
-
-    if (!payload || !Array.isArray(payload.stages)) {
-      return NextResponse.json({ error: "Invalid schema payload." }, { status: 400 });
-    }
-    if (!requestedPresetId && !name) {
-      return NextResponse.json({ error: "A new preset requires a name." }, { status: 400 });
-    }
-
-    // new-stage creation must never silently overwrite an existing stage: if
-    // two entries in this request resolve to the same stageId (e.g. a typed
-    // label that slugifies to a stageId already present), reject up front
-    // rather than letting the second one shadow the first in the final array.
-    const seenStageIds = new Set<string>();
-    for (const stage of payload.stages) {
-      const candidateId = stage.stageId || slugify(stage.label || stage.name);
-      if (seenStageIds.has(candidateId)) {
-        return NextResponse.json(
-          { error: `Duplicate stageId "${candidateId}" in submitted stages.` },
-          { status: 400 }
-        );
-      }
-      seenStageIds.add(candidateId);
-    }
-
-    const stages = payload.stages.map((stage: any, sIdx: number) => {
-      const stageId = stage.stageId || slugify(stage.label || stage.name);
-      const upstream = stage.upstream || (sIdx > 0 ? [payload.stages[sIdx - 1].stageId || slugify(payload.stages[sIdx - 1].label || payload.stages[sIdx - 1].name)] : []);
-      const fields = stage.fields || DEFAULT_FIELDS;
-      return {
-        stageId,
-        canonicalStageId: stage.canonicalStageId || null,
-        size: stage.size || null,
-        label: stage.label || stage.name,
-        fields,
-        upstream,
-        effectiveFrom: stage.effectiveFrom || null,
-        effectiveTo: stage.effectiveTo || null,
-        headerRows: stage.headerRows || null,
-        merges: stage.merges || null,
-        columns: stage.columns || null,
-      };
-    });
-
-    const defects = payload.defects || DISPOSAFE_REGISTRY.defects;
-    const sizes = payload.sizes || DISPOSAFE_REGISTRY.sizes;
-
-    let presetId = requestedPresetId;
-    if (!presetId) {
-      const base = slugify(name!) || "preset";
-      presetId = base;
-      let suffix = 1;
-      // Guarantee uniqueness rather than colliding with an existing preset.
-      while (await registries.get(presetId)) {
-        presetId = `${base}-${++suffix}`;
-      }
-    }
-
-    const existing = await registries.get(presetId);
-
-    await registries.upsert({
-      presetId,
-      name: name || existing?.name || presetId,
-      createdFromFilename: createdFromFilename || existing?.createdFromFilename || null,
-      registryVersion: "1.0.0",
-      fiscalYearStartMonth: existing?.fiscalYearStartMonth ?? 4,
-      stages,
-      defects,
-      sizes,
-      // Preserve previously-learned aliases — this upsert only replaces the
-      // schema shape (stages/defects/sizes), never the company's learned
-      // sheet-name -> stage mappings.
-      stageAliases: existing?.stageAliases ?? {},
-    });
-    // Whichever preset was just created or edited becomes the active one --
-    // otherwise "active" silently stays pinned to the oldest preset ever
-    // created (getActiveRegistryRow()'s fallback), ignoring every schema the
-    // user actually uploads/saves afterward.
-    await registries.setActive(presetId);
 
     return NextResponse.json({
-      success: true,
+      registry: {
+        presetId: "mod-catalog",
+        clientId: company,
+        name: "Verified ontology (MOD)",
+        createdFromFilename: null,
+        registryVersion: "mod",
+        fiscalYearStartMonth: catalog.fiscalYearStartMonth,
+        stages,
+        defects: catalog.defects,
+        sizes: catalog.sizes,
+        stageAliases: {},
+      },
       configured: true,
-      registry: { presetId, clientId: presetId, name: name || presetId, registryVersion: "1.0.0", fiscalYearStartMonth: existing?.fiscalYearStartMonth ?? 4, stages, defects, sizes, stageAliases: existing?.stageAliases ?? {} },
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? "Failed to save registry" }, { status: 500 });
-  }
-}
-
-export async function PATCH(req: NextRequest) {
-  try {
-    const { registries } = getStores();
-    const presetId = req.nextUrl.searchParams.get("presetId");
-    if (!presetId) return NextResponse.json({ error: "presetId required" }, { status: 400 });
-    const { name } = await req.json();
-    if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
-
-    await registries.rename(presetId, name);
-    return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? "Failed to rename preset" }, { status: 500 });
-  }
-}
-
-export async function DELETE(req: NextRequest) {
-  try {
-    const { registries } = getStores();
-    const presetId = req.nextUrl.searchParams.get("presetId");
-    if (!presetId) return NextResponse.json({ error: "presetId required" }, { status: 400 });
-
-    await registries.delete(presetId);
-    return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? "Failed to delete preset" }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to load catalog" }, { status: 500 });
   }
 }

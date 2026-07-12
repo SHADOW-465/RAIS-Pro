@@ -5,7 +5,7 @@
 // Feeds the verification grid; the user can edit, then save the corrected set.
 
 import type { StageDayRecord } from "@/lib/ingest/emit";
-import { DISPOSAFE_REGISTRY, resolveDefect } from "@/lib/registry/disposafe";
+import { collapseKey } from "@/core/ontology/normalize";
 
 /** Canonical identity for a defect column. The parser stores whatever header
  *  text the sheet used (a code, an alias spelling, ...); the grid edits by
@@ -13,7 +13,7 @@ import { DISPOSAFE_REGISTRY, resolveDefect } from "@/lib/registry/disposafe";
  *  row's existing entry and silently inserts a duplicate under a different
  *  key instead of updating it (`rejected` then reflects a phantom double-count). */
 export function defectKey(raw: string): string {
-  return resolveDefect(raw) ?? raw.trim().toUpperCase();
+  return collapseKey(raw) || raw.trim().toUpperCase();
 }
 
 export type RowStatus = "ok" | "corrected" | "invalid";
@@ -41,7 +41,8 @@ function stageLabel(stageId: string, rec?: StageDayRecord): string {
   if (rec?.source?.sheet && rec.source.sheet !== "Data Entry") {
     return rec.source.sheet;
   }
-  return DISPOSAFE_REGISTRY.stages.find((s) => s.stageId === stageId)?.label ?? stageId;
+  // No catalog here: humanize the canonical stage id ("valve-integrity" -> "Valve Integrity").
+  return stageId.replace(/-/g, " ").replace(/\w/g, (c) => c.toUpperCase());
 }
 
 /** Recompute one record's % from its raw checked/rejected and flag anomalies. */

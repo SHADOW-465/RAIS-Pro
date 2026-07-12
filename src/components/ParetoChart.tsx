@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { ParetoAnalysis } from "@/types/metrics";
+import type { ParetoAnalysis } from "@/lib/analytics/pareto";
 import { ZoomButton } from "@/components/app/widgets";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import {

@@ -1,4 +1,4 @@
-// src/lib/ingest/parsers/reconcile.ts
+// src/core/ingest/reconcile.ts — relocated from the deleted parsers dir (live ingest logic).
 import type { StageDayRecord } from "@/lib/ingest/emit";
 
 export interface Conflict {

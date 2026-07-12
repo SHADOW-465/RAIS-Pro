@@ -22,7 +22,7 @@ import {
   ConfidenceBasis,
 } from "@/lib/contract/d1";
 import { hashEvent } from "@/lib/contract/hash";
-import { resolveDefect } from "@/lib/registry/disposafe";
+import { resolveDefect } from "@/core/ontology/resolve-entity";
 import type { Event } from "@/lib/store/types";
 
 /** A single value read from one source cell (Excel) or typed in a form (direct entry). */

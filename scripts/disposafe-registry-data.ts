@@ -1,4 +1,6 @@
-// Disposafe client registry — REJECTION-ONLY v1 (MOID-SPEC §3, §4).
+// Disposafe registry SEED DATA (MOD v2 Phase 5): consumed ONLY by the
+// preset->MOD migration script and test fixtures. Runtime code reads the
+// company's verified-MOD catalog (catalogFor) — never this constant.
 //
 // Versioned config, not events. Ingestion resolves raw sheet labels against
 // this; unresolved labels yield a low-confidence event + a Finding (V-007),
@@ -76,25 +78,3 @@ export const DISPOSAFE_REGISTRY: Registry = {
   ],
   costConfig: null,
 };
-
-/** Case/separator-insensitive alias resolution. Collapses ALL non-alphanumeric
- *  characters so "90-10", "90/10" and "90 10" (the same defect written three
- *  ways across sheets) all resolve to one code. Returns null when unknown
- *  (→ low-confidence event + Finding), never an invented category. */
-const normDefect = (s: string): string => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
-export function resolveDefect(raw: string, reg: Registry = DISPOSAFE_REGISTRY): string | null {
-  const norm = normDefect(raw);
-  if (!norm) return null;
-  for (const d of reg.defects) {
-    if (d.aliases.some((a) => normDefect(a) === norm)) return d.defectCode;
-  }
-  return null;
-}
-
-/** The stage ids active on a given ISO date (respects effectiveFrom/To drift). */
-export function activeStageIds(isoDate: string, reg: Registry = DISPOSAFE_REGISTRY): string[] {
-  return reg.stages
-    .filter((s) => (s.effectiveFrom == null || s.effectiveFrom <= isoDate) &&
-                   (s.effectiveTo == null || isoDate <= s.effectiveTo))
-    .map((s) => s.stageId);
-}

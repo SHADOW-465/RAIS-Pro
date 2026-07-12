@@ -1,6 +1,7 @@
 // Timeline completeness: charts must show every calendar period in range,
 // not just the periods that happen to have records.
 import { calendarPeriods, periodsIn } from "@/lib/analytics/scope";
+import { DISPOSAFE_REGISTRY as REG } from "./fixtures/disposafe-registry";
 import { trend } from "@/lib/analytics/rejection";
 import type { Event } from "@/lib/store/types";
 
@@ -51,7 +52,7 @@ describe("trend over sparse data", () => {
       ev("2025-04-10", 100), ev("2025-04-10", 5, "rejected"),
       ev("2025-06-10", 200), ev("2025-06-10", 8, "rejected"),
     ];
-    const pts = trend(events, { grain: "month" }, "rejectionRate");
+    const pts = trend(events, { grain: "month" }, "rejectionRate", REG);
     expect(pts.map((p) => p.period)).toEqual(["2025-04", "2025-05", "2025-06"]);
     expect(pts[1].value).toBe(0); // May exists, empty
   });

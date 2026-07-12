@@ -2,10 +2,25 @@
 // numbers are computed. Screens import these — never recompute inline.
 
 import type { Event } from "@/lib/store/types";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
 import { type Scope, scopeEvents, periodKey, periodLabel, periodsIn } from "./scope";
 
-type Registry = typeof DISPOSAFE_REGISTRY;
+/** Structural catalog type — the caller's MOD catalog (or a test fixture). */
+export type Registry = { stages: any[]; defects: any[]; sizes: any[]; fiscalYearStartMonth: number };
+
+/** No catalog given → derive the stage list from the events themselves
+ *  (first-appearance order). Never a hardcoded company (MOD v2 Phase 5). */
+export const DERIVED_REGISTRY: Registry = { stages: [], defects: [], sizes: [], fiscalYearStartMonth: 4 };
+
+function stagesFor(events: Event[], registry: Registry = DERIVED_REGISTRY): { stageId: string; label?: string }[] {
+  if (registry.stages.length > 0) return registry.stages;
+  const seen = new Set<string>();
+  const out: { stageId: string }[] = [];
+  for (const e of events) {
+    const id = stageOf(e);
+    if (id && !seen.has(id)) { seen.add(id); out.push({ stageId: id }); }
+  }
+  return out;
+}
 
 function qty(e: Event): number {
   return "quantity" in e ? (e.quantity as number) : 0;
@@ -57,7 +72,7 @@ function perStageAgg(
   events: Event[],
   registry: Registry
 ): { stageId: string; checked: number; rejected: number; rate: number }[] {
-  return registry.stages.map((s) => {
+  return stagesFor(events, registry).map((s) => {
     const a = aggregate(events.filter((e) => stageOf(e) === s.stageId));
     return { stageId: s.stageId, checked: a.checked, rejected: a.rejected, rate: a.checked > 0 ? a.rejected / a.checked : 0 };
   });
@@ -67,7 +82,7 @@ function perStageAgg(
  *  stage's own rejection rate (Visual% + Balloon% + Valve% + Final%), matching
  *  the totals on their REJECTION ANALYSIS / YEARLY sheets. This is a funnel-loss
  *  figure, NOT overall rejected÷checked. */
-export function rejectionRate(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): MetricValue {
+export function rejectionRate(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): MetricValue {
   const ev = scopeEvents(events, scope);
   const stages = perStageAgg(ev, registry);
   const value = stages.reduce((sum, s) => sum + s.rate, 0);
@@ -83,7 +98,7 @@ export function totalRejected(events: Event[], scope: Scope): MetricValue {
 /** Units that entered the line = the ENTRY stage's checked qty (first registry
  *  stage with data — Visual). NOT Σ-checked across stages (that quadruple-counts
  *  the same physical units). */
-export function totalChecked(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): MetricValue {
+export function totalChecked(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): MetricValue {
   const ev = scopeEvents(events, scope);
   const stages = perStageAgg(ev, registry);
   const entry = stages.find((s) => s.checked > 0);
@@ -95,7 +110,7 @@ export function totalChecked(events: Event[], scope: Scope, registry: Registry =
 
 /** First Pass Yield = rolled-throughput yield Π(1 − stageRate) across stages —
  *  the fraction of entering units that pass every stage without rejection. */
-export function fpy(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): MetricValue {
+export function fpy(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): MetricValue {
   const ev = scopeEvents(events, scope);
   const stages = perStageAgg(ev, registry).filter((s) => s.checked > 0);
   if (stages.length === 0) return { value: 1, sourceEventIds: [] };
@@ -112,11 +127,11 @@ export interface StageRow extends StageAgg {
 }
 
 /** Per-stage breakdown, ordered by registry stage order. */
-export function byStage(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): StageRow[] {
+export function byStage(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): StageRow[] {
   const ev = scopeEvents(events, scope);
   const total = aggregate(ev).rejected;
-  return registry.stages
-    .map((s) => {
+  return stagesFor(ev, registry)
+    .map((s: any) => {
       const a = aggregate(ev.filter((e) => "stageId" in e && (e as any).stageId === s.stageId));
       return {
         stageId: s.stageId,
@@ -142,7 +157,7 @@ type MetricFn = (events: Event[], scope: Scope, registry?: Registry) => MetricVa
 const METRICS: Record<string, MetricFn> = { rejectionRate, totalRejected, totalChecked, fpy };
 
 /** A metric bucketed over time by scope.grain. */
-export function trend(events: Event[], scope: Scope, metric: keyof typeof METRICS = "rejectionRate", registry: Registry = DISPOSAFE_REGISTRY): SeriesPoint[] {
+export function trend(events: Event[], scope: Scope, metric: keyof typeof METRICS = "rejectionRate", registry: Registry = DERIVED_REGISTRY): SeriesPoint[] {
   const ev = scopeEvents(events, scope);
   const fn = METRICS[metric];
   const periods = periodsIn(ev, scope.grain, { from: scope.dateFrom, to: scope.dateTo });
@@ -163,7 +178,7 @@ export function trend(events: Event[], scope: Scope, metric: keyof typeof METRIC
 export interface StageTrendPoint { period: string; label: string; perStage: Record<string, number>; counts?: Record<string, { rejected: number; checked: number }> }
 
 /** Per-stage rejection-rate series over time. */
-export function stageTrend(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): StageTrendPoint[] {
+export function stageTrend(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): StageTrendPoint[] {
   const ev = scopeEvents(events, scope);
   const periods = periodsIn(ev, scope.grain, { from: scope.dateFrom, to: scope.dateTo });
   return periods.map((p) => {
@@ -180,7 +195,7 @@ export function stageTrend(events: Event[], scope: Scope, registry: Registry = D
 }
 
 /** Weekly rejection-rate trend within the scoped window (week-of-month). */
-export function weeklyTrend(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): SeriesPoint[] {
+export function weeklyTrend(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): SeriesPoint[] {
   return trend(events, { ...scope, grain: "week" }, "rejectionRate", registry);
 }
 
@@ -196,7 +211,7 @@ export const CUM_TOTAL_KEY = "__total";
 export function cumulativeStageTrend(
   events: Event[],
   scope: Scope,
-  registry: Registry = DISPOSAFE_REGISTRY,
+  registry: Registry = DERIVED_REGISTRY,
 ): StageTrendPoint[] {
   return stageTrend(events, scope, registry).map((pt) => {
     const total = registry.stages.reduce((sum, s) => sum + (pt.perStage[s.stageId] ?? 0), 0);
@@ -215,7 +230,7 @@ export interface StageSizeCell { stageId: string; stageLabel: string; size: stri
 /** Cross-tab of stage × size rejection rate ("where are problems concentrated").
  *  [] when no size-tagged events exist for a stage — callers should render an
  *  honest empty-state rather than fabricate cells. */
-export function stageBySize(events: Event[], scope: Scope, registry: Registry = DISPOSAFE_REGISTRY): StageSizeCell[] {
+export function stageBySize(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): StageSizeCell[] {
   const ev = scopeEvents(events, scope).filter((e) => "size" in e && (e as any).size);
   if (ev.length === 0) return [];
   const map = new Map<string, { stageId: string; size: string; checked: number; rejected: number }>();

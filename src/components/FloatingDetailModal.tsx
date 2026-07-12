@@ -137,24 +137,8 @@ export default function FloatingDetailModal({
     }
     if (toFetch.size === 0) return;
 
-    (async () => {
-      const { parseWorkbookBuffer } = await import("@/lib/parser");
-      for (const [hash, fileName] of toFetch) {
-        fetchingHashes.current.add(hash);
-        try {
-          const res = await fetch(`/api/raw-file?hash=${encodeURIComponent(hash)}`);
-          if (!res.ok) continue; // best-effort — falls back to the flat provenance table
-          const buf = await res.arrayBuffer();
-          const { rawSheets: parsed } = parseWorkbookBuffer(buf, fileName);
-          setFetchedRawSheets((prev) => {
-            const have = new Set(prev.map((s) => s.name.toLowerCase()));
-            return [...prev, ...parsed.filter((s) => !have.has(s.name.toLowerCase()))];
-          });
-        } catch {
-          // best-effort — never blocks the modal
-        }
-      }
-    })();
+    // Raw-sheet re-parsing was deleted with the legacy parser (MOD v2 Phase 5);
+    // the modal falls back to the flat provenance table, which it always supported.
   }, [showSource, sourceRows, allRawSheets]);
 
   // Find sheets that contributed to this metric based on sourceRows

@@ -13,7 +13,7 @@ import {
   MemoryRulebookStore,
 } from "@/lib/store/memory";
 import type { Event, FindingT } from "@/lib/store/types";
-import { resolveDefect, activeStageIds, DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { resolveDefect, activeStageIds, DISPOSAFE_REGISTRY } from "./fixtures/disposafe-registry";
 
 // ── builders ──────────────────────────────────────────────────────────────
 const occ = (start: string, end = start) =>

@@ -5,7 +5,7 @@ import {
   buildHeaderBlock,
   normalizeHeaders,
   colIndexToLabel,
-} from "@/lib/parser";
+} from "@/core/workbook/header";
 import type { ProfilingCell, ProfilingTable } from "./types";
 
 const DEFAULT_MAX_SAMPLE_ROWS = 60;

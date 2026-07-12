@@ -75,9 +75,9 @@ describe("review — recompute from scratch", () => {
     const base = rec({ checked: 10982, rejected: 1054, statedPct: null });
     let records = [{ ...base, defects: [{ raw: "COAG", value: 181, cell: "APRIL 25!H8" }] }];
 
-    // Old onChange sent the descriptive label; new onChange sends the code.
-    // Both must resolve to the one existing entry — never a second one.
-    records = applyEdit(records, 0, "Coagulum", 190);
+    // MOD v2: the grid edits by CODE (the catalog's defectCode) — identity is
+    // separator/case-insensitive on the code itself, no alias table.
+    records = applyEdit(records, 0, "coag", 190);
     expect(records[0].defects).toHaveLength(1);
     expect(records[0].defects[0]).toMatchObject({ raw: "COAG", value: 190 });
     expect(records[0].rejected?.value).toBe(1054); // still untouched by the defect edit
@@ -87,9 +87,9 @@ describe("review — recompute from scratch", () => {
     expect(records[0].defects[0].value).toBe(200);
   });
 
-  test("defectKey resolves code, label, and alias spellings to one identity", () => {
-    expect(defectKey("COAG")).toBe(defectKey("Coagulum"));
-    expect(defectKey("coagulum")).toBe(defectKey("COAG"));
-    expect(defectKey("PH")).toBe(defectKey("PINH")); // alias for Pinhole used in real sheets
+  test("defectKey is case/separator-insensitive on the code (catalog-free identity)", () => {
+    expect(defectKey("coag")).toBe(defectKey("COAG"));
+    expect(defectKey("90/10")).toBe(defectKey("90-10"));
+    expect(defectKey("PIN HOLE")).toBe(defectKey("PINHOLE"));
   });
 });

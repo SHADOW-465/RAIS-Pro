@@ -16,7 +16,7 @@ import { CAPTURE_LABEL, CAPTURE_FIELD, CAPTURE_TO_RECORD_FIELD, CORE_FIELD_BY_CO
 import { useEvents } from "@/components/app/EventsContext";
 import { type EntryGrain, resolvePeriod, stepPeriod, periodLabel } from "@/lib/entry/period";
 
-export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, anchorDate, onAnchorChange, blockedReason, presetId }: {
+export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, anchorDate, onAnchorChange, blockedReason }: {
   onDirtyChange?: (dirty: boolean) => void;
   customFields?: Record<string, any>;
   /** Which row range to render — see src/lib/entry/period.ts. */
@@ -28,7 +28,6 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, a
   onAnchorChange?: (next: string) => void;
   blockedReason?: string | null;
   /** Which Data Entry preset's registry to render the grid against. Omit for the default preset. */
-  presetId?: string | null;
 }) {
   const { refreshEvents } = useEvents();
   const [registry, setRegistry] = useState<any | null>(null);
@@ -50,11 +49,11 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, a
   }, [dirty]);
 
   useEffect(() => {
-    fetch(presetId ? `/api/schema?presetId=${encodeURIComponent(presetId)}` : "/api/schema")
+    fetch("/api/schema")
       .then((res) => res.json())
       .then((data) => setRegistry(data.registry ?? null))
       .catch(() => setRegistry(null));
-  }, [presetId]);
+  }, []);
 
   const activeRegistry = registry || EMPTY_REGISTRY;
 
@@ -256,7 +255,7 @@ export default function MonthlyEntryGrid({ onDirtyChange, customFields, grain, a
       const res = await fetch("/api/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingestionId, fileName: `Data Entry ${rangeLabel}`, records: payload, presetId }),
+        body: JSON.stringify({ ingestionId, fileName: `Data Entry ${rangeLabel}`, records: payload }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Save failed");
       setSuccess(`${payload.length} day(s) saved for ${rangeLabel}.`);

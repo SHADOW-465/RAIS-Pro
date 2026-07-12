@@ -10,7 +10,7 @@ import { migrate } from "../../../scripts/migrate-presets-to-mods";
 import { getStores } from "@/lib/store";
 import { getModStore } from "@/core/ontology/store/mod-store";
 import { getKnowledgeStore } from "@/core/ontology/store/knowledge-store";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { DISPOSAFE_REGISTRY } from "@/__tests__/fixtures/disposafe-registry";
 import { NextRequest } from "next/server";
 
 function req(url: string): NextRequest {
@@ -78,7 +78,7 @@ describe("Phase 4: preset → MOD migration + generated entry + schema shim", ()
 
   it("serves the MOD catalog through the /api/schema compat shim in legacy registry shape", async () => {
     const { GET } = await import("@/app/api/schema/route");
-    const res = await GET(req("/api/schema"));
+    const res = await GET();
     expect(res.status).toBe(200);
     const data = await res.json();
 

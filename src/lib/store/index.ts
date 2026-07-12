@@ -11,9 +11,6 @@ import {
   MemoryRegistryStore,
 } from "./memory";
 import type { EventStore, FindingStore, RulebookStore, RegistryStore } from "./types";
-import { parseWorkbookBuffer } from "../parser";
-import { classifyRejectionSheets, toISODate } from "../ingest/from-rejection-sheets";
-import { emitMany } from "../ingest/emit";
 
 export interface Stores {
   events: EventStore;
@@ -58,7 +55,6 @@ export function getStores(): Stores {
       registries: new SupabaseRegistryStore(),
       backend: "supabase",
     };
-    seedStore(events);
   } else {
     const rulebook = new MemoryRulebookStore();
     const events = new MemoryEventStore();
@@ -69,36 +65,13 @@ export function getStores(): Stores {
       registries: new MemoryRegistryStore(),
       backend: "memory",
     };
-    seedStore(events);
   }
   return g.__moidStores;
 }
 
-import type { RegistryRow } from "./types";
+// getActiveRegistryRow is gone (MOD v2 Phase 5): the catalog comes from
+// getModStore().catalogFor(); RegistryStore remains ONLY so migrate:mods can
+// read legacy presets.
 
-/** The single source of truth for "which registry preset is active" — every
- *  caller that used to guess (registries.first(), a hardcoded "disposafe"
- *  literal, or a raw Supabase bypass) should call this instead. Returns null
- *  ONLY when zero presets exist at all (a fresh install); callers fall back
- *  to DISPOSAFE_REGISTRY's bootstrap shape in that case, same as today. When
- *  presets exist but none has ever been explicitly activated, the oldest one
- *  wins (registries.first()) — that preserves every existing single-preset
- *  deployment's behavior unchanged. */
-export async function getActiveRegistryRow(): Promise<RegistryRow | null> {
-  const { registries } = getStores();
-  const rows = await registries.list();
-  if (rows.length === 0) return null;
-  return (await registries.getActive()) ?? (await registries.first());
-}
-
-import { seedFromDisk } from "./seed";
-
-// Auto-seeding from the ANALYTICAL DATA/ folder is OFF by default. The app
-// starts BLANK and shows only what users upload (/staging) or key in
-// (/data-entry) — no courtesy demo data. Set MOID_AUTOSEED=1 to opt back in for
-// local dev/demos.
-function seedStore(eventsStore: EventStore) {
-  if (typeof window !== "undefined") return;
-  if (process.env.MOID_AUTOSEED !== "1") return;
-  void seedFromDisk(eventsStore).catch((e) => console.error("seed failed:", e));
-}
+// Disk auto-seeding was deleted with the legacy parsers (MOD v2 Phase 5) —
+// the MOD pipeline (staging upload) is the only ingestion path.

@@ -28,7 +28,7 @@
 import type { Event } from "@/lib/store/types";
 // Import from the leaf types module (pure string/const, no xlsx) so the
 // analytics barrel — pulled into many client screens — stays light.
-import { routeFamily, PRECEDENCE } from "@/lib/ingest/parsers/types";
+import { routeFamily, PRECEDENCE } from "@/core/ingest/precedence";
 
 const COUNTABLE = new Set(["production", "inspection", "rejection"]);
 

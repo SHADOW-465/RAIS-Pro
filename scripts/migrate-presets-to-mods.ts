@@ -14,7 +14,7 @@ import { getStores } from "@/lib/store";
 import { getModStore } from "@/core/ontology/store/mod-store";
 import { getKnowledgeStore, normalizeKey, type KnowledgeEntry } from "@/core/ontology/store/knowledge-store";
 import { getSnapshotStore } from "@/core/workbook/snapshot-store";
-import { DISPOSAFE_REGISTRY } from "@/lib/registry/disposafe";
+import { DISPOSAFE_REGISTRY } from "./disposafe-registry-data";
 import { ModDocument, type ModDocumentT, type ModEntityT } from "@/shared/models/ontology";
 import type { z } from "zod";
 import type { ClientRegistry } from "@/lib/contract/d1";
