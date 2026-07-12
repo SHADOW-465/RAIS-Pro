@@ -69,8 +69,31 @@ export default function StagingPage() {
   // New Column Mapping Carryover
   const [newColumns, setNewColumns] = useState<{ stageId: string; colName: string; type: string }[]>([]);
   const [confirmMappings, setConfirmMappings] = useState<Record<string, boolean>>({});
-  // MOD pipeline (Phase 2, flag-gated): draft-MOD proposals from /api/workbooks.
+  // MOD pipeline (flag-gated): draft-MOD proposals from /api/workbooks.
   const [modUploads, setModUploads] = useState<UploadedMod[]>([]);
+  const [publishedModId, setPublishedModId] = useState<string | null>(null);
+
+  // After Verify & publish: pull the MOD-extracted records into the SAME
+  // review grid the legacy flow used; /api/ingest then resolves via the MOD
+  // catalog (modId in the body).
+  async function handleModPublished(modId: string) {
+    try {
+      const res = await fetch("/api/mods/records", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ modId, ingestionId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Extraction failed");
+      setPublishedModId(modId);
+      setRecords((prev) => [...prev, ...data.records]); // accumulate across multiple published MODs
+      const reviewed = buildReviewRows(data.records);
+      const firstInvalid = reviewed.findIndex((r) => r.status === "invalid");
+      setPage(firstInvalid >= 0 ? Math.floor(firstInvalid / PAGE_SIZE) : 0);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Extraction failed");
+    }
+  }
 
   useEffect(() => {
     fetch("/api/schema")
@@ -125,22 +148,21 @@ export default function StagingPage() {
       if (!files || files.length === 0) return;
       setBusy(true);
 
-      // MOD pipeline (Phase 2, flag-gated): snapshot + profile + resolve on the
-      // server; renders the mapping-verification panel. Never blocks or throws
-      // into the legacy flow below — both run side by side until Phase 5.
+      // MOD pipeline (Phase 5, flag-gated): the ONLY understanding path when
+      // on. Upload → snapshot+profile+resolve (server) → mapping verification
+      // panel → publish → extraction → the same review grid + /api/ingest.
+      // The legacy multi-parser flow below no longer runs for flag-on users.
       if (MOD_PIPELINE) {
         setModUploads([]);
-        void (async () => {
-          try {
-            const fd = new FormData();
-            for (const f of files) fd.append("file", f);
-            const res = await fetch("/api/workbooks", { method: "POST", body: fd });
-            const data = await res.json();
-            if (res.ok && Array.isArray(data.mods)) setModUploads(data.mods);
-          } catch {
-            // best-effort; the legacy pipeline is unaffected
-          }
-        })();
+        const fd = new FormData();
+        for (const f of files) fd.append("file", f);
+        const res = await fetch("/api/workbooks", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Workbook processing failed");
+        setModUploads(data.mods ?? []);
+        setFileName(files.length === 1 ? files[0].name : `${files.length} files`);
+        setBusy(false);
+        return; // records arrive after Verify & publish (handleModPublished)
       }
 
       // Fire-and-forget: profile the same buffers for the new Dataset system.
@@ -578,7 +600,7 @@ export default function StagingPage() {
       const res = await fetch("/api/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ingestionId, fileName, records, comments, presetId: savedPresetId })
+        body: JSON.stringify({ ingestionId, fileName, records, comments, presetId: savedPresetId, modId: publishedModId ?? undefined })
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Publish failed");
       const r = await res.json();
@@ -643,7 +665,7 @@ export default function StagingPage() {
       </div>}
 
       {MOD_PIPELINE && modUploads.length > 0 && (
-        <MappingVerificationPanel mods={modUploads} />
+        <MappingVerificationPanel mods={modUploads} onPublished={handleModPublished} />
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 18 }}>
