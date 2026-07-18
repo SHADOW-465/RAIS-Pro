@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disposafe - Data Entry Matrix</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body {
+    background: #13161f;
+    color: #e2e8f0;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+.font-display {
+    font-family: 'Outfit', sans-serif;
+}
+.bg-panel {
+    background: #1e222d;
+    border: 1px solid #2d3748;
+}
+.bg-input {
+    background: #0f1115;
+    border: 1px solid #374151;
+    color: #f1f5f9;
+}
+.bg-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59,130,246,.2);
+}
+.badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+/* Style for defect grid inputs */
+.counter-btn {
+    background: #1e222d;
+    border: 1px solid #4a5568;
+    color: #a0aec0;
+    transition: all 0.15s ease;
+}
+.counter-btn:hover {
+    background: #2d3748;
+    color: #ffffff;
+    border-color: #718096;
+}
+.counter-btn:active {
+    transform: scale(0.9);
+}
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #0f1115;
+}
+::-webkit-scrollbar-thumb {
+    background: #2d3748;
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #4a5568;
+}
+</style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+
+<div class="max-w-6xl mx-auto bg-panel rounded-xl shadow-2xl p-6 border border-slate-700">
+
+    <!-- Header Section -->
+    <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+        <div class="flex items-center gap-2.5">
+            <div class="h-8 w-8 rounded bg-blue-600 flex items-center justify-center font-bold text-white text-lg">D</div>
+            <div>
+                <h1 class="text-xl font-bold font-display tracking-wide">Data Entry Matrix</h1>
+                <p class="text-[10px] text-blue-400 font-semibold tracking-wider uppercase">Disposafe Manufacturing Systems</p>
+            </div>
+        </div>
+        <div id="today" class="text-gray-400 text-sm font-semibold"></div>
+    </div>
+
+    <!-- Stage Navigation Matrix -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Stage Selection (Tier 1) -->
+        <div>
+            <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Stage Selection (Tier 1)</h2>
+            <div class="flex gap-2 flex-wrap">
+                <button type="button" id="macro-primary" onclick="setMacroStage('primary')" class="px-4 py-2.5 rounded text-xs font-semibold transition-all duration-200 bg-gray-800 text-gray-300 hover:bg-gray-700">
+                    Primary Production (P1-P9)
+                </button>
+                <button type="button" id="macro-secondary" onclick="setMacroStage('secondary')" class="px-4 py-2.5 rounded text-xs font-semibold transition-all duration-200 bg-gray-800 text-gray-300 hover:bg-gray-700">
+                    Secondary Production (P10-P14)
+                </button>
+                <button type="button" id="macro-assembly" onclick="setMacroStage('assembly')" class="px-4 py-2.5 rounded text-xs font-semibold transition-all duration-200 bg-blue-600 text-white shadow-lg">
+                    Assembly (P15-P27)
+                </button>
+            </div>
+        </div>
+
+        <!-- Process Branch (Tier 2) -->
+        <div>
+            <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Process Branch (Tier 2)</h2>
+            <div id="microStageContainer" class="flex gap-2 flex-wrap">
+                <!-- Populated Dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Interactive Form Matrix -->
+    <div class="overflow-x-auto rounded-lg border border-gray-700 mb-6 bg-slate-900/40">
+        <table class="w-full min-w-[900px] border-collapse">
+            <thead class="bg-gray-800/80 text-[11px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-700">
+                <tr>
+                    <th class="p-4 text-left w-[200px]">Operator / Shift Settings</th>
+                    <th class="p-4 text-left w-[130px]">Catheter Size</th>
+                    <th class="p-4 text-left w-[250px]">Batch ID Generation</th>
+                    <th class="p-4 text-center w-[100px]">Checked</th>
+                    <th class="p-4 text-center w-[100px]">Accept</th>
+                    <th class="p-4 text-center w-[100px]">Hold</th>
+                    <th class="p-4 text-center w-[100px]">Reject</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="align-top">
+                    <!-- Operator Settings -->
+                    <td class="p-4">
+                        <div class="flex flex-col gap-2">
+                            <select id="operatorSelect" class="bg-input rounded p-2 text-xs w-full cursor-pointer">
+                                <option value="MB Lakshun">MB Lakshun</option>
+                                <option value="Operator 2">Operator 2</option>
+                                <option value="Operator 3">Operator 3</option>
+                                <option value="Operator 4">Operator 4</option>
+                            </select>
+                            
+                            <div class="flex flex-col">
+                                <label class="text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-1">Production Date</label>
+                                <input id="batchDate" type="date" class="bg-input rounded p-1.5 text-xs w-full cursor-pointer">
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Catheter Size -->
+                    <td class="p-4">
+                        <select id="sizeSelect" class="bg-input rounded p-2 text-xs w-full font-bold text-slate-300 cursor-pointer">
+                            <option value="6Fr">6Fr</option>
+                            <option value="8Fr">8Fr</option>
+                            <option value="10Fr">10Fr</option>
+                            <option value="12Fr">12Fr</option>
+                            <option value="14Fr" selected>14Fr</option>
+                            <option value="16Fr">16Fr</option>
+                            <option value="18Fr">18Fr</option>
+                            <option value="20Fr">20Fr</option>
+                            <option value="22Fr">22Fr</option>
+                            <option value="24Fr">24Fr</option>
+                            <option value="26Fr">26Fr</option>
+                            <option value="28Fr">28Fr</option>
+                        </select>
+                    </td>
+
+                    <!-- Batch ID & Bi-directional Binding -->
+                    <td class="p-4">
+                        <input id="batchInput" type="text" maxlength="9" placeholder="Example: 26F27-14"
+                            class="bg-input rounded p-2 text-sm w-full font-mono tracking-wider uppercase font-bold text-blue-400">
+                        
+                        <!-- Batch Breakdown Badges -->
+                        <div id="batchInfo" class="hidden mt-3 flex flex-wrap gap-1.5">
+                            <span class="badge bg-blue-950/80 text-blue-400 border border-blue-900/60">Yr: <span id="infoYear"></span></span>
+                            <span class="badge bg-emerald-950/80 text-emerald-400 border border-emerald-900/60">Mo: <span id="infoMonth"></span></span>
+                            <span class="badge bg-amber-955/80 text-amber-400 border border-amber-900/60">Day: <span id="infoDate"></span></span>
+                            <span class="badge bg-purple-950/80 text-purple-400 border border-purple-900/60">Sz: <span id="infoSize"></span> FR</span>
+                        </div>
+                        
+                        <p class="text-[9px] text-gray-500 mt-2 leading-relaxed">
+                            Nomenclature: YY + Month Code (A-L) + DD + "-" + Size (FR)<br>
+                            <em>Bi-directional: Form calculates ID; typing ID updates Form.</em>
+                        </p>
+                    </td>
+
+                    <!-- Quantity Inputs -->
+                    <td class="p-4">
+                        <input id="qtyChecked" type="number" min="0" class="bg-input rounded p-2 w-full text-center text-xs font-semibold" placeholder="0">
+                        <div id="validationWarning" class="hidden mt-2 text-[9px] font-bold text-amber-500 text-center leading-tight">
+                            Mismatch
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <input id="qtyAccept" type="number" min="0" class="bg-input rounded p-2 w-full text-center text-xs font-semibold text-emerald-400" placeholder="0">
+                    </td>
+                    <td class="p-4">
+                        <input id="qtyHold" type="number" min="0" class="bg-input rounded p-2 w-full text-center text-xs font-semibold text-amber-400" placeholder="0">
+                    </td>
+                    <td class="p-4">
+                        <input id="qtyReject" type="number" min="0" class="bg-input rounded p-2 w-full text-center text-xs font-semibold text-rose-400" placeholder="0">
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Interactive Rejection Details Card -->
+    <div id="defectContainer" class="mb-6 p-5 bg-slate-900/60 rounded-lg border border-gray-700">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-3 mb-4">
+            <div>
+                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                    Log Rejection Defects
+                </h3>
+                <p id="defectProcessLabel" class="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Visual Inspection (P17)</p>
+            </div>
+            <div id="defectValidationBadge" class="badge">
+                Logged 0 of 0 Rejections
+            </div>
+        </div>
+
+        <!-- Defect Counts Grid -->
+        <div id="defectFieldsGrid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            <!-- Dynamically populated inputs -->
+        </div>
+    </div>
+
+    <!-- Remarks / Notes -->
+    <div class="mb-6">
+        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Remarks / Notes</label>
+        <textarea id="remarksInput" class="bg-input rounded w-full p-3 h-20 text-xs resize-none" placeholder="Enter session comments / hand-over notes..."></textarea>
+    </div>
+
+    <!-- Form Submit Button -->
+    <div class="flex justify-end border-b border-gray-800 pb-6 mb-6">
+        <button id="saveBatchBtn" onclick="submitForm()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded font-bold text-xs shadow-lg transition-all">
+            Save Batch Entry
+        </button>
+    </div>
+
+    <!-- Entered Batches Session List -->
+    <div>
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-sm font-bold text-slate-300">Saved Batches (This Shift)</h3>
+                <p class="text-[10px] text-slate-500">List of records logged during the current session.</p>
+            </div>
+            <button onclick="exportCSV()" class="bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all">
+                Export Session CSV
+            </button>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-gray-700 bg-slate-900/10">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="bg-gray-800/80 border-b border-gray-700 text-[10px] font-bold uppercase text-gray-400">
+                        <th class="p-3">Operator</th>
+                        <th class="p-3">Stage & Process</th>
+                        <th class="p-3">Batch ID</th>
+                        <th class="p-3 text-center">Checked</th>
+                        <th class="p-3 text-center">Accept</th>
+                        <th class="p-3 text-center">Hold</th>
+                        <th class="p-3 text-center">Reject</th>
+                        <th class="p-3 text-center">Yield</th>
+                        <th class="p-3 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="sessionListBody" class="divide-y divide-slate-800/60">
+                    <!-- Populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+        <div id="sessionEmptyState" class="hidden text-center p-8 text-slate-500 text-xs">
+            No entries logged in this shift yet.
+        </div>
+    </div>
+
+</div>
+
+<!-- JavaScript System Engine -->
+<script>
+    // Constants
+    const MONTHS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+    const MONTH_NAMES = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    // Manufacturing Workflow Mapping
+    const STAGES = {
+        primary: {
+            name: "Primary Production (P1-P9)",
+            processes: [
+                { id: 'p1-extrusion', name: 'Tube Extrusion (P1)' },
+                { id: 'p2-dipping', name: 'Latex Dipping (P2)' },
+                { id: 'p3-curing', name: 'Curing (P3)' },
+                { id: 'p4-sizing', name: 'Sizing & Cutting (P4)' },
+                { id: 'p5-tipforming', name: 'Tip Forming (P5)' },
+                { id: 'p6-eyepunching', name: 'Eye Punching (P6)' },
+                { id: 'p7-outerdipping', name: 'Outer Dipping (P7)' },
+                { id: 'p8-dipping-qa', name: 'Inspection (P8)' },
+                { id: 'p9-qc', name: 'Primary QC (P9)' }
+            ],
+            defects: [
+                { key: 'COAG', name: 'Coagulation (COAG)' },
+                { key: 'Raised Wire', name: 'Raised Wire' },
+                { key: 'Surface Defect', name: 'Surface Defect' },
+                { key: 'Overlaping', name: 'Overlaping Layer' },
+                { key: 'Black Mark', name: 'Black Mark' },
+                { key: 'Webbing', name: 'Latex Webbing' },
+                { key: 'Missing Formers', name: 'Missing Formers' },
+                { key: 'Others', name: 'Others' }
+            ]
+        },
+        secondary: {
+            name: "Secondary Production (P10-P14)",
+            processes: [
+                { id: 'p10-washing', name: 'Tunnel Washing (P10)' },
+                { id: 'p11-siliconization', name: 'Siliconization (P11)' },
+                { id: 'p12-preprep', name: 'Assembly Prep (P12)' },
+                { id: 'p13-intqc', name: 'Intermediate QC (P13)' },
+                { id: 'p14-serialization', name: 'Serialization (P14)' }
+            ],
+            defects: [
+                { key: 'Water Mark', name: 'Water Mark' },
+                { key: 'Silicone Residue', name: 'Silicone Residue' },
+                { key: 'Coating Flaw', name: 'Coating Flaw' },
+                { key: 'Dimensional', name: 'Dimensional' },
+                { key: 'Others', name: 'Others' }
+            ]
+        },
+        assembly: {
+            name: "Assembly (P15-P27)",
+            processes: [
+                { id: 'p15-visual', name: 'Visual (P17)' },
+                { id: 'p16-balloon', name: 'Balloon Inspection' },
+                { id: 'p17-valve', name: 'Valve Fixing' },
+                { id: 'p18-final', name: 'Final Inspection' }
+            ],
+            defects: {
+                'p15-visual': [
+                    { key: 'COAG', name: 'COAG' }, { key: 'SD', name: 'SD' },
+                    { key: 'TT', name: 'TT' }, { key: 'BL', name: 'BL' },
+                    { key: 'PS', name: 'PS' }, { key: 'SB', name: 'SB' },
+                    { key: 'PW', name: 'PW' }, { key: 'FP', name: 'FP' },
+                    { key: 'RW', name: 'RW' }, { key: 'BEP', name: 'BEP' },
+                    { key: 'DEC', name: 'DEC' }, { key: 'BM', name: 'BM' },
+                    { key: 'WEB', name: 'WEB' }, { key: 'BT', name: 'BT' },
+                    { key: 'SF', name: 'SF' }, { key: 'BIC', name: 'BIC' },
+                    { key: 'WK', name: 'WK' }, { key: 'BMP', name: 'BMP' },
+                    { key: 'TF', name: 'TF' }, { key: 'PH', name: 'PH' },
+                    { key: 'BST', name: 'BST' }
+                ],
+                'p16-balloon': [
+                    { key: 'STRUCK BALLOON', name: 'Struck Balloon' },
+                    { key: 'BALLOOM BRUST', name: 'Balloon Burst (BALLOOM BRUST)' },
+                    { key: 'LEAKAGE', name: 'Leakage (LEAKAGE)' },
+                    { key: 'OTHERS', name: 'Others (OTHERS)' }
+                ],
+                'p17-valve': [
+                    { key: 'LEAKAGE', name: 'Valve Leakage (LEAKAGE)' },
+                    { key: '90/10', name: '90/10 Ratio Fail (90/10)' },
+                    { key: 'BUBBLE', name: 'Valve Bubble (BUBBLE)' },
+                    { key: 'THIN SPOD', name: 'Thin Spod (THIN SPOD)' },
+                    { key: 'OTHERS', name: 'Others (OTHERS)' }
+                ],
+                'default': [
+                    { key: 'Assembly Issue', name: 'Assembly Issue' },
+                    { key: 'Cosmetic', name: 'Cosmetic' },
+                    { key: 'Others', name: 'Others' }
+                ]
+            }
+        }
+    };
+
+    // Application state
+    let state = {
+        macro: 'assembly',
+        micro: 'p15-visual',
+        date: '',
+        size: '14Fr',
+        operator: 'MB Lakshun',
+        checked: 0,
+        accept: 0,
+        hold: 0,
+        reject: 0,
+        defects: {},
+        remarks: '',
+        savedBatches: []
+    };
+
+    // Boot System
+    window.addEventListener('DOMContentLoaded', () => {
+        // Set formatted title date
+        document.getElementById('today').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Set default date picker to today
+        const today = new Date();
+        const yy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        state.date = `${yy}-${mm}-${dd}`;
+        document.getElementById('batchDate').value = state.date;
+
+        // Load archived items from localStorage
+        loadHistory();
+
+        // Bi-directional event listeners
+        document.getElementById('batchDate').addEventListener('change', (e) => {
+            state.date = e.target.value;
+            triggerAutoBatchID();
+        });
+        document.getElementById('sizeSelect').addEventListener('change', (e) => {
+            state.size = e.target.value;
+            triggerAutoBatchID();
+        });
+        document.getElementById('operatorSelect').addEventListener('change', (e) => {
+            state.operator = e.target.value;
+        });
+
+        // Numeric fields listeners
+        ['qtyChecked', 'qtyAccept', 'qtyHold', 'qtyReject'].forEach(fieldId => {
+            const input = document.getElementById(fieldId);
+            input.addEventListener('input', (e) => {
+                const numVal = Math.max(0, parseInt(e.target.value) || 0);
+                e.target.value = numVal;
+
+                if (fieldId === 'qtyChecked') state.checked = numVal;
+                if (fieldId === 'qtyAccept') state.accept = numVal;
+                if (fieldId === 'qtyHold') state.hold = numVal;
+                
+                if (fieldId === 'qtyReject') {
+                    state.reject = numVal;
+                    // Reset defects breakdown if reject is updated
+                    state.defects = {};
+                    toggleDefectBox();
+                }
+
+                validateQuantitySums();
+            });
+        });
+
+        // Manual Batch ID Input (Bi-directional Binding)
+        document.getElementById('batchInput').addEventListener('input', function() {
+            let val = this.value.toUpperCase();
+            this.value = val;
+            parseManualBatchID(val);
+        });
+
+        // Set default view
+        setMacroStage(state.macro);
+        setMicroStage(state.micro);
+        triggerAutoBatchID();
+        renderSessionHistory();
+    });
+
+    // TIER 1 - STAGES
+    function setMacroStage(macroId) {
+        state.macro = macroId;
+        
+        ['primary', 'secondary', 'assembly'].forEach(id => {
+            const btn = document.getElementById(`macro-${id}`);
+            if (id === macroId) {
+                btn.className = "px-4 py-2.5 rounded text-xs font-semibold transition-all duration-200 bg-blue-600 text-white shadow-lg";
+            } else {
+                btn.className = "px-4 py-2.5 rounded text-xs font-semibold transition-all duration-200 bg-gray-800 text-gray-300 hover:bg-gray-700";
+            }
+        });
+
+        // Reset quantities & defects when changing macro stage
+        state.checked = 0;
+        state.accept = 0;
+        state.hold = 0;
+        state.reject = 0;
+        state.defects = {};
+
+        document.getElementById('qtyChecked').value = '';
+        document.getElementById('qtyAccept').value = '';
+        document.getElementById('qtyHold').value = '';
+        document.getElementById('qtyReject').value = '';
+
+        if (macroId === 'assembly') {
+            state.micro = 'p15-visual';
+        } else {
+            state.micro = ''; // No active micro process since it's static
+        }
+
+        // Pop Tier 2
+        buildMicroStageButtons();
+
+        const activeProcName = macroId === 'assembly' ? 'Visual (P17)' : STAGES[macroId].name;
+        document.getElementById('defectProcessLabel').textContent = activeProcName;
+
+        validateQuantitySums();
+        toggleDefectBox();
+    }
+
+    // TIER 2 - BRANCHES
+    function buildMicroStageButtons() {
+        const container = document.getElementById('microStageContainer');
+        container.innerHTML = '';
+
+        const list = STAGES[state.macro].processes;
+        const isInteractive = state.macro === 'assembly';
+
+        list.forEach(proc => {
+            if (isInteractive) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.id = `micro-${proc.id}`;
+                btn.onclick = () => setMicroStage(proc.id);
+                btn.className = "px-3 py-2 rounded text-xs font-semibold transition-all duration-150 " + 
+                                (state.micro === proc.id 
+                                    ? "bg-blue-900/60 border border-blue-500 text-blue-300 shadow-inner" 
+                                    : "bg-gray-800 text-gray-300 hover:bg-gray-700");
+                btn.textContent = proc.name;
+                container.appendChild(btn);
+            } else {
+                // Non-interactive showcase badge/span
+                const span = document.createElement('span');
+                span.className = "px-3 py-2 rounded text-xs font-semibold bg-gray-800/40 text-gray-500 border border-gray-800/60 cursor-default";
+                span.textContent = proc.name;
+                container.appendChild(span);
+            }
+        });
+    }
+
+    function setMicroStage(microId) {
+        if (state.macro !== 'assembly') return; // Only switchable for assembly
+        
+        state.micro = microId;
+        
+        const list = STAGES[state.macro].processes;
+        list.forEach(proc => {
+            const btn = document.getElementById(`micro-${proc.id}`);
+            if (btn) {
+                if (proc.id === microId) {
+                    btn.className = "px-3 py-2 rounded text-xs font-semibold transition-all duration-150 bg-blue-900/60 border border-blue-500 text-blue-300 shadow-inner";
+                } else {
+                    btn.className = "px-3 py-2 rounded text-xs font-semibold transition-all duration-150 bg-gray-800 text-gray-300 hover:bg-gray-700";
+                }
+            }
+        });
+
+        const activeProc = list.find(p => p.id === microId);
+        document.getElementById('defectProcessLabel').textContent = activeProc ? activeProc.name : '';
+
+        // Reset quantities & defects when changing micro processes
+        state.checked = 0;
+        state.accept = 0;
+        state.hold = 0;
+        state.reject = 0;
+        state.defects = {};
+
+        document.getElementById('qtyChecked').value = '';
+        document.getElementById('qtyAccept').value = '';
+        document.getElementById('qtyHold').value = '';
+        document.getElementById('qtyReject').value = '';
+
+        validateQuantitySums();
+        toggleDefectBox();
+    }
+
+    // AUTOMATED BATCH ID Nomencalture
+    function triggerAutoBatchID() {
+        if (!state.date || !state.size) return;
+        
+        const dateObj = new Date(state.date);
+        if (isNaN(dateObj.getTime())) return;
+
+        const yy = String(dateObj.getFullYear()).slice(-2);
+        const mLetter = MONTHS[dateObj.getMonth()];
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        const numericSize = state.size.replace(/\D/g, '').padStart(2, '0');
+
+        const batchID = `${yy}${mLetter}${dd}-${numericSize}`;
+        
+        // Populate inputs
+        const batchInput = document.getElementById('batchInput');
+        batchInput.value = batchID;
+        
+        renderBreakdownBadges(yy, MONTH_NAMES[dateObj.getMonth()], dd, numericSize);
+    }
+
+    // BI-DIRECTIONAL NOMENCLATURE PARSER
+    function parseManualBatchID(val) {
+        const match = val.match(/^(\d{2})([A-L])(\d{2})-(\d{2})$/);
+        
+        if (!match) {
+            document.getElementById('batchInfo').classList.add('hidden');
+            return;
+        }
+
+        const yearCode = match[1];
+        const monthCode = match[2];
+        const dayCode = match[3];
+        const sizeCode = match[4];
+
+        // Map back to inputs
+        const year = 2000 + parseInt(yearCode);
+        const mIdx = MONTHS.indexOf(monthCode);
+        const monthName = MONTH_NAMES[mIdx];
+        const day = parseInt(dayCode);
+
+        // Update state date
+        const mappedDate = `${year}-${String(mIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        state.date = mappedDate;
+        document.getElementById('batchDate').value = mappedDate;
+
+        // Update size option
+        const sizeStr = `${parseInt(sizeCode)}Fr`;
+        const sizeSelect = document.getElementById('sizeSelect');
+        
+        // Find matching option
+        for (let i = 0; i < sizeSelect.options.length; i++) {
+            if (sizeSelect.options[i].value === sizeStr || sizeSelect.options[i].value.replace(/\D/g,'') === sizeCode) {
+                sizeSelect.selectedIndex = i;
+                state.size = sizeSelect.options[i].value;
+                break;
+            }
+        }
+
+        renderBreakdownBadges(yearCode, monthName, dayCode, sizeCode);
+    }
+
+    function renderBreakdownBadges(yy, month, day, size) {
+        document.getElementById('infoYear').textContent = "20" + yy;
+        document.getElementById('infoMonth').textContent = month;
+        document.getElementById('infoDate').textContent = day;
+        document.getElementById('infoSize').textContent = parseInt(size);
+        document.getElementById('batchInfo').classList.remove('hidden');
+    }
+
+    // QUANTITY SUM VALIDATIONS
+    function validateQuantitySums() {
+        const sum = state.accept + state.hold + state.reject;
+        const warning = document.getElementById('validationWarning');
+        
+        if (state.checked > 0 && state.checked !== sum) {
+            warning.textContent = `Mismatch (Sum: ${sum})`;
+            warning.classList.remove('hidden');
+        } else {
+            warning.classList.add('hidden');
+        }
+    }
+
+    // DEFECT PANEL CONTROLLER
+    function getActiveDefectSchema() {
+        const mObj = STAGES[state.macro];
+        if (state.macro === 'assembly') {
+            if (state.micro === 'p18-final') {
+                return mObj.defects['p15-visual'];
+            }
+            return mObj.defects[state.micro] || mObj.defects['default'];
+        }
+        if (state.macro === 'secondary') {
+            return [];
+        }
+        return mObj.defects || [];
+    }
+
+    function toggleDefectBox() {
+        const container = document.getElementById('defectContainer');
+        if (state.macro === 'secondary') {
+            container.classList.add('hidden');
+        } else {
+            container.classList.remove('hidden');
+            renderDefectInputs();
+        }
+    }
+
+    function renderDefectInputs() {
+        const grid = document.getElementById('defectFieldsGrid');
+        grid.innerHTML = '';
+
+        const schema = getActiveDefectSchema();
+        schema.forEach(defect => {
+            const count = state.defects[defect.key] || 0;
+            const hasVal = count > 0;
+
+            const div = document.createElement('div');
+            div.className = `defect-card p-3 rounded-lg border transition-all duration-150 flex flex-col justify-between gap-2 ` +
+                            (hasVal ? "bg-slate-900/50 border-blue-900/60" : "bg-slate-950/40 border-gray-800 hover:border-gray-700");
+            
+            // Format labels to prevent redundancy
+            const isRedundant = defect.key.toLowerCase().trim() === defect.name.toLowerCase().trim();
+            const subLabelHTML = isRedundant ? '' : `<span class="text-[9px] text-slate-500 font-mono font-semibold">${defect.key}</span>`;
+
+            div.innerHTML = `
+                <div class="leading-tight flex flex-col">
+                    <span class="text-xs font-bold text-slate-300 block truncate" title="${defect.name}">${defect.name}</span>
+                    ${subLabelHTML}
+                </div>
+                <div class="mt-1">
+                    <input type="number" id="def-val-${defect.key}" min="0" value="${count || ''}" 
+                        oninput="setDefectDirectly('${defect.key}', this.value)" 
+                        placeholder="0"
+                        class="bg-input w-full rounded px-2.5 py-1.5 text-xs font-bold font-mono text-center transition-all duration-150 ${hasVal ? 'border-blue-500 bg-blue-950/20 text-blue-200' : ''}">
+                </div>
+            `;
+            grid.appendChild(div);
+        });
+
+        updateDefectBadgeStatus();
+    }
+
+    function setDefectDirectly(key, val) {
+        const intVal = Math.max(0, parseInt(val) || 0);
+        state.defects[key] = intVal;
+
+        const input = document.getElementById(`def-val-${key}`);
+        if (input) {
+            const card = input.closest('.defect-card');
+            if (intVal > 0) {
+                input.className = "bg-input w-full rounded px-2.5 py-1.5 text-xs font-bold font-mono text-center transition-all duration-150 border-blue-500 bg-blue-950/20 text-blue-200";
+                if (card) card.className = "defect-card p-3 rounded-lg border transition-all duration-150 flex flex-col justify-between gap-2 bg-slate-900/50 border-blue-900/60";
+            } else {
+                input.className = "bg-input w-full rounded px-2.5 py-1.5 text-xs font-bold font-mono text-center transition-all duration-150";
+                if (card) card.className = "defect-card p-3 rounded-lg border transition-all duration-150 flex flex-col justify-between gap-2 bg-slate-950/40 border-gray-800 hover:border-gray-700";
+                input.value = ''; // Set value back to blank placeholder 0
+            }
+        }
+
+        const currentSum = Object.values(state.defects).reduce((a,b)=>a+b, 0);
+        if (currentSum > state.reject) {
+            state.reject = currentSum;
+            document.getElementById('qtyReject').value = state.reject;
+            validateQuantitySums();
+        }
+
+        updateDefectBadgeStatus();
+    }
+
+    function updateDefectBadgeStatus() {
+        const sum = Object.values(state.defects).reduce((a,b)=>a+b, 0);
+        const badge = document.getElementById('defectValidationBadge');
+        
+        if (sum === state.reject) {
+            badge.className = "badge bg-emerald-950/80 text-emerald-400 border border-emerald-900/60";
+            badge.textContent = `Fully reconciled (${sum} of ${state.reject})`;
+        } else {
+            badge.className = "badge bg-amber-950/80 text-amber-400 border border-amber-900/60 animate-pulse";
+            badge.textContent = `Unreconciled (${sum} of ${state.reject})`;
+        }
+    }
+
+    // FORM SUBMIT
+    function submitForm() {
+        const batchId = document.getElementById('batchInput').value.trim();
+        if (!batchId || batchId === '--------') {
+            alert("Please enter a valid Batch ID.");
+            return;
+        }
+
+        const sum = state.accept + state.hold + state.reject;
+        if (state.checked !== sum || state.checked === 0) {
+            if (!confirm(`Warning: Quantity sums do not match (Checked: ${state.checked}, Sum of Accept+Hold+Reject: ${sum}). Do you still wish to save?`)) {
+                return;
+            }
+        }
+
+        const defectSum = Object.values(state.defects).reduce((a,b)=>a+b,0);
+        if (state.macro !== 'secondary' && state.reject > 0 && defectSum !== state.reject) {
+            alert(`Error: Defect counts sum (${defectSum}) must match the Reject Quantity (${state.reject}) before saving.`);
+            return;
+        }
+
+        // Save
+        const activeProcess = STAGES[state.macro].processes.find(p => p.id === state.micro);
+        const processName = activeProcess ? activeProcess.name : 'Unknown';
+
+        const record = {
+            id: Date.now() + Math.random().toString(36).substr(2, 5),
+            date: state.date,
+            operator: state.operator,
+            stageName: STAGES[state.macro].name,
+            processName: processName,
+            size: state.size,
+            batchId: batchId,
+            checked: state.checked,
+            accept: state.accept,
+            hold: state.hold,
+            reject: state.reject,
+            defects: { ...state.defects },
+            remarks: document.getElementById('remarksInput').value.trim()
+        };
+
+        state.savedBatches.unshift(record);
+        saveHistory();
+
+        // Reset Inputs
+        state.checked = 0;
+        state.accept = 0;
+        state.hold = 0;
+        state.reject = 0;
+        state.defects = {};
+        document.getElementById('qtyChecked').value = '';
+        document.getElementById('qtyAccept').value = '';
+        document.getElementById('qtyHold').value = '';
+        document.getElementById('qtyReject').value = '';
+        document.getElementById('remarksInput').value = '';
+        
+        toggleDefectBox();
+        validateQuantitySums();
+        renderSessionHistory();
+
+        alert("Batch successfully logged to session archive.");
+    }
+
+    function deleteBatchRecord(recId) {
+        if (confirm("Remove this batch record from the current shift database?")) {
+            state.savedBatches = state.savedBatches.filter(b => b.id !== recId);
+            saveHistory();
+            renderSessionHistory();
+        }
+    }
+
+    // PERSISTENCE
+    function saveHistory() {
+        localStorage.setItem('disposafe_shift_batches', JSON.stringify(state.savedBatches));
+    }
+
+    function loadHistory() {
+        try {
+            const data = localStorage.getItem('disposafe_shift_batches');
+            state.savedBatches = data ? JSON.parse(data) : [];
+        } catch(e) {
+            state.savedBatches = [];
+        }
+    }
+
+    // HISTORY RENDERER
+    function renderSessionHistory() {
+        const tbody = document.getElementById('sessionListBody');
+        tbody.innerHTML = '';
+
+        const empty = document.getElementById('sessionEmptyState');
+        if (state.savedBatches.length === 0) {
+            empty.classList.remove('hidden');
+            return;
+        } else {
+            empty.classList.add('hidden');
+        }
+
+        state.savedBatches.forEach(rec => {
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-900/30 transition-all border-b border-slate-800/80";
+
+            const yieldPct = rec.checked > 0 ? ((rec.accept / rec.checked) * 100).toFixed(1) + '%' : '-';
+            
+            // Format defects breakdown
+            let defectsLog = '';
+            if (rec.defects && Object.keys(rec.defects).length > 0) {
+                defectsLog = Object.entries(rec.defects)
+                    .map(([k, v]) => `${k}:${v}`)
+                    .join(', ');
+                defectsLog = `<p class="text-[9px] text-slate-500 font-mono italic mt-0.5">${defectsLog}</p>`;
+            }
+
+            tr.innerHTML = `
+                <td class="p-3 font-semibold text-slate-300">${rec.operator}</td>
+                <td class="p-3">
+                    <span class="font-semibold text-slate-200">${rec.processName}</span>
+                    <p class="text-[9px] text-slate-500 uppercase tracking-wider">${rec.stageName}</p>
+                </td>
+                <td class="p-3 font-mono font-bold text-blue-400">${rec.batchId}</td>
+                <td class="p-3 text-center text-slate-300">${rec.checked}</td>
+                <td class="p-3 text-center text-emerald-400 font-semibold">${rec.accept}</td>
+                <td class="p-3 text-center text-amber-400">${rec.hold}</td>
+                <td class="p-3 text-center">
+                    <span class="text-rose-455 font-semibold">${rec.reject}</span>
+                    ${defectsLog}
+                </td>
+                <td class="p-3 text-center font-bold ${parseFloat(yieldPct) >= 95 ? 'text-emerald-400' : 'text-amber-400'}">${yieldPct}</td>
+                <td class="p-3 text-right">
+                    <button onclick="deleteBatchRecord('${rec.id}')" class="p-1 text-slate-500 hover:text-rose-400 rounded transition-all">
+                        Delete
+                    </button>
+                </td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    // EXPORT
+    function exportCSV() {
+        if (state.savedBatches.length === 0) {
+            alert("No logged batches to export.");
+            return;
+        }
+
+        // Get unique defects list to construct headers
+        const uniqueDefects = new Set();
+        state.savedBatches.forEach(b => {
+            if (b.defects) {
+                Object.keys(b.defects).forEach(d => uniqueDefects.add(d));
+            }
+        });
+        const defectHeaders = Array.from(uniqueDefects);
+
+        // Header line
+        let csv = "Date,Operator,Stage,Process,Size,Batch ID,Checked,Accept,Hold,Reject,Yield %,Remarks";
+        defectHeaders.forEach(dh => {
+            csv += `,Defect_${dh}`;
+        });
+        csv += "\r\n";
+
+        // Body lines
+        state.savedBatches.forEach(b => {
+            const yieldPct = b.checked > 0 ? ((b.accept / b.checked) * 100).toFixed(2) : '100.00';
+            const escRem = `"${String(b.remarks || '').replace(/"/g, '""')}"`;
+            
+            let row = `${b.date},${b.operator},"${b.stageName}","${b.processName}",${b.size},${b.batchId},${b.checked},${b.accept},${b.hold},${b.reject},${yieldPct},${escRem}`;
+            
+            defectHeaders.forEach(dh => {
+                row += `,${b.defects[dh] || 0}`;
+            });
+            csv += row + "\r\n";
+        });
+
+        // Trigger file download
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `disposafe-session-matrix-${state.date || 'export'}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+</body>
+</html>

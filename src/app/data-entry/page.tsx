@@ -3,9 +3,9 @@
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import AppShell from "@/components/app/AppShell";
-import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
 import MonthlyEntryGrid from "@/components/MonthlyEntryGrid";
+import BatchMatrixEntry from "@/components/BatchMatrixEntry";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import WeekPicker from "@/components/WeekPicker";
 import { type EntryGrain } from "@/lib/entry/period";
@@ -13,33 +13,28 @@ import { fyContaining } from "@/lib/analytics/scope";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+type EntryMode = "matrix" | "period" | "ledger";
+
 export default function DataEntryPage() {
   const { refreshEvents, events } = useEvents();
-  const [activeTab, setActiveTab] = useState<"entry" | "ledger">("entry");
+  const [activeTab, setActiveTab] = useState<EntryMode>("matrix");
   const [monthlyDirty, setMonthlyDirty] = useState(false);
   const [date, setDate] = useState(today());
 
   const { t, setTweak } = useTweaks();
 
-  // FY grain doesn't have its own row range — it narrows to a fiscal year,
-  // then a month tab within it drives the same Month case the grid already
-  // renders. `fyOpenMonth` is the anchor actually passed to the grid whenever
-  // t.grain === "fy"; `date` (below) remains the anchor for day/week/month.
   const [fyStartYear, setFyStartYear] = useState<number>(() => fyContaining(today()).startYear);
   const [fyOpenMonth, setFyOpenMonth] = useState<string>(() => {
     const fy = fyContaining(today());
-    return fy.from; // default to April 1st of the current/most-recent FY
+    return fy.from;
   });
 
-  // Grain-change guard: the topbar's D/W/M/FY buttons (AppShell) set t.grain
-  // directly with no way for this page to veto it. Detect the change here
-  // instead, and revert it if there are unsaved edits the operator declines
-  // to discard — see docs/superpowers/specs/2026-07-09-data-entry-grain-aware-design.md §4.
+  // Grain-change guard for period grid only
   const prevGrainRef = useRef(t.grain);
   useEffect(() => {
     if (t.grain === prevGrainRef.current) return;
-    if (activeTab === "entry" && monthlyDirty) {
-      const ok = confirm("You have unsaved changes in the data entry grid that haven't been submitted yet. Switching the Grain will discard them. Continue?");
+    if (activeTab === "period" && monthlyDirty) {
+      const ok = confirm("You have unsaved changes in the period grid that haven't been submitted yet. Switching the Grain will discard them. Continue?");
       if (!ok) {
         setTweak("grain", prevGrainRef.current);
         return;
@@ -48,8 +43,6 @@ export default function DataEntryPage() {
     prevGrainRef.current = t.grain;
   }, [t.grain, activeTab, monthlyDirty, setTweak]);
 
-  // The FY dropdown's options: every FY that has at least one event, plus the
-  // FY containing today so the control is never empty on a fresh install.
   const fyOptions = useMemo(() => {
     const years = new Set<number>([fyContaining(today()).startYear]);
     for (const e of events ?? []) {
@@ -58,8 +51,6 @@ export default function DataEntryPage() {
     return Array.from(years).sort((a, b) => b - a);
   }, [events]);
 
-  // The grain actually handed to MonthlyEntryGrid: "fy" isn't a grid grain
-  // (Task 2's EntryGrain is day|week|month) — FY mode always edits a month.
   const effectiveGrain: EntryGrain = t.grain === "fy" ? "month" : t.grain;
   const effectiveAnchor = t.grain === "fy" ? fyOpenMonth : date;
 
@@ -76,13 +67,10 @@ export default function DataEntryPage() {
   const [notes, setNotes] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Ledger state
   const [ledgerRecords, setLedgerRecords] = useState<any[]>([]);
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [ledgerSort, setLedgerSort] = useState<{ col: string; desc: boolean }>({ col: "date", desc: true });
 
-  // Header prefs + ledger on mount. Grid columns come from /api/entry-template
-  // inside MonthlyEntryGrid (verified MOD), not /api/schema.
   useEffect(() => {
     loadLedger();
     if (typeof window !== "undefined") {
@@ -128,18 +116,11 @@ export default function DataEntryPage() {
     }
   };
 
-  // Guards every action that would unmount/remount MonthlyEntryGrid (Report
-  // Date change, ledger Edit/Duplicate, switching to another tab) while it
-  // has unsaved edits — otherwise they'd vanish with no warning.
-  const confirmLeaveEntryGrid = (): boolean => {
-    if (activeTab !== "entry" || !monthlyDirty) return true;
-    return confirm("You have unsaved changes in the data entry grid that haven't been submitted yet. Continuing will discard them. Continue?");
+  const confirmLeavePeriodGrid = (): boolean => {
+    if (activeTab !== "period" || !monthlyDirty) return true;
+    return confirm("You have unsaved changes in the period grid that haven't been submitted yet. Continuing will discard them. Continue?");
   };
 
-  // customFields merged onto every record MonthlyEntryGrid saves — the same
-  // header tags the old single-day grid attached. `size` is used only as a
-  // fallback for rows whose own size is null (line-only stages);
-  // MonthlyEntryGrid prefers the row's real size when the stage is size-wise.
   const entryCustomFields = useMemo(
     () => ({
       operator: hdr.operator, supervisor: hdr.supervisor, machine: hdr.machine,
@@ -148,34 +129,26 @@ export default function DataEntryPage() {
     [hdr, notes],
   );
 
-  // Ledger Actions — Edit/Duplicate jump the entry grid to the relevant date;
-  // MonthlyEntryGrid is remounted via `key={date}` below, so it reloads
-  // fresh whenever `date` changes. Delete removes the underlying event-store
-  // record directly and is unrelated to the grid.
   const handleEditLedgerRecord = (rec: any) => {
     setHdr({
       shift: rec.shift, operator: rec.operator, supervisor: rec.supervisor,
       product: rec.product, size: rec.size, machine: rec.machine, batch: rec.batch,
     });
     setNotes(rec.notes || "");
-    setActiveTab("entry");
+    setActiveTab("period");
     setDate(rec.date);
-    setSuccess(`Record loaded for editing. Editing date: ${rec.date}.`);
+    setSuccess(`Record loaded for editing. Editing date: ${rec.date}. Use Period grid to revise quantities.`);
   };
 
-  // ponytail: duplicates header fields onto today's date only — does not
-  // copy the source day's quantities forward (MonthlyEntryGrid has no
-  // external-seed hook for that). Add a seedRecords prop to MonthlyEntryGrid
-  // if operators rely on copying values, not just headers, between days.
   const handleDuplicateLedgerRecord = (rec: any) => {
     setHdr({
       shift: rec.shift, operator: rec.operator, supervisor: rec.supervisor,
       product: rec.product, size: rec.size, machine: rec.machine, batch: rec.batch,
     });
     setNotes(rec.notes || "");
-    setActiveTab("entry");
+    setActiveTab("period");
     setDate(today());
-    setSuccess("Header fields duplicated onto today's date. Enter today's quantities and Save Month.");
+    setSuccess("Header fields duplicated onto today's date. Enter today's quantities and Save.");
   };
 
   const handleDeleteLedgerRecord = async (rec: any) => {
@@ -196,7 +169,6 @@ export default function DataEntryPage() {
     }
   };
 
-  // Sort and filter ledger records
   const filteredLedger = useMemo(() => {
     return ledgerRecords
       .filter((rec) => {
@@ -240,43 +212,26 @@ export default function DataEntryPage() {
     }));
   };
 
+  const switchTab = (tab: EntryMode) => {
+    if (tab !== "period" && !confirmLeavePeriodGrid()) return;
+    setActiveTab(tab);
+    if (tab === "ledger") loadLedger();
+  };
+
   return (
     <AppShell active="data-entry">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div style={{ display: "flex", gap: 4 }}>
-          <button
-            onClick={() => { if (confirmLeaveEntryGrid()) setActiveTab("entry"); }}
-            style={{
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "8px 0 0 8px",
-              background: activeTab === "entry" ? "var(--accent)" : "var(--surface-2)",
-              color: activeTab === "entry" ? "var(--text-invert)" : "var(--text-2)",
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: "pointer"
-            }}
-          >
-            New Data Entry
-          </button>
-          <button
-            onClick={() => { if (confirmLeaveEntryGrid()) { setActiveTab("ledger"); loadLedger(); } }}
-            style={{
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "0",
-              background: activeTab === "ledger" ? "var(--accent)" : "var(--surface-2)",
-              color: activeTab === "ledger" ? "var(--text-invert)" : "var(--text-2)",
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: "pointer"
-            }}
-          >
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          <TabButton active={activeTab === "matrix"} onClick={() => switchTab("matrix")} first>
+            Batch Matrix
+          </TabButton>
+          <TabButton active={activeTab === "period"} onClick={() => switchTab("period")}>
+            Period Grid
+          </TabButton>
+          <TabButton active={activeTab === "ledger"} onClick={() => switchTab("ledger")} last>
             Entry History / Data Ledger
-          </button>
-                  </div>
-
-        
+          </TabButton>
+        </div>
       </div>
 
       {success && (
@@ -286,133 +241,142 @@ export default function DataEntryPage() {
         </div>
       )}
 
-      {activeTab === "entry" ? (
-          <div>
-            <div style={{ display: "flex", gap: 14, alignItems: "flex-end", marginBottom: 16, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12 }}>
-              <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
-                {t.grain === "day" && "Report Date"}
-                {t.grain === "week" && "Report Week"}
-                {t.grain === "month" && "Report Month"}
-                {t.grain === "fy" && "Report FY"}
+      {activeTab === "matrix" && (
+        <BatchMatrixEntry onSynced={() => loadLedger()} />
+      )}
 
-                {t.grain === "day" && (
-                  <input type="date" value={date} onChange={(e) => {
-                    const newDate = e.target.value;
-                    if (!confirmLeaveEntryGrid()) return;
-                    setDate(newDate);
-                  }} style={{ ...inp, width: 160 }} />
-                )}
+      {activeTab === "period" && (
+        <div>
+          <p className="small" style={{ color: "var(--text-2)", marginBottom: 12 }}>
+            Calendar-period entry driven by verified MOD templates (D/W/M/FY grain). Prefer{" "}
+            <strong>Batch Matrix</strong> for shop-floor lot entry.
+          </p>
+          <div style={{ display: "flex", gap: 14, alignItems: "flex-end", marginBottom: 16, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12 }}>
+            <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
+              {t.grain === "day" && "Report Date"}
+              {t.grain === "week" && "Report Week"}
+              {t.grain === "month" && "Report Month"}
+              {t.grain === "fy" && "Report FY"}
 
-                {t.grain === "week" && (
-                  <WeekPicker value={date} onChange={(next) => {
-                    if (!confirmLeaveEntryGrid()) return;
-                    setDate(next);
-                  }} />
-                )}
+              {t.grain === "day" && (
+                <input type="date" value={date} onChange={(e) => {
+                  const newDate = e.target.value;
+                  if (!confirmLeavePeriodGrid()) return;
+                  setDate(newDate);
+                }} style={{ ...inp, width: 160 }} />
+              )}
 
-                {t.grain === "month" && (
-                  <input type="month" value={date.slice(0, 7)} onChange={(e) => {
-                    if (!confirmLeaveEntryGrid()) return;
-                    setDate(`${e.target.value}-01`);
-                  }} style={{ ...inp, width: 160 }} />
-                )}
-
-                {t.grain === "fy" && (
-                  <select value={fyStartYear} onChange={(e) => {
-                    if (!confirmLeaveEntryGrid()) return;
-                    const y = Number(e.target.value);
-                    setFyStartYear(y);
-                    setFyOpenMonth(`${y}-04-01`);
-                  }} style={{ ...inp, width: 160 }}>
-                    {fyOptions.map((y) => (
-                      <option key={y} value={y}>FY{y}-{String((y + 1) % 100).padStart(2, "0")}</option>
-                    ))}
-                  </select>
-                )}
-              </label>
-              
-              <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
-                Shift
-                <select value={hdr.shift} onChange={(e) => updateHdrField("shift", e.target.value)} style={{ ...inp, width: 140 }}>
-                  <option>Day Shift</option>
-                  <option>Night Shift</option>
-                </select>
-              </label>
-            </div>
-
-            <Section title="Operator & Batch Information">
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-                <Field label="Operator *">
-                  <input style={inp} value={hdr.operator} onChange={(e) => updateHdrField("operator", e.target.value)} placeholder="Required" />
-                </Field>
-                <Field label="Supervisor">
-                  <input style={inp} value={hdr.supervisor} onChange={(e) => updateHdrField("supervisor", e.target.value)} placeholder="Supervisor name" />
-                </Field>
-                <Field label="Product">
-                  <input style={inp} value={hdr.product} onChange={(e) => updateHdrField("product", e.target.value)} />
-                </Field>
-                <Field label="Size (French)">
-                  <input style={inp} value={hdr.size} onChange={(e) => updateHdrField("size", e.target.value)} />
-                </Field>
-                <Field label="Machine">
-                  <input style={inp} value={hdr.machine} onChange={(e) => updateHdrField("machine", e.target.value)} />
-                </Field>
-                <Field label="Batch / Lot No.">
-                  <input style={inp} value={hdr.batch} onChange={(e) => updateHdrField("batch", e.target.value)} placeholder="e.g. LOT-123" />
-                </Field>
-              </div>
-            </Section>
-
-            <Section title="Additional Notes / Remarks">
-              <Field label="Remarks">
-                <textarea
-                  style={{ ...inp, minHeight: 60, fontFamily: "inherit" }}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="General shift report remarks or notes..."
-                />
-              </Field>
-            </Section>
-
-            {t.grain === "fy" && (
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 16 }}>
-                {Array.from({ length: 12 }, (_, i) => {
-                  const month = ((i + 3) % 12) + 1; // Apr(4)..Mar(3): i=0 -> 4, ..., i=8 -> 12, i=9 -> 1, ...
-                  const year = month >= 4 ? fyStartYear : fyStartYear + 1;
-                  const anchor = `${year}-${String(month).padStart(2, "0")}-01`;
-                  const on = fyOpenMonth.slice(0, 7) === anchor.slice(0, 7);
-                  const label = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][month - 1];
-                  return (
-                    <button key={anchor} onClick={() => { if (confirmLeaveEntryGrid()) setFyOpenMonth(anchor); }}
-                      style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border-strong)",
-                        background: on ? "var(--accent)" : "var(--surface-2)",
-                        color: on ? "var(--text-invert)" : "var(--text-2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <MonthlyEntryGrid
-              key={`${effectiveGrain}-${effectiveAnchor}`}
-              grain={effectiveGrain}
-              anchorDate={effectiveAnchor}
-              onAnchorChange={(next) => {
-                if (t.grain === "fy") {
-                  setFyOpenMonth(next);
-                  setFyStartYear(fyContaining(next).startYear);
-                } else {
+              {t.grain === "week" && (
+                <WeekPicker value={date} onChange={(next) => {
+                  if (!confirmLeavePeriodGrid()) return;
                   setDate(next);
-                }
-              }}
-              customFields={entryCustomFields}
-              blockedReason={hdr.operator.trim() ? null : "Operator name is required."}
-              onDirtyChange={setMonthlyDirty}
-            />
+                }} />
+              )}
+
+              {t.grain === "month" && (
+                <input type="month" value={date.slice(0, 7)} onChange={(e) => {
+                  if (!confirmLeavePeriodGrid()) return;
+                  setDate(`${e.target.value}-01`);
+                }} style={{ ...inp, width: 160 }} />
+              )}
+
+              {t.grain === "fy" && (
+                <select value={fyStartYear} onChange={(e) => {
+                  if (!confirmLeavePeriodGrid()) return;
+                  const y = Number(e.target.value);
+                  setFyStartYear(y);
+                  setFyOpenMonth(`${y}-04-01`);
+                }} style={{ ...inp, width: 160 }}>
+                  {fyOptions.map((y) => (
+                    <option key={y} value={y}>FY{y}-{String((y + 1) % 100).padStart(2, "0")}</option>
+                  ))}
+                </select>
+              )}
+            </label>
+
+            <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
+              Shift
+              <select value={hdr.shift} onChange={(e) => updateHdrField("shift", e.target.value)} style={{ ...inp, width: 140 }}>
+                <option>Day Shift</option>
+                <option>Night Shift</option>
+              </select>
+            </label>
           </div>
-      ) : (
-        /* Data Ledger / Entry History View */
+
+          <Section title="Operator & Batch Information">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              <Field label="Operator *">
+                <input style={inp} value={hdr.operator} onChange={(e) => updateHdrField("operator", e.target.value)} placeholder="Required" />
+              </Field>
+              <Field label="Supervisor">
+                <input style={inp} value={hdr.supervisor} onChange={(e) => updateHdrField("supervisor", e.target.value)} placeholder="Supervisor name" />
+              </Field>
+              <Field label="Product">
+                <input style={inp} value={hdr.product} onChange={(e) => updateHdrField("product", e.target.value)} />
+              </Field>
+              <Field label="Size (French)">
+                <input style={inp} value={hdr.size} onChange={(e) => updateHdrField("size", e.target.value)} />
+              </Field>
+              <Field label="Machine">
+                <input style={inp} value={hdr.machine} onChange={(e) => updateHdrField("machine", e.target.value)} />
+              </Field>
+              <Field label="Batch / Lot No.">
+                <input style={inp} value={hdr.batch} onChange={(e) => updateHdrField("batch", e.target.value)} placeholder="e.g. 26F27-14" />
+              </Field>
+            </div>
+          </Section>
+
+          <Section title="Additional Notes / Remarks">
+            <Field label="Remarks">
+              <textarea
+                style={{ ...inp, minHeight: 60, fontFamily: "inherit" }}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="General shift report remarks or notes..."
+              />
+            </Field>
+          </Section>
+
+          {t.grain === "fy" && (
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 16 }}>
+              {Array.from({ length: 12 }, (_, i) => {
+                const month = ((i + 3) % 12) + 1;
+                const year = month >= 4 ? fyStartYear : fyStartYear + 1;
+                const anchor = `${year}-${String(month).padStart(2, "0")}-01`;
+                const on = fyOpenMonth.slice(0, 7) === anchor.slice(0, 7);
+                const label = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][month - 1];
+                return (
+                  <button key={anchor} onClick={() => { if (confirmLeavePeriodGrid()) setFyOpenMonth(anchor); }}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border-strong)",
+                      background: on ? "var(--accent)" : "var(--surface-2)",
+                      color: on ? "var(--text-invert)" : "var(--text-2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <MonthlyEntryGrid
+            key={`${effectiveGrain}-${effectiveAnchor}`}
+            grain={effectiveGrain}
+            anchorDate={effectiveAnchor}
+            onAnchorChange={(next) => {
+              if (t.grain === "fy") {
+                setFyOpenMonth(next);
+                setFyStartYear(fyContaining(next).startYear);
+              } else {
+                setDate(next);
+              }
+            }}
+            customFields={entryCustomFields}
+            blockedReason={hdr.operator.trim() ? null : "Operator name is required."}
+            onDirtyChange={setMonthlyDirty}
+          />
+        </div>
+      )}
+
+      {activeTab === "ledger" && (
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, margin: 0 }}>Data Entry & Ingest Ledger</h2>
@@ -453,7 +417,6 @@ export default function DataEntryPage() {
                 </tr>
               ) : (
                 filteredLedger.map((rec, idx) => {
-                  // Compute totals for ledger row
                   let chk = 0;
                   let rej = 0;
                   Object.values(rec.stageData).forEach((sData: any) => {
@@ -522,12 +485,42 @@ export default function DataEntryPage() {
           </table>
         </div>
       )}
-
     </AppShell>
   );
 }
 
-/* ── UI Bits ───────────────────────────────────────────────────────────── */
+function TabButton({
+  active,
+  onClick,
+  children,
+  first,
+  last,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  first?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "8px 16px",
+        border: "none",
+        borderRadius: first ? "8px 0 0 8px" : last ? "0 8px 8px 0" : 0,
+        background: active ? "var(--accent)" : "var(--surface-2)",
+        color: active ? "var(--text-invert)" : "var(--text-2)",
+        fontWeight: 700,
+        fontSize: 13,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, background: "var(--surface)", padding: 16, marginBottom: 16 }}>
@@ -546,7 +539,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-/* Styles */
 const inp: React.CSSProperties = {
   width: "100%",
   padding: "7px 10px",
@@ -559,16 +551,6 @@ const inp: React.CSSProperties = {
   outline: "none"
 };
 
-const ghost: React.CSSProperties = {
-  background: "transparent",
-  color: "var(--text-2)",
-  border: "1px solid var(--border)",
-  borderRadius: 9,
-  padding: "10px 22px",
-  fontSize: 14,
-  cursor: "pointer"
-};
-
 const th: React.CSSProperties = {
   padding: "10px 12px",
   fontWeight: 600,
@@ -578,48 +560,4 @@ const th: React.CSSProperties = {
 const td: React.CSSProperties = {
   padding: "10px 12px",
   color: "var(--text-2)"
-};
-
-const btnPrimary: React.CSSProperties = {
-  background: "var(--accent)",
-  color: "var(--text-invert)",
-  border: "none",
-  borderRadius: "var(--radius-md)",
-  padding: "10px 24px",
-  fontSize: "13.5px",
-  fontWeight: 700,
-  cursor: "pointer"
-};
-
-const btnGhost: React.CSSProperties = {
-  background: "transparent",
-  color: "var(--text-2)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-md)",
-  padding: "10px 24px",
-  fontSize: "13.5px",
-  fontWeight: 600,
-  cursor: "pointer"
-};
-
-const btnSmallPrimary: React.CSSProperties = {
-  background: "var(--accent)",
-  color: "var(--text-invert)",
-  border: "none",
-  borderRadius: 6,
-  padding: "4px 10px",
-  fontSize: 11,
-  fontWeight: 700,
-  cursor: "pointer"
-};
-
-const btnSmallGhost: React.CSSProperties = {
-  background: "transparent",
-  color: "var(--text-2)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  padding: "4px 10px",
-  fontSize: 11,
-  fontWeight: 600,
-  cursor: "pointer"
 };

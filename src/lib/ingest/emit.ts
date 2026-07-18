@@ -104,13 +104,21 @@ function envelope(rec: StageDayRecord, cells: string[], header: string, formulaT
   };
 }
 
+/** Prefer explicit customFields.batch / batchId for lot identity (Grain A1). */
+function batchFrom(customFields: Record<string, unknown>): string | null {
+  const b = customFields.batch ?? customFields.batchId ?? customFields.batchNo;
+  if (typeof b === "string" && b.trim()) return b.trim();
+  return null;
+}
+
 /** Emit all canonical events for one stage-day record. Pure (modulo recordedAt). */
 export function emitStageDay(rec: StageDayRecord, reg?: z.infer<typeof ClientRegistry>): Event[] {
   const out: Event[] = [];
   const customFields = rec.customFields || {};
+  const batchNo = batchFrom(customFields);
 
   if (rec.checked && Number.isInteger(rec.checked.value) && rec.checked.value >= 0) {
-    const payload = { stageId: rec.stageId, quantity: rec.checked.value, unit: "pcs" as const, batchNo: null, size: rec.size ?? null, customFields };
+    const payload = { stageId: rec.stageId, quantity: rec.checked.value, unit: "pcs" as const, batchNo, size: rec.size ?? null, customFields };
     const env = envelope(rec, [rec.checked.cell], rec.checked.header, null, null);
     const eventId = hashEvent({ eventType: "production", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
     out.push(ProductionEvent.parse({ eventId, eventType: "production", ...env, ...payload }));
@@ -118,7 +126,7 @@ export function emitStageDay(rec: StageDayRecord, reg?: z.infer<typeof ClientReg
 
   const inspection = (sv: SourcedValue | null, disposition: "rejected" | "accepted" | "rework") => {
     if (!sv || !Number.isInteger(sv.value) || sv.value < 0) return;
-    const payload = { stageId: rec.stageId, disposition, quantity: sv.value, unit: "pcs" as const, batchNo: null, size: rec.size ?? null, customFields };
+    const payload = { stageId: rec.stageId, disposition, quantity: sv.value, unit: "pcs" as const, batchNo, size: rec.size ?? null, customFields };
     const env = envelope(rec, [sv.cell], sv.header, null, null);
     const eventId = hashEvent({ eventType: "inspection", occurredOn: rec.occurredOn, provenance: env.provenance, payload });
     out.push(InspectionEvent.parse({ eventId, eventType: "inspection", ...env, ...payload }));
@@ -135,7 +143,7 @@ export function emitStageDay(rec: StageDayRecord, reg?: z.infer<typeof ClientReg
       defectCodeRaw: d.raw,
       quantity: d.value,
       unit: "pcs" as const,
-      batchNo: null,
+      batchNo,
       size: rec.size ?? null,
       customFields,
     };

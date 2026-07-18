@@ -29,29 +29,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No records to ingest." }, { status: 400 });
     }
 
-    // The full-day-replace step below talks to Supabase directly (the
-    // EventStore interface has no delete()); in memory-store dev/test runs
-    // there's nothing to replace against, so skip it rather than hard-fail —
-    // the CorrectionEvent supersede step further down still keeps re-edits
-    // correct either way, just without pruning the stale direct-entry rows.
+    // Replace prior direct-entry rows that this payload is superseding.
+    // EventStore has no delete(); we talk to Supabase only when configured.
+    // Memory-store runs skip this — CorrectionEvent supersede still keeps
+    // re-edits correct without pruning stale rows.
+    //
+    // Batch matrix (customFields.batch present): replace only matching
+    // date · stage · size · batch so multi-batch shifts don't wipe each other.
+    // Period grid (no batch): keep the prior full date + sheet replace.
     const isDirectEntry = records.some(r => r.extractedBy === "direct-entry") && shouldUseSupabase();
     if (isDirectEntry) {
-      const date = records[0].occurredOn.start;
-      const shift = records[0].source.sheet;
-      
       const db = createServerClient();
+      // Domain fields live on payload JSON (stageId/size/batchNo/customFields),
+      // not top-level columns — see getPayload() / mapRowToEvent().
       const { data: rows } = await db
         .from("events")
-        .select("event_id, occurred_on, provenance, is_direct_entry")
+        .select("event_id, occurred_on, provenance, is_direct_entry, payload")
         .eq("is_direct_entry", true);
 
-      const toDelete = (rows || []).filter(e => 
-        e.occurred_on?.start === date && 
-        e.provenance?.sheet === shift
+      const hasBatchKeys = records.some((r) => {
+        const b = r.customFields?.batch ?? r.customFields?.batchId;
+        return typeof b === "string" && b.trim().length > 0;
+      });
+
+      const replaceKeys = new Set(
+        records.map((r) => {
+          const batch = String(r.customFields?.batch ?? r.customFields?.batchId ?? "").trim();
+          const size = r.size ?? "";
+          return `${r.occurredOn.start}|${r.stageId}|${size}|${batch}`;
+        }),
       );
 
-      const ids = toDelete.map(e => e.event_id);
-      
+      const date = records[0].occurredOn.start;
+      const shift = records[0].source.sheet;
+
+      const toDelete = (rows || []).filter((e) => {
+        if (hasBatchKeys) {
+          const payload = (e as any).payload || {};
+          const cf = payload.customFields || {};
+          const batch = String(cf.batch ?? cf.batchId ?? payload.batchNo ?? "").trim();
+          const size = payload.size ?? "";
+          const stageId = payload.stageId ?? "";
+          const day = e.occurred_on?.start;
+          return replaceKeys.has(`${day}|${stageId}|${size}|${batch}`);
+        }
+        return e.occurred_on?.start === date && e.provenance?.sheet === shift;
+      });
+
+      const ids = toDelete.map((e) => e.event_id);
+
       if (ids.length > 0) {
         const { error: delErr } = await db.from("events").delete().in("event_id", ids);
         if (delErr) throw delErr;
