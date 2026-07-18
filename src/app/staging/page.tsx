@@ -34,17 +34,6 @@ export default function StagingPage() {
   const [expandedFlagsRow, setExpandedFlagsRow] = useState<number | null>(null);
   const rowRefs = useRef(new Map<number, HTMLTableRowElement>());
 
-  // The active catalog (MOD-derived via /api/schema) — supplies the defect
-  // columns of the review grid. Empty catalog = no defect columns, never a
-  // hardcoded company fallback.
-  const [activeRegistry, setActiveRegistry] = useState<any>(null);
-  useEffect(() => {
-    fetch("/api/schema")
-      .then((res) => res.json())
-      .then((data) => setActiveRegistry(data.registry ?? null))
-      .catch((err) => console.error("Failed to load catalog:", err));
-  }, []);
-
   // Draft-MOD proposals from /api/workbooks, shown in the verification panel.
   const [modUploads, setModUploads] = useState<UploadedMod[]>([]);
   const [publishedModId, setPublishedModId] = useState<string | null>(null);
@@ -60,7 +49,19 @@ export default function StagingPage() {
     return { input, rejected, rejPct: input ? (rejected / input) * 100 : 0 };
   }, [rows]);
 
-  const defectsList: any[] = activeRegistry?.defects ?? [];
+  // Defect columns = only labels present on extracted rows (the Excel), never
+  // the company-wide /api/schema catalog (that re-injected the hardcoded list).
+  const defectsList = useMemo(() => {
+    const map = new Map<string, { defectCode: string; label: string }>();
+    for (const rec of records) {
+      for (const d of rec.defects ?? []) {
+        const key = (d.raw || "").trim();
+        if (!key || map.has(key.toUpperCase())) continue;
+        map.set(key.toUpperCase(), { defectCode: key, label: key });
+      }
+    }
+    return [...map.values()];
+  }, [records]);
   const totalCols = 11 + defectsList.length;
 
   async function handleUpload(files: File[]) {
@@ -435,7 +436,7 @@ export default function StagingPage() {
 
                               {/* Dynamic Defect Cells */}
                               {defectsList.map((d: any) => {
-                                const isApplicable = d.stages.includes(r.stageId);
+                                // Columns are derived from extracted Excel defects — enable on every row.
                                 const colKey = defectKey(d.defectCode);
                                 const defectVal = r.defects.find(df => defectKey(df.raw) === colKey)?.value ?? 0;
                                 const isCulprit = r.invalidFields.includes(colKey);
@@ -443,16 +444,12 @@ export default function StagingPage() {
                                   <td key={d.defectCode} style={{ ...std, textAlign: "right" }}>
                                     <input
                                       type="number"
-                                      disabled={!isApplicable}
-                                      value={isApplicable ? (defectVal || "") : ""}
+                                      value={defectVal || ""}
                                       onChange={(e) => handleCellChange(r.recordIndex, d.defectCode, e.target.value)}
                                       style={{
                                         ...gridInputStyle,
                                         width: "55px",
                                         borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)",
-                                        opacity: isApplicable ? 1 : 0.25,
-                                        background: isApplicable ? "var(--bg)" : "var(--surface-2)",
-                                        cursor: isApplicable ? "text" : "not-allowed",
                                       }}
                                     />
                                   </td>

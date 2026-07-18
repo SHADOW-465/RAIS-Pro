@@ -69,7 +69,10 @@ describe("Phase 4: preset → MOD migration + generated entry + schema shim", ()
     const visual = template.stages.find((s: any) => s.stageId === "visual");
     expect(visual).toBeTruthy();
     expect(visual.columns.map((c: any) => c.key)).toEqual(expect.arrayContaining(["checked", "rejected"]));
+    // Preset migration materializes defect entities; Disposafe seed alone does not.
     expect(visual.defects.map((d: any) => d.defectCode)).toContain("PINH");
+    // Must NOT dump the entire seed visual catalog (COAG/SD/TT/…) onto the grid.
+    expect(visual.defects.length).toBeLessThanOrEqual(3);
     // The migrated preset's own sheet layout survives into the generated grid.
     expect(visual.layout?.headerRows?.[0]).toEqual(["DATE", "CHECKED", "REJ"]);
     expect(template.sizes.some((s: any) => s.sizeId === "Fr16")).toBe(true);

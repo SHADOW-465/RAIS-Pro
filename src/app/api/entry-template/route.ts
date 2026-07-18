@@ -7,8 +7,9 @@
 // hardcoded defect catalog. Preference order when multiple MODs define a stage:
 //   1. MOD with real sheet layout (uploaded workbook)
 //   2. Non-migrated lineage over seed/migration synthetic docs
-// Defects for a stage prefer verified defect *entities* on that stage's sheet
-// region (the Excel columns); fall back to that document's stage-scoped catalog.
+// Defects for a stage = Excel-mapped defect *entities* only (columns that were
+// verified as DEFECT:*). Never pad the grid with the full seed catalog
+// (DISPOSAFE_REGISTRY demoted-to-MOD) — that was the "hardcoded defects" bug.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getModStore } from "@/core/ontology/store/mod-store";
@@ -53,31 +54,46 @@ function humanize(name: string): string {
   return name.trim().replace(/\s+/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Defect columns that actually appear as mapped entities on this stage's sheets. */
+/**
+ * Defect columns that actually appear as mapped Excel entities for this stage.
+ * Never invents codes from a bare catalog — only columns that exist in entities.
+ *
+ * Attachment order:
+ *  1. entity sheet-region maps to this stageId via a stage entity on the same region
+ *  2. else entity's DEFECT:code is listed on this stage in doc.defects (catalog
+ *     stages list only *scopes* an existing entity — it cannot add columns alone)
+ */
 function defectsFromEntities(
-  entities: ModEntityT[],
+  doc: ModDocumentT,
   stageId: string,
   stageOfRegion: Map<string, string>,
 ): { defectCode: string; label: string }[] {
   const out = new Map<string, { defectCode: string; label: string }>();
-  for (const e of entities) {
+  const catalogByCode = new Map((doc.defects ?? []).map((d) => [d.defectCode, d]));
+
+  for (const e of doc.entities) {
     if (e.kind !== "defect" || !e.canonical?.startsWith("DEFECT:")) continue;
-    if (stageOfRegion.get(regionKey(e)) !== stageId) continue;
     const code = e.canonical.slice("DEFECT:".length);
+    const regionStage = stageOfRegion.get(regionKey(e));
+    const catalog = catalogByCode.get(code);
+    const onStage =
+      regionStage === stageId
+      || (!regionStage && !!catalog?.stages?.includes(stageId));
+    if (!onStage) continue;
     if (!out.has(code)) {
       out.set(code, {
         defectCode: code,
-        // Prefer the sheet header the operator will recognize
-        label: e.original.header?.trim() || humanize(code),
+        label: e.original.header?.trim() || catalog?.label || humanize(code),
       });
     }
   }
   return [...out.values()];
 }
 
-function stageScore(hasLayout: boolean, migrated: boolean, defectSource: "entities" | "catalog"): number {
+function stageScore(hasLayout: boolean, migrated: boolean, hasEntityDefects: boolean): number {
   // Higher wins when multiple MODs claim the same stageId.
-  return (hasLayout ? 4 : 0) + (migrated ? 0 : 2) + (defectSource === "entities" ? 1 : 0);
+  // Seed/migration docs without Excel columns always lose to real workbooks.
+  return (hasLayout ? 4 : 0) + (migrated ? 0 : 2) + (hasEntityDefects ? 1 : 0);
 }
 
 function templateFrom(rows: ModRowT[]) {
@@ -107,13 +123,8 @@ function templateFrom(rows: ModRowT[]) {
         .filter(Boolean)
         .map((c) => ({ ...c, type: "number" as const, required: c.key === "checked" || c.key === "rejected" }));
 
-      // Prefer Excel-mapped defect columns; catalog is fallback only for that doc.
-      const entityDefects = defectsFromEntities(doc.entities, s.stageId, stageOfRegion);
-      const catalogDefects = (doc.defects ?? [])
-        .filter((d) => d.stages.includes(s.stageId))
-        .map((d) => ({ defectCode: d.defectCode, label: d.label }));
-      const defects = entityDefects.length > 0 ? entityDefects : catalogDefects;
-      const defectSource: "entities" | "catalog" = entityDefects.length > 0 ? "entities" : "catalog";
+      // Excel columns only — never the full seed catalog as empty-entity fallback.
+      const defects = defectsFromEntities(doc, s.stageId, stageOfRegion);
 
       const regionEntry = [...stageOfRegion.entries()].find(([, id]) => id === s.stageId);
       let layout: EntryTemplateStage["layout"] = null;
@@ -139,7 +150,7 @@ function templateFrom(rows: ModRowT[]) {
         }
       }
 
-      const score = stageScore(!!layout, migrated, defectSource);
+      const score = stageScore(!!layout, migrated, defects.length > 0);
       const existing = stages.get(s.stageId);
       if (existing && (existing._score ?? 0) >= score) continue;
 
@@ -200,9 +211,28 @@ export async function GET(req: NextRequest) {
           { status: 404 },
         );
       }
+      // Prefer real uploaded workbooks over migration/seed MODs when both exist.
+      // Seed alone still works (captures only; no invented defect columns).
+      const real = rows.filter((r) => !isMigratedDoc(r.document));
+      if (real.length > 0) rows = real;
     }
 
-    return NextResponse.json({ template: templateFrom(rows) });
+    const template = templateFrom(rows);
+    return NextResponse.json({
+      template,
+      // debug-friendly summary so deploy issues are diagnosable without guessing
+      meta: {
+        modCount: rows.length,
+        stages: template.stages.map((s) => ({
+          stageId: s.stageId,
+          defectCount: s.defects.length,
+          defectCodes: s.defects.map((d) => d.defectCode),
+          captureCount: s.columns.length,
+          hasLayout: !!s.layout,
+        })),
+        generatedFrom: template.generatedFrom,
+      },
+    });
   } catch (err: unknown) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to build entry template" },

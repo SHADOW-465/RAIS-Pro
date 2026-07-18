@@ -80,6 +80,33 @@ function documentFromRegistry(company: string, sourceName: string, reg: {
     stages: (d.stages ?? []).filter((st: string) => stages.some((s: any) => s.stageId === st)),
   }));
 
+  // User presets: materialize defect entities so entry-template can show those
+  // columns. NEVER do this for the full Disposafe seed — that recreated the
+  // "hardcoded 22 visual defects" grid. Seed knowledge stays in company_knowledge.
+  if (sourceName.startsWith("preset:")) {
+    for (const d of defects) {
+      for (const stageId of d.stages) {
+        const stage = stages.find((s) => s.stageId === stageId);
+        entities.push({
+          entityId: `defect:${d.defectCode}:${stageId}`,
+          kind: "defect",
+          original: {
+            sheet: stage?.label ?? stageId,
+            tableId: "t1",
+            colLetter: null,
+            header: d.label ?? d.defectCode,
+          },
+          canonical: `DEFECT:${d.defectCode}`,
+          subcategory: null,
+          confidence: 1,
+          resolvedBy: "user",
+          reason: `migrated defect from ${sourceName}`,
+          verified: true,
+        });
+      }
+    }
+  }
+
   // Layout preserved from schema-extractor presets when present (header rows +
   // merges reproduce the company's own sheet in generated data entry).
   const layout = reg.stages
