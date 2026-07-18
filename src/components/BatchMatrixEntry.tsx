@@ -9,6 +9,7 @@ import {
   MATRIX_STAGES,
   FRENCH_SIZES,
   DEFAULT_OPERATORS,
+  SECONDARY_BINS,
   SHIFT_STORAGE_KEY,
   defectsFor,
   defectDisplayLabel,
@@ -49,14 +50,26 @@ function sv(value: number, cell: string, header: string) {
   return { value, cell, header };
 }
 
+function qtyHeaderFor(macro: MacroId): string {
+  if (macro === "primary") return "Quantity Produced";
+  if (macro === "secondary") return "Quantity";
+  return "Checked Qty";
+}
+
 function toStageDayRecord(rec: ShiftBatchRecord, ingestionId: string): StageDayRecord {
-  const defects = Object.entries(rec.defects)
-    .filter(([, v]) => v > 0)
-    .map(([raw, value]) => ({
-      raw,
-      value,
-      cell: `ENTRY!defect!${raw}`,
-    }));
+  const isSecondary = rec.macro === "secondary";
+  const isPrimary = rec.macro === "primary";
+
+  // Secondary has no accept/hold/reject/defects — qty only + bin metadata.
+  const defects = isSecondary
+    ? []
+    : Object.entries(rec.defects)
+        .filter(([, v]) => v > 0)
+        .map(([raw, value]) => ({
+          raw,
+          value,
+          cell: `ENTRY!defect!${raw}`,
+        }));
 
   return {
     occurredOn: { kind: "day", start: rec.date, end: rec.date },
@@ -68,13 +81,16 @@ function toStageDayRecord(rec: ShiftBatchRecord, ingestionId: string): StageDayR
       sheet: rec.shift || "Day Shift",
       tableId: "batch-matrix",
     },
-    checked: rec.checked > 0
-      ? sv(rec.checked, "ENTRY!checked", rec.macro === "primary" ? "Quantity Produced" : "Checked Qty")
-      : null,
-    acceptedGood: rec.accept > 0 ? sv(rec.accept, "ENTRY!accept", "Good Qty") : null,
-    // Primary Production has no Hold — never emit rework for that macro.
-    rework: rec.macro !== "primary" && rec.hold > 0 ? sv(rec.hold, "ENTRY!hold", "Rework Qty") : null,
-    rejected: rec.reject > 0 ? sv(rec.reject, "ENTRY!reject", "Rejected Qty") : null,
+    checked: rec.checked > 0 ? sv(rec.checked, "ENTRY!checked", qtyHeaderFor(rec.macro)) : null,
+    acceptedGood:
+      !isSecondary && rec.accept > 0 ? sv(rec.accept, "ENTRY!accept", "Good Qty") : null,
+    // Hold only for Assembly (not Primary, not Secondary).
+    rework:
+      !isPrimary && !isSecondary && rec.hold > 0
+        ? sv(rec.hold, "ENTRY!hold", "Rework Qty")
+        : null,
+    rejected:
+      !isSecondary && rec.reject > 0 ? sv(rec.reject, "ENTRY!reject", "Rejected Qty") : null,
     defects,
     statedPct: null,
     extractedBy: "direct-entry",
@@ -90,8 +106,11 @@ function toStageDayRecord(rec: ShiftBatchRecord, ingestionId: string): StageDayR
       macro: rec.macro,
       process: rec.processName,
       matrixId: rec.id,
-      ...(rec.macro === "primary" && rec.trolleys != null && rec.trolleys > 0
+      ...(isPrimary && rec.trolleys != null && rec.trolleys > 0
         ? { trolleysProduced: rec.trolleys, "No. of Trolleys Produced": rec.trolleys }
+        : {}),
+      ...(isSecondary && rec.bin
+        ? { bin: rec.bin, Bin: rec.bin }
         : {}),
     },
   };
@@ -114,6 +133,7 @@ export default function BatchMatrixEntry({
   const [batchManual, setBatchManual] = useState(false);
   const [checked, setChecked] = useState(0);
   const [trolleys, setTrolleys] = useState(0);
+  const [bin, setBin] = useState("");
   const [accept, setAccept] = useState(0);
   const [hold, setHold] = useState(0);
   const [reject, setReject] = useState(0);
@@ -142,6 +162,8 @@ export default function BatchMatrixEntry({
   }, [date, size, batchManual]);
 
   const isPrimary = macro === "primary";
+  const isSecondary = macro === "secondary";
+  const isAssembly = macro === "assembly";
   const activeDefects = useMemo(() => defectsFor(macro, micro), [macro, micro]);
   const hideDefects = MATRIX_STAGES[macro].hideDefects;
   const parsed = useMemo(() => parseBatchId(batchId), [batchId]);
@@ -149,18 +171,28 @@ export default function BatchMatrixEntry({
     () => Object.values(defects).reduce((a, b) => a + (Number(b) || 0), 0),
     [defects],
   );
+  // Secondary: no Accept/Hold/Reject balance check.
   // Primary: Quantity Produced ≟ Accept + Reject (no Hold).
-  // Other macros: Checked ≟ Accept + Hold + Reject.
+  // Assembly: Checked ≟ Accept + Hold + Reject.
   const qtySumParts = isPrimary ? accept + reject : accept + hold + reject;
-  const qtyMismatch = checked !== qtySumParts || checked === 0;
-  const qtyLabel = isPrimary ? "Quantity Produced" : "Checked";
+  const qtyMismatch = isSecondary
+    ? false
+    : checked !== qtySumParts || checked === 0;
+  const qtyLabel = isPrimary ? "Quantity Produced" : isSecondary ? "Quantity" : "Checked";
   const qtyMismatchLabel = isPrimary
     ? `Quantity Produced: ${checked}, Accept+Reject: ${qtySumParts}`
     : `Checked: ${checked}, Accept+Hold+Reject: ${qtySumParts}`;
 
+  const fieldGridColumns = isPrimary
+    ? "minmax(140px, 1.2fr) minmax(90px, 0.7fr) minmax(140px, 1.1fr) minmax(100px, 0.85fr) minmax(100px, 0.85fr) minmax(80px, 0.7fr) minmax(80px, 0.7fr)"
+    : isSecondary
+      ? "minmax(140px, 1.2fr) minmax(90px, 0.7fr) minmax(140px, 1.1fr) minmax(100px, 0.85fr) minmax(120px, 1fr)"
+      : "minmax(140px, 1.2fr) minmax(90px, 0.7fr) minmax(140px, 1.1fr) minmax(90px, 0.75fr) minmax(80px, 0.7fr) minmax(80px, 0.7fr) minmax(80px, 0.7fr)";
+
   const resetQtys = useCallback(() => {
     setChecked(0);
     setTrolleys(0);
+    setBin("");
     setAccept(0);
     setHold(0);
     setReject(0);
@@ -253,6 +285,17 @@ export default function BatchMatrixEntry({
     const stageName = MATRIX_STAGES[macro].name;
     const procName = processLabel(macro, micro);
 
+    if (isSecondary) {
+      if (checked <= 0) {
+        setErr("Quantity is required for Secondary Production.");
+        return null;
+      }
+      if (!bin.trim()) {
+        setErr("Bin is required for Secondary Production.");
+        return null;
+      }
+    }
+
     return {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       date,
@@ -266,11 +309,12 @@ export default function BatchMatrixEntry({
       sizeCanonical: canon,
       batchId: batchId.trim().toUpperCase(),
       checked,
-      accept,
-      hold: isPrimary ? 0 : hold,
-      reject: overrideReject ?? reject,
+      accept: isSecondary ? 0 : accept,
+      hold: isPrimary || isSecondary ? 0 : hold,
+      reject: isSecondary ? 0 : (overrideReject ?? reject),
       trolleys: isPrimary ? trolleys : undefined,
-      defects: { ...defects },
+      bin: isSecondary ? bin.trim() : undefined,
+      defects: isSecondary ? {} : { ...defects },
       remarks: remarks.trim(),
       shift,
       savedAt: new Date().toISOString(),
@@ -312,7 +356,8 @@ export default function BatchMatrixEntry({
     setErr(null);
     setMsg(null);
 
-    if (qtyMismatch) {
+    // Secondary: Quantity + Bin only — no Accept/Hold/Reject balance.
+    if (!isSecondary && qtyMismatch) {
       if (
         !confirm(
           `Warning: Quantity sums do not match (${qtyMismatchLabel}). Do you still wish to save?`,
@@ -322,8 +367,8 @@ export default function BatchMatrixEntry({
       }
     }
 
-    // Secondary: no defect card / validation
-    if (!hideDefects && reject > 0 && defectSum !== reject) {
+    // Defect reconciliation — Primary + Assembly only (Secondary has no defects).
+    if (!isSecondary && !hideDefects && reject > 0 && defectSum !== reject) {
       // Grain A12: always present both options; never silent fix.
       setA12({ defectSum, reject });
       setA12Choice(null);
@@ -375,20 +420,26 @@ export default function BatchMatrixEntry({
     const defectHeaders = Array.from(uniqueDefects);
 
     let csv =
-      "Date,Operator,Stage,Process,Size,Batch ID,Quantity/Checked,Trolleys,Accept,Hold,Reject,Yield %,Remarks,Synced";
+      "Date,Operator,Stage,Process,Size,Batch ID,Quantity/Checked,Trolleys,Bin,Accept,Hold,Reject,Yield %,Remarks,Synced";
     defectHeaders.forEach((dh) => {
       csv += `,Defect_${dh}`;
     });
     csv += "\r\n";
 
     saved.forEach((b) => {
-      const yieldPct = b.checked > 0 ? ((b.accept / b.checked) * 100).toFixed(2) : "100.00";
+      const isSec = b.macro === "secondary";
+      const isPri = b.macro === "primary";
+      const yieldPct =
+        isSec || b.checked <= 0 ? "" : ((b.accept / b.checked) * 100).toFixed(2);
       const escRem = `"${String(b.remarks || "").replace(/"/g, '""')}"`;
-      const trolleyVal = b.macro === "primary" ? (b.trolleys ?? 0) : "";
-      const holdVal = b.macro === "primary" ? "" : b.hold;
-      let row = `${b.date},${b.operator},"${b.stageName}","${b.processName}",${b.size},${b.batchId},${b.checked},${trolleyVal},${b.accept},${holdVal},${b.reject},${yieldPct},${escRem},${b.synced ? "yes" : "no"}`;
+      const trolleyVal = isPri ? (b.trolleys ?? 0) : "";
+      const binVal = isSec ? `"${String(b.bin || "").replace(/"/g, '""')}"` : "";
+      const acceptVal = isSec ? "" : b.accept;
+      const holdVal = isPri || isSec ? "" : b.hold;
+      const rejectVal = isSec ? "" : b.reject;
+      let row = `${b.date},${b.operator},"${b.stageName}","${b.processName}",${b.size},${b.batchId},${b.checked},${trolleyVal},${binVal},${acceptVal},${holdVal},${rejectVal},${yieldPct},${escRem},${b.synced ? "yes" : "no"}`;
       defectHeaders.forEach((dh) => {
-        row += `,${b.defects[dh] || 0}`;
+        row += `,${isSec ? 0 : b.defects[dh] || 0}`;
       });
       csv += row + "\r\n";
     });
@@ -467,20 +518,18 @@ export default function BatchMatrixEntry({
         </div>
       </div>
 
-      {/* Core production inputs — responsive field grid */}
+      {/* Core production inputs — tier-specific layouts */}
       <div style={{ borderRadius: 10, border: "1px solid var(--border)", marginBottom: 16, background: "var(--surface-2)", padding: 14 }}>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: isPrimary
-              ? "minmax(140px, 1.2fr) minmax(90px, 0.7fr) minmax(140px, 1.1fr) minmax(100px, 0.85fr) minmax(100px, 0.85fr) minmax(80px, 0.7fr) minmax(80px, 0.7fr)"
-              : "minmax(140px, 1.2fr) minmax(90px, 0.7fr) minmax(140px, 1.1fr) minmax(90px, 0.75fr) minmax(80px, 0.7fr) minmax(80px, 0.7fr) minmax(80px, 0.7fr)",
+            gridTemplateColumns: fieldGridColumns,
             gap: 12,
             alignItems: "start",
           }}
           className="batch-matrix-fields"
         >
-          <FieldCol label="Operator">
+          <FieldCol label="Operator / Shift">
             <select value={operator} onChange={(e) => setOperator(e.target.value)} style={inp}>
               {DEFAULT_OPERATORS.map((o) => (
                 <option key={o} value={o}>{o}</option>
@@ -505,7 +554,7 @@ export default function BatchMatrixEntry({
             </label>
           </FieldCol>
 
-          <FieldCol label="Size">
+          <FieldCol label="Catheter Size">
             <select value={size} onChange={(e) => { setBatchManual(false); setSize(e.target.value); }} style={{ ...inp, fontWeight: 700 }}>
               {FRENCH_SIZES.map((s) => (
                 <option key={s} value={s}>{s}</option>
@@ -513,7 +562,7 @@ export default function BatchMatrixEntry({
             </select>
           </FieldCol>
 
-          <FieldCol label="Batch ID">
+          <FieldCol label="Batch ID Generation">
             <input
               value={batchId}
               onChange={(e) => onBatchInput(e.target.value)}
@@ -534,32 +583,81 @@ export default function BatchMatrixEntry({
             </p>
           </FieldCol>
 
-          <FieldCol label={qtyLabel} align="center">
-            <input type="number" min={0} value={checked || ""} placeholder="0" onChange={(e) => setChecked(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600 }} />
-            {qtyMismatch && checked > 0 && (
-              <div className="small" style={{ marginTop: 6, color: "var(--status-warn, #d97706)", fontWeight: 700, textAlign: "center", fontSize: 9 }}>Mismatch</div>
-            )}
-          </FieldCol>
+          {/* ── Secondary: Quantity + Bin only ── */}
+          {isSecondary && (
+            <>
+              <FieldCol label="Quantity *" align="center">
+                <input
+                  type="number"
+                  min={0}
+                  required
+                  value={checked || ""}
+                  placeholder="0"
+                  onChange={(e) => setChecked(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  style={{ ...inp, textAlign: "center", fontWeight: 600 }}
+                />
+              </FieldCol>
+              <FieldCol label="Bin *">
+                <input
+                  list="secondary-bin-options"
+                  value={bin}
+                  onChange={(e) => setBin(e.target.value)}
+                  placeholder="e.g. Bin A"
+                  style={{ ...inp, fontWeight: 600 }}
+                />
+                <datalist id="secondary-bin-options">
+                  {SECONDARY_BINS.map((b) => (
+                    <option key={b} value={b} />
+                  ))}
+                </datalist>
+                <p className="small" style={{ marginTop: 6, color: "var(--text-3)", fontSize: 9 }}>
+                  Production / storage bin
+                </p>
+              </FieldCol>
+            </>
+          )}
 
+          {/* ── Primary: Qty Produced · Trolleys · Accept · Reject ── */}
           {isPrimary && (
-            <FieldCol label="No. of Trolleys Produced" align="center">
-              <input type="number" min={0} value={trolleys || ""} placeholder="0" onChange={(e) => setTrolleys(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600 }} />
-            </FieldCol>
+            <>
+              <FieldCol label={qtyLabel} align="center">
+                <input type="number" min={0} value={checked || ""} placeholder="0" onChange={(e) => setChecked(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600 }} />
+                {qtyMismatch && checked > 0 && (
+                  <div className="small" style={{ marginTop: 6, color: "var(--status-warn, #d97706)", fontWeight: 700, textAlign: "center", fontSize: 9 }}>Mismatch</div>
+                )}
+              </FieldCol>
+              <FieldCol label="No. of Trolleys Produced" align="center">
+                <input type="number" min={0} value={trolleys || ""} placeholder="0" onChange={(e) => setTrolleys(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600 }} />
+              </FieldCol>
+              <FieldCol label="Accept" align="center">
+                <input type="number" min={0} value={accept || ""} placeholder="0" onChange={(e) => setAccept(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-good)" }} />
+              </FieldCol>
+              <FieldCol label="Reject" align="center">
+                <input type="number" min={0} value={reject || ""} placeholder="0" onChange={(e) => setReject(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-bad)" }} />
+              </FieldCol>
+            </>
           )}
 
-          <FieldCol label="Accept" align="center">
-            <input type="number" min={0} value={accept || ""} placeholder="0" onChange={(e) => setAccept(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-good)" }} />
-          </FieldCol>
-
-          {!isPrimary && (
-            <FieldCol label="Hold" align="center">
-              <input type="number" min={0} value={hold || ""} placeholder="0" onChange={(e) => setHold(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-warn, #d97706)" }} />
-            </FieldCol>
+          {/* ── Assembly: Checked · Accept · Hold · Reject ── */}
+          {isAssembly && (
+            <>
+              <FieldCol label={qtyLabel} align="center">
+                <input type="number" min={0} value={checked || ""} placeholder="0" onChange={(e) => setChecked(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600 }} />
+                {qtyMismatch && checked > 0 && (
+                  <div className="small" style={{ marginTop: 6, color: "var(--status-warn, #d97706)", fontWeight: 700, textAlign: "center", fontSize: 9 }}>Mismatch</div>
+                )}
+              </FieldCol>
+              <FieldCol label="Accept" align="center">
+                <input type="number" min={0} value={accept || ""} placeholder="0" onChange={(e) => setAccept(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-good)" }} />
+              </FieldCol>
+              <FieldCol label="Hold" align="center">
+                <input type="number" min={0} value={hold || ""} placeholder="0" onChange={(e) => setHold(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-warn, #d97706)" }} />
+              </FieldCol>
+              <FieldCol label="Reject" align="center">
+                <input type="number" min={0} value={reject || ""} placeholder="0" onChange={(e) => setReject(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-bad)" }} />
+              </FieldCol>
+            </>
           )}
-
-          <FieldCol label="Reject" align="center">
-            <input type="number" min={0} value={reject || ""} placeholder="0" onChange={(e) => setReject(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-bad)" }} />
-          </FieldCol>
         </div>
         <style>{`
           @media (max-width: 960px) {
@@ -741,8 +839,9 @@ export default function BatchMatrixEntry({
                   <th style={th}>Operator</th>
                   <th style={th}>Stage & Process</th>
                   <th style={th}>Batch ID</th>
-                  <th style={{ ...th, textAlign: "center" }}>Qty / Checked</th>
+                  <th style={{ ...th, textAlign: "center" }}>Qty</th>
                   <th style={{ ...th, textAlign: "center" }}>Trolleys</th>
+                  <th style={th}>Bin</th>
                   <th style={{ ...th, textAlign: "center" }}>Accept</th>
                   <th style={{ ...th, textAlign: "center" }}>Hold</th>
                   <th style={{ ...th, textAlign: "center" }}>Reject</th>
@@ -752,12 +851,16 @@ export default function BatchMatrixEntry({
               </thead>
               <tbody>
                 {saved.map((rec) => {
-                  const yieldPct = rec.checked > 0 ? ((rec.accept / rec.checked) * 100).toFixed(1) + "%" : "—";
+                  const primaryRow = rec.macro === "primary";
+                  const secondaryRow = rec.macro === "secondary";
+                  const yieldPct =
+                    secondaryRow || rec.checked <= 0
+                      ? "—"
+                      : ((rec.accept / rec.checked) * 100).toFixed(1) + "%";
                   const defLog = Object.entries(rec.defects || {})
                     .filter(([, v]) => v > 0)
                     .map(([k, v]) => `${k}:${v}`)
                     .join(", ");
-                  const primaryRow = rec.macro === "primary";
                   return (
                     <tr key={rec.id} style={{ borderBottom: "1px solid var(--border)" }}>
                       <td style={tdCell}>
@@ -773,11 +876,22 @@ export default function BatchMatrixEntry({
                       <td style={{ ...tdCell, fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--accent)" }}>{rec.batchId}</td>
                       <td style={{ ...tdCell, textAlign: "center" }}>{rec.checked}</td>
                       <td style={{ ...tdCell, textAlign: "center" }}>{primaryRow ? (rec.trolleys ?? 0) : "—"}</td>
-                      <td style={{ ...tdCell, textAlign: "center", color: "var(--status-good)", fontWeight: 600 }}>{rec.accept}</td>
-                      <td style={{ ...tdCell, textAlign: "center" }}>{primaryRow ? "—" : rec.hold}</td>
+                      <td style={tdCell}>{secondaryRow ? (rec.bin || "—") : "—"}</td>
+                      <td style={{ ...tdCell, textAlign: "center", color: "var(--status-good)", fontWeight: 600 }}>
+                        {secondaryRow ? "—" : rec.accept}
+                      </td>
                       <td style={{ ...tdCell, textAlign: "center" }}>
-                        <span style={{ color: "var(--status-bad)", fontWeight: 600 }}>{rec.reject}</span>
-                        {defLog && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-3)", marginTop: 2 }}>{defLog}</div>}
+                        {primaryRow || secondaryRow ? "—" : rec.hold}
+                      </td>
+                      <td style={{ ...tdCell, textAlign: "center" }}>
+                        {secondaryRow ? (
+                          "—"
+                        ) : (
+                          <>
+                            <span style={{ color: "var(--status-bad)", fontWeight: 600 }}>{rec.reject}</span>
+                            {defLog && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-3)", marginTop: 2 }}>{defLog}</div>}
+                          </>
+                        )}
                       </td>
                       <td style={{ ...tdCell, textAlign: "center", fontWeight: 700 }}>{yieldPct}</td>
                       <td style={{ ...tdCell, textAlign: "right" }}>

@@ -32,4 +32,10 @@ describe("Primary Production matrix UX helpers", () => {
     expect(MATRIX_STAGES.secondary.hideDefects).toBe(true);
     expect(defectsFor("secondary", "")).toEqual([]);
   });
+
+  test("secondary workflow is qty+bin only (no defect schema)", () => {
+    expect(MATRIX_STAGES.secondary.defects).toEqual([]);
+    expect(MATRIX_STAGES.secondary.processes.length).toBeGreaterThan(0);
+  });
 });
+

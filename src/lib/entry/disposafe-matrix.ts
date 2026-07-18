@@ -198,14 +198,21 @@ export type ShiftBatchRecord = {
   size: string;          // display "14Fr"
   sizeCanonical: string; // "Fr14"
   batchId: string;
-  /** Quantity produced (Primary) / Checked (other stages). */
+  /**
+   * Quantity Produced (Primary) / Quantity (Secondary) / Checked (Assembly).
+   * Maps to the production `checked` slot on StageDayRecord.
+   */
   checked: number;
+  /** Primary + Assembly only. Always 0 for Secondary. */
   accept: number;
-  /** Not used for Primary Production (always 0). */
+  /** Assembly only. Always 0 for Primary and Secondary. */
   hold: number;
+  /** Primary + Assembly only. Always 0 for Secondary. */
   reject: number;
-  /** Primary Production only — optional trolley count. */
+  /** Primary Production only — trolley count. */
   trolleys?: number;
+  /** Secondary Production only — production/storage bin id. */
+  bin?: string;
   defects: Record<string, number>;
   remarks: string;
   shift: string;
@@ -213,5 +220,16 @@ export type ShiftBatchRecord = {
   /** Set after successful POST /api/ingest */
   synced?: boolean;
 };
+
+/** Common bin labels for Secondary Production (operators may also free-type). */
+export const SECONDARY_BINS = [
+  "Bin A",
+  "Bin B",
+  "Bin C",
+  "Bin D",
+  "Bin E",
+  "Hold Area",
+  "Staging",
+] as const;
 
 export const SHIFT_STORAGE_KEY = "disposafe_shift_batches";
