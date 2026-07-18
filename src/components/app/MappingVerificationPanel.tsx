@@ -90,7 +90,7 @@ export default function MappingVerificationPanel({
               </span>
               {published ? (
                 <span className="small" style={{ color: "var(--positive)" }}>
-                  Verified & published — {published.learned} mappings learned
+                  Mappings verified — {published.learned} learned · extracting numbers into the review grid / ledger…
                 </span>
               ) : (
                 <button

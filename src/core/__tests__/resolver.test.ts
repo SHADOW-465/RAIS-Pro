@@ -51,9 +51,11 @@ describe("resolver ladder (rungs 1–4, no LLM)", () => {
     expect(byHeader.get("REMARKS")?.canonical).toBeNull();
     expect(byHeader.get("REMARKS")?.kind).toBe("meta");
 
-    // Unseeded company: the stage is honestly unresolved, not guessed.
+    // Month-tab sheet: stage comes from the file name (VISUAL INSPECTION…).
+    // Without that fallback extract would emit 0 records on a cold company.
     const stage = proposals.find((p) => p.entityId === "stage:APRIL 25");
-    expect(stage?.canonical).toBeNull();
+    expect(stage?.canonical).toBe("STAGE:visual");
+    expect(stage?.resolvedBy).toBe("rule");
 
     // Nothing omitted: every column + the sheet itself got a proposal.
     expect(proposals.length).toBe(VISUAL_SHEET.columns.length + 1);

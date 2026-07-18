@@ -43,6 +43,34 @@ type Hit = { canonical: string | null; kind: MappingProposalT["kind"]; confidenc
 
 const SIZE_SHEET_RE = /^(\d+)\s*FR\.?\s*$/i;
 
+/**
+ * When sheet tabs are calendar months ("APRIL 25") the stage lives in the
+ * *file name*, not the tab. Without this, cold resolve leaves STAGE canonical
+ * null → extractFromMod skips every region → 0 ledger events.
+ */
+const FILE_STAGE_RULES: { re: RegExp; stageId: string; label: string }[] = [
+  { re: /visual\s*inspection|visual\s*insp/i, stageId: "visual", label: "Visual Inspection" },
+  { re: /valve\s*integrity|balloon\s*&\s*valve|balloon\s+and\s+valve/i, stageId: "valve-integrity", label: "Valve Integrity" },
+  { re: /balloon\s*(inspection|testing|test)/i, stageId: "balloon", label: "Balloon Testing" },
+  { re: /final\s*inspection|final\s*insp/i, stageId: "final", label: "Final Inspection" },
+  { re: /rejection\s*analysis/i, stageId: "final", label: "Final Inspection" },
+  { re: /assembly\s*rejection/i, stageId: "visual", label: "Visual Inspection" },
+];
+
+/** Infer STAGE:* from workbook file name when sheet/region labels don't name a gate. */
+export function stageFromFileName(fileName: string): { canonical: string; reason: string } | null {
+  const base = fileName.replace(/\.[a-z0-9]+$/i, "");
+  for (const rule of FILE_STAGE_RULES) {
+    if (rule.re.test(base)) {
+      return {
+        canonical: `STAGE:${rule.stageId}`,
+        reason: `file name matches ${rule.label} book pattern ("${base.slice(0, 48)}")`,
+      };
+    }
+  }
+  return null;
+}
+
 /** Concept id → entity kind for column-level global-ontology hits. */
 const CONCEPT_KIND: Record<string, MappingProposalT["kind"]> = {
   CHECKED_QTY: "measure", ACCEPTED_QTY: "measure", REWORK_QTY: "measure",
@@ -173,6 +201,19 @@ export async function resolveWorkbook(sheets: ResolverSheet[], ctx: ResolverCont
       ?? (await ctx.knowledge.lookup(ctx.companyId, "stage-alias", sheet.fileName));
     if (aliasHit) {
       stageHits.push({ canonical: aliasHit.canonicalId, kind: "stage", confidence: aliasHit.confidence, resolvedBy: "knowledge", reason: `learned company alias (from MOD ${aliasHit.learnedFrom ?? "unknown"})` });
+    }
+    // Month-tab books (APRIL 25, …): stage is in the file name, not the tab.
+    if (stageHits.length === 0 || stageHits.every((h) => h.canonical == null)) {
+      const fromFile = stageFromFileName(sheet.fileName);
+      if (fromFile) {
+        stageHits.unshift({
+          canonical: fromFile.canonical,
+          kind: "stage",
+          confidence: 0.85,
+          resolvedBy: "rule",
+          reason: fromFile.reason,
+        });
+      }
     }
     if (stageHits.length === 0) {
       stageHits.push({ canonical: null, kind: "stage", confidence: 0.3, resolvedBy: "rule", reason: "region carries data but its stage is unknown — name it once and the company learns it" });

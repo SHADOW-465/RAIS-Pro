@@ -96,10 +96,14 @@ export default function StagingPage() {
     }
   }
 
-  // After Verify & publish: pull the MOD-extracted records into the review
-  // grid; /api/ingest then resolves via the MOD catalog (modId in the body).
+  // After Verify & publish (ontology): extract day-records into the review
+  // grid. If the extract is clean (no invalid rows), auto-ingest into the
+  // event ledger so the dashboard is not left empty after "Verify & publish"
+  // alone — that button only publishes mappings, not KPIs.
   async function handleModPublished(modId: string) {
     try {
+      setBusy(true);
+      setError(null);
       const res = await fetch("/api/mods/records", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,13 +111,58 @@ export default function StagingPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Extraction failed");
+      const extracted: StageDayRecord[] = data.records ?? [];
       setPublishedModId(modId);
-      setRecords((prev) => [...prev, ...data.records]); // accumulate across multiple published MODs
-      const reviewed = buildReviewRows(data.records);
+      // Build the post-extract set synchronously (don't rely on stale React state).
+      let nextRecords: StageDayRecord[] = [];
+      setRecords((prev) => {
+        nextRecords = [...prev, ...extracted];
+        return nextRecords;
+      });
+      const reviewed = buildReviewRows(extracted);
       const firstInvalid = reviewed.findIndex((r) => r.status === "invalid");
       setPage(firstInvalid >= 0 ? Math.floor(firstInvalid / PAGE_SIZE) : 0);
+
+      if (extracted.length === 0) {
+        setError(
+          "Mappings published, but no day-level records were extracted. " +
+            "Usually a stage is still unmapped (canonical STAGE:… is null) or no DATE column was verified. " +
+            "Open Workbooks, check stage rows, re-upload, and set each sheet's stage before publishing.",
+        );
+        return;
+      }
+
+      const invalid = reviewed.filter((r) => r.status === "invalid").length;
+      if (invalid > 0) {
+        // Leave rows in the grid for the operator to fix; they must click Publish.
+        setError(
+          `Extracted ${extracted.length} rows — ${invalid} need fixes before the dashboard can load. Review the grid, then click Publish to Analytics.`,
+        );
+        return;
+      }
+
+      // Clean extract → write the ledger immediately so "Verify & publish" is not a dead end.
+      const ingRes = await fetch("/api/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ingestionId,
+          fileName,
+          records: nextRecords,
+          comments,
+          modId,
+        }),
+      });
+      if (!ingRes.ok) {
+        throw new Error((await ingRes.json().catch(() => ({}))).error ?? "Ingest failed after extract");
+      }
+      const r = await ingRes.json();
+      setDone({ inserted: r.inserted, deduped: r.deduped });
+      refreshEvents().catch(console.error);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Extraction failed");
+    } finally {
+      setBusy(false);
     }
   }
 

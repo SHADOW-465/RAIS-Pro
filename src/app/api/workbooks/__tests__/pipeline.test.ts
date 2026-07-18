@@ -33,16 +33,19 @@ maybe("MOD pipeline end-to-end (upload → verify → publish → learn → re-u
   jest.setTimeout(30000);
 
   it("closes the learning loop", async () => {
-    // 1. First upload: draft MOD, stage honestly unresolved (fresh company).
+    // 1. First upload: draft MOD. Month tabs get STAGE:visual from the file name
+    // (rule fallback) so extract is not empty on a cold company.
     const first = await upload();
     expect(first.mods).toHaveLength(1);
     const mod = first.mods[0];
     expect(mod.version).toBe(1);
     const stageProposals = mod.proposals.filter((p: any) => p.kind === "stage");
     expect(stageProposals.length).toBeGreaterThan(0);
-    expect(stageProposals.every((p: any) => p.canonical === null)).toBe(true);
+    expect(stageProposals.every((p: any) => p.canonical === "STAGE:visual")).toBe(true);
+    expect(stageProposals.every((p: any) => p.resolvedBy === "rule")).toBe(true);
 
-    // 2. Verify: accept everything, but OVERRIDE every stage to STAGE:visual.
+    // 2. Verify: accept everything (filename rule already named the stage).
+    // Explicit override still works and is what gets learned for re-upload.
     const decisions = mod.proposals.map((p: any) =>
       p.kind === "stage"
         ? { entityId: p.entityId, action: "override", canonical: "STAGE:visual", kind: "stage", comment: "it is the visual gate" }
