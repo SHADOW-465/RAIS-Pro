@@ -1,0 +1,2338 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grain Contract Assumptions Panel — MO!D / RAIS-Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Dark Theme */
+  --bg: #090d16;
+  --bg-radial: radial-gradient(120% 50% at 50% -10%, #171c2a, #090d16 65%);
+  --panel: #111827;
+  --panel-hover: #1e293b;
+  --line: #1f2937;
+  --line-active: #38bdf8;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --primary: #38bdf8;
+  --primary-glow: rgba(56, 189, 248, 0.15);
+  
+  /* Status Colors */
+  --confirm: #10b981;
+  --confirm-glow: rgba(16, 185, 129, 0.15);
+  --wrong: #f43f5e;
+  --wrong-glow: rgba(244, 63, 94, 0.15);
+  --unsure: #f59e0b;
+  --unsure-glow: rgba(245, 158, 11, 0.15);
+  
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  --font-sans: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-title: 'Archivo', sans-serif;
+}
+
+[data-theme="light"] {
+  /* Light Theme */
+  --bg: #f8fafc;
+  --bg-radial: radial-gradient(120% 50% at 50% -10%, #eff6ff, #f8fafc 65%);
+  --panel: #ffffff;
+  --panel-hover: #f1f5f9;
+  --line: #e2e8f0;
+  --line-active: #0ea5e9;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --primary: #0ea5e9;
+  --primary-glow: rgba(14, 165, 233, 0.1);
+  
+  --confirm: #059669;
+  --confirm-glow: rgba(5, 150, 105, 0.1);
+  --wrong: #dc2626;
+  --wrong-glow: rgba(220, 38, 38, 0.1);
+  --unsure: #d97706;
+  --unsure-glow: rgba(217, 119, 6, 0.1);
+  
+  --shadow: 0 4px 15px rgba(15, 23, 42, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  background-image: var(--bg-radial);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* App Layout */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Sidebar */
+aside {
+  width: 280px;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  padding: 30px 20px;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  overflow-y: auto;
+  z-index: 100;
+  transition: transform 0.3s, background 0.3s;
+}
+
+aside .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-title);
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--text);
+  margin-bottom: 30px;
+  letter-spacing: -0.5px;
+}
+
+aside .brand span {
+  color: var(--primary);
+}
+
+aside .toc {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+aside .toc li {
+  margin-bottom: 8px;
+}
+
+aside .toc a {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+aside .toc a:hover, aside .toc a.active {
+  color: var(--text);
+  background: var(--panel-hover);
+}
+
+aside .toc a.active {
+  border-left: 3px solid var(--primary);
+  border-radius: 0 8px 8px 0;
+  padding-left: 11px;
+}
+
+/* Main Content Area */
+main {
+  flex: 1;
+  margin-left: 280px;
+  padding: 40px 50px 120px;
+  max-width: 1100px;
+}
+
+/* Header */
+header {
+  margin-bottom: 40px;
+  position: relative;
+}
+
+header .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+header .meta span {
+  background: var(--panel);
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+}
+
+header h1 {
+  font-family: var(--font-title);
+  font-size: 38px;
+  font-weight: 900;
+  margin: 0 0 10px 0;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--text) 50%, var(--primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.2;
+}
+
+header .subtitle {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Controls (Theme Switcher, etc.) */
+.top-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 10px;
+}
+
+.icon-btn {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background: var(--panel-hover);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+/* Alert Callout */
+.callout {
+  background: var(--primary-glow);
+  border-left: 4px solid var(--primary);
+  padding: 20px;
+  border-radius: 0 12px 12px 0;
+  margin-bottom: 40px;
+}
+
+.callout h4 {
+  margin: 0 0 8px 0;
+  font-family: var(--font-title);
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.callout p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* Section Styling */
+section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 30px;
+  margin-bottom: 40px;
+  box-shadow: var(--shadow);
+  transition: all 0.3s;
+}
+
+section:hover {
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+section h2 {
+  font-family: var(--font-title);
+  font-size: 22px;
+  font-weight: 800;
+  margin-top: 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+section h2 span.section-num {
+  font-family: var(--font-mono);
+  color: var(--primary);
+  font-size: 16px;
+}
+
+/* Clean Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 14px;
+}
+
+table th, table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+table th {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+code {
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  border: 1px solid var(--line);
+  color: var(--primary);
+}
+
+/* Interactive Components */
+.interactive-row {
+  transition: background 0.3s;
+}
+
+.interactive-row.confirmed {
+  background: var(--confirm-glow) !important;
+}
+
+.interactive-row.wrong {
+  background: var(--wrong-glow) !important;
+}
+
+.interactive-row.unsure {
+  background: var(--unsure-glow) !important;
+}
+
+/* Option Buttons Group */
+.opt-group {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.opt-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.opt-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.btn-confirm.active {
+  background: var(--confirm) !important;
+  color: white !important;
+  box-shadow: 0 0 10px var(--confirm-glow);
+  border-color: var(--confirm);
+}
+
+.btn-wrong.active {
+  background: var(--wrong) !important;
+  color: white !important;
+  box-shadow: 0 0 10px var(--wrong-glow);
+  border-color: var(--wrong);
+}
+
+.btn-unsure.active {
+  background: var(--unsure) !important;
+  color: white !important;
+  box-shadow: 0 0 10px var(--unsure-glow);
+  border-color: var(--unsure);
+}
+
+/* Feedback Inputs */
+.feedback-box {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.feedback-box textarea {
+  width: 100%;
+  min-height: 60px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 10px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  resize: vertical;
+  transition: all 0.2s;
+}
+
+.feedback-box textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 5px var(--primary-glow);
+}
+
+/* Grid & Choice Layouts */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media(max-width: 768px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card-option {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  padding: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.card-option:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--primary);
+}
+
+.card-option.selected {
+  background: var(--primary-glow);
+  border-color: var(--primary);
+}
+
+.card-option input[type="radio"], .card-option input[type="checkbox"] {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+/* Size Pill Badge Checklist */
+.pills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.pill-checkbox {
+  display: none;
+}
+
+.pill-label {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  padding: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pill-label:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.pill-checkbox:checked + .pill-label {
+  background: var(--primary);
+  color: #090d16;
+  font-weight: bold;
+  border-color: var(--primary);
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* Sticky Action Bar at Bottom */
+.floating-action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 280px;
+  right: 0;
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  padding: 16px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 99;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  transition: left 0.3s, background 0.3s;
+}
+
+[data-theme="light"] .floating-action-bar {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.progress-widget {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.progress-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.progress-bg {
+  width: 180px;
+  height: 8px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--primary);
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #090d16;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--panel-hover);
+  border-color: var(--text-muted);
+}
+
+/* Modal Popup */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  width: 90%;
+  max-width: 750px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: modalScale 0.3s ease;
+}
+
+@keyframes modalScale {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modal-body {
+  padding: 24px;
+  max-height: 450px;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+textarea.export-text {
+  width: 100%;
+  height: 280px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  white-space: pre;
+  resize: none;
+}
+
+textarea.export-text:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Rank list widget styles */
+.rank-item {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.rank-item:hover {
+  background: var(--panel-hover);
+  border-color: var(--primary);
+}
+
+.rank-number {
+  background: var(--primary-glow);
+  color: var(--primary);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: bold;
+  font-size: 12px;
+  margin-right: 15px;
+}
+
+/* Sign-off field groups */
+.sign-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+@media(max-width: 768px) {
+  .sign-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-field label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.input-field input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  transition: all 0.2s;
+}
+
+.input-field input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Internal Note Panel */
+.internal-warning {
+  border-color: var(--unsure);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.internal-warning h2 {
+  color: var(--unsure);
+}
+
+.internal-toggle-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--line);
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: var(--text);
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--primary);
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px);
+  background-color: #090d16;
+}
+
+/* Signature Drawing Canvas */
+.sig-canvas-container {
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  position: relative;
+  height: 100px;
+}
+
+.sig-canvas-container canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.sig-clear-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sig-clear-btn:hover {
+  background: var(--wrong);
+  color: white;
+}
+
+/* Print CSS */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  aside, .floating-action-bar, .top-controls, .sig-clear-btn {
+    display: none !important;
+  }
+  main {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  section {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin-bottom: 30px !important;
+    page-break-inside: avoid;
+  }
+  section h2 {
+    color: #000 !important;
+    border-bottom: 2px solid #000 !important;
+  }
+  .opt-btn {
+    border: 1px solid #ccc !important;
+    color: #555 !important;
+    background: none !important;
+  }
+  .opt-btn.active {
+    font-weight: bold !important;
+    border: 2px solid #000 !important;
+    color: #000 !important;
+    background: #eee !important;
+  }
+  textarea, input {
+    background: none !important;
+    border: 1px solid #aaa !important;
+    color: #000 !important;
+  }
+  .internal-note-section {
+    display: none !important; /* Default hidden in print unless toggled otherwise */
+  }
+  .feedback-box {
+    display: block !important;
+  }
+  .pill-checkbox:checked + .pill-label {
+    background: #ddd !important;
+    color: #000 !important;
+    border-color: #000 !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Sidebar -->
+  <aside>
+    <div class="brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span>RAIS-Pro</span> / MO!D
+    </div>
+    
+    <ul class="toc">
+      <li><a href="#welcome" class="active">Overview & Instructions</a></li>
+      <li><a href="#section-1">1. Facts We Store</a></li>
+      <li><a href="#section-2">2. Batch Dimensions</a></li>
+      <li><a href="#section-3">3. Aggregation Rules</a></li>
+      <li><a href="#section-4">4. Primary Views</a></li>
+      <li><a href="#section-5">5. Process Stages</a></li>
+      <li><a href="#section-6">6. Source of Truth</a></li>
+      <li><a href="#section-7">7. MLP Scope & Priority</a></li>
+      <li><a href="#section-8">8. Worked Example</a></li>
+      <li><a href="#section-9">9. Client Sign-off</a></li>
+      <li><a href="#section-10">10. Internal Engineering Notes</a></li>
+    </ul>
+  </aside>
+
+  <!-- Main Scroll View -->
+  <main>
+    <div class="top-controls">
+      <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme" id="theme-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="sun-icon" style="display:none;"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="moon-icon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
+    </div>
+
+    <!-- Header Section -->
+    <header id="welcome">
+      <div class="meta">
+        <span>CLIENT: DISPOSAFE</span>
+        <span>VERSION: 0.1</span>
+        <span>DATE: 2026-07-15</span>
+        <span>OWNER: ENGINEERING</span>
+      </div>
+      <h1>Grain Contract Assumptions</h1>
+      <p class="subtitle">A structural alignment agreement for Foley Balloon Catheter line quality tracking.</p>
+    </header>
+
+    <!-- Callout Info -->
+    <div class="callout">
+      <h4>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+        How to Use This Document
+      </h4>
+      <p>
+        Everything marked <strong>[A#]</strong> is an operational assumption derived from your current Excel books. 
+        Please mark each assumption: <strong>✓ Confirm</strong>, <strong>✗ Wrong (write the correct rule)</strong>, or <strong>? Unsure</strong>. 
+        Once complete, click <strong>Generate Response</strong> at the bottom to export the text block for email or system sign-off.
+      </p>
+    </div>
+
+    <!-- Section 1 -->
+    <section id="section-1">
+      <h2><span class="section-num">01.</span> What is one “fact” we store?</h2>
+      <p>Every number in the system is stored as a single, granular <strong>observation</strong> to prevent estimates or double-counting:</p>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Meaning</th>
+            <th>Example from your world</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>When</strong></td>
+            <td>Business date the inspection/production happened</td>
+            <td><code>2025-04-02</code></td>
+          </tr>
+          <tr>
+            <td><strong>Stage</strong></td>
+            <td>Process / inspection gate</td>
+            <td>Visual Inspection, Balloon Testing, Valve Integrity, Final</td>
+          </tr>
+          <tr>
+            <td><strong>Size</strong></td>
+            <td>French size (when sheet is size-wise)</td>
+            <td><code>16 FR</code></td>
+          </tr>
+          <tr>
+            <td><strong>Batch</strong></td>
+            <td>Work unit / lot identifier (when present)</td>
+            <td><code>25A28</code> (seen on VISUAL-style sheets)</td>
+          </tr>
+          <tr>
+            <td><strong>Measure</strong></td>
+            <td>What was counted</td>
+            <td>Checked / Accepted / Hold-Rework / Rejected</td>
+          </tr>
+          <tr>
+            <td><strong>Defect</strong></td>
+            <td>Rejection reason (when broken down)</td>
+            <td>COAG, PINH, STBL, LEAK, OTH, …</td>
+          </tr>
+          <tr>
+            <td><strong>Qty</strong></td>
+            <td>Integer count (pcs; sometimes trolleys)</td>
+            <td><code>120</code></td>
+          </tr>
+          <tr>
+            <td><strong>Source</strong></td>
+            <td>Where the number came from</td>
+            <td>File name + sheet + cell, or manual entry</td>
+          </tr>
+        </tbody>
+      </table>
+      <blockquote>
+        <strong>System Rule:</strong> We do not invent or interpolate numbers. Missing data fields show as blank/empty, never estimated or filled by default.
+      </blockquote>
+    </section>
+
+    <!-- Section 2 -->
+    <section id="section-2">
+      <h2><span class="section-num">02.</span> Dimensions & Batch Definition</h2>
+      <p>Assumptions establishing what "batch" and process tracking variables represent:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 80px;">ID</th>
+            <th>Assumption details</th>
+            <th style="width: 280px; text-align: right;">Confirm / Correct</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- A1 -->
+          <tr class="interactive-row" id="row-A1">
+            <td><strong>[A1]</strong></td>
+            <td>
+              <div>A <strong>batch</strong> is a <strong>lot / batch number</strong> written on the inspection sheet (e.g. <code>25A28</code>), not a trolley and not “the whole day.”</div>
+              <div class="feedback-box" id="fb-box-A1" style="display:none;">
+                <textarea placeholder="Write definition if wrong..." oninput="updateNote('A1', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A1', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A1', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A1', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A2 -->
+          <tr class="interactive-row" id="row-A2">
+            <td><strong>[A2]</strong></td>
+            <td>
+              <div>One batch can appear on <strong>more than one stage</strong> (e.g. same lot later at Balloon / Final) — stages are separate facts, not one merged row.</div>
+              <div class="feedback-box" id="fb-box-A2" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A2', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A2', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A2', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A2', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A3 -->
+          <tr class="interactive-row" id="row-A3">
+            <td><strong>[A3]</strong></td>
+            <td>
+              <div>Batch is <strong>optional</strong>. Many rows in your books are <strong>day-only</strong> (no batch column). Those stay valid with <code>batch = (none)</code>.</div>
+              <div class="feedback-box" id="fb-box-A3" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A3', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A3', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A3', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A3', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A4 -->
+          <tr class="interactive-row" id="row-A4">
+            <td><strong>[A4]</strong></td>
+            <td>
+              <div><strong>Size</strong> and <strong>batch</strong> are independent: same day can have multiple sizes and multiple batches.</div>
+              <div class="feedback-box" id="fb-box-A4" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A4', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A4', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A4', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A4', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A5 -->
+          <tr class="interactive-row" id="row-A5">
+            <td><strong>[A5]</strong></td>
+            <td>
+              <div><strong>Shift</strong> (Day/Night) is metadata for entry/audit, not the primary KPI axis (unless you say otherwise).</div>
+              <div class="feedback-box" id="fb-box-A5" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A5', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A5', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A5', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A5', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A6 -->
+          <tr class="interactive-row" id="row-A6">
+            <td><strong>[A6]</strong></td>
+            <td>
+              <div><strong>Machine / operator / supervisor</strong> are optional tags, not required for rejection rate math.</div>
+              <div class="feedback-box" id="fb-box-A6" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A6', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A6', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A6', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A6', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Specific sub-question for Section 2 -->
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--line);">
+        <label style="font-weight: 600; display: block; margin-bottom: 8px;">If [A1] is wrong, write your definition here:</label>
+        <div class="input-field">
+          <input type="text" id="a1-def-input" placeholder="Batch means..." style="width: 100%; max-width: 600px;" oninput="updateA1Definition(this.value)">
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3 -->
+    <section id="section-3">
+      <h2><span class="section-num">03.</span> Aggregation & Math Rules</h2>
+      <p>Decisions that establish how metrics roll up and how data discrepancies are handled:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 80px;">ID</th>
+            <th>Situation details & Default rule</th>
+            <th style="width: 280px; text-align: right;">Confirm / Correct</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- A7 -->
+          <tr class="interactive-row" id="row-A7">
+            <td><strong>[A7]</strong></td>
+            <td>
+              <div>Same <strong>stage + day + size</strong>, <strong>different batches</strong>: Keep as <strong>separate batch rows</strong>. For daily/monthly KPIs, <strong>sum</strong> them.</div>
+              <div class="feedback-box" id="fb-box-A7" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A7', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A7', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A7', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A7', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A8 -->
+          <tr class="interactive-row" id="row-A8">
+            <td><strong>[A8]</strong></td>
+            <td>
+              <div>Same <strong>stage + day</strong>, one file has <strong>per-size</strong> rows and also a <strong>whole-line total</strong>: Prefer <strong>size rows</strong> (sum = stage total); drop the redundant whole-line total to avoid double count.</div>
+              <div class="feedback-box" id="fb-box-A8" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A8', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A8', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A8', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A8', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A9 -->
+          <tr class="interactive-row" id="row-A9">
+            <td><strong>[A9]</strong></td>
+            <td>
+              <div>Same <strong>stage + day</strong> described by <strong>two different uploaded files</strong>: Keep the <strong>higher-precedence</strong> source only (size-wise / detailed > summary). Direct manual entry <strong>wins</strong> over upload for that day.</div>
+              <div class="feedback-box" id="fb-box-A9" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A9', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A9', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A9', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A9', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A10 -->
+          <tr class="interactive-row" id="row-A10">
+            <td><strong>[A10]</strong></td>
+            <td>
+              <div>Re-upload of the <strong>same file</strong>: **Idempotent** — does not double-count.</div>
+              <div class="feedback-box" id="fb-box-A10" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A10', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A10', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A10', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A10', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A11 -->
+          <tr class="interactive-row" id="row-A11">
+            <td><strong>[A11]</strong></td>
+            <td>
+              <div>Sheet has a <strong>% rejection</strong> formula cell: Store as a <strong>claim to verify</strong>, not as the source of truth. Dashboard <strong>recomputes</strong> rate from checked & rejected.</div>
+              <div class="feedback-box" id="fb-box-A11" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A11', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A11', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A11', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A11', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A12 -->
+          <tr class="interactive-row" id="row-A12">
+            <td><strong>[A12]</strong></td>
+            <td>
+              <div>Defect columns sum ≠ Rejected total: <strong>Flag as a data issue</strong> (warning); still store both; do not silently “fix” the sheet.</div>
+              <div class="feedback-box" id="fb-box-A12" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A12', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A12', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A12', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A12', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Questions [A13] and [A14] -->
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px;">
+        <div class="interactive-row" id="row-A13" style="padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+            <div>
+              <strong>[A13]</strong> When a manager opens “Batch view,” should they see <strong>unmerged</strong> batch lines (even if same day/size)? (Default: YES)
+              <div class="feedback-box" id="fb-box-A13" style="display:none; margin-top: 8px;">
+                <textarea placeholder="Provide details if not default..." oninput="updateNote('A13', this.value)"></textarea>
+              </div>
+            </div>
+            <div class="opt-group">
+              <button class="opt-btn btn-confirm" onclick="setAssumption('A13', 'confirm')">✓ Yes</button>
+              <button class="opt-btn btn-wrong" onclick="setAssumption('A13', 'wrong')">✗ No</button>
+              <button class="opt-btn btn-unsure" onclick="setAssumption('A13', 'unsure')">?</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="interactive-row" id="row-A14" style="padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+            <div>
+              <strong>[A14]</strong> When a manager opens “Monthly dashboard,” should they see <strong>sums across batches</strong> for that month? (Default: YES)
+              <div class="feedback-box" id="fb-box-A14" style="display:none; margin-top: 8px;">
+                <textarea placeholder="Provide details if not default..." oninput="updateNote('A14', this.value)"></textarea>
+              </div>
+            </div>
+            <div class="opt-group">
+              <button class="opt-btn btn-confirm" onclick="setAssumption('A14', 'confirm')">✓ Yes</button>
+              <button class="opt-btn btn-wrong" onclick="setAssumption('A14', 'wrong')">✗ No</button>
+              <button class="opt-btn btn-unsure" onclick="setAssumption('A14', 'unsure')">?</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4 -->
+    <section id="section-4">
+      <h2><span class="section-num">04.</span> Primary Views & Dashboards</h2>
+      <p>Views designed for first deployment priority (v1 optimization):</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Priority</th>
+            <th>View</th>
+            <th>Question it answers</th>
+            <th>Default State</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span style="color: var(--wrong); font-weight: bold; font-family: var(--font-mono);">P0</span></td>
+            <td><strong>Stage · Day</strong></td>
+            <td>“What happened at Visual yesterday?”</td>
+            <td><span style="color: var(--confirm); font-weight: 500;">ON</span></td>
+          </tr>
+          <tr>
+            <td><span style="color: var(--wrong); font-weight: bold; font-family: var(--font-mono);">P0</span></td>
+            <td><strong>Stage · Day · Size</strong></td>
+            <td>“Which FR is rejecting more this week?”</td>
+            <td><span style="color: var(--confirm); font-weight: 500;">ON</span> <span style="font-size: 11px; color: var(--text-muted);">(where size-wise sheets exist)</span></td>
+          </tr>
+          <tr>
+            <td><span style="color: var(--wrong); font-weight: bold; font-family: var(--font-mono);">P0</span></td>
+            <td><strong>Defect Pareto</strong> (scoped by stage/period)</td>
+            <td>“Which defect codes dominate?”</td>
+            <td><span style="color: var(--confirm); font-weight: 500;">ON</span></td>
+          </tr>
+          <tr>
+            <td><span style="color: var(--wrong); font-weight: bold; font-family: var(--font-mono);">P0</span></td>
+            <td><strong>Batch table</strong></td>
+            <td>“How did lot <code>25A28</code> perform?” / “Worst batches this week?”</td>
+            <td><span style="color: var(--confirm); font-weight: bold;">ON — elevated</span></td>
+          </tr>
+          <tr>
+            <td><span style="color: var(--unsure); font-weight: bold; font-family: var(--font-mono);">P1</span></td>
+            <td>Week / Month / FY rollups</td>
+            <td>Management calendar reporting</td>
+            <td><span style="color: var(--confirm); font-weight: 500;">ON</span></td>
+          </tr>
+          <tr>
+            <td><span style="color: var(--text-muted); font-family: var(--font-mono);">P2</span></td>
+            <td>SPC control charts</td>
+            <td>Process stability</td>
+            <td>After P0 trusted</td>
+          </tr>
+          <tr>
+            <td><span style="color: var(--text-muted); font-family: var(--font-mono);">P2</span></td>
+            <td>COPQ ₹ savings</td>
+            <td>Cost of poor quality</td>
+            <td>After P0 trusted</td>
+          </tr>
+          <tr>
+            <td><span style="color: var(--text-muted); font-family: var(--font-mono);">P3</span></td>
+            <td>Full 27-step process map</td>
+            <td>Line storytelling</td>
+            <td>Optional overlay</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Question A15 -->
+      <div class="interactive-row" id="row-A15" style="margin-top: 25px; padding: 20px 20px 20px 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <strong>[A15] The Monday-morning default home screen should be:</strong>
+          <div class="opt-group">
+            <button class="opt-btn btn-confirm" onclick="setAssumption('A15', 'confirm')">✓ Agree</button>
+            <button class="opt-btn btn-wrong" onclick="setAssumption('A15', 'wrong')">✗ Modify</button>
+            <button class="opt-btn btn-unsure" onclick="setAssumption('A15', 'unsure')">?</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card-option selected" id="opt-home-1" onclick="selectHomeScreen(1)">
+            <input type="radio" name="homescreen" checked>
+            <div style="font-weight: 600; margin-bottom: 4px;">Factory overview</div>
+            <div style="font-size: 12.5px; color: var(--text-muted);">Displays all quality gates for the current period (Recommended default)</div>
+          </div>
+          <div class="card-option" id="opt-home-2" onclick="selectHomeScreen(2)">
+            <input type="radio" name="homescreen">
+            <div style="font-weight: 600; margin-bottom: 4px;">Batch list</div>
+            <div style="font-size: 12.5px; color: var(--text-muted);">Show latest production batches first for lot review</div>
+          </div>
+          <div class="card-option" id="opt-home-3" onclick="selectHomeScreen(3)">
+            <input type="radio" name="homescreen">
+            <div style="font-weight: 600; margin-bottom: 4px;">Single stage deep-dive</div>
+            <div style="font-size: 12.5px; color: var(--text-muted);">Focus closely on a specific inspection point</div>
+          </div>
+          <div class="card-option" id="opt-home-4" onclick="selectHomeScreen(4)">
+            <input type="radio" name="homescreen">
+            <div style="font-weight: 600; margin-bottom: 4px;">Other layout</div>
+            <input type="text" id="home-other-text" placeholder="Specify other layout requirements..." style="width: 100%; margin-top: 8px; font-size: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--line); color: var(--text); border-radius: 4px; padding: 4px 8px;" onfocus="selectHomeScreen(4)" oninput="state.a15.otherText = this.value">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5 -->
+    <section id="section-5">
+      <h2><span class="section-num">05.</span> Process Stages & French Sizes</h2>
+      <p>The gates and sizing parameters defined for mapping:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Quality gate (stage)</th>
+            <th>Size-wise?</th>
+            <th>Defect breakdown?</th>
+            <th>Typical source document / book</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Visual Inspection</strong></td>
+            <td>Yes</td>
+            <td>Yes <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">(COAG, PINH, …)</span></td>
+            <td>VISUAL / size-wise books</td>
+          </tr>
+          <tr>
+            <td><strong>Balloon Testing</strong></td>
+            <td>Yes</td>
+            <td>Yes <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">(STBL, BLBR, LEAK, …)</span></td>
+            <td>Valve / balloon books</td>
+          </tr>
+          <tr>
+            <td><strong>Valve Integrity</strong></td>
+            <td>Yes</td>
+            <td>Yes <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">(LEAK, 90/10, BUB, THSP, …)</span></td>
+            <td>Same family books</td>
+          </tr>
+          <tr>
+            <td><strong>Final Inspection</strong></td>
+            <td>Yes</td>
+            <td>Yes <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">(subset of visual-like codes)</span></td>
+            <td>FINAL sheets</td>
+          </tr>
+          <tr>
+            <td><strong>Production / eye-punching / …</strong></td>
+            <td>Often no</td>
+            <td>Often no or light</td>
+            <td>Daily activity / shopfloor log</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Questions [A16] [A17] [A18] -->
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- A16 -->
+        <div class="interactive-row" id="row-A16" style="padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+            <div>
+              <strong>[A16]</strong> These four gates (Visual, Balloon, Valve Integrity, Final) are the <strong>primary</strong> analytics universe for v1; other process steps are secondary until you prioritize them.
+              <div class="feedback-box" id="fb-box-A16" style="display:none; margin-top: 8px;">
+                <textarea placeholder="Write rule or list other gates..." oninput="updateNote('A16', this.value)"></textarea>
+              </div>
+            </div>
+            <div class="opt-group">
+              <button class="opt-btn btn-confirm" onclick="setAssumption('A16', 'confirm')">✓ Confirm</button>
+              <button class="opt-btn btn-wrong" onclick="setAssumption('A16', 'wrong')">✗ Wrong</button>
+              <button class="opt-btn btn-unsure" onclick="setAssumption('A16', 'unsure')">?</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- A17 -->
+        <div class="interactive-row" id="row-A17" style="padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 12px;">
+            <div>
+              <strong>[A17]</strong> French sizes <strong>6–24 FR</strong> cover production. Confirm the active sizes or deselect unused ones below:
+              <div class="feedback-box" id="fb-box-A17" style="display:none; margin-top: 8px;">
+                <textarea placeholder="Provide sizing notes..." oninput="updateNote('A17', this.value)"></textarea>
+              </div>
+            </div>
+            <div class="opt-group">
+              <button class="opt-btn btn-confirm" onclick="setAssumption('A17', 'confirm')">✓ Confirm</button>
+              <button class="opt-btn btn-wrong" onclick="setAssumption('A17', 'wrong')">✗ Wrong</button>
+              <button class="opt-btn btn-unsure" onclick="setAssumption('A17', 'unsure')">?</button>
+            </div>
+          </div>
+          
+          <div class="pills-container">
+            <input type="checkbox" id="fr-6" class="pill-checkbox" checked onchange="toggleSize('6')"><label for="fr-6" class="pill-label">6 FR</label>
+            <input type="checkbox" id="fr-8" class="pill-checkbox" checked onchange="toggleSize('8')"><label for="fr-8" class="pill-label">8 FR</label>
+            <input type="checkbox" id="fr-10" class="pill-checkbox" checked onchange="toggleSize('10')"><label for="fr-10" class="pill-label">10 FR</label>
+            <input type="checkbox" id="fr-12" class="pill-checkbox" checked onchange="toggleSize('12')"><label for="fr-12" class="pill-label">12 FR</label>
+            <input type="checkbox" id="fr-14" class="pill-checkbox" checked onchange="toggleSize('14')"><label for="fr-14" class="pill-label">14 FR</label>
+            <input type="checkbox" id="fr-16" class="pill-checkbox" checked onchange="toggleSize('16')"><label for="fr-16" class="pill-label">16 FR</label>
+            <input type="checkbox" id="fr-18" class="pill-checkbox" checked onchange="toggleSize('18')"><label for="fr-18" class="pill-label">18 FR</label>
+            <input type="checkbox" id="fr-20" class="pill-checkbox" checked onchange="toggleSize('20')"><label for="fr-20" class="pill-label">20 FR</label>
+            <input type="checkbox" id="fr-22" class="pill-checkbox" checked onchange="toggleSize('22')"><label for="fr-22" class="pill-label">22 FR</label>
+            <input type="checkbox" id="fr-24" class="pill-checkbox" checked onchange="toggleSize('24')"><label for="fr-24" class="pill-label">24 FR</label>
+          </div>
+        </div>
+
+        <!-- A18 -->
+        <div class="interactive-row" id="row-A18" style="padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+            <div>
+              <strong>[A18]</strong> Fiscal year starts <strong>April</strong> (FY Apr–Mar).
+              <div class="feedback-box" id="fb-box-A18" style="display:none; margin-top: 8px;">
+                <textarea placeholder="Write different FY period..." oninput="updateNote('A18', this.value)"></textarea>
+              </div>
+            </div>
+            <div class="opt-group">
+              <button class="opt-btn btn-confirm" onclick="setAssumption('A18', 'confirm')">✓ Confirm</button>
+              <button class="opt-btn btn-wrong" onclick="setAssumption('A18', 'wrong')">✗ Wrong</button>
+              <button class="opt-btn btn-unsure" onclick="setAssumption('A18', 'unsure')">?</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Section 6 -->
+    <section id="section-6">
+      <h2><span class="section-num">06.</span> Source of Truth (Conflict Resolution)</h2>
+      <p>Rules that determine what wins when data entries disagree:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 80px;">ID</th>
+            <th>Conflict Situation & Resolution Rule</th>
+            <th style="width: 280px; text-align: right;">Confirm / Correct</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- A19 -->
+          <tr class="interactive-row" id="row-A19">
+            <td><strong>[A19]</strong></td>
+            <td>
+              <div>Excel upload vs manual data entry for same stage·day: <strong>Manual entry wins</strong>.</div>
+              <div class="feedback-box" id="fb-box-A19" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A19', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A19', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A19', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A19', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A20 -->
+          <tr class="interactive-row" id="row-A20">
+            <td><strong>[A20]</strong></td>
+            <td>
+              <div>Detailed size-wise book vs monthly summary book: <strong>Detailed book wins</strong>.</div>
+              <div class="feedback-box" id="fb-box-A20" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A20', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A20', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A20', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A20', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A21 -->
+          <tr class="interactive-row" id="row-A21">
+            <td><strong>[A21]</strong></td>
+            <td>
+              <div>Two “official” numbers from different departments: System <strong>flags conflict</strong>; human adjudicates — we do not pick silently.</div>
+              <div class="feedback-box" id="fb-box-A21" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A21', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A21', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A21', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A21', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+          <!-- A22 -->
+          <tr class="interactive-row" id="row-A22">
+            <td><strong>[A22]</strong></td>
+            <td>
+              <div>Column header spelling variants (<em>“STRUCK BALLOON”</em> / <em>“BALLOOM BRUST”</em>): Map to <strong>one defect code</strong> after you verify mappings once; keep raw text for audit.</div>
+              <div class="feedback-box" id="fb-box-A22" style="display:none;">
+                <textarea placeholder="Write rule if wrong..." oninput="updateNote('A22', this.value)"></textarea>
+              </div>
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+              <div class="opt-group">
+                <button class="opt-btn btn-confirm" onclick="setAssumption('A22', 'confirm')">✓</button>
+                <button class="opt-btn btn-wrong" onclick="setAssumption('A22', 'wrong')">✗</button>
+                <button class="opt-btn btn-unsure" onclick="setAssumption('A22', 'unsure')">?</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 7 -->
+    <section id="section-7">
+      <h2><span class="section-num">07.</span> MLP Scope & Priority Ranking</h2>
+      <p>Features slated for the initial Minimum Viable Product (MLP) launch versus later updates:</p>
+
+      <div class="grid-2" style="margin-bottom: 25px;">
+        <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--line); padding: 15px; border-radius: 8px;">
+          <h4 style="margin-top: 0; color: var(--confirm); display: flex; align-items: center; gap: 8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            In Scope (v1 Standard)
+          </h4>
+          <ol style="padding-left: 20px; font-size: 13.5px; color: var(--text-muted); margin-bottom: 0;">
+            <li style="margin-bottom: 6px;">Workbook uploads with column mapping (numbers match sheet perfectly).</li>
+            <li style="margin-bottom: 6px;">Day and Batch views (where batch numbers are captured).</li>
+            <li style="margin-bottom: 6px;">Stage, size, and defect breakdowns with dynamic "View Source" provenance.</li>
+            <li style="margin-bottom: 6px;">Zero silent double counting (idempotent uploads).</li>
+            <li style="margin-bottom: 0;">Export & audit system showing raw entries.</li>
+          </ol>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--line); padding: 15px; border-radius: 8px;">
+          <h4 style="margin-top: 0; color: var(--unsure); display: flex; align-items: center; gap: 8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+            Explicitly Later (Post-v1)
+          </h4>
+          <ul style="padding-left: 20px; list-style-type: square; font-size: 13.5px; color: var(--text-muted); margin-bottom: 0;">
+            <li style="margin-bottom: 6px;">Full SPC suite statistical polish.</li>
+            <li style="margin-bottom: 6px;">COPQ finance-grade cost structures.</li>
+            <li style="margin-bottom: 6px;">CAPA ticket automation.</li>
+            <li style="margin-bottom: 6px;">Multi-plant / multi-product data mapping.</li>
+            <li style="margin-bottom: 0;">AI natural language chat interface.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Question A23 -->
+      <div class="interactive-row" id="row-A23" style="padding: 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <strong>[A23] Do you agree with this MLP feature order?</strong>
+          <div class="opt-group">
+            <button class="opt-btn btn-confirm" onclick="setAssumption('A23', 'confirm')">✓ Agree</button>
+            <button class="opt-btn btn-wrong" onclick="setAssumption('A23', 'wrong')">✗ Modify</button>
+            <button class="opt-btn btn-unsure" onclick="setAssumption('A23', 'unsure')">?</button>
+          </div>
+        </div>
+
+        <p style="font-size: 13.5px; color: var(--text-muted);">If you would like to prioritize differently, rank your top 3 concerns below:</p>
+        
+        <div class="sign-grid">
+          <div class="input-field">
+            <label>Rank 1 Priority</label>
+            <input type="text" id="rank-1" placeholder="e.g. Workbook upload integrity" oninput="updateRank(1, this.value)">
+          </div>
+          <div class="input-field">
+            <label>Rank 2 Priority</label>
+            <input type="text" id="rank-2" placeholder="e.g. Batch tracking" oninput="updateRank(2, this.value)">
+          </div>
+          <div class="input-field">
+            <label>Rank 3 Priority</label>
+            <input type="text" id="rank-3" placeholder="e.g. Excel audits" oninput="updateRank(3, this.value)">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 8 -->
+    <section id="section-8">
+      <h2><span class="section-num">08.</span> Worked Example & Layout Preference</h2>
+      <p>A concrete example mapping raw inputs to expected system views:</p>
+
+      <h4 style="margin-bottom: 8px; font-family: var(--font-title);">Source Sheet Rows (Visual Stage, 2025-04-02)</h4>
+      <table style="margin-top: 5px;">
+        <thead>
+          <tr>
+            <th>Batch</th>
+            <th>Size</th>
+            <th>Checked Qty</th>
+            <th>Rejected Qty</th>
+            <th>PINH Defect Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>25A28</code></td>
+            <td><code>16 FR</code></td>
+            <td>1,000</td>
+            <td>12</td>
+            <td>5</td>
+          </tr>
+          <tr>
+            <td><code>25A29</code></td>
+            <td><code>16 FR</code></td>
+            <td>800</td>
+            <td>4</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td><code>25A28</code></td>
+            <td><code>18 FR</code></td>
+            <td>500</td>
+            <td>6</td>
+            <td>2</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4 style="margin-bottom: 8px; margin-top: 25px; font-family: var(--font-title);">Default Display Resolution Mapping</h4>
+      <table style="margin-top: 5px;">
+        <thead>
+          <tr>
+            <th>Target View</th>
+            <th>Expected Aggregation Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Batch <code>25A28</code> View</strong></td>
+            <td>Two lines (16 FR + 18 FR): checked 1500 (1000+500), rejected 18 (12+6)</td>
+          </tr>
+          <tr>
+            <td><strong>Day 2025-04-02 · Visual · 16 FR</strong></td>
+            <td>Checked <strong>1,800</strong>, Rejected <strong>16</strong> (both batches summed together)</td>
+          </tr>
+          <tr>
+            <td><strong>Monthly Rollup</strong></td>
+            <td>Sums all days (batches are rolled up unless Batch view is selected)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Question A24 -->
+      <div class="interactive-row" id="row-A24" style="margin-top: 25px; padding: 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;">
+          <div>
+            <strong>[A24]</strong> For one batch with multiple sizes, default is <strong>keep size split inside the batch</strong>.<br>
+            Do you prefer instead <strong>one total per batch</strong> (hiding size details)?
+            <div class="feedback-box" id="fb-box-A24" style="display:none; margin-top: 8px;">
+              <textarea placeholder="Write layout request..." oninput="updateNote('A24', this.value)"></textarea>
+            </div>
+          </div>
+          <div class="opt-group" style="align-self: center;">
+            <button class="opt-btn btn-confirm" onclick="setAssumption('A24', 'confirm')">✓ Keep Size Split</button>
+            <button class="opt-btn btn-wrong" onclick="setAssumption('A24', 'wrong')">✗ Rollup / Hide Size</button>
+            <button class="opt-btn btn-unsure" onclick="setAssumption('A24', 'unsure')">?</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 9 -->
+    <section id="section-9">
+      <h2><span class="section-num">09.</span> Client Sign-off Panel</h2>
+      <p>Confirm authorization and sign-off on the operational logic detailed above:</p>
+
+      <div class="card-option" style="cursor: default; padding: 20px; margin-bottom: 25px;">
+        <p style="margin: 0; font-size: 13.5px; color: var(--text-muted);">
+          <strong>Instructions for Client:</strong> Enter your name, date, and confirm your approval below. 
+          Assumptions marked with <strong>✗ Wrong</strong> will be compiled into the final PRD rules list for modification.
+        </p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 30px;">
+        <!-- Plant / Quality owner -->
+        <div style="padding-bottom: 20px; border-bottom: 1px solid var(--line);">
+          <h4 style="margin: 0 0 12px 0; font-family: var(--font-title); font-size: 15px;">Plant / Quality Owner</h4>
+          <div class="sign-grid">
+            <div class="input-field">
+              <label>Full Name</label>
+              <input type="text" id="sig-name-1" placeholder="Authorized Signatory Name" oninput="updateSignoff('plantOwner', 'name', this.value)">
+            </div>
+            <div class="input-field">
+              <label>Date</label>
+              <input type="date" id="sig-date-1" oninput="updateSignoff('plantOwner', 'date', this.value)">
+            </div>
+            <div class="input-field">
+              <label>Confirm / Sign (Type OK)</label>
+              <input type="text" id="sig-ok-1" placeholder="Type OK to confirm" oninput="updateSignoff('plantOwner', 'sig', this.value)">
+            </div>
+          </div>
+        </div>
+
+        <!-- Who uses dashboard daily -->
+        <div style="padding-bottom: 20px; border-bottom: 1px solid var(--line);">
+          <h4 style="margin: 0 0 12px 0; font-family: var(--font-title); font-size: 15px;">Daily Dashboard User (Quality Lead)</h4>
+          <div class="sign-grid">
+            <div class="input-field">
+              <label>Full Name</label>
+              <input type="text" id="sig-name-2" placeholder="User Name" oninput="updateSignoff('dailyUser', 'name', this.value)">
+            </div>
+            <div class="input-field">
+              <label>Date</label>
+              <input type="date" id="sig-date-2" oninput="updateSignoff('dailyUser', 'date', this.value)">
+            </div>
+            <div class="input-field">
+              <label>Confirm / Sign (Type OK)</label>
+              <input type="text" id="sig-ok-2" placeholder="Type OK to confirm" oninput="updateSignoff('dailyUser', 'sig', this.value)">
+            </div>
+          </div>
+        </div>
+
+        <!-- Who owns the Excel files -->
+        <div style="padding-bottom: 20px; border-bottom: 1px solid var(--line);">
+          <h4 style="margin: 0 0 12px 0; font-family: var(--font-title); font-size: 15px;">Excel Book Owner / Data Entry Lead</h4>
+          <div class="sign-grid">
+            <div class="input-field">
+              <label>Full Name</label>
+              <input type="text" id="sig-name-3" placeholder="Data Owner Name" oninput="updateSignoff('excelOwner', 'name', this.value)">
+            </div>
+            <div class="input-field">
+              <label>Date</label>
+              <input type="date" id="sig-date-3" oninput="updateSignoff('excelOwner', 'date', this.value)">
+            </div>
+            <div class="input-field">
+              <label>Confirm / Sign (Type OK)</label>
+              <input type="text" id="sig-ok-3" placeholder="Type OK to confirm" oninput="updateSignoff('excelOwner', 'sig', this.value)">
+            </div>
+          </div>
+        </div>
+
+        <!-- Engineering -->
+        <div>
+          <h4 style="margin: 0 0 12px 0; font-family: var(--font-title); font-size: 15px;">Engineering Representative</h4>
+          <div class="sign-grid">
+            <div class="input-field">
+              <label>Full Name</label>
+              <input type="text" id="sig-name-4" placeholder="Lead Engineer Name" oninput="updateSignoff('engineering', 'name', this.value)">
+            </div>
+            <div class="input-field">
+              <label>Date</label>
+              <input type="date" id="sig-date-4" oninput="updateSignoff('engineering', 'date', this.value)">
+            </div>
+            <div class="input-field">
+              <label>Confirm / Sign (Type OK)</label>
+              <input type="text" id="sig-ok-4" placeholder="Type OK to confirm" oninput="updateSignoff('engineering', 'sig', this.value)">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 10 -->
+    <section id="section-10" class="internal-warning internal-note-section">
+      <div class="internal-toggle-container">
+        <h2>
+          <span class="section-num">10.</span> 
+          Internal Note (Engineering Only)
+        </h2>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 12px; color: var(--unsure); font-weight: bold; font-family: var(--font-mono);">SHOW IN PRINT?</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="print-internal-toggle" onchange="togglePrintInternal(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      
+      <p style="color: var(--text-muted); font-size: 13.5px; margin-top: -10px; margin-bottom: 20px;">
+        <strong>Warning:</strong> This section contains system mapping details and pending backlog items. 
+        It is intended for the engineering team and should be hidden from the client during final sign-off reviews.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Assumption</th>
+            <th>Maps to system today</th>
+            <th>Backlog / UI Gap</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Batch optional, day primary</strong></td>
+            <td>Events have <code>batchNo</code>; entry has header batch</td>
+            <td>Batch is not yet a first-class citizen in the analytics UI.</td>
+          </tr>
+          <tr>
+            <td><strong>[A7] Sum for KPIs, separate for Batch</strong></td>
+            <td><code>canonicalizeEvents</code> preserves multi-batch rows; selectors sum values</td>
+            <td>Need explicit <code>byBatch</code> views.</td>
+          </tr>
+          <tr>
+            <td><strong>[A8] [A9] precedence</strong></td>
+            <td>Handled in <code>canonicalizeEvents</code></td>
+            <td>Keep current implementation.</td>
+          </tr>
+          <tr>
+            <td><strong>[A11] claims vs facts</strong></td>
+            <td><code>AggregateClaimEvent</code> structures</td>
+            <td>Keep current implementation.</td>
+          </tr>
+          <tr>
+            <td><strong>Defect catalog</strong></td>
+            <td>MOD / migration seed</td>
+            <td>Entry UI must dynamically follow sheet/MOD rather than hardcoding fields.</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <blockquote style="border-color: var(--unsure); background: rgba(245,158,11,0.03); margin-top: 20px; font-size: 13.5px; color: var(--text);">
+        <strong>Post Sign-off Checklist:</strong> Implement Batch table + entry grain; complete quality entry-template rewire; freeze MLP scope.
+      </blockquote>
+    </section>
+  </main>
+</div>
+
+<!-- Floating Status / Action Bar -->
+<div class="floating-action-bar">
+  <div class="progress-widget">
+    <div class="progress-text">Progress: <span id="progress-val">0</span> / 24 Reviewed</div>
+    <div class="progress-bg">
+      <div class="progress-fill" id="progress-fill-bar"></div>
+    </div>
+  </div>
+  
+  <div class="action-buttons">
+    <button class="btn-secondary" onclick="printPage()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / Save PDF
+    </button>
+    <button class="btn-primary" onclick="openExportModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v16"/></svg>
+      Generate Response
+    </button>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="export-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Sign-off Response Generated</h3>
+      <button class="icon-btn" onclick="closeExportModal()" style="border:none; background:none; width:24px; height:24px;">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 13.5px; margin-top: 0; color: var(--text-muted);">
+        Copy the markdown formatted block below. You can send this response via email or commit it directly to repository logs.
+      </p>
+      <textarea class="export-text" id="export-textarea" readonly></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeExportModal()">Close</button>
+      <button class="btn-primary" onclick="copyMarkdownResponse()" id="copy-btn">
+        Copy to Clipboard
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// State Management
+const state = {
+  assumptions: {},
+  a1_definition: '',
+  a13: '',
+  a14: '',
+  a15: { choice: 'Factory overview', otherText: '' },
+  a16: { status: '', note: '' },
+  a17: ['6', '8', '10', '12', '14', '16', '18', '20', '22', '24'],
+  a18: { status: '', note: '' },
+  a23: { choice1: '', choice2: '', choice3: '' },
+  a24: { status: '', note: '' },
+  signoff: {
+    plantOwner: { name: '', date: '', sig: '' },
+    dailyUser: { name: '', date: '', sig: '' },
+    excelOwner: { name: '', date: '', sig: '' },
+    engineering: { name: '', date: '', sig: '' }
+  },
+  theme: 'dark'
+};
+
+// Initialize state keys for A1 - A24
+const ids = ['A1','A2','A3','A4','A5','A6','A7','A8','A9','A10','A11','A12','A13','A14','A16','A17','A18','A19','A20','A21','A22','A23','A24'];
+ids.forEach(id => {
+  state.assumptions[id] = { status: '', note: '' };
+});
+
+// Load from LocalStorage if it exists
+window.onload = function() {
+  const savedState = localStorage.getItem('grain_contract_state');
+  if (savedState) {
+    try {
+      const parsed = JSON.parse(savedState);
+      Object.assign(state, parsed);
+      applySavedState();
+    } catch(e) {
+      console.error("Error parsing saved state: ", e);
+    }
+  }
+  updateProgress();
+  setupTOCScrollspy();
+};
+
+function saveState() {
+  localStorage.setItem('grain_contract_state', JSON.stringify(state));
+}
+
+// Interactivity Handlers
+function setAssumption(id, val) {
+  const row = document.getElementById('row-' + id);
+  const buttons = row.querySelectorAll('.opt-btn');
+  
+  // Clear active classes
+  buttons.forEach(btn => btn.classList.remove('active'));
+  
+  // Toggle off if clicking the same active status
+  if (state.assumptions[id].status === val) {
+    state.assumptions[id].status = '';
+    row.className = "interactive-row";
+    document.getElementById('fb-box-' + id).style.display = 'none';
+  } else {
+    // Set status
+    state.assumptions[id].status = val;
+    row.className = "interactive-row " + val;
+    
+    // Highlight correct button
+    let index = 0;
+    if (val === 'wrong') index = 1;
+    if (val === 'unsure') index = 2;
+    buttons[index].classList.add('active');
+    
+    // Open feedback textarea if wrong or unsure
+    const fbBox = document.getElementById('fb-box-' + id);
+    if (val === 'wrong' || val === 'unsure') {
+      fbBox.style.display = 'block';
+    } else {
+      fbBox.style.display = 'none';
+    }
+  }
+  
+  saveState();
+  updateProgress();
+}
+
+function updateNote(id, text) {
+  state.assumptions[id].note = text;
+  saveState();
+}
+
+function updateA1Definition(val) {
+  state.a1_definition = val;
+  saveState();
+}
+
+function selectHomeScreen(num) {
+  for (let i = 1; i <= 4; i++) {
+    const card = document.getElementById('opt-home-' + i);
+    card.classList.remove('selected');
+    card.querySelector('input').checked = false;
+  }
+  const activeCard = document.getElementById('opt-home-' + num);
+  activeCard.classList.add('selected');
+  activeCard.querySelector('input').checked = true;
+  
+  const choices = ['Factory overview', 'Batch list', 'Single stage deep-dive', 'Other'];
+  state.a15.choice = choices[num - 1];
+  
+  saveState();
+}
+
+function toggleSize(sz) {
+  const index = state.a17.indexOf(sz);
+  if (index > -1) {
+    state.a17.splice(index, 1);
+  } else {
+    state.a17.push(sz);
+  }
+  state.a17.sort((a,b) => parseInt(a) - parseInt(b));
+  saveState();
+}
+
+function updateRank(num, val) {
+  state.a23['choice' + num] = val;
+  saveState();
+}
+
+function updateSignoff(role, field, val) {
+  state.signoff[role][field] = val;
+  saveState();
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const sun = document.getElementById('sun-icon');
+  const moon = document.getElementById('moon-icon');
+  
+  if (html.getAttribute('data-theme') === 'dark') {
+    html.setAttribute('data-theme', 'light');
+    sun.style.display = 'block';
+    moon.style.display = 'none';
+    state.theme = 'light';
+  } else {
+    html.setAttribute('data-theme', 'dark');
+    sun.style.display = 'none';
+    moon.style.display = 'block';
+    state.theme = 'dark';
+  }
+  saveState();
+}
+
+function togglePrintInternal(checked) {
+  const section = document.querySelector('.internal-note-section');
+  if (checked) {
+    section.style.setProperty('display', 'block', 'important');
+  } else {
+    section.style.removeProperty('display');
+  }
+}
+
+// Progress calculation
+function updateProgress() {
+  let count = 0;
+  ids.forEach(id => {
+    if (state.assumptions[id] && state.assumptions[id].status) {
+      count++;
+    }
+  });
+  
+  document.getElementById('progress-val').innerText = count;
+  const pct = Math.round((count / ids.length) * 100);
+  document.getElementById('progress-fill-bar').style.width = pct + '%';
+}
+
+// Re-apply states from localstorage on load
+function applySavedState() {
+  ids.forEach(id => {
+    const item = state.assumptions[id];
+    if (item && item.status) {
+      const row = document.getElementById('row-' + id);
+      if (row) {
+        row.className = "interactive-row " + item.status;
+        const buttons = row.querySelectorAll('.opt-btn');
+        let btnIdx = 0;
+        if (item.status === 'wrong') btnIdx = 1;
+        if (item.status === 'unsure') btnIdx = 2;
+        if (buttons[btnIdx]) buttons[btnIdx].classList.add('active');
+        
+        const fbBox = document.getElementById('fb-box-' + id);
+        if (fbBox && (item.status === 'wrong' || item.status === 'unsure')) {
+          fbBox.style.display = 'block';
+          fbBox.querySelector('textarea').value = item.note || '';
+        }
+      }
+    }
+  });
+  
+  if (state.a1_definition) {
+    document.getElementById('a1-def-input').value = state.a1_definition;
+  }
+  
+  if (state.a15 && state.a15.choice) {
+    const choices = ['Factory overview', 'Batch list', 'Single stage deep-dive', 'Other'];
+    const idx = choices.indexOf(state.a15.choice) + 1;
+    if (idx > 0) selectHomeScreen(idx);
+    if (state.a15.otherText) {
+      document.getElementById('home-other-text').value = state.a15.otherText;
+    }
+  }
+  
+  if (state.a17) {
+    document.querySelectorAll('.pill-checkbox').forEach(chk => {
+      const sz = chk.id.replace('fr-', '');
+      chk.checked = state.a17.includes(sz);
+    });
+  }
+  
+  for (let i = 1; i <= 3; i++) {
+    if (state.a23['choice' + i]) {
+      document.getElementById('rank-' + i).value = state.a23['choice' + i];
+    }
+  }
+  
+  const roles = ['plantOwner', 'dailyUser', 'excelOwner', 'engineering'];
+  roles.forEach((r, idx) => {
+    const num = idx + 1;
+    if (state.signoff[r].name) document.getElementById('sig-name-' + num).value = state.signoff[r].name;
+    if (state.signoff[r].date) document.getElementById('sig-date-' + num).value = state.signoff[r].date;
+    if (state.signoff[r].sig) document.getElementById('sig-ok-' + num).value = state.signoff[r].sig;
+  });
+  
+  if (state.theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    document.getElementById('sun-icon').style.display = 'block';
+    document.getElementById('moon-icon').style.display = 'none';
+  }
+}
+
+// Generate Markdown dossier
+function openExportModal() {
+  const modal = document.getElementById('export-modal');
+  const textarea = document.getElementById('export-textarea');
+  
+  let md = `# Grain Contract Assumptions Sign-off Response\n`;
+  md += `**Client: Disposafe (Foley Balloon Catheter line)**\n`;
+  md += `**Review Date: ${new Date().toISOString().split('T')[0]}**\n\n`;
+  
+  md += `## 2. Dimensions & Batch Definition\n`;
+  for(let i=1; i<=6; i++) {
+    const id = 'A' + i;
+    const item = state.assumptions[id];
+    const statusStr = item.status ? item.status.toUpperCase() : 'PENDING';
+    md += `- **[${id}]**: ${statusStr}${item.note ? ` (${item.note})` : ''}\n`;
+  }
+  if (state.a1_definition) {
+    md += `*Custom Batch Definition*: ${state.a1_definition}\n`;
+  }
+  md += `\n`;
+  
+  md += `## 3. Aggregation Rules\n`;
+  for(let i=7; i<=14; i++) {
+    const id = 'A' + i;
+    const item = state.assumptions[id];
+    const statusStr = item.status ? item.status.toUpperCase() : 'PENDING';
+    md += `- **[${id}]**: ${statusStr}${item.note ? ` (${item.note})` : ''}\n`;
+  }
+  md += `\n`;
+  
+  md += `## 4. Primary Views\n`;
+  const homeStatus = state.assumptions['A15'].status ? state.assumptions['A15'].status.toUpperCase() : 'PENDING';
+  md += `- **[A15] Home Screen Preference**: ${homeStatus} - Chosen layout: ${state.a15.choice}`;
+  if (state.a15.choice === 'Other' && state.a15.otherText) {
+    md += ` (${state.a15.otherText})`;
+  }
+  md += `\n\n`;
+  
+  md += `## 5. Stages & Sizing\n`;
+  const a16Item = state.assumptions['A16'];
+  md += `- **[A16] Gates Mapping**: ${a16Item.status ? a16Item.status.toUpperCase() : 'PENDING'}${a16Item.note ? ` (${a16Item.note})` : ''}\n`;
+  const a17Item = state.assumptions['A17'];
+  md += `- **[A17] French Sizes**: ${a17Item.status ? a17Item.status.toUpperCase() : 'PENDING'} - Sizes selected: ${state.a17.join(', ')} FR\n`;
+  const a18Item = state.assumptions['A18'];
+  md += `- **[A18] Fiscal Year**: ${a18Item.status ? a18Item.status.toUpperCase() : 'PENDING'}${a18Item.note ? ` (${a18Item.note})` : ''}\n`;
+  md += `\n`;
+  
+  md += `## 6. Source of Truth\n`;
+  for(let i=19; i<=22; i++) {
+    const id = 'A' + i;
+    const item = state.assumptions[id];
+    const statusStr = item.status ? item.status.toUpperCase() : 'PENDING';
+    md += `- **[${id}]**: ${statusStr}${item.note ? ` (${item.note})` : ''}\n`;
+  }
+  md += `\n`;
+  
+  md += `## 7. MLP Priorities\n`;
+  const a23Item = state.assumptions['A23'];
+  md += `- **[A23] MLP Order**: ${a23Item.status ? a23Item.status.toUpperCase() : 'PENDING'}\n`;
+  if (state.a23.choice1 || state.a23.choice2 || state.a23.choice3) {
+    md += `  - Rank 1: ${state.a23.choice1 || '(none)'}\n`;
+    md += `  - Rank 2: ${state.a23.choice2 || '(none)'}\n`;
+    md += `  - Rank 3: ${state.a23.choice3 || '(none)'}\n`;
+  }
+  md += `\n`;
+  
+  md += `## 8. Worked Example Layout\n`;
+  const a24Item = state.assumptions['A24'];
+  md += `- **[A24] Batch Size Split**: ${a24Item.status ? a24Item.status.toUpperCase() : 'PENDING'}${a24Item.note ? ` (${a24Item.note})` : ''}\n\n`;
+  
+  md += `## 9. Signatures / OK\n`;
+  const roles = [
+    { title: 'Plant / Quality Owner', key: 'plantOwner' },
+    { title: 'Quality Lead (Daily User)', key: 'dailyUser' },
+    { title: 'Excel Book Owner', key: 'excelOwner' },
+    { title: 'Engineering Representative', key: 'engineering' }
+  ];
+  roles.forEach(r => {
+    const data = state.signoff[r.key];
+    md += `- **${r.title}**: Name: ${data.name || 'Pending'}, Date: ${data.date || 'Pending'}, Signature: ${data.sig ? 'APPROVED (OK)' : 'Pending'}\n`;
+  });
+  
+  textarea.value = md;
+  modal.style.display = 'flex';
+}
+
+function closeExportModal() {
+  document.getElementById('export-modal').style.display = 'none';
+}
+
+function copyMarkdownResponse() {
+  const textarea = document.getElementById('export-textarea');
+  textarea.select();
+  document.execCommand('copy');
+  
+  const copyBtn = document.getElementById('copy-btn');
+  copyBtn.innerText = 'Copied!';
+  copyBtn.style.background = 'var(--confirm)';
+  
+  setTimeout(() => {
+    copyBtn.innerText = 'Copy to Clipboard';
+    copyBtn.style.background = 'var(--primary)';
+  }, 2000);
+}
+
+function printPage() {
+  window.print();
+}
+
+// TOC Active Tracking (Scrollspy)
+function setupTOCScrollspy() {
+  const sections = document.querySelectorAll('section, header');
+  const tocLinks = document.querySelectorAll('aside .toc a');
+  
+  window.addEventListener('scroll', () => {
+    let currentId = '';
+    sections.forEach(sec => {
+      const top = sec.offsetTop - 100;
+      if (window.scrollY >= top) {
+        currentId = sec.getAttribute('id');
+      }
+    });
+    
+    tocLinks.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === '#' + currentId) {
+        link.classList.add('active');
+      }
+    });
+  });
+}
+</script>
+</body>
+</html>

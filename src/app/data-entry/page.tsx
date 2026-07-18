@@ -5,7 +5,6 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
-import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import MonthlyEntryGrid from "@/components/MonthlyEntryGrid";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import WeekPicker from "@/components/WeekPicker";
@@ -77,19 +76,14 @@ export default function DataEntryPage() {
   const [notes, setNotes] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Registry state
-  const [registry, setRegistry] = useState<any | null>(null);
-  const [loadingRegistry, setLoadingRegistry] = useState(true);
-
   // Ledger state
   const [ledgerRecords, setLedgerRecords] = useState<any[]>([]);
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [ledgerSort, setLedgerSort] = useState<{ col: string; desc: boolean }>({ col: "date", desc: true });
 
-  // Load registry, ledger records, and prefilled header fields on mount.
-  // The spreadsheet itself (MonthlyEntryGrid) loads its own month of data.
+  // Header prefs + ledger on mount. Grid columns come from /api/entry-template
+  // inside MonthlyEntryGrid (verified MOD), not /api/schema.
   useEffect(() => {
-    loadRegistry(null);
     loadLedger();
     if (typeof window !== "undefined") {
       const savedOperator = localStorage.getItem("rais_hdr_operator");
@@ -122,21 +116,6 @@ export default function DataEntryPage() {
     });
   };
 
-  const loadRegistry = async (presetId?: string | null) => {
-    setLoadingRegistry(true);
-    try {
-      const res = await fetch(presetId ? `/api/schema?presetId=${encodeURIComponent(presetId)}` : "/api/schema");
-      const data = await res.json();
-      if (data.registry) {
-        setRegistry(data.registry);
-      }
-    } catch (err) {
-      console.error("Error loading registry:", err);
-    } finally {
-      setLoadingRegistry(false);
-    }
-  };
-
   const loadLedger = async () => {
     try {
       const res = await fetch("/api/manual-entries");
@@ -157,13 +136,9 @@ export default function DataEntryPage() {
     return confirm("You have unsaved changes in the data entry grid that haven't been submitted yet. Continuing will discard them. Continue?");
   };
 
-  const activeRegistry = useMemo(() => {
-    return registry || EMPTY_REGISTRY;
-  }, [registry]);
-
   // customFields merged onto every record MonthlyEntryGrid saves — the same
   // header tags the old single-day grid attached. `size` is used only as a
-  // fallback for rows whose own registry size is null (line-only stages);
+  // fallback for rows whose own size is null (line-only stages);
   // MonthlyEntryGrid prefers the row's real size when the stage is size-wise.
   const entryCustomFields = useMemo(
     () => ({
@@ -312,19 +287,6 @@ export default function DataEntryPage() {
       )}
 
       {activeTab === "entry" ? (
-        loadingRegistry ? (
-          <div className="muted" style={{ padding: 48, textAlign: "center" }}>Loading schema registry…</div>
-        ) : !registry || !registry.stages || registry.stages.length === 0 ? (
-          <div style={{ padding: 48, textAlign: "center", background: "var(--surface)", border: "1px dashed var(--border)", borderRadius: 12, color: "var(--text-2)" }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: "var(--text)" }}>No Active Schema for Data Entry</h3>
-            <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
-              There is currently no schema configured for manual data entry. You need to upload a workbook to establish a schema registry.
-            </p>
-            <a href="/staging" style={{ display: "inline-block", padding: "8px 16px", borderRadius: 6, background: "var(--accent)", color: "var(--text-invert)", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
-              Go to Excel Upload / Staging
-            </a>
-          </div>
-        ) : (
           <div>
             <div style={{ display: "flex", gap: 14, alignItems: "flex-end", marginBottom: 16, padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12 }}>
               <label className="muted" style={{ fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
@@ -449,7 +411,6 @@ export default function DataEntryPage() {
               onDirtyChange={setMonthlyDirty}
             />
           </div>
-        )
       ) : (
         /* Data Ledger / Entry History View */
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 16 }}>
