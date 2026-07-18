@@ -11,6 +11,7 @@ import {
   DEFAULT_OPERATORS,
   SHIFT_STORAGE_KEY,
   defectsFor,
+  defectDisplayLabel,
   processLabel,
   resolveStageId,
   type MacroId,
@@ -67,9 +68,12 @@ function toStageDayRecord(rec: ShiftBatchRecord, ingestionId: string): StageDayR
       sheet: rec.shift || "Day Shift",
       tableId: "batch-matrix",
     },
-    checked: rec.checked > 0 ? sv(rec.checked, "ENTRY!checked", "Checked Qty") : null,
+    checked: rec.checked > 0
+      ? sv(rec.checked, "ENTRY!checked", rec.macro === "primary" ? "Quantity Produced" : "Checked Qty")
+      : null,
     acceptedGood: rec.accept > 0 ? sv(rec.accept, "ENTRY!accept", "Good Qty") : null,
-    rework: rec.hold > 0 ? sv(rec.hold, "ENTRY!hold", "Rework Qty") : null,
+    // Primary Production has no Hold — never emit rework for that macro.
+    rework: rec.macro !== "primary" && rec.hold > 0 ? sv(rec.hold, "ENTRY!hold", "Rework Qty") : null,
     rejected: rec.reject > 0 ? sv(rec.reject, "ENTRY!reject", "Rejected Qty") : null,
     defects,
     statedPct: null,
@@ -86,6 +90,9 @@ function toStageDayRecord(rec: ShiftBatchRecord, ingestionId: string): StageDayR
       macro: rec.macro,
       process: rec.processName,
       matrixId: rec.id,
+      ...(rec.macro === "primary" && rec.trolleys != null && rec.trolleys > 0
+        ? { trolleysProduced: rec.trolleys, "No. of Trolleys Produced": rec.trolleys }
+        : {}),
     },
   };
 }
@@ -106,6 +113,7 @@ export default function BatchMatrixEntry({
   const [batchId, setBatchId] = useState(() => buildBatchId(today(), "14Fr") ?? "");
   const [batchManual, setBatchManual] = useState(false);
   const [checked, setChecked] = useState(0);
+  const [trolleys, setTrolleys] = useState(0);
   const [accept, setAccept] = useState(0);
   const [hold, setHold] = useState(0);
   const [reject, setReject] = useState(0);
@@ -133,6 +141,7 @@ export default function BatchMatrixEntry({
     if (id) setBatchId(id);
   }, [date, size, batchManual]);
 
+  const isPrimary = macro === "primary";
   const activeDefects = useMemo(() => defectsFor(macro, micro), [macro, micro]);
   const hideDefects = MATRIX_STAGES[macro].hideDefects;
   const parsed = useMemo(() => parseBatchId(batchId), [batchId]);
@@ -140,10 +149,18 @@ export default function BatchMatrixEntry({
     () => Object.values(defects).reduce((a, b) => a + (Number(b) || 0), 0),
     [defects],
   );
-  const qtyMismatch = checked !== accept + hold + reject || checked === 0;
+  // Primary: Quantity Produced ≟ Accept + Reject (no Hold).
+  // Other macros: Checked ≟ Accept + Hold + Reject.
+  const qtySumParts = isPrimary ? accept + reject : accept + hold + reject;
+  const qtyMismatch = checked !== qtySumParts || checked === 0;
+  const qtyLabel = isPrimary ? "Quantity Produced" : "Checked";
+  const qtyMismatchLabel = isPrimary
+    ? `Quantity Produced: ${checked}, Accept+Reject: ${qtySumParts}`
+    : `Checked: ${checked}, Accept+Hold+Reject: ${qtySumParts}`;
 
   const resetQtys = useCallback(() => {
     setChecked(0);
+    setTrolleys(0);
     setAccept(0);
     setHold(0);
     setReject(0);
@@ -250,8 +267,9 @@ export default function BatchMatrixEntry({
       batchId: batchId.trim().toUpperCase(),
       checked,
       accept,
-      hold,
+      hold: isPrimary ? 0 : hold,
       reject: overrideReject ?? reject,
+      trolleys: isPrimary ? trolleys : undefined,
       defects: { ...defects },
       remarks: remarks.trim(),
       shift,
@@ -294,11 +312,10 @@ export default function BatchMatrixEntry({
     setErr(null);
     setMsg(null);
 
-    const sumParts = accept + hold + reject;
-    if (checked !== sumParts || checked === 0) {
+    if (qtyMismatch) {
       if (
         !confirm(
-          `Warning: Quantity sums do not match (Checked: ${checked}, Accept+Hold+Reject: ${sumParts}). Do you still wish to save?`,
+          `Warning: Quantity sums do not match (${qtyMismatchLabel}). Do you still wish to save?`,
         )
       ) {
         return;
@@ -358,7 +375,7 @@ export default function BatchMatrixEntry({
     const defectHeaders = Array.from(uniqueDefects);
 
     let csv =
-      "Date,Operator,Stage,Process,Size,Batch ID,Checked,Accept,Hold,Reject,Yield %,Remarks,Synced";
+      "Date,Operator,Stage,Process,Size,Batch ID,Quantity/Checked,Trolleys,Accept,Hold,Reject,Yield %,Remarks,Synced";
     defectHeaders.forEach((dh) => {
       csv += `,Defect_${dh}`;
     });
@@ -367,7 +384,9 @@ export default function BatchMatrixEntry({
     saved.forEach((b) => {
       const yieldPct = b.checked > 0 ? ((b.accept / b.checked) * 100).toFixed(2) : "100.00";
       const escRem = `"${String(b.remarks || "").replace(/"/g, '""')}"`;
-      let row = `${b.date},${b.operator},"${b.stageName}","${b.processName}",${b.size},${b.batchId},${b.checked},${b.accept},${b.hold},${b.reject},${yieldPct},${escRem},${b.synced ? "yes" : "no"}`;
+      const trolleyVal = b.macro === "primary" ? (b.trolleys ?? 0) : "";
+      const holdVal = b.macro === "primary" ? "" : b.hold;
+      let row = `${b.date},${b.operator},"${b.stageName}","${b.processName}",${b.size},${b.batchId},${b.checked},${trolleyVal},${b.accept},${holdVal},${b.reject},${yieldPct},${escRem},${b.synced ? "yes" : "no"}`;
       defectHeaders.forEach((dh) => {
         row += `,${b.defects[dh] || 0}`;
       });
@@ -448,93 +467,112 @@ export default function BatchMatrixEntry({
         </div>
       </div>
 
-      {/* Core form table */}
-      <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid var(--border)", marginBottom: 16, background: "var(--surface-2)" }}>
-        <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ ...thRow }}>
-              <th style={th}>Operator / Shift</th>
-              <th style={th}>Catheter Size</th>
-              <th style={th}>Batch ID Generation</th>
-              <th style={{ ...th, textAlign: "center" }}>Checked</th>
-              <th style={{ ...th, textAlign: "center" }}>Accept</th>
-              <th style={{ ...th, textAlign: "center" }}>Hold</th>
-              <th style={{ ...th, textAlign: "center" }}>Reject</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style={{ verticalAlign: "top" }}>
-              <td style={td}>
-                <select value={operator} onChange={(e) => setOperator(e.target.value)} style={inp}>
-                  {DEFAULT_OPERATORS.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-                <input
-                  style={{ ...inp, marginTop: 8 }}
-                  value={operator}
-                  onChange={(e) => setOperator(e.target.value)}
-                  placeholder="Or type operator name"
-                />
-                <label className="small" style={{ display: "block", marginTop: 8, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", fontSize: 9 }}>
-                  Production Date
-                  <input type="date" value={date} onChange={(e) => { setBatchManual(false); setDate(e.target.value); }} style={{ ...inp, marginTop: 4 }} />
-                </label>
-                <label className="small" style={{ display: "block", marginTop: 8, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", fontSize: 9 }}>
-                  Shift
-                  <select value={shift} onChange={(e) => setShift(e.target.value)} style={{ ...inp, marginTop: 4 }}>
-                    <option>Day Shift</option>
-                    <option>Night Shift</option>
-                  </select>
-                </label>
-              </td>
-              <td style={td}>
-                <select value={size} onChange={(e) => { setBatchManual(false); setSize(e.target.value); }} style={{ ...inp, fontWeight: 700 }}>
-                  {FRENCH_SIZES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </td>
-              <td style={td}>
-                <input
-                  value={batchId}
-                  onChange={(e) => onBatchInput(e.target.value)}
-                  maxLength={10}
-                  placeholder="Example: 26F27-14"
-                  style={{ ...inp, fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--accent)", letterSpacing: "0.06em", textTransform: "uppercase" }}
-                />
-                {parsed && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-                    <span style={badge("blue")}>Yr: {parsed.year2}</span>
-                    <span style={badge("green")}>Mo: {parsed.monthName}</span>
-                    <span style={badge("amber")}>Day: {parsed.day}</span>
-                    {parsed.sizeFr && <span style={badge("purple")}>Sz: {parsed.sizeFr} FR</span>}
-                  </div>
-                )}
-                <p className="small" style={{ marginTop: 8, color: "var(--text-3)", lineHeight: 1.4, fontSize: 10 }}>
-                  Nomenclature: YY + Month Code (A–L) + DD + &quot;-&quot; + Size (FR)
-                  <br />
-                  <em>Bi-directional: form builds ID; typing ID updates form.</em>
-                </p>
-              </td>
-              <td style={td}>
-                <input type="number" min={0} value={checked || ""} placeholder="0" onChange={(e) => setChecked(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600 }} />
-                {qtyMismatch && checked > 0 && (
-                  <div className="small" style={{ marginTop: 6, color: "var(--status-warn, #d97706)", fontWeight: 700, textAlign: "center", fontSize: 9 }}>Mismatch</div>
-                )}
-              </td>
-              <td style={td}>
-                <input type="number" min={0} value={accept || ""} placeholder="0" onChange={(e) => setAccept(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-good)" }} />
-              </td>
-              <td style={td}>
-                <input type="number" min={0} value={hold || ""} placeholder="0" onChange={(e) => setHold(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-warn, #d97706)" }} />
-              </td>
-              <td style={td}>
-                <input type="number" min={0} value={reject || ""} placeholder="0" onChange={(e) => setReject(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-bad)" }} />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      {/* Core production inputs — responsive field grid */}
+      <div style={{ borderRadius: 10, border: "1px solid var(--border)", marginBottom: 16, background: "var(--surface-2)", padding: 14 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isPrimary
+              ? "minmax(140px, 1.2fr) minmax(90px, 0.7fr) minmax(140px, 1.1fr) minmax(100px, 0.85fr) minmax(100px, 0.85fr) minmax(80px, 0.7fr) minmax(80px, 0.7fr)"
+              : "minmax(140px, 1.2fr) minmax(90px, 0.7fr) minmax(140px, 1.1fr) minmax(90px, 0.75fr) minmax(80px, 0.7fr) minmax(80px, 0.7fr) minmax(80px, 0.7fr)",
+            gap: 12,
+            alignItems: "start",
+          }}
+          className="batch-matrix-fields"
+        >
+          <FieldCol label="Operator">
+            <select value={operator} onChange={(e) => setOperator(e.target.value)} style={inp}>
+              {DEFAULT_OPERATORS.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+            <input
+              style={{ ...inp, marginTop: 6 }}
+              value={operator}
+              onChange={(e) => setOperator(e.target.value)}
+              placeholder="Or type name"
+            />
+            <label className="small" style={{ display: "block", marginTop: 8, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", fontSize: 9 }}>
+              Production Date
+              <input type="date" value={date} onChange={(e) => { setBatchManual(false); setDate(e.target.value); }} style={{ ...inp, marginTop: 4 }} />
+            </label>
+            <label className="small" style={{ display: "block", marginTop: 8, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", fontSize: 9 }}>
+              Shift
+              <select value={shift} onChange={(e) => setShift(e.target.value)} style={{ ...inp, marginTop: 4 }}>
+                <option>Day Shift</option>
+                <option>Night Shift</option>
+              </select>
+            </label>
+          </FieldCol>
+
+          <FieldCol label="Size">
+            <select value={size} onChange={(e) => { setBatchManual(false); setSize(e.target.value); }} style={{ ...inp, fontWeight: 700 }}>
+              {FRENCH_SIZES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </FieldCol>
+
+          <FieldCol label="Batch ID">
+            <input
+              value={batchId}
+              onChange={(e) => onBatchInput(e.target.value)}
+              maxLength={10}
+              placeholder="26F27-14"
+              style={{ ...inp, fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--accent)", letterSpacing: "0.06em", textTransform: "uppercase" }}
+            />
+            {parsed && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+                <span style={badge("blue")}>Yr: {parsed.year2}</span>
+                <span style={badge("green")}>Mo: {parsed.monthName}</span>
+                <span style={badge("amber")}>Day: {parsed.day}</span>
+                {parsed.sizeFr && <span style={badge("purple")}>Sz: {parsed.sizeFr} FR</span>}
+              </div>
+            )}
+            <p className="small" style={{ marginTop: 6, color: "var(--text-3)", lineHeight: 1.35, fontSize: 9 }}>
+              YY + A–L + DD + &quot;-&quot; + FR
+            </p>
+          </FieldCol>
+
+          <FieldCol label={qtyLabel} align="center">
+            <input type="number" min={0} value={checked || ""} placeholder="0" onChange={(e) => setChecked(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600 }} />
+            {qtyMismatch && checked > 0 && (
+              <div className="small" style={{ marginTop: 6, color: "var(--status-warn, #d97706)", fontWeight: 700, textAlign: "center", fontSize: 9 }}>Mismatch</div>
+            )}
+          </FieldCol>
+
+          {isPrimary && (
+            <FieldCol label="No. of Trolleys Produced" align="center">
+              <input type="number" min={0} value={trolleys || ""} placeholder="0" onChange={(e) => setTrolleys(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600 }} />
+            </FieldCol>
+          )}
+
+          <FieldCol label="Accept" align="center">
+            <input type="number" min={0} value={accept || ""} placeholder="0" onChange={(e) => setAccept(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-good)" }} />
+          </FieldCol>
+
+          {!isPrimary && (
+            <FieldCol label="Hold" align="center">
+              <input type="number" min={0} value={hold || ""} placeholder="0" onChange={(e) => setHold(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-warn, #d97706)" }} />
+            </FieldCol>
+          )}
+
+          <FieldCol label="Reject" align="center">
+            <input type="number" min={0} value={reject || ""} placeholder="0" onChange={(e) => setReject(Math.max(0, parseInt(e.target.value, 10) || 0))} style={{ ...inp, textAlign: "center", fontWeight: 600, color: "var(--status-bad)" }} />
+          </FieldCol>
+        </div>
+        <style>{`
+          @media (max-width: 960px) {
+            .batch-matrix-fields {
+              grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+          }
+          @media (max-width: 520px) {
+            .batch-matrix-fields {
+              grid-template-columns: 1fr !important;
+            }
+          }
+        `}</style>
       </div>
 
       {/* Defect grid */}
@@ -561,33 +599,57 @@ export default function BatchMatrixEntry({
                 : `Unreconciled (${defectSum} of ${reject})`}
             </span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(128px, 1fr))",
+              gap: 12,
+              alignItems: "stretch",
+            }}
+          >
             {activeDefects.map((d) => {
               const val = defects[d.key] || 0;
               const active = val > 0;
-              const sameLabel = d.key === d.name;
+              const title = defectDisplayLabel(d);
               return (
                 <div
                   key={d.key}
                   style={{
-                    padding: 10,
+                    padding: "12px 10px",
                     borderRadius: 8,
                     border: active ? "1px solid var(--accent)" : "1px solid var(--border)",
                     background: active ? "var(--accent-weak, rgba(59,130,246,.08))" : "var(--surface)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
+                    display: "grid",
+                    gridTemplateRows: "40px auto",
+                    gap: 8,
+                    minHeight: 96,
+                    boxSizing: "border-box",
                   }}
                 >
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text)" }}>{d.key}</div>
-                  {!sameLabel && (
-                    <div className="small" style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.2 }}>{d.name}</div>
-                  )}
+                  <div
+                    title={title}
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--text)",
+                      lineHeight: 1.25,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      overflow: "hidden",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {title}
+                  </div>
                   <input
                     type="number"
                     min={0}
                     value={val || ""}
                     placeholder="0"
+                    aria-label={title}
                     onChange={(e) => setDefect(d.key, e.target.value)}
                     style={{
                       ...inp,
@@ -595,6 +657,7 @@ export default function BatchMatrixEntry({
                       fontFamily: "var(--font-mono)",
                       fontWeight: 700,
                       borderColor: active ? "var(--accent)" : "var(--border)",
+                      height: 36,
                     }}
                   />
                 </div>
@@ -678,7 +741,8 @@ export default function BatchMatrixEntry({
                   <th style={th}>Operator</th>
                   <th style={th}>Stage & Process</th>
                   <th style={th}>Batch ID</th>
-                  <th style={{ ...th, textAlign: "center" }}>Checked</th>
+                  <th style={{ ...th, textAlign: "center" }}>Qty / Checked</th>
+                  <th style={{ ...th, textAlign: "center" }}>Trolleys</th>
                   <th style={{ ...th, textAlign: "center" }}>Accept</th>
                   <th style={{ ...th, textAlign: "center" }}>Hold</th>
                   <th style={{ ...th, textAlign: "center" }}>Reject</th>
@@ -693,6 +757,7 @@ export default function BatchMatrixEntry({
                     .filter(([, v]) => v > 0)
                     .map(([k, v]) => `${k}:${v}`)
                     .join(", ");
+                  const primaryRow = rec.macro === "primary";
                   return (
                     <tr key={rec.id} style={{ borderBottom: "1px solid var(--border)" }}>
                       <td style={tdCell}>
@@ -707,8 +772,9 @@ export default function BatchMatrixEntry({
                       </td>
                       <td style={{ ...tdCell, fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--accent)" }}>{rec.batchId}</td>
                       <td style={{ ...tdCell, textAlign: "center" }}>{rec.checked}</td>
+                      <td style={{ ...tdCell, textAlign: "center" }}>{primaryRow ? (rec.trolleys ?? 0) : "—"}</td>
                       <td style={{ ...tdCell, textAlign: "center", color: "var(--status-good)", fontWeight: 600 }}>{rec.accept}</td>
-                      <td style={{ ...tdCell, textAlign: "center" }}>{rec.hold}</td>
+                      <td style={{ ...tdCell, textAlign: "center" }}>{primaryRow ? "—" : rec.hold}</td>
                       <td style={{ ...tdCell, textAlign: "center" }}>
                         <span style={{ color: "var(--status-bad)", fontWeight: 600 }}>{rec.reject}</span>
                         {defLog && <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-3)", marginTop: 2 }}>{defLog}</div>}
@@ -732,6 +798,40 @@ export default function BatchMatrixEntry({
 }
 
 /* ── styles (token-driven) ─────────────────────────────────────────────── */
+function FieldCol({
+  label,
+  children,
+  align,
+}: {
+  label: string;
+  children: React.ReactNode;
+  align?: "center" | "left";
+}) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: "var(--text-3)",
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+          marginBottom: 6,
+          textAlign: align ?? "left",
+          lineHeight: 1.3,
+          minHeight: 28,
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: align === "center" ? "center" : "flex-start",
+        }}
+      >
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 const panel: React.CSSProperties = {
   background: "var(--surface)",
   border: "1px solid var(--border)",
@@ -790,10 +890,6 @@ const th: React.CSSProperties = {
   textTransform: "uppercase",
   letterSpacing: "0.04em",
   color: "var(--text-3)",
-};
-
-const td: React.CSSProperties = {
-  padding: 14,
 };
 
 const tdCell: React.CSSProperties = {

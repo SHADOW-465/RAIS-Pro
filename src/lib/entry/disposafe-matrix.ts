@@ -81,13 +81,14 @@ export const MATRIX_STAGES: Record<MacroId, MacroStage> = {
       { id: "p8-dipping-qa", name: "Inspection (P8)", stageId: null, interactive: false },
       { id: "p9-qc", name: "Primary QC (P9)", stageId: null, interactive: false },
     ],
+    // Single display title per card (no key + long-name duplication).
     defects: [
-      { key: "COAG", name: "Coagulation (COAG)" },
+      { key: "COAG", name: "COAG" },
       { key: "Raised Wire", name: "Raised Wire" },
       { key: "Surface Defect", name: "Surface Defect" },
-      { key: "Overlaping", name: "Overlaping Layer" },
+      { key: "Overlaping", name: "Overlapping" },
       { key: "Black Mark", name: "Black Mark" },
-      { key: "Webbing", name: "Latex Webbing" },
+      { key: "Webbing", name: "Webbing" },
       { key: "Missing Formers", name: "Missing Formers" },
       { key: "Others", name: "Others" },
     ],
@@ -124,20 +125,41 @@ export const MATRIX_STAGES: Record<MacroId, MacroStage> = {
       "p18-final": VISUAL_DEFECTS,
       "p16-balloon": [
         { key: "STRUCK BALLOON", name: "Struck Balloon" },
-        { key: "BALLOOM BRUST", name: "Balloon Burst (BALLOOM BRUST)" },
-        { key: "LEAKAGE", name: "Leakage (LEAKAGE)" },
-        { key: "OTHERS", name: "Others (OTHERS)" },
+        { key: "BALLOOM BRUST", name: "Balloon Burst" },
+        { key: "LEAKAGE", name: "Leakage" },
+        { key: "OTHERS", name: "Others" },
       ],
       "p17-valve": [
-        { key: "LEAKAGE", name: "Valve Leakage (LEAKAGE)" },
-        { key: "90/10", name: "90/10 Ratio Fail (90/10)" },
-        { key: "BUBBLE", name: "Valve Bubble (BUBBLE)" },
-        { key: "THIN SPOD", name: "Thin Spod (THIN SPOD)" },
-        { key: "OTHERS", name: "Others (OTHERS)" },
+        { key: "LEAKAGE", name: "Leakage" },
+        { key: "90/10", name: "90/10 Ratio Fail" },
+        { key: "BUBBLE", name: "Bubble" },
+        { key: "THIN SPOD", name: "Thin Spod" },
+        { key: "OTHERS", name: "Others" },
       ],
     },
   },
 };
+
+/**
+ * Single title for a defect card. Prefers short codes (COAG, SD) when the key
+ * is a compact code; otherwise a clean human label without "(CODE)" duplication.
+ */
+export function defectDisplayLabel(d: DefectDef): string {
+  const key = d.key.trim();
+  const name = (d.name || key).trim();
+  // Compact codes used as keys across the plant (COAG, SD, 90/10, …)
+  if (/^[A-Z0-9][A-Z0-9 /\-]{0,14}$/.test(key) && key === key.toUpperCase() && key.length <= 16) {
+    // Visual/assembly style: key is the card title
+    if (key === name || name.toUpperCase().includes(key)) return key;
+  }
+  // Strip trailing parenthetical that restates the key: "Coagulation (COAG)" → "Coagulation"
+  const stripped = name.replace(new RegExp(`\\s*\\(${escapeRegExp(key)}\\)\\s*$`, "i"), "").trim();
+  return stripped || key;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 /** Ledger stageId for the active macro/micro selection. */
 export function resolveStageId(macro: MacroId, micro: string): string {
@@ -176,10 +198,14 @@ export type ShiftBatchRecord = {
   size: string;          // display "14Fr"
   sizeCanonical: string; // "Fr14"
   batchId: string;
+  /** Quantity produced (Primary) / Checked (other stages). */
   checked: number;
   accept: number;
+  /** Not used for Primary Production (always 0). */
   hold: number;
   reject: number;
+  /** Primary Production only — optional trolley count. */
+  trolleys?: number;
   defects: Record<string, number>;
   remarks: string;
   shift: string;
