@@ -220,16 +220,22 @@ export default function DataEntryPage() {
 
   return (
     <AppShell active="data-entry">
+      <h1 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 800, margin: "0 0 4px" }}>Data Entry</h1>
+      <p className="muted" style={{ fontSize: 13, margin: "0 0 16px", maxWidth: 720, lineHeight: 1.5 }}>
+        Primary way to log each shift. Defect columns follow your plant schema after you{" "}
+        <a href="/staging" style={{ color: "var(--accent)", fontWeight: 600 }}>Import from Excel</a> once.
+        Numbers land on the Dashboard with View Source.
+      </p>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
           <TabButton active={activeTab === "matrix"} onClick={() => switchTab("matrix")} first>
-            Batch Matrix
+            Daily batch entry
           </TabButton>
           <TabButton active={activeTab === "period"} onClick={() => switchTab("period")}>
-            Period Grid
+            Calendar grid
           </TabButton>
           <TabButton active={activeTab === "ledger"} onClick={() => switchTab("ledger")} last>
-            Entry History / Data Ledger
+            History
           </TabButton>
         </div>
       </div>

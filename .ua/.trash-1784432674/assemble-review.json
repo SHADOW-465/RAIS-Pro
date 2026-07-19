@@ -1,0 +1,14 @@
+{
+  "fixedSectionOk": true,
+  "nodesRecovered": 0,
+  "edgesRestored": 0,
+  "crossBatchEdgesAdded": 0,
+  "typesRemapped": 0,
+  "complexityRemapped": 0,
+  "notes": [
+    "Merge report listed no dropped nodes/edges, no missing-ID nodes, and no ID corrections; nothing to recover.",
+    "All 503 node types are valid (file/function/class/table/document/config) and all complexity values are canonical (simple/moderate/complex).",
+    "Cross-batch import check: every pair in scan-result.json importMap (189 entries) has a matching imports edge among the 466 imports edges in the assembled graph; 0 pairs missing, 0 pairs referencing absent nodes. The script's '0 recovered' figure reflects full coverage from the batches, not a gap.",
+    "1 tested_by edge supplemented by the path-convention linker; 46 tested_by edges total, consistent with 35 tagged production nodes."
+  ]
+}

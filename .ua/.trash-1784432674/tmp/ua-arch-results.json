@@ -1,0 +1,3164 @@
+{
+ "scriptCompleted": true,
+ "directoryGroups": {
+  "scripts": [
+   "file:scripts/check-ai.ts",
+   "file:scripts/diagnose-extract-once.ts",
+   "file:scripts/diagnose-prod-extract.ts",
+   "file:scripts/diagnose-entry-template.ts",
+   "file:scripts/disposafe-registry-data.ts",
+   "file:scripts/migrate-presets-to-mods.ts",
+   "file:scripts/prove-no-seed-pad.ts",
+   "file:scripts/diagnose-prod-review.ts",
+   "file:scripts/repair-ingest-verified-mods.ts",
+   "file:scripts/inspect-excel.js"
+  ],
+  "src/app": [
+   "file:src/app/api/chat/route.ts",
+   "file:src/app/api/mods/verify/route.ts",
+   "file:src/app/api/workbooks/__tests__/pipeline.test.ts",
+   "file:src/app/api/workbooks/route.ts",
+   "file:src/app/api/archive-upload/route.ts",
+   "file:src/app/api/clear-data/route.ts",
+   "file:src/app/api/day-records/__tests__/route.test.ts",
+   "file:src/app/api/day-records/route.ts",
+   "file:src/app/api/entry-template/route.ts",
+   "file:src/app/api/hard-reset/route.ts",
+   "file:src/app/api/manual-entries/route.ts",
+   "file:src/app/api/mods/records/route.ts",
+   "file:src/app/api/mods/route.ts",
+   "file:src/app/api/raw-file/route.ts",
+   "file:src/app/api/schema/route.ts",
+   "file:src/app/api/decide/route.ts",
+   "file:src/app/capa/page.tsx",
+   "file:src/app/api/events/route.ts",
+   "file:src/app/api/ingest/route.ts",
+   "file:src/app/data-entry/page.tsx",
+   "file:src/app/audit/page.tsx",
+   "file:src/app/chat/page.tsx",
+   "file:src/app/clear-data/page.tsx",
+   "file:src/app/copq/page.tsx",
+   "file:src/app/defect-analysis/page.tsx",
+   "file:src/app/layout.tsx",
+   "file:src/app/loading.tsx",
+   "file:src/app/page.tsx",
+   "file:src/app/process-flow/fbc-process-data.ts",
+   "file:src/app/process-flow/page.tsx",
+   "file:src/app/reports/page.tsx",
+   "file:src/app/settings/page.tsx",
+   "file:src/app/size-analysis/page.tsx",
+   "file:src/app/spc/page.tsx",
+   "file:src/app/stage-analysis/page.tsx",
+   "file:src/app/staging/page.tsx",
+   "file:src/app/workbooks/page.tsx",
+   "file:src/app/globals.css"
+  ],
+  "src/components": [
+   "file:src/components/app/MappingVerificationPanel.tsx",
+   "file:src/components/BatchMatrixEntry.tsx",
+   "file:src/components/MonthlyEntryGrid.tsx",
+   "file:src/components/WeekPicker.tsx",
+   "file:src/components/FloatingDetailModal.tsx",
+   "file:src/components/InsightSlide.tsx",
+   "file:src/components/ParetoChart.tsx",
+   "file:src/components/UploadZone.tsx",
+   "file:src/components/app/AppShell.tsx",
+   "file:src/components/app/EventsContext.tsx",
+   "file:src/components/app/PageLoader.tsx",
+   "file:src/components/app/RegistryContext.tsx",
+   "file:src/components/app/widgets.tsx",
+   "file:src/components/editorial/EditorialCharts.tsx",
+   "file:src/components/editorial/EditorialHeader.tsx",
+   "file:src/components/editorial/Icon.tsx",
+   "file:src/components/editorial/Pill.tsx",
+   "file:src/components/editorial/TweaksContext.tsx"
+  ],
+  "src/core": [
+   "file:src/core/__tests__/fixtures/extract-oracle-helpers.ts",
+   "file:src/core/__tests__/reader.test.ts",
+   "file:src/core/__tests__/resolver.test.ts",
+   "file:src/core/__tests__/stage-from-filename.test.ts",
+   "file:src/core/__tests__/valve-oracle.test.ts",
+   "file:src/core/ingest/extract-from-mod.ts",
+   "file:src/core/ontology/builder/build-mod.ts",
+   "file:src/core/ontology/global-ontology.ts",
+   "file:src/core/ontology/resolver/exact-index.ts",
+   "file:src/core/ontology/resolver/ladder.ts",
+   "file:src/core/ontology/resolver/llm.ts",
+   "file:src/core/ontology/store/knowledge-store.ts",
+   "file:src/core/profiler/formula-class.ts",
+   "file:src/core/profiler/from-workbook.ts",
+   "file:src/core/profiler/profile.ts",
+   "file:src/core/profiler/signature.ts",
+   "file:src/core/profiler/types.ts",
+   "file:src/core/workbook/header.ts",
+   "file:src/core/workbook/reader.ts",
+   "file:src/core/__tests__/build-mod.test.ts",
+   "file:src/core/__tests__/mod-store.test.ts",
+   "file:src/core/__tests__/phase4.test.ts",
+   "file:src/core/ontology/builder/learn.ts",
+   "file:src/core/ontology/store/mod-store.ts",
+   "file:src/core/ontology/validate/mod-validator.ts",
+   "file:src/core/workbook/snapshot-store.ts",
+   "file:src/core/__tests__/decision-engine.test.ts",
+   "file:src/core/decision/canonical-vars.ts",
+   "file:src/core/decision/engine.ts",
+   "file:src/core/decision/explain.ts",
+   "file:src/core/decision/rule-store.ts",
+   "file:src/core/decision/seed-rules.ts",
+   "file:src/core/__tests__/extract-oracle.test.ts",
+   "file:src/core/ingest/precedence.ts",
+   "file:src/core/ingest/reconcile.ts",
+   "file:src/core/ontology/normalize.ts",
+   "file:src/core/ontology/resolve-entity.ts",
+   "file:src/core/ontology/empty-registry.ts",
+   "file:src/core/__tests__/phase5-flow.test.ts"
+  ],
+  "src/lib": [
+   "file:src/lib/ai.ts",
+   "file:src/lib/ingest/__tests__/date.test.ts",
+   "file:src/lib/ingest/date.ts",
+   "file:src/lib/schemas.ts",
+   "file:src/lib/contract/d1.ts",
+   "file:src/lib/store/__tests__/batch.test.ts",
+   "file:src/lib/store/__tests__/store-selector.test.ts",
+   "file:src/lib/store/batch.ts",
+   "file:src/lib/store/index.ts",
+   "file:src/lib/store/supabase.ts",
+   "file:src/lib/supabase.ts",
+   "file:src/lib/analytics/__tests__/rejection.registry.test.ts",
+   "file:src/lib/analytics/__tests__/scope.test.ts",
+   "file:src/lib/analytics/cost.ts",
+   "file:src/lib/analytics/defect.ts",
+   "file:src/lib/analytics/narrative.ts",
+   "file:src/lib/analytics/rejection.ts",
+   "file:src/lib/analytics/scope.ts",
+   "file:src/lib/analytics/size.ts",
+   "file:src/lib/analytics/status.ts",
+   "file:src/lib/analytics/trust.ts",
+   "file:src/lib/contract/d3.ts",
+   "file:src/lib/store/__tests__/supabase-mappers.test.ts",
+   "file:src/lib/store/memory.ts",
+   "file:src/lib/store/supabase-mappers.ts",
+   "file:src/lib/store/types.ts",
+   "file:src/lib/analytics/canonical.ts",
+   "file:src/lib/contract/hash.ts",
+   "file:src/lib/entry/__tests__/batch-id.test.ts",
+   "file:src/lib/entry/__tests__/disposafe-matrix.test.ts",
+   "file:src/lib/entry/__tests__/period.test.ts",
+   "file:src/lib/entry/batch-id.ts",
+   "file:src/lib/entry/disposafe-matrix.ts",
+   "file:src/lib/entry/period.ts",
+   "file:src/lib/entry/validate-entry.ts",
+   "file:src/lib/ingest/emit.ts",
+   "file:src/lib/ingest/review.ts",
+   "file:src/lib/analytics/index.ts",
+   "file:src/lib/analytics/pareto.ts",
+   "file:src/lib/audit-package.ts",
+   "file:src/lib/chart-utils.ts"
+  ],
+  "src/shared": [
+   "file:src/shared/models/entities.ts",
+   "file:src/shared/models/workbook.ts",
+   "file:src/shared/models/ontology.ts",
+   "file:src/shared/models/decision.ts"
+  ],
+  "src/__tests__": [
+   "file:src/__tests__/confidence-basis.test.ts",
+   "file:src/__tests__/analytics.test.ts",
+   "file:src/__tests__/audit-correctness.test.ts",
+   "file:src/__tests__/fixtures/disposafe-registry.ts",
+   "file:src/__tests__/ingest-emit.test.ts",
+   "file:src/__tests__/store.test.ts",
+   "file:src/__tests__/timeline.test.ts",
+   "file:src/__tests__/canonical-direct-entry.test.ts",
+   "file:src/__tests__/ingest-review.test.ts"
+  ],
+  "src/types": [
+   "file:src/types/dashboard.ts"
+  ],
+  "supabase": [
+   "table:supabase/migrations/001_sessions.sql",
+   "table:supabase/migrations/001_sessions.sql:sessions",
+   "table:supabase/migrations/001_sessions.sql:insight_slides",
+   "table:supabase/migrations/002_add_merge_plan.sql",
+   "table:supabase/migrations/003_add_data_summary_and_rls.sql",
+   "table:supabase/migrations/20260615000000_schema.sql",
+   "table:supabase/migrations/20260615000000_schema.sql:raw_files",
+   "table:supabase/migrations/20260615000000_schema.sql:ingestions",
+   "table:supabase/migrations/20260615000000_schema.sql:events",
+   "table:supabase/migrations/20260615000000_schema.sql:findings",
+   "table:supabase/migrations/20260615000000_schema.sql:adjudications",
+   "table:supabase/migrations/20260615000000_schema.sql:rulebook_rules",
+   "table:supabase/migrations/20260615000000_schema.sql:rule_applications",
+   "table:supabase/migrations/20260615000000_schema.sql:registries",
+   "table:supabase/migrations/20260615000000_schema.sql:cost_config",
+   "table:supabase/migrations/20260618_canonical_ledger.sql",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:events",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:findings",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:adjudications",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:rulebook_rules",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:rule_applications",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:sessions",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:dashboards",
+   "table:supabase/migrations/20260619120000_add_provenance.sql",
+   "table:supabase/migrations/20260625_add_registry_sizes.sql",
+   "table:supabase/migrations/20260701120000_dataset_rows.sql",
+   "table:supabase/migrations/20260701120000_dataset_rows.sql:dataset_rows",
+   "table:supabase/migrations/20260701_datasets.sql",
+   "table:supabase/migrations/20260701_datasets.sql:datasets",
+   "table:supabase/migrations/20260702_dataset_recognized_stage.sql",
+   "table:supabase/migrations/20260708_registry_presets.sql",
+   "table:supabase/migrations/20260710_registry_stage_aliases.sql",
+   "table:supabase/migrations/20260711_dataset_recognition_confidence.sql",
+   "table:supabase/migrations/20260712_registry_is_active.sql",
+   "table:supabase/migrations/20260713000000_mod_core.sql",
+   "table:supabase/migrations/20260713000000_mod_core.sql:workbook_snapshots",
+   "table:supabase/migrations/20260713000000_mod_core.sql:mods",
+   "table:supabase/migrations/20260713000000_mod_core.sql:company_knowledge",
+   "table:supabase/migrations/20260713000000_mod_core.sql:global_ontology",
+   "table:supabase/migrations/20260713000000_mod_core.sql:decision_rules"
+  ],
+  "root": [
+   "config:.env.example",
+   "document:AGENTS.md",
+   "document:CLAUDE.md",
+   "document:README.md",
+   "config:package.json",
+   "config:tsconfig.json",
+   "file:eslint.config.mjs",
+   "file:jest.config.ts",
+   "file:jest.setup.ts",
+   "file:next.config.ts",
+   "file:postcss.config.mjs"
+  ],
+  "demo": [
+   "file:demo/index.html"
+  ],
+  "design-system": [
+   "document:design-system/rais-pro/MASTER.md",
+   "document:design-system/rais-pro/pages/dashboard.md"
+  ]
+ },
+ "nodeTypeGroups": {
+  "file": [
+   "file:scripts/check-ai.ts",
+   "file:scripts/diagnose-extract-once.ts",
+   "file:scripts/diagnose-prod-extract.ts",
+   "file:src/app/api/chat/route.ts",
+   "file:src/app/api/mods/verify/route.ts",
+   "file:src/app/api/workbooks/__tests__/pipeline.test.ts",
+   "file:src/app/api/workbooks/route.ts",
+   "file:src/components/app/MappingVerificationPanel.tsx",
+   "file:src/core/__tests__/fixtures/extract-oracle-helpers.ts",
+   "file:src/core/__tests__/reader.test.ts",
+   "file:src/core/__tests__/resolver.test.ts",
+   "file:src/core/__tests__/stage-from-filename.test.ts",
+   "file:src/core/__tests__/valve-oracle.test.ts",
+   "file:src/core/ingest/extract-from-mod.ts",
+   "file:src/core/ontology/builder/build-mod.ts",
+   "file:src/core/ontology/global-ontology.ts",
+   "file:src/core/ontology/resolver/exact-index.ts",
+   "file:src/core/ontology/resolver/ladder.ts",
+   "file:src/core/ontology/resolver/llm.ts",
+   "file:src/core/ontology/store/knowledge-store.ts",
+   "file:src/core/profiler/formula-class.ts",
+   "file:src/core/profiler/from-workbook.ts",
+   "file:src/core/profiler/profile.ts",
+   "file:src/core/profiler/signature.ts",
+   "file:src/core/profiler/types.ts",
+   "file:src/core/workbook/header.ts",
+   "file:src/core/workbook/reader.ts",
+   "file:src/lib/ai.ts",
+   "file:src/lib/ingest/__tests__/date.test.ts",
+   "file:src/lib/ingest/date.ts",
+   "file:src/lib/schemas.ts",
+   "file:src/shared/models/entities.ts",
+   "file:src/shared/models/workbook.ts",
+   "file:scripts/diagnose-entry-template.ts",
+   "file:scripts/disposafe-registry-data.ts",
+   "file:scripts/migrate-presets-to-mods.ts",
+   "file:scripts/prove-no-seed-pad.ts",
+   "file:src/__tests__/confidence-basis.test.ts",
+   "file:src/app/api/archive-upload/route.ts",
+   "file:src/app/api/clear-data/route.ts",
+   "file:src/app/api/day-records/__tests__/route.test.ts",
+   "file:src/app/api/day-records/route.ts",
+   "file:src/app/api/entry-template/route.ts",
+   "file:src/app/api/hard-reset/route.ts",
+   "file:src/app/api/manual-entries/route.ts",
+   "file:src/app/api/mods/records/route.ts",
+   "file:src/app/api/mods/route.ts",
+   "file:src/app/api/raw-file/route.ts",
+   "file:src/app/api/schema/route.ts",
+   "file:src/core/__tests__/build-mod.test.ts",
+   "file:src/core/__tests__/mod-store.test.ts",
+   "file:src/core/__tests__/phase4.test.ts",
+   "file:src/core/ontology/builder/learn.ts",
+   "file:src/core/ontology/store/mod-store.ts",
+   "file:src/core/ontology/validate/mod-validator.ts",
+   "file:src/core/workbook/snapshot-store.ts",
+   "file:src/lib/contract/d1.ts",
+   "file:src/lib/store/__tests__/batch.test.ts",
+   "file:src/lib/store/__tests__/store-selector.test.ts",
+   "file:src/lib/store/batch.ts",
+   "file:src/lib/store/index.ts",
+   "file:src/lib/store/supabase.ts",
+   "file:src/lib/supabase.ts",
+   "file:src/shared/models/ontology.ts",
+   "file:src/__tests__/analytics.test.ts",
+   "file:src/__tests__/audit-correctness.test.ts",
+   "file:src/__tests__/fixtures/disposafe-registry.ts",
+   "file:src/__tests__/ingest-emit.test.ts",
+   "file:src/__tests__/store.test.ts",
+   "file:src/__tests__/timeline.test.ts",
+   "file:src/app/api/decide/route.ts",
+   "file:src/app/capa/page.tsx",
+   "file:src/core/__tests__/decision-engine.test.ts",
+   "file:src/core/decision/canonical-vars.ts",
+   "file:src/core/decision/engine.ts",
+   "file:src/core/decision/explain.ts",
+   "file:src/core/decision/rule-store.ts",
+   "file:src/core/decision/seed-rules.ts",
+   "file:src/lib/analytics/__tests__/rejection.registry.test.ts",
+   "file:src/lib/analytics/__tests__/scope.test.ts",
+   "file:src/lib/analytics/cost.ts",
+   "file:src/lib/analytics/defect.ts",
+   "file:src/lib/analytics/narrative.ts",
+   "file:src/lib/analytics/rejection.ts",
+   "file:src/lib/analytics/scope.ts",
+   "file:src/lib/analytics/size.ts",
+   "file:src/lib/analytics/status.ts",
+   "file:src/lib/analytics/trust.ts",
+   "file:src/lib/contract/d3.ts",
+   "file:src/lib/store/__tests__/supabase-mappers.test.ts",
+   "file:src/lib/store/memory.ts",
+   "file:src/lib/store/supabase-mappers.ts",
+   "file:src/lib/store/types.ts",
+   "file:src/shared/models/decision.ts",
+   "file:scripts/diagnose-prod-review.ts",
+   "file:scripts/repair-ingest-verified-mods.ts",
+   "file:src/__tests__/canonical-direct-entry.test.ts",
+   "file:src/__tests__/ingest-review.test.ts",
+   "file:src/app/api/events/route.ts",
+   "file:src/app/api/ingest/route.ts",
+   "file:src/app/data-entry/page.tsx",
+   "file:src/components/BatchMatrixEntry.tsx",
+   "file:src/components/MonthlyEntryGrid.tsx",
+   "file:src/components/WeekPicker.tsx",
+   "file:src/core/__tests__/extract-oracle.test.ts",
+   "file:src/core/ingest/precedence.ts",
+   "file:src/core/ingest/reconcile.ts",
+   "file:src/core/ontology/normalize.ts",
+   "file:src/core/ontology/resolve-entity.ts",
+   "file:src/lib/analytics/canonical.ts",
+   "file:src/lib/contract/hash.ts",
+   "file:src/lib/entry/__tests__/batch-id.test.ts",
+   "file:src/lib/entry/__tests__/disposafe-matrix.test.ts",
+   "file:src/lib/entry/__tests__/period.test.ts",
+   "file:src/lib/entry/batch-id.ts",
+   "file:src/lib/entry/disposafe-matrix.ts",
+   "file:src/lib/entry/period.ts",
+   "file:src/lib/entry/validate-entry.ts",
+   "file:src/lib/ingest/emit.ts",
+   "file:src/lib/ingest/review.ts",
+   "file:src/app/audit/page.tsx",
+   "file:src/app/chat/page.tsx",
+   "file:src/app/clear-data/page.tsx",
+   "file:src/app/copq/page.tsx",
+   "file:src/app/defect-analysis/page.tsx",
+   "file:src/app/layout.tsx",
+   "file:src/app/loading.tsx",
+   "file:src/app/page.tsx",
+   "file:src/app/process-flow/fbc-process-data.ts",
+   "file:src/app/process-flow/page.tsx",
+   "file:src/app/reports/page.tsx",
+   "file:src/app/settings/page.tsx",
+   "file:src/app/size-analysis/page.tsx",
+   "file:src/app/spc/page.tsx",
+   "file:src/app/stage-analysis/page.tsx",
+   "file:src/app/staging/page.tsx",
+   "file:src/app/workbooks/page.tsx",
+   "file:src/components/FloatingDetailModal.tsx",
+   "file:src/components/InsightSlide.tsx",
+   "file:src/components/ParetoChart.tsx",
+   "file:src/components/UploadZone.tsx",
+   "file:src/components/app/AppShell.tsx",
+   "file:src/components/app/EventsContext.tsx",
+   "file:src/components/app/PageLoader.tsx",
+   "file:src/components/app/RegistryContext.tsx",
+   "file:src/components/app/widgets.tsx",
+   "file:src/components/editorial/EditorialCharts.tsx",
+   "file:src/components/editorial/EditorialHeader.tsx",
+   "file:src/components/editorial/Icon.tsx",
+   "file:src/components/editorial/Pill.tsx",
+   "file:src/components/editorial/TweaksContext.tsx",
+   "file:src/core/ontology/empty-registry.ts",
+   "file:src/lib/analytics/index.ts",
+   "file:src/lib/analytics/pareto.ts",
+   "file:src/lib/audit-package.ts",
+   "file:src/lib/chart-utils.ts",
+   "file:src/types/dashboard.ts",
+   "file:demo/index.html",
+   "file:eslint.config.mjs",
+   "file:jest.config.ts",
+   "file:jest.setup.ts",
+   "file:next.config.ts",
+   "file:postcss.config.mjs",
+   "file:scripts/inspect-excel.js",
+   "file:src/app/globals.css",
+   "file:src/core/__tests__/phase5-flow.test.ts"
+  ],
+  "table": [
+   "table:supabase/migrations/001_sessions.sql",
+   "table:supabase/migrations/001_sessions.sql:sessions",
+   "table:supabase/migrations/001_sessions.sql:insight_slides",
+   "table:supabase/migrations/002_add_merge_plan.sql",
+   "table:supabase/migrations/003_add_data_summary_and_rls.sql",
+   "table:supabase/migrations/20260615000000_schema.sql",
+   "table:supabase/migrations/20260615000000_schema.sql:raw_files",
+   "table:supabase/migrations/20260615000000_schema.sql:ingestions",
+   "table:supabase/migrations/20260615000000_schema.sql:events",
+   "table:supabase/migrations/20260615000000_schema.sql:findings",
+   "table:supabase/migrations/20260615000000_schema.sql:adjudications",
+   "table:supabase/migrations/20260615000000_schema.sql:rulebook_rules",
+   "table:supabase/migrations/20260615000000_schema.sql:rule_applications",
+   "table:supabase/migrations/20260615000000_schema.sql:registries",
+   "table:supabase/migrations/20260615000000_schema.sql:cost_config",
+   "table:supabase/migrations/20260618_canonical_ledger.sql",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:events",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:findings",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:adjudications",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:rulebook_rules",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:rule_applications",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:sessions",
+   "table:supabase/migrations/20260618_canonical_ledger.sql:dashboards",
+   "table:supabase/migrations/20260619120000_add_provenance.sql",
+   "table:supabase/migrations/20260625_add_registry_sizes.sql",
+   "table:supabase/migrations/20260701120000_dataset_rows.sql",
+   "table:supabase/migrations/20260701120000_dataset_rows.sql:dataset_rows",
+   "table:supabase/migrations/20260701_datasets.sql",
+   "table:supabase/migrations/20260701_datasets.sql:datasets",
+   "table:supabase/migrations/20260702_dataset_recognized_stage.sql",
+   "table:supabase/migrations/20260708_registry_presets.sql",
+   "table:supabase/migrations/20260710_registry_stage_aliases.sql",
+   "table:supabase/migrations/20260711_dataset_recognition_confidence.sql",
+   "table:supabase/migrations/20260712_registry_is_active.sql",
+   "table:supabase/migrations/20260713000000_mod_core.sql",
+   "table:supabase/migrations/20260713000000_mod_core.sql:workbook_snapshots",
+   "table:supabase/migrations/20260713000000_mod_core.sql:mods",
+   "table:supabase/migrations/20260713000000_mod_core.sql:company_knowledge",
+   "table:supabase/migrations/20260713000000_mod_core.sql:global_ontology",
+   "table:supabase/migrations/20260713000000_mod_core.sql:decision_rules"
+  ],
+  "config": [
+   "config:.env.example",
+   "config:package.json",
+   "config:tsconfig.json"
+  ],
+  "document": [
+   "document:AGENTS.md",
+   "document:CLAUDE.md",
+   "document:README.md",
+   "document:design-system/rais-pro/MASTER.md",
+   "document:design-system/rais-pro/pages/dashboard.md"
+  ]
+ },
+ "crossCategoryEdges": [
+  {
+   "fromType": "file",
+   "toType": "file",
+   "edgeType": "imports",
+   "count": 466
+  },
+  {
+   "fromType": "file",
+   "toType": "file",
+   "edgeType": "tested_by",
+   "count": 46
+  },
+  {
+   "fromType": "file",
+   "toType": "file",
+   "edgeType": "depends_on",
+   "count": 8
+  },
+  {
+   "fromType": "table",
+   "toType": "table",
+   "edgeType": "migrates",
+   "count": 35
+  },
+  {
+   "fromType": "table",
+   "toType": "table",
+   "edgeType": "related",
+   "count": 3
+  },
+  {
+   "fromType": "config",
+   "toType": "file",
+   "edgeType": "configures",
+   "count": 5
+  },
+  {
+   "fromType": "document",
+   "toType": "document",
+   "edgeType": "related",
+   "count": 2
+  },
+  {
+   "fromType": "document",
+   "toType": "file",
+   "edgeType": "documents",
+   "count": 6
+  },
+  {
+   "fromType": "file",
+   "toType": "document",
+   "edgeType": "related",
+   "count": 1
+  },
+  {
+   "fromType": "file",
+   "toType": "file",
+   "edgeType": "related",
+   "count": 1
+  }
+ ],
+ "interGroupImports": [
+  {
+   "from": "src/app",
+   "to": "src/components",
+   "count": 93
+  },
+  {
+   "from": "src/app",
+   "to": "src/lib",
+   "count": 53
+  },
+  {
+   "from": "src/app",
+   "to": "src/core",
+   "count": 36
+  },
+  {
+   "from": "src/core",
+   "to": "src/lib",
+   "count": 33
+  },
+  {
+   "from": "src/__tests__",
+   "to": "src/lib",
+   "count": 24
+  },
+  {
+   "from": "src/core",
+   "to": "src/shared",
+   "count": 21
+  },
+  {
+   "from": "src/components",
+   "to": "src/lib",
+   "count": 16
+  },
+  {
+   "from": "scripts",
+   "to": "src/core",
+   "count": 15
+  },
+  {
+   "from": "scripts",
+   "to": "src/lib",
+   "count": 8
+  },
+  {
+   "from": "src/app",
+   "to": "src/shared",
+   "count": 5
+  },
+  {
+   "from": "src/lib",
+   "to": "src/core",
+   "count": 3
+  },
+  {
+   "from": "src/components",
+   "to": "src/types",
+   "count": 3
+  },
+  {
+   "from": "src/app",
+   "to": "src/types",
+   "count": 2
+  },
+  {
+   "from": "scripts",
+   "to": "src/shared",
+   "count": 2
+  },
+  {
+   "from": "src/components",
+   "to": "src/shared",
+   "count": 1
+  },
+  {
+   "from": "scripts",
+   "to": "src/app",
+   "count": 1
+  },
+  {
+   "from": "src/core",
+   "to": "scripts",
+   "count": 1
+  },
+  {
+   "from": "src/core",
+   "to": "src/__tests__",
+   "count": 1
+  },
+  {
+   "from": "src/shared",
+   "to": "src/lib",
+   "count": 1
+  },
+  {
+   "from": "src/__tests__",
+   "to": "src/types",
+   "count": 1
+  },
+  {
+   "from": "src/__tests__",
+   "to": "scripts",
+   "count": 1
+  },
+  {
+   "from": "src/__tests__",
+   "to": "src/core",
+   "count": 1
+  },
+  {
+   "from": "src/lib",
+   "to": "src/__tests__",
+   "count": 1
+  },
+  {
+   "from": "src/types",
+   "to": "src/lib",
+   "count": 1
+  }
+ ],
+ "intraGroupDensity": {
+  "scripts": {
+   "internalEdges": 2,
+   "totalEdges": 30,
+   "density": 0.07
+  },
+  "src/app": {
+   "internalEdges": 6,
+   "totalEdges": 196,
+   "density": 0.03
+  },
+  "src/components": {
+   "internalEdges": 19,
+   "totalEdges": 132,
+   "density": 0.14
+  },
+  "src/core": {
+   "internalEdges": 55,
+   "totalEdges": 166,
+   "density": 0.33
+  },
+  "src/lib": {
+   "internalEdges": 54,
+   "totalEdges": 194,
+   "density": 0.28
+  },
+  "src/shared": {
+   "internalEdges": 1,
+   "totalEdges": 31,
+   "density": 0.03
+  },
+  "src/__tests__": {
+   "internalEdges": 5,
+   "totalEdges": 34,
+   "density": 0.15
+  },
+  "src/types": {
+   "internalEdges": 0,
+   "totalEdges": 7,
+   "density": 0
+  },
+  "supabase": {
+   "internalEdges": 0,
+   "totalEdges": 0,
+   "density": 0
+  },
+  "root": {
+   "internalEdges": 0,
+   "totalEdges": 0,
+   "density": 0
+  },
+  "demo": {
+   "internalEdges": 0,
+   "totalEdges": 0,
+   "density": 0
+  },
+  "design-system": {
+   "internalEdges": 0,
+   "totalEdges": 0,
+   "density": 0
+  }
+ },
+ "patternMatches": {
+  "scripts": "utility",
+  "src/app": "api",
+  "src/components": "ui",
+  "src/core": "service",
+  "src/lib": "service",
+  "src/shared": "unknown",
+  "src/__tests__": "test",
+  "src/types": "types",
+  "supabase": "data",
+  "root": "unknown",
+  "demo": "assets",
+  "design-system": "documentation"
+ },
+ "dependencyDirection": [
+  {
+   "dependent": "src/app",
+   "dependsOn": "src/components"
+  },
+  {
+   "dependent": "src/app",
+   "dependsOn": "src/lib"
+  },
+  {
+   "dependent": "src/app",
+   "dependsOn": "src/core"
+  },
+  {
+   "dependent": "src/core",
+   "dependsOn": "src/lib"
+  },
+  {
+   "dependent": "src/__tests__",
+   "dependsOn": "src/lib"
+  },
+  {
+   "dependent": "src/core",
+   "dependsOn": "src/shared"
+  },
+  {
+   "dependent": "src/components",
+   "dependsOn": "src/lib"
+  },
+  {
+   "dependent": "scripts",
+   "dependsOn": "src/core"
+  },
+  {
+   "dependent": "scripts",
+   "dependsOn": "src/lib"
+  },
+  {
+   "dependent": "src/app",
+   "dependsOn": "src/shared"
+  },
+  {
+   "dependent": "src/components",
+   "dependsOn": "src/types"
+  },
+  {
+   "dependent": "src/app",
+   "dependsOn": "src/types"
+  },
+  {
+   "dependent": "scripts",
+   "dependsOn": "src/shared"
+  },
+  {
+   "dependent": "src/components",
+   "dependsOn": "src/shared"
+  },
+  {
+   "dependent": "scripts",
+   "dependsOn": "src/app"
+  },
+  {
+   "dependent": "src/core",
+   "dependsOn": "src/__tests__"
+  },
+  {
+   "dependent": "src/shared",
+   "dependsOn": "src/lib"
+  },
+  {
+   "dependent": "src/__tests__",
+   "dependsOn": "src/types"
+  },
+  {
+   "dependent": "src/__tests__",
+   "dependsOn": "scripts"
+  },
+  {
+   "dependent": "src/types",
+   "dependsOn": "src/lib"
+  }
+ ],
+ "fileStats": {
+  "totalFileNodes": 214,
+  "filesPerGroup": {
+   "scripts": 10,
+   "src/app": 38,
+   "src/components": 18,
+   "src/core": 39,
+   "src/lib": 41,
+   "src/shared": 4,
+   "src/__tests__": 9,
+   "src/types": 1,
+   "supabase": 40,
+   "root": 11,
+   "demo": 1,
+   "design-system": 2
+  },
+  "nodeTypeCounts": {
+   "file": 166,
+   "table": 40,
+   "config": 3,
+   "document": 5
+  }
+ },
+ "fileFanIn": {
+  "file:src/lib/store/types.ts": 34,
+  "file:src/lib/ingest/emit.ts": 21,
+  "file:src/lib/analytics/scope.ts": 20,
+  "file:src/components/app/EventsContext.tsx": 18,
+  "file:src/components/app/AppShell.tsx": 16,
+  "file:src/components/app/widgets.tsx": 16,
+  "file:src/core/ontology/store/mod-store.ts": 14,
+  "file:src/components/editorial/TweaksContext.tsx": 14,
+  "file:src/lib/store/index.ts": 13,
+  "file:src/components/editorial/Icon.tsx": 13,
+  "file:src/lib/contract/d1.ts": 12,
+  "file:src/lib/analytics/rejection.ts": 12,
+  "file:src/lib/analytics/index.ts": 12,
+  "file:src/shared/models/ontology.ts": 11,
+  "file:src/lib/supabase.ts": 10,
+  "file:src/core/ontology/store/knowledge-store.ts": 9,
+  "file:src/core/ontology/empty-registry.ts": 9,
+  "file:src/components/app/RegistryContext.tsx": 9,
+  "file:src/components/app/PageLoader.tsx": 9,
+  "file:src/shared/models/decision.ts": 8
+ },
+ "fileFanOut": {
+  "file:src/app/page.tsx": 16,
+  "file:src/app/defect-analysis/page.tsx": 12,
+  "file:src/app/api/workbooks/route.ts": 11,
+  "file:src/app/process-flow/page.tsx": 11,
+  "file:src/app/size-analysis/page.tsx": 10,
+  "file:src/app/stage-analysis/page.tsx": 10,
+  "file:src/core/__tests__/fixtures/extract-oracle-helpers.ts": 9,
+  "file:src/app/api/ingest/route.ts": 9,
+  "file:src/app/chat/page.tsx": 9,
+  "file:src/app/spc/page.tsx": 9,
+  "file:src/app/data-entry/page.tsx": 8,
+  "file:src/app/copq/page.tsx": 8,
+  "file:src/app/staging/page.tsx": 8,
+  "file:scripts/migrate-presets-to-mods.ts": 7,
+  "file:src/__tests__/analytics.test.ts": 7,
+  "file:src/app/api/decide/route.ts": 7,
+  "file:src/core/__tests__/decision-engine.test.ts": 7,
+  "file:src/app/reports/page.tsx": 7,
+  "file:src/components/app/AppShell.tsx": 7,
+  "file:scripts/diagnose-extract-once.ts": 6
+ },
+ "nodeList": [
+  {
+   "id": "file:scripts/check-ai.ts",
+   "type": "file",
+   "filePath": "scripts/check-ai.ts",
+   "tags": [
+    "script",
+    "diagnostics",
+    "ai",
+    "validation"
+   ]
+  },
+  {
+   "id": "file:scripts/diagnose-extract-once.ts",
+   "type": "file",
+   "filePath": "scripts/diagnose-extract-once.ts",
+   "tags": [
+    "script",
+    "diagnostics",
+    "ingestion",
+    "pipeline"
+   ]
+  },
+  {
+   "id": "file:scripts/diagnose-prod-extract.ts",
+   "type": "file",
+   "filePath": "scripts/diagnose-prod-extract.ts",
+   "tags": [
+    "script",
+    "diagnostics",
+    "ingestion",
+    "production"
+   ]
+  },
+  {
+   "id": "file:src/app/api/chat/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/chat/route.ts",
+   "tags": [
+    "api-handler",
+    "ai",
+    "chat",
+    "route"
+   ]
+  },
+  {
+   "id": "file:src/app/api/mods/verify/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/mods/verify/route.ts",
+   "tags": [
+    "api-handler",
+    "verification",
+    "ontology",
+    "route",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/app/api/workbooks/__tests__/pipeline.test.ts",
+   "type": "file",
+   "filePath": "src/app/api/workbooks/__tests__/pipeline.test.ts",
+   "tags": [
+    "test",
+    "integration",
+    "pipeline",
+    "api-handler"
+   ]
+  },
+  {
+   "id": "file:src/app/api/workbooks/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/workbooks/route.ts",
+   "tags": [
+    "api-handler",
+    "ingestion",
+    "pipeline",
+    "route",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/components/app/MappingVerificationPanel.tsx",
+   "type": "file",
+   "filePath": "src/components/app/MappingVerificationPanel.tsx",
+   "tags": [
+    "component",
+    "verification",
+    "ui",
+    "ontology"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/fixtures/extract-oracle-helpers.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/fixtures/extract-oracle-helpers.ts",
+   "tags": [
+    "test",
+    "fixture",
+    "helper",
+    "pipeline"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/reader.test.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/reader.test.ts",
+   "tags": [
+    "test",
+    "workbook",
+    "reader"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/resolver.test.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/resolver.test.ts",
+   "tags": [
+    "test",
+    "ontology",
+    "resolver"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/stage-from-filename.test.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/stage-from-filename.test.ts",
+   "tags": [
+    "test",
+    "ontology",
+    "ingestion"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/valve-oracle.test.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/valve-oracle.test.ts",
+   "tags": [
+    "test",
+    "oracle",
+    "golden-test",
+    "ingestion"
+   ]
+  },
+  {
+   "id": "file:src/core/ingest/extract-from-mod.ts",
+   "type": "file",
+   "filePath": "src/core/ingest/extract-from-mod.ts",
+   "tags": [
+    "ingestion",
+    "extraction",
+    "pipeline",
+    "deterministic",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/builder/build-mod.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/builder/build-mod.ts",
+   "tags": [
+    "ontology",
+    "builder",
+    "data-model",
+    "pipeline",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/global-ontology.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/global-ontology.ts",
+   "tags": [
+    "ontology",
+    "seed-data",
+    "data-model",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/resolver/exact-index.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/resolver/exact-index.ts",
+   "tags": [
+    "ontology",
+    "resolver",
+    "index",
+    "caching"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/resolver/ladder.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/resolver/ladder.ts",
+   "tags": [
+    "ontology",
+    "resolver",
+    "heuristic",
+    "pipeline",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/resolver/llm.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/resolver/llm.ts",
+   "tags": [
+    "ontology",
+    "resolver",
+    "ai",
+    "fallback"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/store/knowledge-store.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/store/knowledge-store.ts",
+   "tags": [
+    "ontology",
+    "persistence",
+    "store",
+    "learning",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/profiler/formula-class.ts",
+   "type": "file",
+   "filePath": "src/core/profiler/formula-class.ts",
+   "tags": [
+    "profiler",
+    "classification",
+    "excel",
+    "utility"
+   ]
+  },
+  {
+   "id": "file:src/core/profiler/from-workbook.ts",
+   "type": "file",
+   "filePath": "src/core/profiler/from-workbook.ts",
+   "tags": [
+    "profiler",
+    "table-detection",
+    "pipeline",
+    "excel",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/profiler/profile.ts",
+   "type": "file",
+   "filePath": "src/core/profiler/profile.ts",
+   "tags": [
+    "profiler",
+    "classification",
+    "heuristic",
+    "pipeline"
+   ]
+  },
+  {
+   "id": "file:src/core/profiler/signature.ts",
+   "type": "file",
+   "filePath": "src/core/profiler/signature.ts",
+   "tags": [
+    "profiler",
+    "hashing",
+    "caching",
+    "utility"
+   ]
+  },
+  {
+   "id": "file:src/core/profiler/types.ts",
+   "type": "file",
+   "filePath": "src/core/profiler/types.ts",
+   "tags": [
+    "type-definition",
+    "profiler",
+    "data-model"
+   ]
+  },
+  {
+   "id": "file:src/core/workbook/header.ts",
+   "type": "file",
+   "filePath": "src/core/workbook/header.ts",
+   "tags": [
+    "workbook",
+    "header-detection",
+    "heuristic",
+    "utility"
+   ]
+  },
+  {
+   "id": "file:src/core/workbook/reader.ts",
+   "type": "file",
+   "filePath": "src/core/workbook/reader.ts",
+   "tags": [
+    "workbook",
+    "reader",
+    "excel",
+    "ingestion",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/ai.ts",
+   "type": "file",
+   "filePath": "src/lib/ai.ts",
+   "tags": [
+    "ai",
+    "provider-chain",
+    "service",
+    "fallback"
+   ]
+  },
+  {
+   "id": "file:src/lib/ingest/__tests__/date.test.ts",
+   "type": "file",
+   "filePath": "src/lib/ingest/__tests__/date.test.ts",
+   "tags": [
+    "test",
+    "date",
+    "ingestion"
+   ]
+  },
+  {
+   "id": "file:src/lib/ingest/date.ts",
+   "type": "file",
+   "filePath": "src/lib/ingest/date.ts",
+   "tags": [
+    "date",
+    "ingestion",
+    "utility",
+    "parsing",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/schemas.ts",
+   "type": "file",
+   "filePath": "src/lib/schemas.ts",
+   "tags": [
+    "validation",
+    "schema",
+    "ai",
+    "data-model"
+   ]
+  },
+  {
+   "id": "file:src/shared/models/entities.ts",
+   "type": "file",
+   "filePath": "src/shared/models/entities.ts",
+   "tags": [
+    "type-definition",
+    "ontology",
+    "data-model"
+   ]
+  },
+  {
+   "id": "file:src/shared/models/workbook.ts",
+   "type": "file",
+   "filePath": "src/shared/models/workbook.ts",
+   "tags": [
+    "type-definition",
+    "workbook",
+    "data-model"
+   ]
+  },
+  {
+   "id": "file:scripts/diagnose-entry-template.ts",
+   "type": "file",
+   "filePath": "scripts/diagnose-entry-template.ts",
+   "tags": [
+    "script",
+    "diagnostic",
+    "cli",
+    "entry-template"
+   ]
+  },
+  {
+   "id": "file:scripts/disposafe-registry-data.ts",
+   "type": "file",
+   "filePath": "scripts/disposafe-registry-data.ts",
+   "tags": [
+    "seed-data",
+    "registry",
+    "data-model"
+   ]
+  },
+  {
+   "id": "file:scripts/migrate-presets-to-mods.ts",
+   "type": "file",
+   "filePath": "scripts/migrate-presets-to-mods.ts",
+   "tags": [
+    "migration",
+    "script",
+    "ontology",
+    "data-pipeline",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:scripts/prove-no-seed-pad.ts",
+   "type": "file",
+   "filePath": "scripts/prove-no-seed-pad.ts",
+   "tags": [
+    "script",
+    "verification",
+    "diagnostic"
+   ]
+  },
+  {
+   "id": "file:src/__tests__/confidence-basis.test.ts",
+   "type": "file",
+   "filePath": "src/__tests__/confidence-basis.test.ts",
+   "tags": [
+    "test",
+    "contract",
+    "validation"
+   ]
+  },
+  {
+   "id": "file:src/app/api/archive-upload/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/archive-upload/route.ts",
+   "tags": [
+    "api-handler",
+    "upload",
+    "storage",
+    "provenance"
+   ]
+  },
+  {
+   "id": "file:src/app/api/clear-data/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/clear-data/route.ts",
+   "tags": [
+    "api-handler",
+    "admin",
+    "data-reset"
+   ]
+  },
+  {
+   "id": "file:src/app/api/day-records/__tests__/route.test.ts",
+   "type": "file",
+   "filePath": "src/app/api/day-records/__tests__/route.test.ts",
+   "tags": [
+    "test",
+    "api-handler",
+    "ingestion"
+   ]
+  },
+  {
+   "id": "file:src/app/api/day-records/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/day-records/route.ts",
+   "tags": [
+    "api-handler",
+    "query",
+    "ingestion",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/app/api/entry-template/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/entry-template/route.ts",
+   "tags": [
+    "api-handler",
+    "entry-template",
+    "ontology"
+   ]
+  },
+  {
+   "id": "file:src/app/api/hard-reset/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/hard-reset/route.ts",
+   "tags": [
+    "api-handler",
+    "admin",
+    "data-reset"
+   ]
+  },
+  {
+   "id": "file:src/app/api/manual-entries/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/manual-entries/route.ts",
+   "tags": [
+    "api-handler",
+    "manual-entry",
+    "analytics"
+   ]
+  },
+  {
+   "id": "file:src/app/api/mods/records/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/mods/records/route.ts",
+   "tags": [
+    "api-handler",
+    "ingestion",
+    "extraction",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/app/api/mods/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/mods/route.ts",
+   "tags": [
+    "api-handler",
+    "ontology",
+    "crud",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/app/api/raw-file/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/raw-file/route.ts",
+   "tags": [
+    "api-handler",
+    "storage",
+    "download"
+   ]
+  },
+  {
+   "id": "file:src/app/api/schema/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/schema/route.ts",
+   "tags": [
+    "api-handler",
+    "registry",
+    "ontology"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/build-mod.test.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/build-mod.test.ts",
+   "tags": [
+    "test",
+    "ontology",
+    "builder"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/mod-store.test.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/mod-store.test.ts",
+   "tags": [
+    "test",
+    "ontology",
+    "store"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/phase4.test.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/phase4.test.ts",
+   "tags": [
+    "test",
+    "migration",
+    "integration"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/builder/learn.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/builder/learn.ts",
+   "tags": [
+    "ontology",
+    "knowledge",
+    "learning",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/store/mod-store.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/store/mod-store.ts",
+   "tags": [
+    "store",
+    "ontology",
+    "persistence",
+    "singleton",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/validate/mod-validator.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/validate/mod-validator.ts",
+   "tags": [
+    "validation",
+    "ontology",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/workbook/snapshot-store.ts",
+   "type": "file",
+   "filePath": "src/core/workbook/snapshot-store.ts",
+   "tags": [
+    "store",
+    "persistence",
+    "workbook",
+    "singleton"
+   ]
+  },
+  {
+   "id": "file:src/lib/contract/d1.ts",
+   "type": "file",
+   "filePath": "src/lib/contract/d1.ts",
+   "tags": [
+    "type-definition",
+    "contract",
+    "data-model",
+    "events",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/store/__tests__/batch.test.ts",
+   "type": "file",
+   "filePath": "src/lib/store/__tests__/batch.test.ts",
+   "tags": [
+    "test",
+    "utility"
+   ]
+  },
+  {
+   "id": "file:src/lib/store/__tests__/store-selector.test.ts",
+   "type": "file",
+   "filePath": "src/lib/store/__tests__/store-selector.test.ts",
+   "tags": [
+    "test",
+    "store",
+    "configuration"
+   ]
+  },
+  {
+   "id": "file:src/lib/store/batch.ts",
+   "type": "file",
+   "filePath": "src/lib/store/batch.ts",
+   "tags": [
+    "utility",
+    "batching",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/store/index.ts",
+   "type": "file",
+   "filePath": "src/lib/store/index.ts",
+   "tags": [
+    "store",
+    "factory",
+    "entry-point",
+    "configuration",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/store/supabase.ts",
+   "type": "file",
+   "filePath": "src/lib/store/supabase.ts",
+   "tags": [
+    "store",
+    "supabase",
+    "persistence",
+    "events"
+   ]
+  },
+  {
+   "id": "file:src/lib/supabase.ts",
+   "type": "file",
+   "filePath": "src/lib/supabase.ts",
+   "tags": [
+    "supabase",
+    "client",
+    "factory",
+    "configuration"
+   ]
+  },
+  {
+   "id": "file:src/shared/models/ontology.ts",
+   "type": "file",
+   "filePath": "src/shared/models/ontology.ts",
+   "tags": [
+    "type-definition",
+    "ontology",
+    "data-model"
+   ]
+  },
+  {
+   "id": "file:src/__tests__/analytics.test.ts",
+   "type": "file",
+   "filePath": "src/__tests__/analytics.test.ts",
+   "tags": [
+    "test",
+    "analytics",
+    "fixtures"
+   ]
+  },
+  {
+   "id": "file:src/__tests__/audit-correctness.test.ts",
+   "type": "file",
+   "filePath": "src/__tests__/audit-correctness.test.ts",
+   "tags": [
+    "test",
+    "analytics",
+    "audit"
+   ]
+  },
+  {
+   "id": "file:src/__tests__/fixtures/disposafe-registry.ts",
+   "type": "file",
+   "filePath": "src/__tests__/fixtures/disposafe-registry.ts",
+   "tags": [
+    "test",
+    "fixtures",
+    "barrel"
+   ]
+  },
+  {
+   "id": "file:src/__tests__/ingest-emit.test.ts",
+   "type": "file",
+   "filePath": "src/__tests__/ingest-emit.test.ts",
+   "tags": [
+    "test",
+    "ingestion",
+    "events"
+   ]
+  },
+  {
+   "id": "file:src/__tests__/store.test.ts",
+   "type": "file",
+   "filePath": "src/__tests__/store.test.ts",
+   "tags": [
+    "test",
+    "store",
+    "event-sourcing",
+    "schema"
+   ]
+  },
+  {
+   "id": "file:src/__tests__/timeline.test.ts",
+   "type": "file",
+   "filePath": "src/__tests__/timeline.test.ts",
+   "tags": [
+    "test",
+    "analytics",
+    "trend"
+   ]
+  },
+  {
+   "id": "file:src/app/api/decide/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/decide/route.ts",
+   "tags": [
+    "api-handler",
+    "decision-engine",
+    "validation"
+   ]
+  },
+  {
+   "id": "file:src/app/capa/page.tsx",
+   "type": "file",
+   "filePath": "src/app/capa/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "capa",
+    "decision-engine"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/decision-engine.test.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/decision-engine.test.ts",
+   "tags": [
+    "test",
+    "decision-engine",
+    "rules"
+   ]
+  },
+  {
+   "id": "file:src/core/decision/canonical-vars.ts",
+   "type": "file",
+   "filePath": "src/core/decision/canonical-vars.ts",
+   "tags": [
+    "decision-engine",
+    "analytics",
+    "metrics",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/decision/engine.ts",
+   "type": "file",
+   "filePath": "src/core/decision/engine.ts",
+   "tags": [
+    "decision-engine",
+    "rules",
+    "service",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/decision/explain.ts",
+   "type": "file",
+   "filePath": "src/core/decision/explain.ts",
+   "tags": [
+    "decision-engine",
+    "ai",
+    "narrative"
+   ]
+  },
+  {
+   "id": "file:src/core/decision/rule-store.ts",
+   "type": "file",
+   "filePath": "src/core/decision/rule-store.ts",
+   "tags": [
+    "decision-engine",
+    "store",
+    "singleton",
+    "supabase",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/core/decision/seed-rules.ts",
+   "type": "file",
+   "filePath": "src/core/decision/seed-rules.ts",
+   "tags": [
+    "decision-engine",
+    "rules",
+    "seed-data",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/__tests__/rejection.registry.test.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/__tests__/rejection.registry.test.ts",
+   "tags": [
+    "test",
+    "analytics",
+    "registry"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/__tests__/scope.test.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/__tests__/scope.test.ts",
+   "tags": [
+    "test",
+    "analytics",
+    "scope"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/cost.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/cost.ts",
+   "tags": [
+    "analytics",
+    "cost",
+    "copq",
+    "utility"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/defect.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/defect.ts",
+   "tags": [
+    "analytics",
+    "defects",
+    "pareto",
+    "utility",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/narrative.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/narrative.ts",
+   "tags": [
+    "analytics",
+    "narrative",
+    "ai-context"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/rejection.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/rejection.ts",
+   "tags": [
+    "analytics",
+    "aggregation",
+    "metrics",
+    "trend",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/scope.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/scope.ts",
+   "tags": [
+    "utility",
+    "analytics",
+    "time-period",
+    "filtering",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/size.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/size.ts",
+   "tags": [
+    "analytics",
+    "trend",
+    "size-analysis"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/status.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/status.ts",
+   "tags": [
+    "analytics",
+    "quality-status",
+    "thresholds"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/trust.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/trust.ts",
+   "tags": [
+    "analytics",
+    "provenance",
+    "audit",
+    "trust-score"
+   ]
+  },
+  {
+   "id": "file:src/lib/contract/d3.ts",
+   "type": "file",
+   "filePath": "src/lib/contract/d3.ts",
+   "tags": [
+    "type-definition",
+    "validation",
+    "contract",
+    "schema-definition"
+   ]
+  },
+  {
+   "id": "file:src/lib/store/__tests__/supabase-mappers.test.ts",
+   "type": "file",
+   "filePath": "src/lib/store/__tests__/supabase-mappers.test.ts",
+   "tags": [
+    "test",
+    "serialization",
+    "supabase"
+   ]
+  },
+  {
+   "id": "file:src/lib/store/memory.ts",
+   "type": "file",
+   "filePath": "src/lib/store/memory.ts",
+   "tags": [
+    "data-model",
+    "persistence",
+    "in-memory",
+    "adapter"
+   ]
+  },
+  {
+   "id": "file:src/lib/store/supabase-mappers.ts",
+   "type": "file",
+   "filePath": "src/lib/store/supabase-mappers.ts",
+   "tags": [
+    "serialization",
+    "supabase",
+    "data-mapping",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/store/types.ts",
+   "type": "file",
+   "filePath": "src/lib/store/types.ts",
+   "tags": [
+    "type-definition",
+    "persistence",
+    "contract",
+    "interface"
+   ]
+  },
+  {
+   "id": "file:src/shared/models/decision.ts",
+   "type": "file",
+   "filePath": "src/shared/models/decision.ts",
+   "tags": [
+    "type-definition",
+    "validation",
+    "decision-engine",
+    "contract"
+   ]
+  },
+  {
+   "id": "file:scripts/diagnose-prod-review.ts",
+   "type": "file",
+   "filePath": "scripts/diagnose-prod-review.ts",
+   "tags": [
+    "utility",
+    "diagnostics",
+    "script",
+    "ingest"
+   ]
+  },
+  {
+   "id": "file:scripts/repair-ingest-verified-mods.ts",
+   "type": "file",
+   "filePath": "scripts/repair-ingest-verified-mods.ts",
+   "tags": [
+    "utility",
+    "script",
+    "migration",
+    "ingest"
+   ]
+  },
+  {
+   "id": "file:src/__tests__/canonical-direct-entry.test.ts",
+   "type": "file",
+   "filePath": "src/__tests__/canonical-direct-entry.test.ts",
+   "tags": [
+    "test",
+    "analytics",
+    "deduplication"
+   ]
+  },
+  {
+   "id": "file:src/__tests__/ingest-review.test.ts",
+   "type": "file",
+   "filePath": "src/__tests__/ingest-review.test.ts",
+   "tags": [
+    "test",
+    "ingest",
+    "validation"
+   ]
+  },
+  {
+   "id": "file:src/app/api/events/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/events/route.ts",
+   "tags": [
+    "api-handler",
+    "events",
+    "deduplication"
+   ]
+  },
+  {
+   "id": "file:src/app/api/ingest/route.ts",
+   "type": "file",
+   "filePath": "src/app/api/ingest/route.ts",
+   "tags": [
+    "api-handler",
+    "ingest",
+    "validation",
+    "persistence",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/app/data-entry/page.tsx",
+   "type": "file",
+   "filePath": "src/app/data-entry/page.tsx",
+   "tags": [
+    "component",
+    "entry-point",
+    "page",
+    "data-entry"
+   ]
+  },
+  {
+   "id": "file:src/components/BatchMatrixEntry.tsx",
+   "type": "file",
+   "filePath": "src/components/BatchMatrixEntry.tsx",
+   "tags": [
+    "component",
+    "data-entry",
+    "form",
+    "validation"
+   ]
+  },
+  {
+   "id": "file:src/components/MonthlyEntryGrid.tsx",
+   "type": "file",
+   "filePath": "src/components/MonthlyEntryGrid.tsx",
+   "tags": [
+    "component",
+    "data-entry",
+    "form",
+    "validation"
+   ]
+  },
+  {
+   "id": "file:src/components/WeekPicker.tsx",
+   "type": "file",
+   "filePath": "src/components/WeekPicker.tsx",
+   "tags": [
+    "component",
+    "ui",
+    "date"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/extract-oracle.test.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/extract-oracle.test.ts",
+   "tags": [
+    "test",
+    "ingest",
+    "regression"
+   ]
+  },
+  {
+   "id": "file:src/core/ingest/precedence.ts",
+   "type": "file",
+   "filePath": "src/core/ingest/precedence.ts",
+   "tags": [
+    "ingest",
+    "deduplication",
+    "utility"
+   ]
+  },
+  {
+   "id": "file:src/core/ingest/reconcile.ts",
+   "type": "file",
+   "filePath": "src/core/ingest/reconcile.ts",
+   "tags": [
+    "ingest",
+    "deduplication",
+    "validation"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/normalize.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/normalize.ts",
+   "tags": [
+    "utility",
+    "normalization",
+    "ontology"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/resolve-entity.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/resolve-entity.ts",
+   "tags": [
+    "ontology",
+    "resolution",
+    "registry"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/canonical.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/canonical.ts",
+   "tags": [
+    "analytics",
+    "deduplication",
+    "events",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/contract/hash.ts",
+   "type": "file",
+   "filePath": "src/lib/contract/hash.ts",
+   "tags": [
+    "utility",
+    "hashing",
+    "serialization",
+    "contract"
+   ]
+  },
+  {
+   "id": "file:src/lib/entry/__tests__/batch-id.test.ts",
+   "type": "file",
+   "filePath": "src/lib/entry/__tests__/batch-id.test.ts",
+   "tags": [
+    "test",
+    "validation",
+    "data-entry"
+   ]
+  },
+  {
+   "id": "file:src/lib/entry/__tests__/disposafe-matrix.test.ts",
+   "type": "file",
+   "filePath": "src/lib/entry/__tests__/disposafe-matrix.test.ts",
+   "tags": [
+    "test",
+    "data-entry",
+    "schema"
+   ]
+  },
+  {
+   "id": "file:src/lib/entry/__tests__/period.test.ts",
+   "type": "file",
+   "filePath": "src/lib/entry/__tests__/period.test.ts",
+   "tags": [
+    "test",
+    "date",
+    "data-entry"
+   ]
+  },
+  {
+   "id": "file:src/lib/entry/batch-id.ts",
+   "type": "file",
+   "filePath": "src/lib/entry/batch-id.ts",
+   "tags": [
+    "utility",
+    "data-entry",
+    "validation",
+    "serialization",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/entry/disposafe-matrix.ts",
+   "type": "file",
+   "filePath": "src/lib/entry/disposafe-matrix.ts",
+   "tags": [
+    "data-model",
+    "data-entry",
+    "schema",
+    "configuration",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/entry/period.ts",
+   "type": "file",
+   "filePath": "src/lib/entry/period.ts",
+   "tags": [
+    "utility",
+    "date",
+    "data-entry",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/entry/validate-entry.ts",
+   "type": "file",
+   "filePath": "src/lib/entry/validate-entry.ts",
+   "tags": [
+    "validation",
+    "data-entry",
+    "quality"
+   ]
+  },
+  {
+   "id": "file:src/lib/ingest/emit.ts",
+   "type": "file",
+   "filePath": "src/lib/ingest/emit.ts",
+   "tags": [
+    "ingest",
+    "events",
+    "serialization",
+    "contract",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/lib/ingest/review.ts",
+   "type": "file",
+   "filePath": "src/lib/ingest/review.ts",
+   "tags": [
+    "ingest",
+    "validation",
+    "review",
+    "quality",
+    "tested"
+   ]
+  },
+  {
+   "id": "file:src/app/audit/page.tsx",
+   "type": "file",
+   "filePath": "src/app/audit/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "audit",
+    "event-ledger"
+   ]
+  },
+  {
+   "id": "file:src/app/chat/page.tsx",
+   "type": "file",
+   "filePath": "src/app/chat/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "chat",
+    "ai"
+   ]
+  },
+  {
+   "id": "file:src/app/clear-data/page.tsx",
+   "type": "file",
+   "filePath": "src/app/clear-data/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "data-management",
+    "destructive-action"
+   ]
+  },
+  {
+   "id": "file:src/app/copq/page.tsx",
+   "type": "file",
+   "filePath": "src/app/copq/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "analytics",
+    "cost"
+   ]
+  },
+  {
+   "id": "file:src/app/defect-analysis/page.tsx",
+   "type": "file",
+   "filePath": "src/app/defect-analysis/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "analytics",
+    "pareto"
+   ]
+  },
+  {
+   "id": "file:src/app/layout.tsx",
+   "type": "file",
+   "filePath": "src/app/layout.tsx",
+   "tags": [
+    "entry-point",
+    "layout",
+    "context-provider"
+   ]
+  },
+  {
+   "id": "file:src/app/loading.tsx",
+   "type": "file",
+   "filePath": "src/app/loading.tsx",
+   "tags": [
+    "component",
+    "loading-state",
+    "utility"
+   ]
+  },
+  {
+   "id": "file:src/app/page.tsx",
+   "type": "file",
+   "filePath": "src/app/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "entry-point",
+    "dashboard",
+    "analytics"
+   ]
+  },
+  {
+   "id": "file:src/app/process-flow/fbc-process-data.ts",
+   "type": "file",
+   "filePath": "src/app/process-flow/fbc-process-data.ts",
+   "tags": [
+    "data-model",
+    "constants",
+    "process-definition"
+   ]
+  },
+  {
+   "id": "file:src/app/process-flow/page.tsx",
+   "type": "file",
+   "filePath": "src/app/process-flow/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "process-flow",
+    "analytics"
+   ]
+  },
+  {
+   "id": "file:src/app/reports/page.tsx",
+   "type": "file",
+   "filePath": "src/app/reports/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "reports",
+    "printing",
+    "analytics"
+   ]
+  },
+  {
+   "id": "file:src/app/settings/page.tsx",
+   "type": "file",
+   "filePath": "src/app/settings/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "settings",
+    "configuration"
+   ]
+  },
+  {
+   "id": "file:src/app/size-analysis/page.tsx",
+   "type": "file",
+   "filePath": "src/app/size-analysis/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "analytics",
+    "size-analysis"
+   ]
+  },
+  {
+   "id": "file:src/app/spc/page.tsx",
+   "type": "file",
+   "filePath": "src/app/spc/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "spc",
+    "analytics",
+    "chart"
+   ]
+  },
+  {
+   "id": "file:src/app/stage-analysis/page.tsx",
+   "type": "file",
+   "filePath": "src/app/stage-analysis/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "analytics",
+    "stage-analysis"
+   ]
+  },
+  {
+   "id": "file:src/app/staging/page.tsx",
+   "type": "file",
+   "filePath": "src/app/staging/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "data-entry",
+    "ingestion",
+    "upload"
+   ]
+  },
+  {
+   "id": "file:src/app/workbooks/page.tsx",
+   "type": "file",
+   "filePath": "src/app/workbooks/page.tsx",
+   "tags": [
+    "component",
+    "page",
+    "workbooks",
+    "list-view"
+   ]
+  },
+  {
+   "id": "file:src/components/FloatingDetailModal.tsx",
+   "type": "file",
+   "filePath": "src/components/FloatingDetailModal.tsx",
+   "tags": [
+    "component",
+    "modal",
+    "provenance",
+    "drill-down"
+   ]
+  },
+  {
+   "id": "file:src/components/InsightSlide.tsx",
+   "type": "file",
+   "filePath": "src/components/InsightSlide.tsx",
+   "tags": [
+    "component",
+    "ai",
+    "chart",
+    "presentational"
+   ]
+  },
+  {
+   "id": "file:src/components/ParetoChart.tsx",
+   "type": "file",
+   "filePath": "src/components/ParetoChart.tsx",
+   "tags": [
+    "component",
+    "chart",
+    "pareto",
+    "svg"
+   ]
+  },
+  {
+   "id": "file:src/components/UploadZone.tsx",
+   "type": "file",
+   "filePath": "src/components/UploadZone.tsx",
+   "tags": [
+    "component",
+    "upload",
+    "file-handling"
+   ]
+  },
+  {
+   "id": "file:src/components/app/AppShell.tsx",
+   "type": "file",
+   "filePath": "src/components/app/AppShell.tsx",
+   "tags": [
+    "component",
+    "layout",
+    "navigation",
+    "entry-point"
+   ]
+  },
+  {
+   "id": "file:src/components/app/EventsContext.tsx",
+   "type": "file",
+   "filePath": "src/components/app/EventsContext.tsx",
+   "tags": [
+    "component",
+    "context",
+    "state-management",
+    "hook"
+   ]
+  },
+  {
+   "id": "file:src/components/app/PageLoader.tsx",
+   "type": "file",
+   "filePath": "src/components/app/PageLoader.tsx",
+   "tags": [
+    "component",
+    "loading",
+    "ui-state"
+   ]
+  },
+  {
+   "id": "file:src/components/app/RegistryContext.tsx",
+   "type": "file",
+   "filePath": "src/components/app/RegistryContext.tsx",
+   "tags": [
+    "component",
+    "context",
+    "data-fetching",
+    "hook"
+   ]
+  },
+  {
+   "id": "file:src/components/app/widgets.tsx",
+   "type": "file",
+   "filePath": "src/components/app/widgets.tsx",
+   "tags": [
+    "component",
+    "chart",
+    "widget-library",
+    "data-viz"
+   ]
+  },
+  {
+   "id": "file:src/components/editorial/EditorialCharts.tsx",
+   "type": "file",
+   "filePath": "src/components/editorial/EditorialCharts.tsx",
+   "tags": [
+    "component",
+    "chart",
+    "design-system",
+    "svg"
+   ]
+  },
+  {
+   "id": "file:src/components/editorial/EditorialHeader.tsx",
+   "type": "file",
+   "filePath": "src/components/editorial/EditorialHeader.tsx",
+   "tags": [
+    "component",
+    "layout",
+    "design-system",
+    "theming"
+   ]
+  },
+  {
+   "id": "file:src/components/editorial/Icon.tsx",
+   "type": "file",
+   "filePath": "src/components/editorial/Icon.tsx",
+   "tags": [
+    "component",
+    "icon",
+    "design-system",
+    "svg"
+   ]
+  },
+  {
+   "id": "file:src/components/editorial/Pill.tsx",
+   "type": "file",
+   "filePath": "src/components/editorial/Pill.tsx",
+   "tags": [
+    "component",
+    "design-system",
+    "badge"
+   ]
+  },
+  {
+   "id": "file:src/components/editorial/TweaksContext.tsx",
+   "type": "file",
+   "filePath": "src/components/editorial/TweaksContext.tsx",
+   "tags": [
+    "context",
+    "theming",
+    "design-system",
+    "hook"
+   ]
+  },
+  {
+   "id": "file:src/core/ontology/empty-registry.ts",
+   "type": "file",
+   "filePath": "src/core/ontology/empty-registry.ts",
+   "tags": [
+    "data-model",
+    "fallback",
+    "ontology"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/index.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/index.ts",
+   "tags": [
+    "barrel",
+    "entry-point",
+    "analytics"
+   ]
+  },
+  {
+   "id": "file:src/lib/analytics/pareto.ts",
+   "type": "file",
+   "filePath": "src/lib/analytics/pareto.ts",
+   "tags": [
+    "analytics",
+    "utility",
+    "pareto"
+   ]
+  },
+  {
+   "id": "file:src/lib/audit-package.ts",
+   "type": "file",
+   "filePath": "src/lib/audit-package.ts",
+   "tags": [
+    "utility",
+    "export",
+    "audit",
+    "serialization"
+   ]
+  },
+  {
+   "id": "file:src/lib/chart-utils.ts",
+   "type": "file",
+   "filePath": "src/lib/chart-utils.ts",
+   "tags": [
+    "utility",
+    "chart",
+    "hook",
+    "layout"
+   ]
+  },
+  {
+   "id": "file:src/types/dashboard.ts",
+   "type": "file",
+   "filePath": "src/types/dashboard.ts",
+   "tags": [
+    "type-definition",
+    "dashboard",
+    "data-model"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/001_sessions.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/001_sessions.sql",
+   "tags": [
+    "database",
+    "migration",
+    "sessions",
+    "persistence"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/001_sessions.sql:sessions",
+   "type": "table",
+   "filePath": "supabase/migrations/001_sessions.sql",
+   "tags": [
+    "database",
+    "sessions",
+    "data-model"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/001_sessions.sql:insight_slides",
+   "type": "table",
+   "filePath": "supabase/migrations/001_sessions.sql",
+   "tags": [
+    "database",
+    "insights",
+    "data-model"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/002_add_merge_plan.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/002_add_merge_plan.sql",
+   "tags": [
+    "database",
+    "migration",
+    "schema-change"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/003_add_data_summary_and_rls.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/003_add_data_summary_and_rls.sql",
+   "tags": [
+    "database",
+    "migration",
+    "security",
+    "rls"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260615000000_schema.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260615000000_schema.sql",
+   "tags": [
+    "database",
+    "migration",
+    "event-ledger",
+    "schema-definition"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260615000000_schema.sql:raw_files",
+   "type": "table",
+   "filePath": "supabase/migrations/20260615000000_schema.sql",
+   "tags": [
+    "database",
+    "file-storage",
+    "provenance"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260615000000_schema.sql:ingestions",
+   "type": "table",
+   "filePath": "supabase/migrations/20260615000000_schema.sql",
+   "tags": [
+    "database",
+    "ingestion",
+    "audit-trail"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260615000000_schema.sql:events",
+   "type": "table",
+   "filePath": "supabase/migrations/20260615000000_schema.sql",
+   "tags": [
+    "database",
+    "event-ledger",
+    "append-only",
+    "data-model"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260615000000_schema.sql:findings",
+   "type": "table",
+   "filePath": "supabase/migrations/20260615000000_schema.sql",
+   "tags": [
+    "database",
+    "data-quality",
+    "findings"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260615000000_schema.sql:adjudications",
+   "type": "table",
+   "filePath": "supabase/migrations/20260615000000_schema.sql",
+   "tags": [
+    "database",
+    "adjudication",
+    "governance"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260615000000_schema.sql:rulebook_rules",
+   "type": "table",
+   "filePath": "supabase/migrations/20260615000000_schema.sql",
+   "tags": [
+    "database",
+    "rulebook",
+    "versioning"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260615000000_schema.sql:rule_applications",
+   "type": "table",
+   "filePath": "supabase/migrations/20260615000000_schema.sql",
+   "tags": [
+    "database",
+    "audit-trail",
+    "join-table"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260615000000_schema.sql:registries",
+   "type": "table",
+   "filePath": "supabase/migrations/20260615000000_schema.sql",
+   "tags": [
+    "database",
+    "registry",
+    "configuration"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260615000000_schema.sql:cost_config",
+   "type": "table",
+   "filePath": "supabase/migrations/20260615000000_schema.sql",
+   "tags": [
+    "database",
+    "cost",
+    "configuration"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260618_canonical_ledger.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260618_canonical_ledger.sql",
+   "tags": [
+    "database",
+    "migration",
+    "event-ledger",
+    "baseline"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260618_canonical_ledger.sql:events",
+   "type": "table",
+   "filePath": "supabase/migrations/20260618_canonical_ledger.sql",
+   "tags": [
+    "database",
+    "event-ledger",
+    "append-only"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260618_canonical_ledger.sql:findings",
+   "type": "table",
+   "filePath": "supabase/migrations/20260618_canonical_ledger.sql",
+   "tags": [
+    "database",
+    "data-quality",
+    "findings"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260618_canonical_ledger.sql:adjudications",
+   "type": "table",
+   "filePath": "supabase/migrations/20260618_canonical_ledger.sql",
+   "tags": [
+    "database",
+    "adjudication",
+    "governance"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260618_canonical_ledger.sql:rulebook_rules",
+   "type": "table",
+   "filePath": "supabase/migrations/20260618_canonical_ledger.sql",
+   "tags": [
+    "database",
+    "rulebook",
+    "versioning"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260618_canonical_ledger.sql:rule_applications",
+   "type": "table",
+   "filePath": "supabase/migrations/20260618_canonical_ledger.sql",
+   "tags": [
+    "database",
+    "audit-trail",
+    "join-table"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260618_canonical_ledger.sql:sessions",
+   "type": "table",
+   "filePath": "supabase/migrations/20260618_canonical_ledger.sql",
+   "tags": [
+    "database",
+    "sessions",
+    "legacy"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260618_canonical_ledger.sql:dashboards",
+   "type": "table",
+   "filePath": "supabase/migrations/20260618_canonical_ledger.sql",
+   "tags": [
+    "database",
+    "dashboard",
+    "legacy"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260619120000_add_provenance.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260619120000_add_provenance.sql",
+   "tags": [
+    "database",
+    "migration",
+    "provenance",
+    "schema-change"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260625_add_registry_sizes.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260625_add_registry_sizes.sql",
+   "tags": [
+    "database",
+    "migration",
+    "registry",
+    "schema-change"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260701120000_dataset_rows.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260701120000_dataset_rows.sql",
+   "tags": [
+    "database",
+    "migration",
+    "staging",
+    "data-model"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260701120000_dataset_rows.sql:dataset_rows",
+   "type": "table",
+   "filePath": "supabase/migrations/20260701120000_dataset_rows.sql",
+   "tags": [
+    "database",
+    "staging",
+    "data-model"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260701_datasets.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260701_datasets.sql",
+   "tags": [
+    "database",
+    "migration",
+    "staging",
+    "data-model"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260701_datasets.sql:datasets",
+   "type": "table",
+   "filePath": "supabase/migrations/20260701_datasets.sql",
+   "tags": [
+    "database",
+    "staging",
+    "deduplication"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260702_dataset_recognized_stage.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260702_dataset_recognized_stage.sql",
+   "tags": [
+    "database",
+    "migration",
+    "recognition",
+    "schema-change"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260708_registry_presets.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260708_registry_presets.sql",
+   "tags": [
+    "database",
+    "migration",
+    "registry",
+    "presets"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260710_registry_stage_aliases.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260710_registry_stage_aliases.sql",
+   "tags": [
+    "database",
+    "migration",
+    "registry",
+    "schema-change"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260711_dataset_recognition_confidence.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260711_dataset_recognition_confidence.sql",
+   "tags": [
+    "database",
+    "migration",
+    "recognition",
+    "schema-change"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260712_registry_is_active.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260712_registry_is_active.sql",
+   "tags": [
+    "database",
+    "migration",
+    "registry",
+    "schema-change"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260713000000_mod_core.sql",
+   "type": "table",
+   "filePath": "supabase/migrations/20260713000000_mod_core.sql",
+   "tags": [
+    "database",
+    "migration",
+    "ontology",
+    "schema-definition"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260713000000_mod_core.sql:workbook_snapshots",
+   "type": "table",
+   "filePath": "supabase/migrations/20260713000000_mod_core.sql",
+   "tags": [
+    "database",
+    "snapshot",
+    "workbook"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260713000000_mod_core.sql:mods",
+   "type": "table",
+   "filePath": "supabase/migrations/20260713000000_mod_core.sql",
+   "tags": [
+    "database",
+    "ontology",
+    "versioning",
+    "data-model"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260713000000_mod_core.sql:company_knowledge",
+   "type": "table",
+   "filePath": "supabase/migrations/20260713000000_mod_core.sql",
+   "tags": [
+    "database",
+    "knowledge-store",
+    "learning"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260713000000_mod_core.sql:global_ontology",
+   "type": "table",
+   "filePath": "supabase/migrations/20260713000000_mod_core.sql",
+   "tags": [
+    "database",
+    "ontology",
+    "seed-data"
+   ]
+  },
+  {
+   "id": "table:supabase/migrations/20260713000000_mod_core.sql:decision_rules",
+   "type": "table",
+   "filePath": "supabase/migrations/20260713000000_mod_core.sql",
+   "tags": [
+    "database",
+    "decision-rules",
+    "versioning"
+   ]
+  },
+  {
+   "id": "config:.env.example",
+   "type": "config",
+   "filePath": ".env.example",
+   "tags": [
+    "configuration",
+    "environment",
+    "secrets-template",
+    "supabase"
+   ]
+  },
+  {
+   "id": "document:AGENTS.md",
+   "type": "document",
+   "filePath": "AGENTS.md",
+   "tags": [
+    "documentation",
+    "development",
+    "conventions",
+    "ai-guidelines"
+   ]
+  },
+  {
+   "id": "document:CLAUDE.md",
+   "type": "document",
+   "filePath": "CLAUDE.md",
+   "tags": [
+    "documentation",
+    "entry-point",
+    "include"
+   ]
+  },
+  {
+   "id": "document:README.md",
+   "type": "document",
+   "filePath": "README.md",
+   "tags": [
+    "documentation",
+    "entry-point",
+    "overview",
+    "setup-guide"
+   ]
+  },
+  {
+   "id": "config:package.json",
+   "type": "config",
+   "filePath": "package.json",
+   "tags": [
+    "configuration",
+    "build-system",
+    "dependencies",
+    "npm"
+   ]
+  },
+  {
+   "id": "config:tsconfig.json",
+   "type": "config",
+   "filePath": "tsconfig.json",
+   "tags": [
+    "configuration",
+    "typescript",
+    "build-system"
+   ]
+  },
+  {
+   "id": "file:demo/index.html",
+   "type": "file",
+   "filePath": "demo/index.html",
+   "tags": [
+    "demo",
+    "prototype",
+    "design-system",
+    "static-page"
+   ]
+  },
+  {
+   "id": "document:design-system/rais-pro/MASTER.md",
+   "type": "document",
+   "filePath": "design-system/rais-pro/MASTER.md",
+   "tags": [
+    "documentation",
+    "design-system",
+    "style-guide",
+    "specification"
+   ]
+  },
+  {
+   "id": "document:design-system/rais-pro/pages/dashboard.md",
+   "type": "document",
+   "filePath": "design-system/rais-pro/pages/dashboard.md",
+   "tags": [
+    "documentation",
+    "design-system",
+    "dashboard",
+    "overrides"
+   ]
+  },
+  {
+   "id": "file:eslint.config.mjs",
+   "type": "file",
+   "filePath": "eslint.config.mjs",
+   "tags": [
+    "config",
+    "linting",
+    "build-system"
+   ]
+  },
+  {
+   "id": "file:jest.config.ts",
+   "type": "file",
+   "filePath": "jest.config.ts",
+   "tags": [
+    "config",
+    "test",
+    "build-system"
+   ]
+  },
+  {
+   "id": "file:jest.setup.ts",
+   "type": "file",
+   "filePath": "jest.setup.ts",
+   "tags": [
+    "config",
+    "test",
+    "environment"
+   ]
+  },
+  {
+   "id": "file:next.config.ts",
+   "type": "file",
+   "filePath": "next.config.ts",
+   "tags": [
+    "config",
+    "nextjs",
+    "build-system"
+   ]
+  },
+  {
+   "id": "file:postcss.config.mjs",
+   "type": "file",
+   "filePath": "postcss.config.mjs",
+   "tags": [
+    "config",
+    "css",
+    "build-system"
+   ]
+  },
+  {
+   "id": "file:scripts/inspect-excel.js",
+   "type": "file",
+   "filePath": "scripts/inspect-excel.js",
+   "tags": [
+    "utility",
+    "diagnostic",
+    "excel",
+    "script"
+   ]
+  },
+  {
+   "id": "file:src/app/globals.css",
+   "type": "file",
+   "filePath": "src/app/globals.css",
+   "tags": [
+    "design-system",
+    "theming",
+    "css-variables",
+    "typography"
+   ]
+  },
+  {
+   "id": "file:src/core/__tests__/phase5-flow.test.ts",
+   "type": "file",
+   "filePath": "src/core/__tests__/phase5-flow.test.ts",
+   "tags": [
+    "test",
+    "integration",
+    "api-handler",
+    "ingestion"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,17 @@
+{
+  "projectRoot": "C:/Users/acer/Documents/GitHub/RAIS-Pro",
+  "batchFiles": [
+    {"path":"demo/index.html","language":"html","sizeLines":1438,"fileCategory":"markup"},
+    {"path":"design-system/rais-pro/MASTER.md","language":"markdown","sizeLines":203,"fileCategory":"docs"},
+    {"path":"design-system/rais-pro/pages/dashboard.md","language":"markdown","sizeLines":45,"fileCategory":"docs"},
+    {"path":"eslint.config.mjs","language":"javascript","sizeLines":30,"fileCategory":"code"},
+    {"path":"jest.config.ts","language":"typescript","sizeLines":27,"fileCategory":"code"},
+    {"path":"jest.setup.ts","language":"typescript","sizeLines":2,"fileCategory":"code"},
+    {"path":"next.config.ts","language":"typescript","sizeLines":7,"fileCategory":"code"},
+    {"path":"postcss.config.mjs","language":"javascript","sizeLines":7,"fileCategory":"code"},
+    {"path":"scripts/inspect-excel.js","language":"javascript","sizeLines":17,"fileCategory":"code"},
+    {"path":"src/app/globals.css","language":"css","sizeLines":606,"fileCategory":"markup"},
+    {"path":"src/core/__tests__/phase5-flow.test.ts","language":"typescript","sizeLines":75,"fileCategory":"code"}
+  ],
+  "batchImportData": {"demo/index.html":[],"design-system/rais-pro/MASTER.md":[],"design-system/rais-pro/pages/dashboard.md":[],"eslint.config.mjs":[],"jest.config.ts":[],"jest.setup.ts":[],"next.config.ts":[],"postcss.config.mjs":[],"scripts/inspect-excel.js":[],"src/app/globals.css":[],"src/core/__tests__/phase5-flow.test.ts":[]}
+}

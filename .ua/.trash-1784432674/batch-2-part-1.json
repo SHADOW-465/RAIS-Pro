@@ -1,0 +1,1113 @@
+{
+ "nodes": [
+  {
+   "id": "file:scripts/diagnose-entry-template.ts",
+   "type": "file",
+   "name": "diagnose-entry-template.ts",
+   "filePath": "scripts/diagnose-entry-template.ts",
+   "summary": "Diagnostic CLI script that fetches verified mods from the mod store and prints how the entry template would be derived, for debugging template generation.",
+   "tags": [
+    "script",
+    "diagnostic",
+    "cli",
+    "entry-template"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "function:scripts/diagnose-entry-template.ts:main",
+   "type": "function",
+   "name": "main",
+   "filePath": "scripts/diagnose-entry-template.ts",
+   "lineRange": [
+    8,
+    70
+   ],
+   "summary": "Loads verified mod documents and prints entry-template derivation details for inspection.",
+   "tags": [
+    "diagnostic",
+    "cli"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:scripts/disposafe-registry-data.ts",
+   "type": "file",
+   "name": "disposafe-registry-data.ts",
+   "filePath": "scripts/disposafe-registry-data.ts",
+   "summary": "Static seed data defining the DispoSafe client registry (stages, sizes, defects) used by migration scripts and tests, typed against the D1 contract.",
+   "tags": [
+    "seed-data",
+    "registry",
+    "data-model"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:scripts/migrate-presets-to-mods.ts",
+   "type": "file",
+   "name": "migrate-presets-to-mods.ts",
+   "filePath": "scripts/migrate-presets-to-mods.ts",
+   "summary": "One-time migration script converting the legacy DispoSafe registry presets into published ModDocuments and knowledge-store entries.",
+   "tags": [
+    "migration",
+    "script",
+    "ontology",
+    "data-pipeline"
+   ],
+   "complexity": "complex"
+  },
+  {
+   "id": "function:scripts/migrate-presets-to-mods.ts:documentFromRegistry",
+   "type": "function",
+   "name": "documentFromRegistry",
+   "filePath": "scripts/migrate-presets-to-mods.ts",
+   "lineRange": [
+    45,
+    137
+   ],
+   "summary": "Builds a full ModDocument (entities, layout, captures) from a legacy ClientRegistry definition.",
+   "tags": [
+    "migration",
+    "builder"
+   ],
+   "complexity": "complex"
+  },
+  {
+   "id": "function:scripts/migrate-presets-to-mods.ts:knowledgeFromRegistry",
+   "type": "function",
+   "name": "knowledgeFromRegistry",
+   "filePath": "scripts/migrate-presets-to-mods.ts",
+   "lineRange": [
+    140,
+    151
+   ],
+   "summary": "Derives knowledge-store alias entries from a legacy registry for resolver lookups.",
+   "tags": [
+    "migration",
+    "knowledge"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "function:scripts/migrate-presets-to-mods.ts:migrate",
+   "type": "function",
+   "name": "migrate",
+   "filePath": "scripts/migrate-presets-to-mods.ts",
+   "lineRange": [
+    153,
+    198
+   ],
+   "summary": "Exported entry point that persists the migrated mod documents and knowledge entries into the stores.",
+   "tags": [
+    "migration",
+    "entry-point"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:scripts/prove-no-seed-pad.ts",
+   "type": "file",
+   "name": "prove-no-seed-pad.ts",
+   "filePath": "scripts/prove-no-seed-pad.ts",
+   "summary": "Verification script proving that the entry-template API does not pad output with seed-registry defects absent from verified mods.",
+   "tags": [
+    "script",
+    "verification",
+    "diagnostic"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "function:scripts/prove-no-seed-pad.ts:main",
+   "type": "function",
+   "name": "main",
+   "filePath": "scripts/prove-no-seed-pad.ts",
+   "lineRange": [
+    8,
+    59
+   ],
+   "summary": "Sets up store state and calls the entry-template route to assert no seed padding occurs.",
+   "tags": [
+    "verification",
+    "cli"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:src/__tests__/confidence-basis.test.ts",
+   "type": "file",
+   "name": "confidence-basis.test.ts",
+   "filePath": "src/__tests__/confidence-basis.test.ts",
+   "summary": "Unit test asserting the ConfidenceBasis values defined in the D1 contract behave as expected.",
+   "tags": [
+    "test",
+    "contract",
+    "validation"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "file:src/app/api/archive-upload/route.ts",
+   "type": "file",
+   "name": "route.ts",
+   "filePath": "src/app/api/archive-upload/route.ts",
+   "summary": "API route that archives uploaded raw Excel files to Supabase storage (or a local directory fallback) for provenance and later retrieval.",
+   "tags": [
+    "api-handler",
+    "upload",
+    "storage",
+    "provenance"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "function:src/app/api/archive-upload/route.ts:resolveArchiveDir",
+   "type": "function",
+   "name": "resolveArchiveDir",
+   "filePath": "src/app/api/archive-upload/route.ts",
+   "lineRange": [
+    16,
+    30
+   ],
+   "summary": "Resolves the local filesystem directory used as the archive fallback when Supabase storage is unavailable.",
+   "tags": [
+    "utility",
+    "storage"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "function:src/app/api/archive-upload/route.ts:POST",
+   "type": "function",
+   "name": "POST",
+   "filePath": "src/app/api/archive-upload/route.ts",
+   "lineRange": [
+    32,
+    112
+   ],
+   "summary": "Handles multipart upload of a raw workbook file and persists it to the archive location.",
+   "tags": [
+    "api-handler",
+    "upload"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:src/app/api/clear-data/route.ts",
+   "type": "file",
+   "name": "route.ts",
+   "filePath": "src/app/api/clear-data/route.ts",
+   "summary": "API route that clears ingested event data from Supabase tables to reset the application state.",
+   "tags": [
+    "api-handler",
+    "admin",
+    "data-reset"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "function:src/app/api/clear-data/route.ts:POST",
+   "type": "function",
+   "name": "POST",
+   "filePath": "src/app/api/clear-data/route.ts",
+   "lineRange": [
+    5,
+    50
+   ],
+   "summary": "Deletes event rows from Supabase tables, returning counts of cleared data.",
+   "tags": [
+    "api-handler",
+    "admin"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:src/app/api/day-records/__tests__/route.test.ts",
+   "type": "file",
+   "name": "route.test.ts",
+   "filePath": "src/app/api/day-records/__tests__/route.test.ts",
+   "summary": "Tests for the day-records GET route, seeding stage-day records via emit helpers and asserting query filtering.",
+   "tags": [
+    "test",
+    "api-handler",
+    "ingestion"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "function:src/app/api/day-records/__tests__/route.test.ts:rec",
+   "type": "function",
+   "name": "rec",
+   "filePath": "src/app/api/day-records/__tests__/route.test.ts",
+   "lineRange": [
+    10,
+    26
+   ],
+   "summary": "Test helper building a StageDayRecord fixture with overridable fields.",
+   "tags": [
+    "test",
+    "fixture"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "file:src/app/api/day-records/route.ts",
+   "type": "file",
+   "name": "route.ts",
+   "filePath": "src/app/api/day-records/route.ts",
+   "summary": "API route returning stage-day records reconstructed from the canonical event store, filtered by query parameters for the staging grid.",
+   "tags": [
+    "api-handler",
+    "query",
+    "ingestion"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "function:src/app/api/day-records/route.ts:GET",
+   "type": "function",
+   "name": "GET",
+   "filePath": "src/app/api/day-records/route.ts",
+   "lineRange": [
+    16,
+    84
+   ],
+   "summary": "Canonicalizes stored events and returns stage-day records matching date/stage filters.",
+   "tags": [
+    "api-handler",
+    "query"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:src/app/api/entry-template/route.ts",
+   "type": "file",
+   "name": "route.ts",
+   "filePath": "src/app/api/entry-template/route.ts",
+   "summary": "API route deriving the manual data-entry template (stages, defects, layout) from verified ModDocuments, scoring stages and humanizing defect names.",
+   "tags": [
+    "api-handler",
+    "entry-template",
+    "ontology"
+   ],
+   "complexity": "complex"
+  },
+  {
+   "id": "function:src/app/api/entry-template/route.ts:defectsFromEntities",
+   "type": "function",
+   "name": "defectsFromEntities",
+   "filePath": "src/app/api/entry-template/route.ts",
+   "lineRange": [
+    66,
+    91
+   ],
+   "summary": "Extracts the defect list for a stage from mod entities, mapping regions to stages.",
+   "tags": [
+    "ontology",
+    "transform"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "function:src/app/api/entry-template/route.ts:templateFrom",
+   "type": "function",
+   "name": "templateFrom",
+   "filePath": "src/app/api/entry-template/route.ts",
+   "lineRange": [
+    99,
+    191
+   ],
+   "summary": "Builds the full entry template from mod rows, picking the best-scoring stage definitions.",
+   "tags": [
+    "entry-template",
+    "builder"
+   ],
+   "complexity": "complex"
+  },
+  {
+   "id": "function:src/app/api/entry-template/route.ts:GET",
+   "type": "function",
+   "name": "GET",
+   "filePath": "src/app/api/entry-template/route.ts",
+   "lineRange": [
+    193,
+    242
+   ],
+   "summary": "Handles the entry-template request by loading verified mods and returning the derived template.",
+   "tags": [
+    "api-handler",
+    "entry-template"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:src/app/api/hard-reset/route.ts",
+   "type": "file",
+   "name": "route.ts",
+   "filePath": "src/app/api/hard-reset/route.ts",
+   "summary": "API route performing a hard reset: wiping events, mods, snapshots, and knowledge data across Supabase tables.",
+   "tags": [
+    "api-handler",
+    "admin",
+    "data-reset"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "function:src/app/api/hard-reset/route.ts:POST",
+   "type": "function",
+   "name": "POST",
+   "filePath": "src/app/api/hard-reset/route.ts",
+   "lineRange": [
+    5,
+    64
+   ],
+   "summary": "Deletes all application data tables in Supabase for a clean-slate reset.",
+   "tags": [
+    "api-handler",
+    "admin"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:src/app/api/manual-entries/route.ts",
+   "type": "file",
+   "name": "route.ts",
+   "filePath": "src/app/api/manual-entries/route.ts",
+   "summary": "API route listing and deleting manually entered stage-day data, aggregating via the rejection analytics registry.",
+   "tags": [
+    "api-handler",
+    "manual-entry",
+    "analytics"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "function:src/app/api/manual-entries/route.ts:GET",
+   "type": "function",
+   "name": "GET",
+   "filePath": "src/app/api/manual-entries/route.ts",
+   "lineRange": [
+    7,
+    96
+   ],
+   "summary": "Lists manual entry records from the event store with aggregated rejection metrics.",
+   "tags": [
+    "api-handler",
+    "query"
+   ],
+   "complexity": "complex"
+  },
+  {
+   "id": "function:src/app/api/manual-entries/route.ts:DELETE",
+   "type": "function",
+   "name": "DELETE",
+   "filePath": "src/app/api/manual-entries/route.ts",
+   "lineRange": [
+    98,
+    136
+   ],
+   "summary": "Removes manual entry events matching the requested identifiers.",
+   "tags": [
+    "api-handler",
+    "admin"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:src/app/api/mods/records/route.ts",
+   "type": "file",
+   "name": "route.ts",
+   "filePath": "src/app/api/mods/records/route.ts",
+   "summary": "API route that re-runs extraction from a verified mod against its workbook snapshot to produce canonical records.",
+   "tags": [
+    "api-handler",
+    "ingestion",
+    "extraction"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "function:src/app/api/mods/records/route.ts:POST",
+   "type": "function",
+   "name": "POST",
+   "filePath": "src/app/api/mods/records/route.ts",
+   "lineRange": [
+    11,
+    32
+   ],
+   "summary": "Loads a mod and its snapshot and returns the records extracted from them.",
+   "tags": [
+    "api-handler",
+    "extraction"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "file:src/app/api/mods/route.ts",
+   "type": "file",
+   "name": "route.ts",
+   "filePath": "src/app/api/mods/route.ts",
+   "summary": "API route for listing mod documents and saving/publishing drafts, validating documents and triggering knowledge learning on publish.",
+   "tags": [
+    "api-handler",
+    "ontology",
+    "crud"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "function:src/app/api/mods/route.ts:GET",
+   "type": "function",
+   "name": "GET",
+   "filePath": "src/app/api/mods/route.ts",
+   "lineRange": [
+    12,
+    26
+   ],
+   "summary": "Lists mod documents from the mod store, optionally filtered by company.",
+   "tags": [
+    "api-handler",
+    "query"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "function:src/app/api/mods/route.ts:POST",
+   "type": "function",
+   "name": "POST",
+   "filePath": "src/app/api/mods/route.ts",
+   "lineRange": [
+    28,
+    60
+   ],
+   "summary": "Validates and saves a mod draft, learning knowledge entries when publishing.",
+   "tags": [
+    "api-handler",
+    "crud"
+   ],
+   "complexity": "moderate"
+  },
+  {
+   "id": "file:src/app/api/raw-file/route.ts",
+   "type": "file",
+   "name": "route.ts",
+   "filePath": "src/app/api/raw-file/route.ts",
+   "summary": "API route serving an archived raw workbook file back to the client from Supabase storage.",
+   "tags": [
+    "api-handler",
+    "storage",
+    "download"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "function:src/app/api/raw-file/route.ts:GET",
+   "type": "function",
+   "name": "GET",
+   "filePath": "src/app/api/raw-file/route.ts",
+   "lineRange": [
+    10,
+    42
+   ],
+   "summary": "Streams the requested archived file from Supabase storage.",
+   "tags": [
+    "api-handler",
+    "download"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "file:src/app/api/schema/route.ts",
+   "type": "file",
+   "name": "route.ts",
+   "filePath": "src/app/api/schema/route.ts",
+   "summary": "API route returning the active client registry schema (stages, sizes, defects) derived from verified mods, falling back to an empty registry.",
+   "tags": [
+    "api-handler",
+    "registry",
+    "ontology"
+   ],
+   "complexity": "simple"
+  },
+  {
+   "id": "function:src/app/api/schema/route.ts:GET",
+   "type": "function",
+   "name": "GET",
+   "filePath": "src/app/api/schema/route.ts",
+   "lineRange": [
+    12,
+    46
+   ],
+   "summary": "Builds the registry response from the mod store catalog or the empty-registry fallback.",
+   "tags": [
+    "api-handler",
+    "registry"
+   ],
+   "complexity": "moderate"
+  }
+ ],
+ "edges": [
+  {
+   "source": "file:scripts/diagnose-entry-template.ts",
+   "target": "function:scripts/diagnose-entry-template.ts:main",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:scripts/diagnose-entry-template.ts",
+   "target": "file:src/core/ontology/store/mod-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/disposafe-registry-data.ts",
+   "target": "file:src/lib/contract/d1.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "function:scripts/migrate-presets-to-mods.ts:documentFromRegistry",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "function:scripts/migrate-presets-to-mods.ts:knowledgeFromRegistry",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "function:scripts/migrate-presets-to-mods.ts:migrate",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "function:scripts/migrate-presets-to-mods.ts:migrate",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "file:scripts/disposafe-registry-data.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "file:src/core/ontology/store/knowledge-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "file:src/core/ontology/store/mod-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "file:src/core/workbook/snapshot-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "file:src/lib/contract/d1.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "file:src/lib/store/index.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "file:src/shared/models/ontology.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/prove-no-seed-pad.ts",
+   "target": "function:scripts/prove-no-seed-pad.ts:main",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:scripts/prove-no-seed-pad.ts",
+   "target": "file:scripts/disposafe-registry-data.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/prove-no-seed-pad.ts",
+   "target": "file:src/app/api/entry-template/route.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/prove-no-seed-pad.ts",
+   "target": "file:src/core/ontology/store/mod-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/prove-no-seed-pad.ts",
+   "target": "file:src/core/workbook/snapshot-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:scripts/prove-no-seed-pad.ts",
+   "target": "file:src/shared/models/ontology.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/__tests__/confidence-basis.test.ts",
+   "target": "file:src/lib/contract/d1.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/archive-upload/route.ts",
+   "target": "function:src/app/api/archive-upload/route.ts:resolveArchiveDir",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/archive-upload/route.ts",
+   "target": "function:src/app/api/archive-upload/route.ts:POST",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/archive-upload/route.ts",
+   "target": "function:src/app/api/archive-upload/route.ts:POST",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/archive-upload/route.ts",
+   "target": "file:src/lib/supabase.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/clear-data/route.ts",
+   "target": "function:src/app/api/clear-data/route.ts:POST",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/clear-data/route.ts",
+   "target": "function:src/app/api/clear-data/route.ts:POST",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/clear-data/route.ts",
+   "target": "file:src/lib/supabase.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/day-records/__tests__/route.test.ts",
+   "target": "function:src/app/api/day-records/__tests__/route.test.ts:rec",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/day-records/__tests__/route.test.ts",
+   "target": "file:src/app/api/day-records/route.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/day-records/__tests__/route.test.ts",
+   "target": "file:src/lib/ingest/emit.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/day-records/__tests__/route.test.ts",
+   "target": "file:src/lib/store/index.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/day-records/route.ts",
+   "target": "function:src/app/api/day-records/route.ts:GET",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/day-records/route.ts",
+   "target": "function:src/app/api/day-records/route.ts:GET",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/day-records/route.ts",
+   "target": "file:src/lib/analytics/canonical.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/day-records/route.ts",
+   "target": "file:src/lib/ingest/emit.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/day-records/route.ts",
+   "target": "file:src/lib/store/index.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/entry-template/route.ts",
+   "target": "function:src/app/api/entry-template/route.ts:defectsFromEntities",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/entry-template/route.ts",
+   "target": "function:src/app/api/entry-template/route.ts:templateFrom",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/entry-template/route.ts",
+   "target": "function:src/app/api/entry-template/route.ts:GET",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/entry-template/route.ts",
+   "target": "function:src/app/api/entry-template/route.ts:GET",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/entry-template/route.ts",
+   "target": "file:src/core/ontology/store/mod-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/entry-template/route.ts",
+   "target": "file:src/shared/models/ontology.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/hard-reset/route.ts",
+   "target": "function:src/app/api/hard-reset/route.ts:POST",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/hard-reset/route.ts",
+   "target": "function:src/app/api/hard-reset/route.ts:POST",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/hard-reset/route.ts",
+   "target": "file:src/lib/supabase.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/manual-entries/route.ts",
+   "target": "function:src/app/api/manual-entries/route.ts:GET",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/manual-entries/route.ts",
+   "target": "function:src/app/api/manual-entries/route.ts:GET",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/manual-entries/route.ts",
+   "target": "function:src/app/api/manual-entries/route.ts:DELETE",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/manual-entries/route.ts",
+   "target": "function:src/app/api/manual-entries/route.ts:DELETE",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/manual-entries/route.ts",
+   "target": "file:src/lib/analytics/rejection.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/manual-entries/route.ts",
+   "target": "file:src/lib/store/index.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/manual-entries/route.ts",
+   "target": "file:src/lib/supabase.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/mods/records/route.ts",
+   "target": "function:src/app/api/mods/records/route.ts:POST",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/mods/records/route.ts",
+   "target": "function:src/app/api/mods/records/route.ts:POST",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/mods/records/route.ts",
+   "target": "file:src/core/ingest/extract-from-mod.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/mods/records/route.ts",
+   "target": "file:src/core/ontology/store/mod-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/mods/records/route.ts",
+   "target": "file:src/core/workbook/snapshot-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/mods/route.ts",
+   "target": "function:src/app/api/mods/route.ts:GET",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/mods/route.ts",
+   "target": "function:src/app/api/mods/route.ts:GET",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/mods/route.ts",
+   "target": "function:src/app/api/mods/route.ts:POST",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/mods/route.ts",
+   "target": "function:src/app/api/mods/route.ts:POST",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/mods/route.ts",
+   "target": "file:src/core/ontology/builder/learn.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/mods/route.ts",
+   "target": "file:src/core/ontology/store/mod-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/mods/route.ts",
+   "target": "file:src/core/ontology/validate/mod-validator.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/raw-file/route.ts",
+   "target": "function:src/app/api/raw-file/route.ts:GET",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/raw-file/route.ts",
+   "target": "function:src/app/api/raw-file/route.ts:GET",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/raw-file/route.ts",
+   "target": "file:src/lib/supabase.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/schema/route.ts",
+   "target": "function:src/app/api/schema/route.ts:GET",
+   "type": "contains",
+   "direction": "forward",
+   "weight": 1
+  },
+  {
+   "source": "file:src/app/api/schema/route.ts",
+   "target": "function:src/app/api/schema/route.ts:GET",
+   "type": "exports",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "file:src/app/api/schema/route.ts",
+   "target": "file:src/core/ontology/empty-registry.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/schema/route.ts",
+   "target": "file:src/core/ontology/store/mod-store.ts",
+   "type": "imports",
+   "direction": "forward",
+   "weight": 0.7
+  },
+  {
+   "source": "file:src/app/api/day-records/route.ts",
+   "target": "file:src/app/api/day-records/__tests__/route.test.ts",
+   "type": "tested_by",
+   "direction": "forward",
+   "weight": 0.5
+  },
+  {
+   "source": "file:src/app/api/mods/route.ts",
+   "target": "file:src/app/api/workbooks/__tests__/pipeline.test.ts",
+   "type": "tested_by",
+   "direction": "forward",
+   "weight": 0.5
+  },
+  {
+   "source": "file:scripts/migrate-presets-to-mods.ts",
+   "target": "file:src/core/__tests__/phase4.test.ts",
+   "type": "tested_by",
+   "direction": "forward",
+   "weight": 0.5
+  },
+  {
+   "source": "function:src/app/api/mods/route.ts:POST",
+   "target": "function:src/core/ontology/validate/mod-validator.ts:validateModDocument",
+   "type": "calls",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "function:src/app/api/mods/route.ts:POST",
+   "target": "function:src/core/ontology/builder/learn.ts:learnFromMod",
+   "type": "calls",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "function:src/app/api/mods/records/route.ts:POST",
+   "target": "function:src/core/ingest/extract-from-mod.ts:extractFromMod",
+   "type": "calls",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "function:src/app/api/schema/route.ts:GET",
+   "target": "function:src/core/ontology/store/mod-store.ts:getModStore",
+   "type": "calls",
+   "direction": "forward",
+   "weight": 0.8
+  },
+  {
+   "source": "function:src/app/api/entry-template/route.ts:GET",
+   "target": "function:src/core/ontology/store/mod-store.ts:getModStore",
+   "type": "calls",
+   "direction": "forward",
+   "weight": 0.8
+  }
+ ]
+}

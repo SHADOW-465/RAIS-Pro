@@ -1,0 +1,283 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 6,
+  "filesSkipped": [],
+  "analysisOutcomes": {
+    "structure": {
+      "succeeded": 6,
+      "failed": 0
+    },
+    "callGraph": {
+      "succeeded": 0,
+      "failed": 0,
+      "skipped": 6
+    }
+  },
+  "results": [
+    {
+      "path": ".env.example",
+      "language": "config",
+      "fileCategory": "config",
+      "totalLines": 68,
+      "nonEmptyLines": 60,
+      "definitions": [
+        {
+          "name": "NEXT_PUBLIC_SUPABASE_URL",
+          "kind": "variable",
+          "fields": [],
+          "startLine": 7,
+          "endLine": 7
+        },
+        {
+          "name": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+          "kind": "variable",
+          "fields": [],
+          "startLine": 8,
+          "endLine": 8
+        },
+        {
+          "name": "SUPABASE_SERVICE_ROLE_KEY",
+          "kind": "variable",
+          "fields": [],
+          "startLine": 9,
+          "endLine": 9
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 3
+      }
+    },
+    {
+      "path": "AGENTS.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 122,
+      "nonEmptyLines": 97,
+      "sections": [
+        {
+          "heading": "This is NOT the Next.js you know",
+          "level": 1,
+          "line": 2
+        },
+        {
+          "heading": "Working in this repo",
+          "level": 1,
+          "line": 7
+        },
+        {
+          "heading": "Design direction (locked)",
+          "level": 2,
+          "line": 14
+        },
+        {
+          "heading": "Where things live",
+          "level": 2,
+          "line": 34
+        },
+        {
+          "heading": "AI provider chain",
+          "level": 2,
+          "line": 45
+        },
+        {
+          "heading": "Pipeline invariants",
+          "level": 2,
+          "line": 51
+        },
+        {
+          "heading": "Hard rules",
+          "level": 2,
+          "line": 79
+        },
+        {
+          "heading": "Testing",
+          "level": 2,
+          "line": 91
+        },
+        {
+          "heading": "Conventions",
+          "level": 2,
+          "line": 97
+        },
+        {
+          "heading": "Session History (June 18, 2026)",
+          "level": 2,
+          "line": 107
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 10
+      }
+    },
+    {
+      "path": "CLAUDE.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 1,
+      "nonEmptyLines": 1,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 0
+      }
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "totalLines": 168,
+      "nonEmptyLines": 136,
+      "sections": [
+        {
+          "heading": "RAIS Pro — The Rejection Report",
+          "level": 1,
+          "line": 1
+        },
+        {
+          "heading": "What it does",
+          "level": 2,
+          "line": 9
+        },
+        {
+          "heading": "Stack",
+          "level": 2,
+          "line": 18
+        },
+        {
+          "heading": "Project layout",
+          "level": 2,
+          "line": 27
+        },
+        {
+          "heading": "Setup",
+          "level": 2,
+          "line": 76
+        },
+        {
+          "heading": "AI backend chain",
+          "level": 2,
+          "line": 96
+        },
+        {
+          "heading": "Pipeline",
+          "level": 2,
+          "line": 117
+        },
+        {
+          "heading": "Tweaks (dev only)",
+          "level": 2,
+          "line": 146
+        },
+        {
+          "heading": "Testing",
+          "level": 2,
+          "line": 150
+        },
+        {
+          "heading": "Deployment",
+          "level": 2,
+          "line": 158
+        },
+        {
+          "heading": "License",
+          "level": 2,
+          "line": 166
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 11
+      }
+    },
+    {
+      "path": "package.json",
+      "language": "json",
+      "fileCategory": "config",
+      "totalLines": 48,
+      "nonEmptyLines": 48,
+      "sections": [
+        {
+          "heading": "name",
+          "level": 1,
+          "line": 2
+        },
+        {
+          "heading": "version",
+          "level": 1,
+          "line": 3
+        },
+        {
+          "heading": "private",
+          "level": 1,
+          "line": 4
+        },
+        {
+          "heading": "scripts",
+          "level": 1,
+          "line": 5
+        },
+        {
+          "heading": "dependencies",
+          "level": 1,
+          "line": 14
+        },
+        {
+          "heading": "devDependencies",
+          "level": 1,
+          "line": 29
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 6
+      }
+    },
+    {
+      "path": "tsconfig.json",
+      "language": "json",
+      "fileCategory": "config",
+      "totalLines": 34,
+      "nonEmptyLines": 34,
+      "sections": [
+        {
+          "heading": "compilerOptions",
+          "level": 1,
+          "line": 2
+        },
+        {
+          "heading": "include",
+          "level": 1,
+          "line": 25
+        },
+        {
+          "heading": "exclude",
+          "level": 1,
+          "line": 33
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "sectionCount": 3
+      }
+    }
+  ]
+}

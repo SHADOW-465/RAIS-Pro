@@ -247,13 +247,44 @@ export default function StagingPage() {
 
   return (
     <AppShell active="staging" statusCounts={{ anomalies: summary.invalid + summary.corrected }}>
-      <h1 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 800, margin: "0 0 2px" }}>Staging &amp; Review</h1>
-      <p className="muted" style={{ fontSize: 13, margin: "0 0 18px" }}>Upload raw data files, verify the proposed mappings, review the extracted records, and publish to analytics.</p>
+      <h1 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 800, margin: "0 0 2px" }}>Import from Excel</h1>
+      <p className="muted" style={{ fontSize: 13, margin: "0 0 12px", maxWidth: 720, lineHeight: 1.55 }}>
+        Transition path: load your existing plant workbook once so the app learns <strong>your columns</strong>
+        (for Data Entry) and can put historical numbers on the Dashboard. Day-to-day, prefer{" "}
+        <a href="/data-entry" style={{ color: "var(--accent)", fontWeight: 600 }}>Data Entry</a>.
+      </p>
+
+      {/* Operator path — plain language, not MOD jargon */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 18,
+      }}>
+        {[
+          { n: "1", t: "Upload workbook", d: "Drop the Excel you already use (Visual, Valve, Rejection Analysis, …)." },
+          { n: "2", t: "Confirm column meanings", d: "Check each header maps to Checked / Rejected / defect codes. Fix if wrong." },
+          { n: "3", t: "Load numbers", d: "Clean rows go to the ledger automatically. Then open Dashboard or keep entering new days." },
+        ].map((s) => (
+          <div key={s.n} style={{
+            padding: "12px 14px", borderRadius: 10, border: "1px solid var(--border)",
+            background: "var(--surface)",
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.04em", marginBottom: 4 }}>STEP {s.n}</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>{s.t}</div>
+            <div className="muted" style={{ fontSize: 12, lineHeight: 1.45 }}>{s.d}</div>
+          </div>
+        ))}
+      </div>
 
       {error && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 9, background: "color-mix(in srgb, var(--status-bad) 12%, transparent)", color: "var(--status-bad)", fontSize: 13 }}>{error}</div>}
-      {done && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 9, background: "color-mix(in srgb, var(--status-good) 12%, transparent)", color: "var(--status-good)", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span>Published {done.inserted} new events ({done.deduped} already on file).</span>
-        <button onClick={() => router.push("/")} style={{ background: "var(--status-good)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>View dashboard →</button>
+      {done && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 9, background: "color-mix(in srgb, var(--status-good) 12%, transparent)", color: "var(--status-good)", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <span>
+          <strong>Done.</strong> {done.inserted} new facts on the ledger
+          {done.deduped ? ` (${done.deduped} already present)` : ""}.
+          Your schema is available for Data Entry; numbers show on the Dashboard.
+        </span>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => router.push("/data-entry")} style={{ background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border-strong)", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Data Entry</button>
+          <button onClick={() => router.push("/")} style={{ background: "var(--status-good)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Dashboard →</button>
+        </div>
       </div>}
 
       {modUploads.length > 0 && (
@@ -263,8 +294,8 @@ export default function StagingPage() {
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 18 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <Card
-            title="Upload"
-            sub="Ingest raw workbook (.xlsx) — the ontology pipeline profiles it and proposes mappings for verification"
+            title="Upload plant Excel"
+            sub="Close the file in Excel first if it is open. We never change your original workbook."
           >
             <UploadZone onUpload={handleUpload} />
           </Card>

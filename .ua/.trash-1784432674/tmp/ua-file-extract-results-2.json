@@ -1,0 +1,4762 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 31,
+  "filesSkipped": [],
+  "analysisOutcomes": {
+    "structure": {
+      "succeeded": 31,
+      "failed": 0
+    },
+    "callGraph": {
+      "succeeded": 31,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "results": [
+    {
+      "path": "scripts/diagnose-entry-template.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 75,
+      "nonEmptyLines": 69,
+      "functions": [
+        {
+          "name": "main",
+          "startLine": 8,
+          "endLine": 70,
+          "params": []
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "main",
+          "callee": "getModStore",
+          "lineNumber": 10
+        },
+        {
+          "caller": "main",
+          "callee": "store.verified",
+          "lineNumber": 11
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 13
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 14
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 15
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 16
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 19
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 20
+        },
+        {
+          "caller": "main",
+          "callee": "doc.entities.filter",
+          "lineNumber": 26
+        },
+        {
+          "caller": "main",
+          "callee": "e.canonical?.startsWith",
+          "lineNumber": 26
+        },
+        {
+          "caller": "main",
+          "callee": "doc.workbook.fileName.startsWith",
+          "lineNumber": 29
+        },
+        {
+          "caller": "main",
+          "callee": "doc.workbook.fileName.startsWith",
+          "lineNumber": 30
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 31
+        },
+        {
+          "caller": "main",
+          "callee": "r.modId.slice",
+          "lineNumber": 31
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 32
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 33
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 34
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 35
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 36
+        },
+        {
+          "caller": "main",
+          "callee": "doc.stages.map((s) => s.stageId).join",
+          "lineNumber": 36
+        },
+        {
+          "caller": "main",
+          "callee": "doc.stages.map",
+          "lineNumber": 36
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 38
+        },
+        {
+          "caller": "main",
+          "callee": "defectEntities.slice(0, 8).map((e) => `${e.original.header}→${e.canonical}`).join",
+          "lineNumber": 40
+        },
+        {
+          "caller": "main",
+          "callee": "defectEntities.slice(0, 8).map",
+          "lineNumber": 40
+        },
+        {
+          "caller": "main",
+          "callee": "defectEntities.slice",
+          "lineNumber": 40
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 44
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 45
+        },
+        {
+          "caller": "main",
+          "callee": "import",
+          "lineNumber": 50
+        },
+        {
+          "caller": "main",
+          "callee": "import",
+          "lineNumber": 51
+        },
+        {
+          "caller": "main",
+          "callee": "GET",
+          "lineNumber": 52
+        },
+        {
+          "caller": "main",
+          "callee": "res.json",
+          "lineNumber": 53
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 54
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 55
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 57
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 61
+        },
+        {
+          "caller": "main",
+          "callee": "(s.defectCodes ?? s.defects?.map((d: { defectCode: string }) => d.defectCode) ?? []).join",
+          "lineNumber": 63
+        },
+        {
+          "caller": "main",
+          "callee": "s.defects?.map",
+          "lineNumber": 63
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 67
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 68
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 69
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 0,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "scripts/disposafe-registry-data.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 80,
+      "nonEmptyLines": 77,
+      "exports": [
+        {
+          "name": "DISPOSAFE_REGISTRY",
+          "line": 16,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 1,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "scripts/migrate-presets-to-mods.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 208,
+      "nonEmptyLines": 189,
+      "functions": [
+        {
+          "name": "companyId",
+          "startLine": 25,
+          "endLine": 27,
+          "params": []
+        },
+        {
+          "name": "sha256Hex",
+          "startLine": 29,
+          "endLine": 32,
+          "params": [
+            "s"
+          ]
+        },
+        {
+          "name": "captureOf",
+          "startLine": 35,
+          "endLine": 42,
+          "params": [
+            "fieldName"
+          ]
+        },
+        {
+          "name": "documentFromRegistry",
+          "startLine": 45,
+          "endLine": 137,
+          "params": [
+            "company",
+            "sourceName",
+            "reg"
+          ]
+        },
+        {
+          "name": "knowledgeFromRegistry",
+          "startLine": 140,
+          "endLine": 151,
+          "params": [
+            "company",
+            "sourceName",
+            "reg"
+          ]
+        },
+        {
+          "name": "migrate",
+          "startLine": 153,
+          "endLine": 198,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "migrate",
+          "line": 153,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "sha256Hex",
+          "callee": "globalThis.crypto.subtle.digest",
+          "lineNumber": 30
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "new TextEncoder().encode",
+          "lineNumber": 30
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, \"0\")).join",
+          "lineNumber": 31
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "Array.from(new Uint8Array(digest)).map",
+          "lineNumber": 31
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "Array.from",
+          "lineNumber": 31
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "b.toString(16).padStart",
+          "lineNumber": 31
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "b.toString",
+          "lineNumber": 31
+        },
+        {
+          "caller": "captureOf",
+          "callee": "fieldName.toLowerCase",
+          "lineNumber": 36
+        },
+        {
+          "caller": "captureOf",
+          "callee": "/check|input|\\brec\\b|receiv/.test",
+          "lineNumber": 37
+        },
+        {
+          "caller": "captureOf",
+          "callee": "/good|accept|pass|\\bok\\b/.test",
+          "lineNumber": 38
+        },
+        {
+          "caller": "captureOf",
+          "callee": "/rework|hold/.test",
+          "lineNumber": 39
+        },
+        {
+          "caller": "captureOf",
+          "callee": "/reject|\\brej\\b/.test",
+          "lineNumber": 40
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "reg.stages.map",
+          "lineNumber": 49
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "reg.stages.map",
+          "lineNumber": 50
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "reg.stages.map",
+          "lineNumber": 62
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "(s.fields ?? [])\r\n      .map((f: any) => captureOf(f.name ?? \"\"))\r\n      .filter",
+          "lineNumber": 70
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "(s.fields ?? [])\r\n      .map",
+          "lineNumber": 70
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "captureOf",
+          "lineNumber": 71
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "arr.indexOf",
+          "lineNumber": 72
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "s.captures?.includes",
+          "lineNumber": 74
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "(s.fields ?? []).some",
+          "lineNumber": 74
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "captureOf",
+          "lineNumber": 74
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "(reg.defects ?? []).map",
+          "lineNumber": 77
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "(d.stages ?? []).filter",
+          "lineNumber": 80
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "stages.some",
+          "lineNumber": 80
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "sourceName.startsWith",
+          "lineNumber": 86
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "stages.find",
+          "lineNumber": 89
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "entities.push",
+          "lineNumber": 90
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "reg.stages\r\n    .filter((s: any) => s.headerRows || s.merges)\r\n    .map",
+          "lineNumber": 112
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "reg.stages\r\n    .filter",
+          "lineNumber": 112
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "(s.headerRows ?? []).map",
+          "lineNumber": 117
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "row.map",
+          "lineNumber": 117
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "(s.merges ?? []).map",
+          "lineNumber": 118
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "ModDocument.parse",
+          "lineNumber": 122
+        },
+        {
+          "caller": "documentFromRegistry",
+          "callee": "entities.map",
+          "lineNumber": 130
+        },
+        {
+          "caller": "knowledgeFromRegistry",
+          "callee": "out.push",
+          "lineNumber": 143
+        },
+        {
+          "caller": "knowledgeFromRegistry",
+          "callee": "normalizeKey",
+          "lineNumber": 143
+        },
+        {
+          "caller": "knowledgeFromRegistry",
+          "callee": "out.push",
+          "lineNumber": 147
+        },
+        {
+          "caller": "knowledgeFromRegistry",
+          "callee": "normalizeKey",
+          "lineNumber": 147
+        },
+        {
+          "caller": "migrate",
+          "callee": "companyId",
+          "lineNumber": 154
+        },
+        {
+          "caller": "migrate",
+          "callee": "getModStore",
+          "lineNumber": 155
+        },
+        {
+          "caller": "migrate",
+          "callee": "getKnowledgeStore",
+          "lineNumber": 156
+        },
+        {
+          "caller": "migrate",
+          "callee": "getSnapshotStore",
+          "lineNumber": 157
+        },
+        {
+          "caller": "migrate",
+          "callee": "getStores",
+          "lineNumber": 158
+        },
+        {
+          "caller": "seedOne",
+          "callee": "sha256Hex",
+          "lineNumber": 163
+        },
+        {
+          "caller": "seedOne",
+          "callee": "modStore.activeFor",
+          "lineNumber": 164
+        },
+        {
+          "caller": "seedOne",
+          "callee": "snapshotStore.put",
+          "lineNumber": 170
+        },
+        {
+          "caller": "seedOne",
+          "callee": "documentFromRegistry",
+          "lineNumber": 171
+        },
+        {
+          "caller": "seedOne",
+          "callee": "modStore.saveDraft",
+          "lineNumber": 172
+        },
+        {
+          "caller": "seedOne",
+          "callee": "modStore.publish",
+          "lineNumber": 173
+        },
+        {
+          "caller": "seedOne",
+          "callee": "knowledgeStore.learn",
+          "lineNumber": 176
+        },
+        {
+          "caller": "migrate",
+          "callee": "registries.list",
+          "lineNumber": 181
+        },
+        {
+          "caller": "migrate",
+          "callee": "registries.get",
+          "lineNumber": 182
+        },
+        {
+          "caller": "migrate",
+          "callee": "Object.entries(row.stageAliases ?? {}).map",
+          "lineNumber": 184
+        },
+        {
+          "caller": "migrate",
+          "callee": "Object.entries",
+          "lineNumber": 184
+        },
+        {
+          "caller": "migrate",
+          "callee": "seedOne",
+          "lineNumber": 187
+        },
+        {
+          "caller": "migrate",
+          "callee": "knowledgeFromRegistry",
+          "lineNumber": 189
+        },
+        {
+          "caller": "migrate",
+          "callee": "seedOne",
+          "lineNumber": 194
+        },
+        {
+          "caller": "migrate",
+          "callee": "knowledgeFromRegistry",
+          "lineNumber": 195
+        }
+      ],
+      "metrics": {
+        "importCount": 7,
+        "exportCount": 1,
+        "functionCount": 6,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "scripts/prove-no-seed-pad.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 64,
+      "nonEmptyLines": 58,
+      "functions": [
+        {
+          "name": "main",
+          "startLine": 8,
+          "endLine": 59,
+          "params": []
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "main",
+          "callee": "getModStore",
+          "lineNumber": 9
+        },
+        {
+          "caller": "main",
+          "callee": "getSnapshotStore",
+          "lineNumber": 10
+        },
+        {
+          "caller": "main",
+          "callee": "ModDocument.parse",
+          "lineNumber": 13
+        },
+        {
+          "caller": "main",
+          "callee": "DISPOSAFE_REGISTRY.stages.map",
+          "lineNumber": 16
+        },
+        {
+          "caller": "main",
+          "callee": "DISPOSAFE_REGISTRY.stages.map",
+          "lineNumber": 27
+        },
+        {
+          "caller": "main",
+          "callee": "snap.put",
+          "lineNumber": 42
+        },
+        {
+          "caller": "main",
+          "callee": "store.saveDraft",
+          "lineNumber": 43
+        },
+        {
+          "caller": "main",
+          "callee": "store.publish",
+          "lineNumber": 44
+        },
+        {
+          "caller": "main",
+          "callee": "DISPOSAFE_REGISTRY.defects.filter",
+          "lineNumber": 46
+        },
+        {
+          "caller": "main",
+          "callee": "d.stages.includes",
+          "lineNumber": 46
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 47
+        },
+        {
+          "caller": "main",
+          "callee": "GET",
+          "lineNumber": 49
+        },
+        {
+          "caller": "main",
+          "callee": "res.json",
+          "lineNumber": 50
+        },
+        {
+          "caller": "main",
+          "callee": "body.meta.stages.find",
+          "lineNumber": 51
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 52
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 54
+        },
+        {
+          "caller": "main",
+          "callee": "console.error",
+          "lineNumber": 56
+        },
+        {
+          "caller": "main",
+          "callee": "process.exit",
+          "lineNumber": 57
+        }
+      ],
+      "metrics": {
+        "importCount": 5,
+        "exportCount": 0,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/__tests__/confidence-basis.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 21,
+      "nonEmptyLines": 17,
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/archive-upload/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 112,
+      "nonEmptyLines": 102,
+      "functions": [
+        {
+          "name": "resolveArchiveDir",
+          "startLine": 16,
+          "endLine": 30,
+          "params": []
+        },
+        {
+          "name": "POST",
+          "startLine": 32,
+          "endLine": 112,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "POST",
+          "line": 32,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "resolveArchiveDir",
+          "callee": "path.join",
+          "lineNumber": 18
+        },
+        {
+          "caller": "resolveArchiveDir",
+          "callee": "process.cwd",
+          "lineNumber": 18
+        },
+        {
+          "caller": "resolveArchiveDir",
+          "callee": "fs.mkdirSync",
+          "lineNumber": 20
+        },
+        {
+          "caller": "resolveArchiveDir",
+          "callee": "fs.accessSync",
+          "lineNumber": 22
+        },
+        {
+          "caller": "resolveArchiveDir",
+          "callee": "path.join",
+          "lineNumber": 26
+        },
+        {
+          "caller": "resolveArchiveDir",
+          "callee": "fs.mkdirSync",
+          "lineNumber": 27
+        },
+        {
+          "caller": "POST",
+          "callee": "req.formData",
+          "lineNumber": 34
+        },
+        {
+          "caller": "POST",
+          "callee": "formData.get",
+          "lineNumber": 35
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 38
+        },
+        {
+          "caller": "POST",
+          "callee": "file.arrayBuffer",
+          "lineNumber": 41
+        },
+        {
+          "caller": "POST",
+          "callee": "Buffer.from",
+          "lineNumber": 42
+        },
+        {
+          "caller": "POST",
+          "callee": "crypto.createHash(\"sha256\").update(buffer).digest",
+          "lineNumber": 45
+        },
+        {
+          "caller": "POST",
+          "callee": "crypto.createHash(\"sha256\").update",
+          "lineNumber": 45
+        },
+        {
+          "caller": "POST",
+          "callee": "crypto.createHash",
+          "lineNumber": 45
+        },
+        {
+          "caller": "POST",
+          "callee": "resolveArchiveDir",
+          "lineNumber": 52
+        },
+        {
+          "caller": "POST",
+          "callee": "file.name.replace",
+          "lineNumber": 53
+        },
+        {
+          "caller": "POST",
+          "callee": "path.join",
+          "lineNumber": 55
+        },
+        {
+          "caller": "POST",
+          "callee": "fs.existsSync",
+          "lineNumber": 57
+        },
+        {
+          "caller": "POST",
+          "callee": "fs.writeFileSync",
+          "lineNumber": 58
+        },
+        {
+          "caller": "POST",
+          "callee": "fs.chmodSync",
+          "lineNumber": 60
+        },
+        {
+          "caller": "POST",
+          "callee": "console.warn",
+          "lineNumber": 68
+        },
+        {
+          "caller": "POST",
+          "callee": "createServerClient",
+          "lineNumber": 82
+        },
+        {
+          "caller": "POST",
+          "callee": "db.from(\"raw_files\").upsert",
+          "lineNumber": 83
+        },
+        {
+          "caller": "POST",
+          "callee": "db.from",
+          "lineNumber": 83
+        },
+        {
+          "caller": "POST",
+          "callee": "buffer.toString",
+          "lineNumber": 87
+        },
+        {
+          "caller": "POST",
+          "callee": "new Date().toISOString",
+          "lineNumber": 88
+        },
+        {
+          "caller": "POST",
+          "callee": "console.error",
+          "lineNumber": 94
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 98
+        },
+        {
+          "caller": "POST",
+          "callee": "console.error",
+          "lineNumber": 106
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 107
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 1,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/clear-data/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 50,
+      "nonEmptyLines": 43,
+      "functions": [
+        {
+          "name": "POST",
+          "startLine": 5,
+          "endLine": 50,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "POST",
+          "line": 5,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "POST",
+          "callee": "createServerClient",
+          "lineNumber": 7
+        },
+        {
+          "caller": "clearTable",
+          "callee": "db.from(table).delete().neq",
+          "lineNumber": 14
+        },
+        {
+          "caller": "clearTable",
+          "callee": "db.from(table).delete",
+          "lineNumber": 14
+        },
+        {
+          "caller": "clearTable",
+          "callee": "db.from",
+          "lineNumber": 14
+        },
+        {
+          "caller": "clearTable",
+          "callee": "console.error",
+          "lineNumber": 16
+        },
+        {
+          "caller": "clearTable",
+          "callee": "errors.push",
+          "lineNumber": 17
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 22
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 23
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 24
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 25
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 26
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 27
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 28
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 29
+        },
+        {
+          "caller": "POST",
+          "callee": "console.error",
+          "lineNumber": 35
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 39
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 46
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 48
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/day-records/__tests__/route.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 84,
+      "nonEmptyLines": 74,
+      "functions": [
+        {
+          "name": "rec",
+          "startLine": 10,
+          "endLine": 26,
+          "params": [
+            "date",
+            "overrides"
+          ]
+        },
+        {
+          "name": "seed",
+          "startLine": 28,
+          "endLine": 31,
+          "params": [
+            "records"
+          ]
+        },
+        {
+          "name": "req",
+          "startLine": 33,
+          "endLine": 35,
+          "params": [
+            "qs"
+          ]
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "seed",
+          "callee": "getStores",
+          "lineNumber": 29
+        },
+        {
+          "caller": "seed",
+          "callee": "events.append",
+          "lineNumber": 30
+        },
+        {
+          "caller": "seed",
+          "callee": "emitMany",
+          "lineNumber": 30
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 0,
+        "functionCount": 3,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/day-records/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 84,
+      "nonEmptyLines": 76,
+      "functions": [
+        {
+          "name": "GET",
+          "startLine": 16,
+          "endLine": 84,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "GET",
+          "line": 16,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "GET",
+          "callee": "req.nextUrl.searchParams.get",
+          "lineNumber": 18
+        },
+        {
+          "caller": "GET",
+          "callee": "req.nextUrl.searchParams.get",
+          "lineNumber": 19
+        },
+        {
+          "caller": "GET",
+          "callee": "req.nextUrl.searchParams.get",
+          "lineNumber": 20
+        },
+        {
+          "caller": "GET",
+          "callee": "req.nextUrl.searchParams.get",
+          "lineNumber": 21
+        },
+        {
+          "caller": "GET",
+          "callee": "req.nextUrl.searchParams.get",
+          "lineNumber": 22
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 27
+        },
+        {
+          "caller": "GET",
+          "callee": "getStores",
+          "lineNumber": 30
+        },
+        {
+          "caller": "GET",
+          "callee": "canonicalizeEvents(await events.effective({ from: rangeFrom, to: rangeTo }))\r\n      .filter",
+          "lineNumber": 31
+        },
+        {
+          "caller": "GET",
+          "callee": "canonicalizeEvents",
+          "lineNumber": 31
+        },
+        {
+          "caller": "GET",
+          "callee": "events.effective",
+          "lineNumber": 31
+        },
+        {
+          "caller": "GET",
+          "callee": "COUNTABLE.has",
+          "lineNumber": 32
+        },
+        {
+          "caller": "GET",
+          "callee": "dayEvents.filter",
+          "lineNumber": 34
+        },
+        {
+          "caller": "GET",
+          "callee": "dayEvents.filter",
+          "lineNumber": 35
+        },
+        {
+          "caller": "GET",
+          "callee": "keyOf",
+          "lineNumber": 46
+        },
+        {
+          "caller": "GET",
+          "callee": "groups.get",
+          "lineNumber": 47
+        },
+        {
+          "caller": "GET",
+          "callee": "groups.set",
+          "lineNumber": 67
+        },
+        {
+          "caller": "GET",
+          "callee": "rec.defects.push",
+          "lineNumber": 76
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 80
+        },
+        {
+          "caller": "GET",
+          "callee": "Array.from",
+          "lineNumber": 80
+        },
+        {
+          "caller": "GET",
+          "callee": "groups.values",
+          "lineNumber": 80
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 82
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/entry-template/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 242,
+      "nonEmptyLines": 219,
+      "functions": [
+        {
+          "name": "isMigratedDoc",
+          "startLine": 42,
+          "endLine": 47,
+          "params": [
+            "doc"
+          ]
+        },
+        {
+          "name": "regionKey",
+          "startLine": 49,
+          "endLine": 51,
+          "params": [
+            "e"
+          ]
+        },
+        {
+          "name": "humanize",
+          "startLine": 53,
+          "endLine": 55,
+          "params": [
+            "name"
+          ]
+        },
+        {
+          "name": "defectsFromEntities",
+          "startLine": 66,
+          "endLine": 91,
+          "params": [
+            "doc",
+            "stageId",
+            "stageOfRegion"
+          ]
+        },
+        {
+          "name": "stageScore",
+          "startLine": 93,
+          "endLine": 97,
+          "params": [
+            "hasLayout",
+            "migrated",
+            "hasEntityDefects"
+          ]
+        },
+        {
+          "name": "templateFrom",
+          "startLine": 99,
+          "endLine": 191,
+          "params": [
+            "rows"
+          ]
+        },
+        {
+          "name": "GET",
+          "startLine": 193,
+          "endLine": 242,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "GET",
+          "line": 193,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "isMigratedDoc",
+          "callee": "/\\(migrated\\)/i.test",
+          "lineNumber": 44
+        },
+        {
+          "caller": "isMigratedDoc",
+          "callee": "doc.workbook.fileName.startsWith",
+          "lineNumber": 45
+        },
+        {
+          "caller": "isMigratedDoc",
+          "callee": "doc.workbook.fileName.startsWith",
+          "lineNumber": 46
+        },
+        {
+          "caller": "humanize",
+          "callee": "name.trim().replace(/\\s+/g, \" \").toLowerCase().replace",
+          "lineNumber": 54
+        },
+        {
+          "caller": "humanize",
+          "callee": "name.trim().replace(/\\s+/g, \" \").toLowerCase",
+          "lineNumber": 54
+        },
+        {
+          "caller": "humanize",
+          "callee": "name.trim().replace",
+          "lineNumber": 54
+        },
+        {
+          "caller": "humanize",
+          "callee": "name.trim",
+          "lineNumber": 54
+        },
+        {
+          "caller": "humanize",
+          "callee": "c.toUpperCase",
+          "lineNumber": 54
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "(doc.defects ?? []).map",
+          "lineNumber": 72
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "e.canonical?.startsWith",
+          "lineNumber": 75
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "e.canonical.slice",
+          "lineNumber": 76
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "stageOfRegion.get",
+          "lineNumber": 77
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "regionKey",
+          "lineNumber": 77
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "catalogByCode.get",
+          "lineNumber": 78
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "catalog?.stages?.includes",
+          "lineNumber": 81
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "out.has",
+          "lineNumber": 83
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "out.set",
+          "lineNumber": 84
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "e.original.header?.trim",
+          "lineNumber": 86
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "humanize",
+          "lineNumber": 86
+        },
+        {
+          "caller": "defectsFromEntities",
+          "callee": "out.values",
+          "lineNumber": 90
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "isMigratedDoc",
+          "lineNumber": 107
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "e.canonical?.startsWith",
+          "lineNumber": 111
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "stageOfRegion.set",
+          "lineNumber": 114
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "regionKey",
+          "lineNumber": 114
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "e.canonical.slice",
+          "lineNumber": 114
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "captures\r\n        .map((c) => CAPTURE_COLUMNS[c])\r\n        .filter(Boolean)\r\n        .map",
+          "lineNumber": 121
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "captures\r\n        .map((c) => CAPTURE_COLUMNS[c])\r\n        .filter",
+          "lineNumber": 121
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "captures\r\n        .map",
+          "lineNumber": 121
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "defectsFromEntities",
+          "lineNumber": 127
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "[...stageOfRegion.entries()].find",
+          "lineNumber": 129
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "stageOfRegion.entries",
+          "lineNumber": 129
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "regionEntry[0].split",
+          "lineNumber": 132
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "doc.layout.find",
+          "lineNumber": 133
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "doc.layout.find",
+          "lineNumber": 140
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "stageScore",
+          "lineNumber": 153
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "stages.get",
+          "lineNumber": 154
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "stages.set",
+          "lineNumber": 157
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "sizes.has",
+          "lineNumber": 169
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "sizes.set",
+          "lineNumber": 169
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "seenRules.has",
+          "lineNumber": 171
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "seenRules.add",
+          "lineNumber": 172
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "validation.push",
+          "lineNumber": 173
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "[...stages.values()].map",
+          "lineNumber": 179
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "stages.values",
+          "lineNumber": 179
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "sizes.values",
+          "lineNumber": 183
+        },
+        {
+          "caller": "templateFrom",
+          "callee": "rows.map",
+          "lineNumber": 185
+        },
+        {
+          "caller": "GET",
+          "callee": "getModStore",
+          "lineNumber": 195
+        },
+        {
+          "caller": "GET",
+          "callee": "req.nextUrl.searchParams.get",
+          "lineNumber": 196
+        },
+        {
+          "caller": "GET",
+          "callee": "store.activeFor",
+          "lineNumber": 200
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 202
+        },
+        {
+          "caller": "GET",
+          "callee": "store.verified",
+          "lineNumber": 207
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 209
+        },
+        {
+          "caller": "GET",
+          "callee": "rows.filter",
+          "lineNumber": 216
+        },
+        {
+          "caller": "GET",
+          "callee": "isMigratedDoc",
+          "lineNumber": 216
+        },
+        {
+          "caller": "GET",
+          "callee": "templateFrom",
+          "lineNumber": 220
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 221
+        },
+        {
+          "caller": "GET",
+          "callee": "template.stages.map",
+          "lineNumber": 226
+        },
+        {
+          "caller": "GET",
+          "callee": "s.defects.map",
+          "lineNumber": 229
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 237
+        }
+      ],
+      "metrics": {
+        "importCount": 2,
+        "exportCount": 1,
+        "functionCount": 7,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/hard-reset/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 64,
+      "nonEmptyLines": 56,
+      "functions": [
+        {
+          "name": "POST",
+          "startLine": 5,
+          "endLine": 64,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "POST",
+          "line": 5,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "POST",
+          "callee": "createServerClient",
+          "lineNumber": 7
+        },
+        {
+          "caller": "clearTable",
+          "callee": "db\r\n        .from(table)\r\n        .delete()\r\n        .neq",
+          "lineNumber": 11
+        },
+        {
+          "caller": "clearTable",
+          "callee": "db\r\n        .from(table)\r\n        .delete",
+          "lineNumber": 11
+        },
+        {
+          "caller": "clearTable",
+          "callee": "db\r\n        .from",
+          "lineNumber": 11
+        },
+        {
+          "caller": "clearTable",
+          "callee": "console.error",
+          "lineNumber": 16
+        },
+        {
+          "caller": "clearTable",
+          "callee": "errors.push",
+          "lineNumber": 17
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 22
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 23
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 24
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 25
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 26
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 27
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 28
+        },
+        {
+          "caller": "POST",
+          "callee": "clearTable",
+          "lineNumber": 29
+        },
+        {
+          "caller": "POST",
+          "callee": "console.error",
+          "lineNumber": 35
+        },
+        {
+          "caller": "POST",
+          "callee": "db\r\n      .from(\"registries\")\r\n      .delete()\r\n      .neq",
+          "lineNumber": 39
+        },
+        {
+          "caller": "POST",
+          "callee": "db\r\n      .from(\"registries\")\r\n      .delete",
+          "lineNumber": 39
+        },
+        {
+          "caller": "POST",
+          "callee": "db\r\n      .from",
+          "lineNumber": 39
+        },
+        {
+          "caller": "POST",
+          "callee": "console.error",
+          "lineNumber": 45
+        },
+        {
+          "caller": "POST",
+          "callee": "errors.push",
+          "lineNumber": 46
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 50
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 59
+        },
+        {
+          "caller": "POST",
+          "callee": "console.error",
+          "lineNumber": 61
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 62
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/manual-entries/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 136,
+      "nonEmptyLines": 119,
+      "functions": [
+        {
+          "name": "GET",
+          "startLine": 7,
+          "endLine": 96,
+          "params": [
+            "req"
+          ]
+        },
+        {
+          "name": "DELETE",
+          "startLine": 98,
+          "endLine": 136,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "GET",
+          "line": 7,
+          "isDefault": false
+        },
+        {
+          "name": "DELETE",
+          "line": 98,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "GET",
+          "callee": "getStores",
+          "lineNumber": 12
+        },
+        {
+          "caller": "GET",
+          "callee": "(await store.effective({}))\r\n      .slice()\r\n      .sort",
+          "lineNumber": 13
+        },
+        {
+          "caller": "GET",
+          "callee": "(await store.effective({}))\r\n      .slice",
+          "lineNumber": 13
+        },
+        {
+          "caller": "GET",
+          "callee": "store.effective",
+          "lineNumber": 13
+        },
+        {
+          "caller": "GET",
+          "callee": "(b.recordedAt ?? \"\").localeCompare",
+          "lineNumber": 15
+        },
+        {
+          "caller": "GET",
+          "callee": "groups.has",
+          "lineNumber": 23
+        },
+        {
+          "caller": "GET",
+          "callee": "groups.set",
+          "lineNumber": 24
+        },
+        {
+          "caller": "GET",
+          "callee": "groups.get(key)!.push",
+          "lineNumber": 26
+        },
+        {
+          "caller": "GET",
+          "callee": "groups.get",
+          "lineNumber": 26
+        },
+        {
+          "caller": "GET",
+          "callee": "Array.from(groups.entries()).map",
+          "lineNumber": 29
+        },
+        {
+          "caller": "GET",
+          "callee": "Array.from",
+          "lineNumber": 29
+        },
+        {
+          "caller": "GET",
+          "callee": "groups.entries",
+          "lineNumber": 29
+        },
+        {
+          "caller": "GET",
+          "callee": "key.split",
+          "lineNumber": 30
+        },
+        {
+          "caller": "GET",
+          "callee": "groupEvents.map((e) => e.stageId).filter",
+          "lineNumber": 52
+        },
+        {
+          "caller": "GET",
+          "callee": "groupEvents.map",
+          "lineNumber": 52
+        },
+        {
+          "caller": "GET",
+          "callee": "aggregate",
+          "lineNumber": 54
+        },
+        {
+          "caller": "GET",
+          "callee": "groupEvents.filter",
+          "lineNumber": 54
+        },
+        {
+          "caller": "GET",
+          "callee": "Object.entries(e.customFields).forEach",
+          "lineNumber": 68
+        },
+        {
+          "caller": "GET",
+          "callee": "Object.entries",
+          "lineNumber": 68
+        },
+        {
+          "caller": "GET",
+          "callee": "[\"operator\", \"supervisor\", \"machine\", \"product\", \"size\", \"batch\", \"notes\"].includes",
+          "lineNumber": 69
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 92
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 94
+        },
+        {
+          "caller": "DELETE",
+          "callee": "searchParams.get",
+          "lineNumber": 101
+        },
+        {
+          "caller": "DELETE",
+          "callee": "searchParams.get",
+          "lineNumber": 102
+        },
+        {
+          "caller": "DELETE",
+          "callee": "NextResponse.json",
+          "lineNumber": 105
+        },
+        {
+          "caller": "DELETE",
+          "callee": "createServerClient",
+          "lineNumber": 108
+        },
+        {
+          "caller": "DELETE",
+          "callee": "db\r\n      .from(\"events\")\r\n      .select",
+          "lineNumber": 111
+        },
+        {
+          "caller": "DELETE",
+          "callee": "db\r\n      .from",
+          "lineNumber": 111
+        },
+        {
+          "caller": "DELETE",
+          "callee": "(rows || []).filter",
+          "lineNumber": 117
+        },
+        {
+          "caller": "DELETE",
+          "callee": "toDelete.map",
+          "lineNumber": 122
+        },
+        {
+          "caller": "DELETE",
+          "callee": "db\r\n        .from(\"events\")\r\n        .delete()\r\n        .in",
+          "lineNumber": 125
+        },
+        {
+          "caller": "DELETE",
+          "callee": "db\r\n        .from(\"events\")\r\n        .delete",
+          "lineNumber": 125
+        },
+        {
+          "caller": "DELETE",
+          "callee": "db\r\n        .from",
+          "lineNumber": 125
+        },
+        {
+          "caller": "DELETE",
+          "callee": "NextResponse.json",
+          "lineNumber": 132
+        },
+        {
+          "caller": "DELETE",
+          "callee": "NextResponse.json",
+          "lineNumber": 134
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 2,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/mods/records/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 32,
+      "nonEmptyLines": 27,
+      "functions": [
+        {
+          "name": "POST",
+          "startLine": 11,
+          "endLine": 32,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "POST",
+          "line": 11,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "POST",
+          "callee": "req.json",
+          "lineNumber": 13
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 14
+        },
+        {
+          "caller": "POST",
+          "callee": "getModStore().activeFor",
+          "lineNumber": 16
+        },
+        {
+          "caller": "POST",
+          "callee": "getModStore",
+          "lineNumber": 16
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 17
+        },
+        {
+          "caller": "POST",
+          "callee": "getSnapshotStore().get",
+          "lineNumber": 19
+        },
+        {
+          "caller": "POST",
+          "callee": "getSnapshotStore",
+          "lineNumber": 19
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 20
+        },
+        {
+          "caller": "POST",
+          "callee": "extractFromMod",
+          "lineNumber": 22
+        },
+        {
+          "caller": "POST",
+          "callee": "modId.slice",
+          "lineNumber": 25
+        },
+        {
+          "caller": "POST",
+          "callee": "Date.now",
+          "lineNumber": 25
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 28
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 30
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/mods/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 60,
+      "nonEmptyLines": 54,
+      "functions": [
+        {
+          "name": "GET",
+          "startLine": 12,
+          "endLine": 26,
+          "params": [
+            "req"
+          ]
+        },
+        {
+          "name": "POST",
+          "startLine": 28,
+          "endLine": 60,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "GET",
+          "line": 12,
+          "isDefault": false
+        },
+        {
+          "name": "POST",
+          "line": 28,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "GET",
+          "callee": "req.nextUrl.searchParams.get",
+          "lineNumber": 14
+        },
+        {
+          "caller": "GET",
+          "callee": "req.nextUrl.searchParams.get",
+          "lineNumber": 16
+        },
+        {
+          "caller": "GET",
+          "callee": "getModStore().get",
+          "lineNumber": 17
+        },
+        {
+          "caller": "GET",
+          "callee": "getModStore",
+          "lineNumber": 17
+        },
+        {
+          "caller": "GET",
+          "callee": "Number",
+          "lineNumber": 17
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 18
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 19
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 22
+        },
+        {
+          "caller": "GET",
+          "callee": "getModStore().list",
+          "lineNumber": 22
+        },
+        {
+          "caller": "GET",
+          "callee": "getModStore",
+          "lineNumber": 22
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 24
+        },
+        {
+          "caller": "POST",
+          "callee": "req.json",
+          "lineNumber": 30
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 33
+        },
+        {
+          "caller": "POST",
+          "callee": "getModStore",
+          "lineNumber": 36
+        },
+        {
+          "caller": "POST",
+          "callee": "store.get",
+          "lineNumber": 37
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 38
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 40
+        },
+        {
+          "caller": "POST",
+          "callee": "validateModDocument",
+          "lineNumber": 43
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 45
+        },
+        {
+          "caller": "POST",
+          "callee": "store.publish",
+          "lineNumber": 48
+        },
+        {
+          "caller": "POST",
+          "callee": "learnFromMod",
+          "lineNumber": 49
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 50
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 58
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 2,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/raw-file/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 42,
+      "nonEmptyLines": 37,
+      "functions": [
+        {
+          "name": "GET",
+          "startLine": 10,
+          "endLine": 42,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "GET",
+          "line": 10,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "GET",
+          "callee": "req.nextUrl.searchParams.get",
+          "lineNumber": 11
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 13
+        },
+        {
+          "caller": "GET",
+          "callee": "createServerClient",
+          "lineNumber": 16
+        },
+        {
+          "caller": "GET",
+          "callee": "db\r\n    .from(\"raw_files\")\r\n    .select(\"file_name, file_bytes\")\r\n    .eq(\"file_hash\", hash)\r\n    .maybeSingle",
+          "lineNumber": 17
+        },
+        {
+          "caller": "GET",
+          "callee": "db\r\n    .from(\"raw_files\")\r\n    .select(\"file_name, file_bytes\")\r\n    .eq",
+          "lineNumber": 17
+        },
+        {
+          "caller": "GET",
+          "callee": "db\r\n    .from(\"raw_files\")\r\n    .select",
+          "lineNumber": 17
+        },
+        {
+          "caller": "GET",
+          "callee": "db\r\n    .from",
+          "lineNumber": 17
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 24
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 27
+        },
+        {
+          "caller": "GET",
+          "callee": "raw.startsWith",
+          "lineNumber": 32
+        },
+        {
+          "caller": "GET",
+          "callee": "raw.slice",
+          "lineNumber": 32
+        },
+        {
+          "caller": "GET",
+          "callee": "Buffer.from",
+          "lineNumber": 33
+        },
+        {
+          "caller": "GET",
+          "callee": "encodeURIComponent",
+          "lineNumber": 38
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/schema/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 46,
+      "nonEmptyLines": 42,
+      "functions": [
+        {
+          "name": "GET",
+          "startLine": 12,
+          "endLine": 46,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "GET",
+          "line": 12,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "GET",
+          "callee": "getModStore().catalogFor",
+          "lineNumber": 15
+        },
+        {
+          "caller": "GET",
+          "callee": "getModStore",
+          "lineNumber": 15
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 17
+        },
+        {
+          "caller": "GET",
+          "callee": "catalog.stages.map",
+          "lineNumber": 20
+        },
+        {
+          "caller": "GET",
+          "callee": "(stage.captures ?? []).map",
+          "lineNumber": 22
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 28
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 44
+        }
+      ],
+      "metrics": {
+        "importCount": 2,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/__tests__/build-mod.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 87,
+      "nonEmptyLines": 76,
+      "functions": [
+        {
+          "name": "proposal",
+          "startLine": 9,
+          "endLine": 12,
+          "params": [
+            "entityId",
+            "kind",
+            "sheet",
+            "header",
+            "canonical",
+            "colLetter"
+          ]
+        },
+        {
+          "name": "modRow",
+          "startLine": 45,
+          "endLine": 57,
+          "params": [
+            "ents"
+          ]
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "modRow",
+          "callee": "deriveCatalogs",
+          "lineNumber": 46
+        },
+        {
+          "caller": "modRow",
+          "callee": "\"a\".repeat",
+          "lineNumber": 49
+        },
+        {
+          "caller": "modRow",
+          "callee": "\"a\".repeat",
+          "lineNumber": 52
+        },
+        {
+          "caller": "modRow",
+          "callee": "new Date().toISOString",
+          "lineNumber": 55
+        },
+        {
+          "caller": "modRow",
+          "callee": "new Date().toISOString",
+          "lineNumber": 55
+        }
+      ],
+      "metrics": {
+        "importCount": 5,
+        "exportCount": 0,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/__tests__/mod-store.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 84,
+      "nonEmptyLines": 72,
+      "functions": [
+        {
+          "name": "doc",
+          "startLine": 8,
+          "endLine": 25,
+          "params": [
+            "overrides"
+          ]
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "doc",
+          "callee": "ModDocument.parse",
+          "lineNumber": 9
+        },
+        {
+          "caller": "doc",
+          "callee": "\"a\".repeat",
+          "lineNumber": 11
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 0,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/__tests__/phase4.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 98,
+      "nonEmptyLines": 86,
+      "functions": [
+        {
+          "name": "req",
+          "startLine": 16,
+          "endLine": 18,
+          "params": [
+            "url"
+          ]
+        }
+      ],
+      "metrics": {
+        "importCount": 5,
+        "exportCount": 0,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/ontology/builder/learn.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 42,
+      "nonEmptyLines": 36,
+      "functions": [
+        {
+          "name": "knowledgeFromMod",
+          "startLine": 10,
+          "endLine": 36,
+          "params": [
+            "mod"
+          ]
+        },
+        {
+          "name": "learnFromMod",
+          "startLine": 38,
+          "endLine": 42,
+          "params": [
+            "mod"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "knowledgeFromMod",
+          "line": 10,
+          "isDefault": false
+        },
+        {
+          "name": "learnFromMod",
+          "line": 38,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "push",
+          "callee": "seen.has",
+          "lineNumber": 15
+        },
+        {
+          "caller": "push",
+          "callee": "seen.add",
+          "lineNumber": 15
+        },
+        {
+          "caller": "push",
+          "callee": "out.push",
+          "lineNumber": 15
+        },
+        {
+          "caller": "knowledgeFromMod",
+          "callee": "SIZE_SHEET_RE.test",
+          "lineNumber": 26
+        },
+        {
+          "caller": "knowledgeFromMod",
+          "callee": "normalizeKey",
+          "lineNumber": 27
+        },
+        {
+          "caller": "knowledgeFromMod",
+          "callee": "normalizeKey",
+          "lineNumber": 28
+        },
+        {
+          "caller": "knowledgeFromMod",
+          "callee": "push",
+          "lineNumber": 29
+        },
+        {
+          "caller": "knowledgeFromMod",
+          "callee": "push",
+          "lineNumber": 32
+        },
+        {
+          "caller": "knowledgeFromMod",
+          "callee": "normalizeKey",
+          "lineNumber": 32
+        },
+        {
+          "caller": "learnFromMod",
+          "callee": "knowledgeFromMod",
+          "lineNumber": 39
+        },
+        {
+          "caller": "learnFromMod",
+          "callee": "getKnowledgeStore().learn",
+          "lineNumber": 40
+        },
+        {
+          "caller": "learnFromMod",
+          "callee": "getKnowledgeStore",
+          "lineNumber": 40
+        }
+      ],
+      "metrics": {
+        "importCount": 2,
+        "exportCount": 2,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/ontology/store/mod-store.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 209,
+      "nonEmptyLines": 198,
+      "functions": [
+        {
+          "name": "mergeCatalog",
+          "startLine": 48,
+          "endLine": 63,
+          "params": [
+            "rows"
+          ]
+        },
+        {
+          "name": "fromDb",
+          "startLine": 128,
+          "endLine": 132,
+          "params": [
+            "r"
+          ]
+        },
+        {
+          "name": "getModStore",
+          "startLine": 204,
+          "endLine": 209,
+          "params": []
+        }
+      ],
+      "classes": [
+        {
+          "name": "MemoryModStore",
+          "startLine": 65,
+          "endLine": 121,
+          "methods": [
+            "list",
+            "get",
+            "activeFor",
+            "verified",
+            "updateDraft",
+            "saveDraft",
+            "publish",
+            "catalogFor"
+          ],
+          "properties": [
+            "rows"
+          ]
+        },
+        {
+          "name": "SupabaseModStore",
+          "startLine": 134,
+          "endLine": 201,
+          "methods": [
+            "db",
+            "list",
+            "get",
+            "activeFor",
+            "verified",
+            "updateDraft",
+            "saveDraft",
+            "publish",
+            "catalogFor"
+          ],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "getModStore",
+          "line": 204,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "mergeCatalog",
+          "callee": "stages.has",
+          "lineNumber": 53
+        },
+        {
+          "caller": "mergeCatalog",
+          "callee": "stages.set",
+          "lineNumber": 53
+        },
+        {
+          "caller": "mergeCatalog",
+          "callee": "defects.has",
+          "lineNumber": 54
+        },
+        {
+          "caller": "mergeCatalog",
+          "callee": "defects.set",
+          "lineNumber": 54
+        },
+        {
+          "caller": "mergeCatalog",
+          "callee": "sizes.has",
+          "lineNumber": 55
+        },
+        {
+          "caller": "mergeCatalog",
+          "callee": "sizes.set",
+          "lineNumber": 55
+        },
+        {
+          "caller": "mergeCatalog",
+          "callee": "stages.values",
+          "lineNumber": 58
+        },
+        {
+          "caller": "mergeCatalog",
+          "callee": "defects.values",
+          "lineNumber": 59
+        },
+        {
+          "caller": "mergeCatalog",
+          "callee": "sizes.values",
+          "lineNumber": 60
+        },
+        {
+          "caller": "list",
+          "callee": "this.rows\n      .filter((r) => !companyId || r.companyId === companyId)\n      .map((r) => ({ modId: r.modId, version: r.version, companyId: r.companyId, status: r.status, fileName: r.document.workbook.fileName, createdAt: r.createdAt }))\n      .sort",
+          "lineNumber": 69
+        },
+        {
+          "caller": "list",
+          "callee": "this.rows\n      .filter((r) => !companyId || r.companyId === companyId)\n      .map",
+          "lineNumber": 69
+        },
+        {
+          "caller": "list",
+          "callee": "this.rows\n      .filter",
+          "lineNumber": 69
+        },
+        {
+          "caller": "list",
+          "callee": "b.createdAt.localeCompare",
+          "lineNumber": 72
+        },
+        {
+          "caller": "get",
+          "callee": "this.rows.filter",
+          "lineNumber": 75
+        },
+        {
+          "caller": "get",
+          "callee": "versions.find",
+          "lineNumber": 77
+        },
+        {
+          "caller": "get",
+          "callee": "versions.reduce",
+          "lineNumber": 78
+        },
+        {
+          "caller": "activeFor",
+          "callee": "this.rows.find",
+          "lineNumber": 81
+        },
+        {
+          "caller": "verified",
+          "callee": "this.rows.filter",
+          "lineNumber": 84
+        },
+        {
+          "caller": "updateDraft",
+          "callee": "this.rows.find",
+          "lineNumber": 87
+        },
+        {
+          "caller": "saveDraft",
+          "callee": "this.get",
+          "lineNumber": 94
+        },
+        {
+          "caller": "saveDraft",
+          "callee": "new Date().toISOString",
+          "lineNumber": 99
+        },
+        {
+          "caller": "saveDraft",
+          "callee": "this.rows.push",
+          "lineNumber": 104
+        },
+        {
+          "caller": "publish",
+          "callee": "this.rows.find",
+          "lineNumber": 108
+        },
+        {
+          "caller": "publish",
+          "callee": "this.activeFor",
+          "lineNumber": 110
+        },
+        {
+          "caller": "publish",
+          "callee": "new Date().toISOString",
+          "lineNumber": 114
+        },
+        {
+          "caller": "catalogFor",
+          "callee": "mergeCatalog",
+          "lineNumber": 119
+        },
+        {
+          "caller": "catalogFor",
+          "callee": "this.verified",
+          "lineNumber": 119
+        },
+        {
+          "caller": "db",
+          "callee": "createServerClient",
+          "lineNumber": 135
+        },
+        {
+          "caller": "list",
+          "callee": "this.db().from(\"mods\").select",
+          "lineNumber": 138
+        },
+        {
+          "caller": "list",
+          "callee": "this.db().from",
+          "lineNumber": 138
+        },
+        {
+          "caller": "list",
+          "callee": "this.db",
+          "lineNumber": 138
+        },
+        {
+          "caller": "list",
+          "callee": "q.eq",
+          "lineNumber": 139
+        },
+        {
+          "caller": "list",
+          "callee": "q.order",
+          "lineNumber": 140
+        },
+        {
+          "caller": "list",
+          "callee": "(data ?? []).map",
+          "lineNumber": 142
+        },
+        {
+          "caller": "get",
+          "callee": "this.db().from(\"mods\").select(\"*\").eq",
+          "lineNumber": 148
+        },
+        {
+          "caller": "get",
+          "callee": "this.db().from(\"mods\").select",
+          "lineNumber": 148
+        },
+        {
+          "caller": "get",
+          "callee": "this.db().from",
+          "lineNumber": 148
+        },
+        {
+          "caller": "get",
+          "callee": "this.db",
+          "lineNumber": 148
+        },
+        {
+          "caller": "get",
+          "callee": "q.eq",
+          "lineNumber": 149
+        },
+        {
+          "caller": "get",
+          "callee": "q.order(\"version\", { ascending: false }).limit(1).maybeSingle",
+          "lineNumber": 150
+        },
+        {
+          "caller": "get",
+          "callee": "q.order(\"version\", { ascending: false }).limit",
+          "lineNumber": 150
+        },
+        {
+          "caller": "get",
+          "callee": "q.order",
+          "lineNumber": 150
+        },
+        {
+          "caller": "get",
+          "callee": "fromDb",
+          "lineNumber": 152
+        },
+        {
+          "caller": "activeFor",
+          "callee": "this.db().from(\"mods\").select(\"*\")\n      .eq(\"mod_id\", modId).eq(\"status\", \"verified\").maybeSingle",
+          "lineNumber": 155
+        },
+        {
+          "caller": "activeFor",
+          "callee": "this.db().from(\"mods\").select(\"*\")\n      .eq(\"mod_id\", modId).eq",
+          "lineNumber": 155
+        },
+        {
+          "caller": "activeFor",
+          "callee": "this.db().from(\"mods\").select(\"*\")\n      .eq",
+          "lineNumber": 155
+        },
+        {
+          "caller": "activeFor",
+          "callee": "this.db().from(\"mods\").select",
+          "lineNumber": 155
+        },
+        {
+          "caller": "activeFor",
+          "callee": "this.db().from",
+          "lineNumber": 155
+        },
+        {
+          "caller": "activeFor",
+          "callee": "this.db",
+          "lineNumber": 155
+        },
+        {
+          "caller": "activeFor",
+          "callee": "fromDb",
+          "lineNumber": 158
+        },
+        {
+          "caller": "verified",
+          "callee": "this.db().from(\"mods\").select(\"*\")\n      .eq(\"company_id\", companyId).eq",
+          "lineNumber": 161
+        },
+        {
+          "caller": "verified",
+          "callee": "this.db().from(\"mods\").select(\"*\")\n      .eq",
+          "lineNumber": 161
+        },
+        {
+          "caller": "verified",
+          "callee": "this.db().from(\"mods\").select",
+          "lineNumber": 161
+        },
+        {
+          "caller": "verified",
+          "callee": "this.db().from",
+          "lineNumber": 161
+        },
+        {
+          "caller": "verified",
+          "callee": "this.db",
+          "lineNumber": 161
+        },
+        {
+          "caller": "verified",
+          "callee": "(data ?? []).map",
+          "lineNumber": 164
+        },
+        {
+          "caller": "updateDraft",
+          "callee": "this.db().from(\"mods\").update({ document })\n      .eq(\"mod_id\", modId).eq(\"version\", version).eq(\"status\", \"draft\")\n      .select(\"*\").maybeSingle",
+          "lineNumber": 167
+        },
+        {
+          "caller": "updateDraft",
+          "callee": "this.db().from(\"mods\").update({ document })\n      .eq(\"mod_id\", modId).eq(\"version\", version).eq(\"status\", \"draft\")\n      .select",
+          "lineNumber": 167
+        },
+        {
+          "caller": "updateDraft",
+          "callee": "this.db().from(\"mods\").update({ document })\n      .eq(\"mod_id\", modId).eq(\"version\", version).eq",
+          "lineNumber": 167
+        },
+        {
+          "caller": "updateDraft",
+          "callee": "this.db().from(\"mods\").update({ document })\n      .eq(\"mod_id\", modId).eq",
+          "lineNumber": 167
+        },
+        {
+          "caller": "updateDraft",
+          "callee": "this.db().from(\"mods\").update({ document })\n      .eq",
+          "lineNumber": 167
+        },
+        {
+          "caller": "updateDraft",
+          "callee": "this.db().from(\"mods\").update",
+          "lineNumber": 167
+        },
+        {
+          "caller": "updateDraft",
+          "callee": "this.db().from",
+          "lineNumber": 167
+        },
+        {
+          "caller": "updateDraft",
+          "callee": "this.db",
+          "lineNumber": 167
+        },
+        {
+          "caller": "updateDraft",
+          "callee": "fromDb",
+          "lineNumber": 172
+        },
+        {
+          "caller": "saveDraft",
+          "callee": "this.get",
+          "lineNumber": 175
+        },
+        {
+          "caller": "saveDraft",
+          "callee": "this.db().from(\"mods\").insert({\n      mod_id: row.modId, version, company_id: row.companyId, status: \"draft\",\n      snapshot_id: row.snapshotId, document: row.document,\n    }).select(\"*\").single",
+          "lineNumber": 177
+        },
+        {
+          "caller": "saveDraft",
+          "callee": "this.db().from(\"mods\").insert({\n      mod_id: row.modId, version, company_id: row.companyId, status: \"draft\",\n      snapshot_id: row.snapshotId, document: row.document,\n    }).select",
+          "lineNumber": 177
+        },
+        {
+          "caller": "saveDraft",
+          "callee": "this.db().from(\"mods\").insert",
+          "lineNumber": 177
+        },
+        {
+          "caller": "saveDraft",
+          "callee": "this.db().from",
+          "lineNumber": 177
+        },
+        {
+          "caller": "saveDraft",
+          "callee": "this.db",
+          "lineNumber": 177
+        },
+        {
+          "caller": "saveDraft",
+          "callee": "fromDb",
+          "lineNumber": 182
+        },
+        {
+          "caller": "publish",
+          "callee": "this.activeFor",
+          "lineNumber": 185
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db().from(\"mods\").update({ status: \"superseded\" })\n        .eq(\"mod_id\", modId).eq",
+          "lineNumber": 187
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db().from(\"mods\").update({ status: \"superseded\" })\n        .eq",
+          "lineNumber": 187
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db().from(\"mods\").update",
+          "lineNumber": 187
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db().from",
+          "lineNumber": 187
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db",
+          "lineNumber": 187
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db().from(\"mods\").update({\n      status: \"verified\", verified_by: verifiedBy, verified_at: new Date().toISOString(),\n      supersedes: prior && prior.version !== version ? prior.version : null,\n    }).eq(\"mod_id\", modId).eq(\"version\", version).select(\"*\").single",
+          "lineNumber": 191
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db().from(\"mods\").update({\n      status: \"verified\", verified_by: verifiedBy, verified_at: new Date().toISOString(),\n      supersedes: prior && prior.version !== version ? prior.version : null,\n    }).eq(\"mod_id\", modId).eq(\"version\", version).select",
+          "lineNumber": 191
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db().from(\"mods\").update({\n      status: \"verified\", verified_by: verifiedBy, verified_at: new Date().toISOString(),\n      supersedes: prior && prior.version !== version ? prior.version : null,\n    }).eq(\"mod_id\", modId).eq",
+          "lineNumber": 191
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db().from(\"mods\").update({\n      status: \"verified\", verified_by: verifiedBy, verified_at: new Date().toISOString(),\n      supersedes: prior && prior.version !== version ? prior.version : null,\n    }).eq",
+          "lineNumber": 191
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db().from(\"mods\").update",
+          "lineNumber": 191
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db().from",
+          "lineNumber": 191
+        },
+        {
+          "caller": "publish",
+          "callee": "this.db",
+          "lineNumber": 191
+        },
+        {
+          "caller": "publish",
+          "callee": "new Date().toISOString",
+          "lineNumber": 192
+        },
+        {
+          "caller": "publish",
+          "callee": "fromDb",
+          "lineNumber": 196
+        },
+        {
+          "caller": "catalogFor",
+          "callee": "mergeCatalog",
+          "lineNumber": 199
+        },
+        {
+          "caller": "catalogFor",
+          "callee": "this.verified",
+          "lineNumber": 199
+        },
+        {
+          "caller": "getModStore",
+          "callee": "shouldUseSupabase",
+          "lineNumber": 206
+        }
+      ],
+      "metrics": {
+        "importCount": 4,
+        "exportCount": 1,
+        "functionCount": 3,
+        "classCount": 2
+      }
+    },
+    {
+      "path": "src/core/ontology/validate/mod-validator.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 54,
+      "nonEmptyLines": 45,
+      "functions": [
+        {
+          "name": "validateModDocument",
+          "startLine": 12,
+          "endLine": 54,
+          "params": [
+            "doc"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "validateModDocument",
+          "line": 12,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "validateModDocument",
+          "callee": "errors.push",
+          "lineNumber": 16
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "ids.has",
+          "lineNumber": 20
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "errors.push",
+          "lineNumber": 20
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "ids.add",
+          "lineNumber": 21
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "sheetNames.has",
+          "lineNumber": 22
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "errors.push",
+          "lineNumber": 23
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "stageIds.has",
+          "lineNumber": 29
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "errors.push",
+          "lineNumber": 29
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "stageIds.add",
+          "lineNumber": 30
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "defectCodes.has",
+          "lineNumber": 34
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "errors.push",
+          "lineNumber": 34
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "defectCodes.add",
+          "lineNumber": 35
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "stageIds.has",
+          "lineNumber": 37
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "errors.push",
+          "lineNumber": 37
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "ids.has",
+          "lineNumber": 42
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "sheetNames.has",
+          "lineNumber": 42
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "errors.push",
+          "lineNumber": 43
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "sheetNames.has",
+          "lineNumber": 47
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "errors.push",
+          "lineNumber": 47
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "ids.has",
+          "lineNumber": 49
+        },
+        {
+          "caller": "validateModDocument",
+          "callee": "errors.push",
+          "lineNumber": 49
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/workbook/snapshot-store.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 64,
+      "nonEmptyLines": 59,
+      "functions": [
+        {
+          "name": "getSnapshotStore",
+          "startLine": 59,
+          "endLine": 64,
+          "params": []
+        }
+      ],
+      "classes": [
+        {
+          "name": "MemorySnapshotStore",
+          "startLine": 16,
+          "endLine": 31,
+          "methods": [
+            "put",
+            "get",
+            "list"
+          ],
+          "properties": [
+            "byId"
+          ]
+        },
+        {
+          "name": "SupabaseSnapshotStore",
+          "startLine": 33,
+          "endLine": 56,
+          "methods": [
+            "db",
+            "put",
+            "get",
+            "list"
+          ],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "getSnapshotStore",
+          "line": 59,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "put",
+          "callee": "this.byId.has",
+          "lineNumber": 19
+        },
+        {
+          "caller": "put",
+          "callee": "this.byId.set",
+          "lineNumber": 20
+        },
+        {
+          "caller": "put",
+          "callee": "new Date().toISOString",
+          "lineNumber": 20
+        },
+        {
+          "caller": "get",
+          "callee": "this.byId.get",
+          "lineNumber": 24
+        },
+        {
+          "caller": "list",
+          "callee": "[...this.byId.values()]\n      .map(({ snap, uploadedAt }) => ({ snapshotId: snap.snapshotId, fileName: snap.fileName, uploadedAt }))\n      .sort",
+          "lineNumber": 27
+        },
+        {
+          "caller": "list",
+          "callee": "[...this.byId.values()]\n      .map",
+          "lineNumber": 27
+        },
+        {
+          "caller": "list",
+          "callee": "this.byId.values",
+          "lineNumber": 27
+        },
+        {
+          "caller": "list",
+          "callee": "b.uploadedAt.localeCompare",
+          "lineNumber": 29
+        },
+        {
+          "caller": "db",
+          "callee": "createServerClient",
+          "lineNumber": 34
+        },
+        {
+          "caller": "put",
+          "callee": "this.db().from(\"workbook_snapshots\").upsert",
+          "lineNumber": 36
+        },
+        {
+          "caller": "put",
+          "callee": "this.db().from",
+          "lineNumber": 36
+        },
+        {
+          "caller": "put",
+          "callee": "this.db",
+          "lineNumber": 36
+        },
+        {
+          "caller": "get",
+          "callee": "this.db().from(\"workbook_snapshots\")\n      .select(\"snapshot_id, file_name, content\").eq(\"snapshot_id\", snapshotId).maybeSingle",
+          "lineNumber": 44
+        },
+        {
+          "caller": "get",
+          "callee": "this.db().from(\"workbook_snapshots\")\n      .select(\"snapshot_id, file_name, content\").eq",
+          "lineNumber": 44
+        },
+        {
+          "caller": "get",
+          "callee": "this.db().from(\"workbook_snapshots\")\n      .select",
+          "lineNumber": 44
+        },
+        {
+          "caller": "get",
+          "callee": "this.db().from",
+          "lineNumber": 44
+        },
+        {
+          "caller": "get",
+          "callee": "this.db",
+          "lineNumber": 44
+        },
+        {
+          "caller": "list",
+          "callee": "this.db().from(\"workbook_snapshots\")\n      .select(\"snapshot_id, file_name, uploaded_at\").order",
+          "lineNumber": 51
+        },
+        {
+          "caller": "list",
+          "callee": "this.db().from(\"workbook_snapshots\")\n      .select",
+          "lineNumber": 51
+        },
+        {
+          "caller": "list",
+          "callee": "this.db().from",
+          "lineNumber": 51
+        },
+        {
+          "caller": "list",
+          "callee": "this.db",
+          "lineNumber": 51
+        },
+        {
+          "caller": "list",
+          "callee": "(data ?? []).map",
+          "lineNumber": 54
+        },
+        {
+          "caller": "getSnapshotStore",
+          "callee": "shouldUseSupabase",
+          "lineNumber": 61
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 2
+      }
+    },
+    {
+      "path": "src/lib/contract/d1.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 351,
+      "nonEmptyLines": 312,
+      "exports": [
+        {
+          "name": "SCHEMA_VERSION",
+          "line": 17,
+          "isDefault": false
+        },
+        {
+          "name": "CellRef",
+          "line": 29,
+          "isDefault": false
+        },
+        {
+          "name": "PeriodKind",
+          "line": 31,
+          "isDefault": false
+        },
+        {
+          "name": "Period",
+          "line": 34,
+          "isDefault": false
+        },
+        {
+          "name": "Provenance",
+          "line": 40,
+          "isDefault": false
+        },
+        {
+          "name": "ConfidenceBasis",
+          "line": 61,
+          "isDefault": false
+        },
+        {
+          "name": "Confidence",
+          "line": 70,
+          "isDefault": false
+        },
+        {
+          "name": "StageCapture",
+          "line": 101,
+          "isDefault": false
+        },
+        {
+          "name": "StageDef",
+          "line": 103,
+          "isDefault": false
+        },
+        {
+          "name": "SizeDef",
+          "line": 116,
+          "isDefault": false
+        },
+        {
+          "name": "DefectDef",
+          "line": 121,
+          "isDefault": false
+        },
+        {
+          "name": "ClientRegistry",
+          "line": 128,
+          "isDefault": false
+        },
+        {
+          "name": "StageCost",
+          "line": 144,
+          "isDefault": false
+        },
+        {
+          "name": "CostConfig",
+          "line": 148,
+          "isDefault": false
+        },
+        {
+          "name": "DISPOSAFE_STAGE_IDS",
+          "line": 158,
+          "isDefault": false
+        },
+        {
+          "name": "Disposition",
+          "line": 169,
+          "isDefault": false
+        },
+        {
+          "name": "Unit",
+          "line": 170,
+          "isDefault": false
+        },
+        {
+          "name": "ProductionEvent",
+          "line": 172,
+          "isDefault": false
+        },
+        {
+          "name": "InspectionEvent",
+          "line": 182,
+          "isDefault": false
+        },
+        {
+          "name": "RejectionEvent",
+          "line": 193,
+          "isDefault": false
+        },
+        {
+          "name": "CarryoverKind",
+          "line": 205,
+          "isDefault": false
+        },
+        {
+          "name": "CarryoverEvent",
+          "line": 216,
+          "isDefault": false
+        },
+        {
+          "name": "ClaimKind",
+          "line": 226,
+          "isDefault": false
+        },
+        {
+          "name": "Aggregation",
+          "line": 227,
+          "isDefault": false
+        },
+        {
+          "name": "AggregateClaimEvent",
+          "line": 234,
+          "isDefault": false
+        },
+        {
+          "name": "CorrectionEvent",
+          "line": 244,
+          "isDefault": false
+        },
+        {
+          "name": "AnnotationAuthor",
+          "line": 253,
+          "isDefault": false
+        },
+        {
+          "name": "AdjudicationVerdict",
+          "line": 254,
+          "isDefault": false
+        },
+        {
+          "name": "AnnotationEvent",
+          "line": 256,
+          "isDefault": false
+        },
+        {
+          "name": "DispatchEvent",
+          "line": 268,
+          "isDefault": false
+        },
+        {
+          "name": "CanonicalEvent",
+          "line": 275,
+          "isDefault": false
+        },
+        {
+          "name": "CandidateRowClass",
+          "line": 294,
+          "isDefault": false
+        },
+        {
+          "name": "CandidateColumnRole",
+          "line": 306,
+          "isDefault": false
+        },
+        {
+          "name": "CandidateColumn",
+          "line": 321,
+          "isDefault": false
+        },
+        {
+          "name": "CandidateTable",
+          "line": 329,
+          "isDefault": false
+        },
+        {
+          "name": "CandidateSheetGraph",
+          "line": 345,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 36,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/store/__tests__/batch.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 16,
+      "nonEmptyLines": 15,
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/store/__tests__/store-selector.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 28,
+      "nonEmptyLines": 24,
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/store/batch.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 9,
+      "nonEmptyLines": 9,
+      "functions": [
+        {
+          "name": "chunk",
+          "startLine": 4,
+          "endLine": 9,
+          "params": [
+            "arr",
+            "size"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "chunk",
+          "line": 4,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "chunk",
+          "callee": "out.push",
+          "lineNumber": 7
+        },
+        {
+          "caller": "chunk",
+          "callee": "arr.slice",
+          "lineNumber": 7
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/store/index.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 77,
+      "nonEmptyLines": 69,
+      "functions": [
+        {
+          "name": "shouldUseSupabase",
+          "startLine": 32,
+          "endLine": 36,
+          "params": []
+        },
+        {
+          "name": "getStores",
+          "startLine": 38,
+          "endLine": 70,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "shouldUseSupabase",
+          "line": 32,
+          "isDefault": false
+        },
+        {
+          "name": "getStores",
+          "line": 38,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "shouldUseSupabase",
+          "callee": "(process.env.MOID_STORE || \"\").toLowerCase",
+          "lineNumber": 33
+        },
+        {
+          "caller": "getStores",
+          "callee": "shouldUseSupabase",
+          "lineNumber": 41
+        },
+        {
+          "caller": "getStores",
+          "callee": "require",
+          "lineNumber": 48
+        },
+        {
+          "caller": "getStores",
+          "callee": "import",
+          "lineNumber": 48
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 2,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/store/supabase.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 457,
+      "nonEmptyLines": 395,
+      "functions": [
+        {
+          "name": "stageOf",
+          "startLine": 26,
+          "endLine": 28,
+          "params": [
+            "e"
+          ]
+        },
+        {
+          "name": "defectOf",
+          "startLine": 30,
+          "endLine": 32,
+          "params": [
+            "e"
+          ]
+        },
+        {
+          "name": "sortRegistryRows",
+          "startLine": 344,
+          "endLine": 349,
+          "params": [
+            "rows"
+          ]
+        },
+        {
+          "name": "toRegistryRow",
+          "startLine": 351,
+          "endLine": 367,
+          "params": [
+            "data"
+          ]
+        }
+      ],
+      "classes": [
+        {
+          "name": "SupabaseEventStore",
+          "startLine": 34,
+          "endLine": 156,
+          "methods": [
+            "client",
+            "append",
+            "effective",
+            "byIds"
+          ],
+          "properties": []
+        },
+        {
+          "name": "SupabaseFindingStore",
+          "startLine": 158,
+          "endLine": 275,
+          "methods": [
+            "constructor",
+            "client",
+            "upsert",
+            "adjudicate",
+            "deriveState",
+            "get",
+            "list"
+          ],
+          "properties": []
+        },
+        {
+          "name": "SupabaseRulebookStore",
+          "startLine": 277,
+          "endLine": 342,
+          "methods": [
+            "client",
+            "rules",
+            "save",
+            "recordApplication",
+            "applicationsFor"
+          ],
+          "properties": []
+        },
+        {
+          "name": "SupabaseRegistryStore",
+          "startLine": 369,
+          "endLine": 457,
+          "methods": [
+            "client",
+            "list",
+            "get",
+            "first",
+            "upsert",
+            "rename",
+            "delete",
+            "getActive",
+            "setActive"
+          ],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "SupabaseEventStore",
+          "line": 34,
+          "isDefault": false
+        },
+        {
+          "name": "SupabaseFindingStore",
+          "line": 158,
+          "isDefault": false
+        },
+        {
+          "name": "SupabaseRulebookStore",
+          "line": 277,
+          "isDefault": false
+        },
+        {
+          "name": "SupabaseRegistryStore",
+          "line": 369,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "client",
+          "callee": "createServerClient",
+          "lineNumber": 36
+        },
+        {
+          "caller": "append",
+          "callee": "events.map",
+          "lineNumber": 45
+        },
+        {
+          "caller": "append",
+          "callee": "chunk",
+          "lineNumber": 47
+        },
+        {
+          "caller": "append",
+          "callee": "this.client\r\n        .from(\"events\")\r\n        .select(\"event_id\")\r\n        .in",
+          "lineNumber": 48
+        },
+        {
+          "caller": "append",
+          "callee": "this.client\r\n        .from(\"events\")\r\n        .select",
+          "lineNumber": 48
+        },
+        {
+          "caller": "append",
+          "callee": "this.client\r\n        .from",
+          "lineNumber": 48
+        },
+        {
+          "caller": "append",
+          "callee": "existingSet.add",
+          "lineNumber": 53
+        },
+        {
+          "caller": "append",
+          "callee": "events.filter",
+          "lineNumber": 56
+        },
+        {
+          "caller": "append",
+          "callee": "existingSet.has",
+          "lineNumber": 56
+        },
+        {
+          "caller": "append",
+          "callee": "toInsert.map",
+          "lineNumber": 61
+        },
+        {
+          "caller": "append",
+          "callee": "getPayload",
+          "lineNumber": 76
+        },
+        {
+          "caller": "append",
+          "callee": "chunk",
+          "lineNumber": 82
+        },
+        {
+          "caller": "append",
+          "callee": "this.client.from(\"events\").upsert",
+          "lineNumber": 83
+        },
+        {
+          "caller": "append",
+          "callee": "this.client.from",
+          "lineNumber": 83
+        },
+        {
+          "caller": "fetchAll",
+          "callee": "build().range",
+          "lineNumber": 100
+        },
+        {
+          "caller": "fetchAll",
+          "callee": "build",
+          "lineNumber": 100
+        },
+        {
+          "caller": "fetchAll",
+          "callee": "all.push",
+          "lineNumber": 103
+        },
+        {
+          "caller": "effective",
+          "callee": "fetchAll",
+          "lineNumber": 110
+        },
+        {
+          "caller": "effective",
+          "callee": "this.client\r\n        .from(\"events\")\r\n        .select(\"payload\")\r\n        .eq(\"event_type\", \"correction\")\r\n        .order",
+          "lineNumber": 111
+        },
+        {
+          "caller": "effective",
+          "callee": "this.client\r\n        .from(\"events\")\r\n        .select(\"payload\")\r\n        .eq",
+          "lineNumber": 111
+        },
+        {
+          "caller": "effective",
+          "callee": "this.client\r\n        .from(\"events\")\r\n        .select",
+          "lineNumber": 111
+        },
+        {
+          "caller": "effective",
+          "callee": "this.client\r\n        .from",
+          "lineNumber": 111
+        },
+        {
+          "caller": "effective",
+          "callee": "superseded.add",
+          "lineNumber": 120
+        },
+        {
+          "caller": "effective",
+          "callee": "fetchAll",
+          "lineNumber": 123
+        },
+        {
+          "caller": "effective",
+          "callee": "this.client.from(\"events\").select",
+          "lineNumber": 124
+        },
+        {
+          "caller": "effective",
+          "callee": "this.client.from",
+          "lineNumber": 124
+        },
+        {
+          "caller": "effective",
+          "callee": "q.eq",
+          "lineNumber": 125
+        },
+        {
+          "caller": "effective",
+          "callee": "q.eq",
+          "lineNumber": 126
+        },
+        {
+          "caller": "effective",
+          "callee": "q.order",
+          "lineNumber": 127
+        },
+        {
+          "caller": "effective",
+          "callee": "rows.map",
+          "lineNumber": 131
+        },
+        {
+          "caller": "effective",
+          "callee": "events.filter",
+          "lineNumber": 133
+        },
+        {
+          "caller": "effective",
+          "callee": "superseded.has",
+          "lineNumber": 134
+        },
+        {
+          "caller": "effective",
+          "callee": "stageOf",
+          "lineNumber": 135
+        },
+        {
+          "caller": "effective",
+          "callee": "defectOf",
+          "lineNumber": 136
+        },
+        {
+          "caller": "byIds",
+          "callee": "chunk",
+          "lineNumber": 146
+        },
+        {
+          "caller": "byIds",
+          "callee": "this.client\r\n        .from(\"events\")\r\n        .select(\"*\")\r\n        .in",
+          "lineNumber": 147
+        },
+        {
+          "caller": "byIds",
+          "callee": "this.client\r\n        .from(\"events\")\r\n        .select",
+          "lineNumber": 147
+        },
+        {
+          "caller": "byIds",
+          "callee": "this.client\r\n        .from",
+          "lineNumber": 147
+        },
+        {
+          "caller": "byIds",
+          "callee": "out.push",
+          "lineNumber": 152
+        },
+        {
+          "caller": "byIds",
+          "callee": "(rows || []).map",
+          "lineNumber": 152
+        },
+        {
+          "caller": "client",
+          "callee": "createServerClient",
+          "lineNumber": 162
+        },
+        {
+          "caller": "upsert",
+          "callee": "findings.map",
+          "lineNumber": 168
+        },
+        {
+          "caller": "upsert",
+          "callee": "chunk",
+          "lineNumber": 170
+        },
+        {
+          "caller": "upsert",
+          "callee": "this.client\r\n        .from(\"findings\")\r\n        .select(\"finding_id\")\r\n        .in",
+          "lineNumber": 171
+        },
+        {
+          "caller": "upsert",
+          "callee": "this.client\r\n        .from(\"findings\")\r\n        .select",
+          "lineNumber": 171
+        },
+        {
+          "caller": "upsert",
+          "callee": "this.client\r\n        .from",
+          "lineNumber": 171
+        },
+        {
+          "caller": "upsert",
+          "callee": "existingSet.add",
+          "lineNumber": 177
+        },
+        {
+          "caller": "upsert",
+          "callee": "findings.filter",
+          "lineNumber": 180
+        },
+        {
+          "caller": "upsert",
+          "callee": "existingSet.has",
+          "lineNumber": 180
+        },
+        {
+          "caller": "upsert",
+          "callee": "toInsert.map",
+          "lineNumber": 184
+        },
+        {
+          "caller": "upsert",
+          "callee": "chunk",
+          "lineNumber": 201
+        },
+        {
+          "caller": "upsert",
+          "callee": "this.client.from(\"findings\").insert",
+          "lineNumber": 202
+        },
+        {
+          "caller": "upsert",
+          "callee": "this.client.from",
+          "lineNumber": 202
+        },
+        {
+          "caller": "adjudicate",
+          "callee": "this.client.from(\"adjudications\").insert",
+          "lineNumber": 218
+        },
+        {
+          "caller": "adjudicate",
+          "callee": "this.client.from",
+          "lineNumber": 218
+        },
+        {
+          "caller": "deriveState",
+          "callee": "this.rulebook?.applicationsFor",
+          "lineNumber": 223
+        },
+        {
+          "caller": "deriveState",
+          "callee": "this.client\r\n      .from(\"adjudications\")\r\n      .select(\"*\")\r\n      .eq(\"finding_id\", findingId)\r\n      .eq",
+          "lineNumber": 226
+        },
+        {
+          "caller": "deriveState",
+          "callee": "this.client\r\n      .from(\"adjudications\")\r\n      .select(\"*\")\r\n      .eq",
+          "lineNumber": 226
+        },
+        {
+          "caller": "deriveState",
+          "callee": "this.client\r\n      .from(\"adjudications\")\r\n      .select",
+          "lineNumber": 226
+        },
+        {
+          "caller": "deriveState",
+          "callee": "this.client\r\n      .from",
+          "lineNumber": 226
+        },
+        {
+          "caller": "get",
+          "callee": "this.client\r\n      .from(\"findings\")\r\n      .select(\"*\")\r\n      .eq(\"finding_id\", findingId)\r\n      .single",
+          "lineNumber": 242
+        },
+        {
+          "caller": "get",
+          "callee": "this.client\r\n      .from(\"findings\")\r\n      .select(\"*\")\r\n      .eq",
+          "lineNumber": 242
+        },
+        {
+          "caller": "get",
+          "callee": "this.client\r\n      .from(\"findings\")\r\n      .select",
+          "lineNumber": 242
+        },
+        {
+          "caller": "get",
+          "callee": "this.client\r\n      .from",
+          "lineNumber": 242
+        },
+        {
+          "caller": "get",
+          "callee": "mapRowToFinding",
+          "lineNumber": 250
+        },
+        {
+          "caller": "get",
+          "callee": "this.deriveState",
+          "lineNumber": 251
+        },
+        {
+          "caller": "list",
+          "callee": "this.client.from(\"findings\").select",
+          "lineNumber": 256
+        },
+        {
+          "caller": "list",
+          "callee": "this.client.from",
+          "lineNumber": 256
+        },
+        {
+          "caller": "list",
+          "callee": "mapRowToFinding",
+          "lineNumber": 261
+        },
+        {
+          "caller": "list",
+          "callee": "this.deriveState",
+          "lineNumber": 262
+        },
+        {
+          "caller": "list",
+          "callee": "out.push",
+          "lineNumber": 264
+        },
+        {
+          "caller": "list",
+          "callee": "out.sort",
+          "lineNumber": 269
+        },
+        {
+          "caller": "client",
+          "callee": "createServerClient",
+          "lineNumber": 279
+        },
+        {
+          "caller": "rules",
+          "callee": "this.client.from(\"rulebook_rules\").select",
+          "lineNumber": 283
+        },
+        {
+          "caller": "rules",
+          "callee": "this.client.from",
+          "lineNumber": 283
+        },
+        {
+          "caller": "rules",
+          "callee": "query.eq",
+          "lineNumber": 284
+        },
+        {
+          "caller": "rules",
+          "callee": "(rows || []).map",
+          "lineNumber": 289
+        },
+        {
+          "caller": "save",
+          "callee": "this.client\r\n      .from(\"rulebook_rules\")\r\n      .upsert",
+          "lineNumber": 307
+        },
+        {
+          "caller": "save",
+          "callee": "this.client\r\n      .from",
+          "lineNumber": 307
+        },
+        {
+          "caller": "recordApplication",
+          "callee": "this.client.from(\"rule_applications\").insert",
+          "lineNumber": 322
+        },
+        {
+          "caller": "recordApplication",
+          "callee": "this.client.from",
+          "lineNumber": 322
+        },
+        {
+          "caller": "applicationsFor",
+          "callee": "this.client\r\n      .from(\"rule_applications\")\r\n      .select(\"*\")\r\n      .eq",
+          "lineNumber": 327
+        },
+        {
+          "caller": "applicationsFor",
+          "callee": "this.client\r\n      .from(\"rule_applications\")\r\n      .select",
+          "lineNumber": 327
+        },
+        {
+          "caller": "applicationsFor",
+          "callee": "this.client\r\n      .from",
+          "lineNumber": 327
+        },
+        {
+          "caller": "applicationsFor",
+          "callee": "(rows || []).map",
+          "lineNumber": 334
+        },
+        {
+          "caller": "sortRegistryRows",
+          "callee": "[...rows].sort",
+          "lineNumber": 345
+        },
+        {
+          "caller": "sortRegistryRows",
+          "callee": "new Date(a.created_at).getTime",
+          "lineNumber": 346
+        },
+        {
+          "caller": "sortRegistryRows",
+          "callee": "new Date(b.created_at).getTime",
+          "lineNumber": 346
+        },
+        {
+          "caller": "sortRegistryRows",
+          "callee": "(a.client_id || \"\").localeCompare",
+          "lineNumber": 347
+        },
+        {
+          "caller": "toRegistryRow",
+          "callee": "JSON.parse",
+          "lineNumber": 352
+        },
+        {
+          "caller": "toRegistryRow",
+          "callee": "JSON.parse",
+          "lineNumber": 353
+        },
+        {
+          "caller": "toRegistryRow",
+          "callee": "JSON.parse",
+          "lineNumber": 354
+        },
+        {
+          "caller": "toRegistryRow",
+          "callee": "JSON.parse",
+          "lineNumber": 355
+        },
+        {
+          "caller": "client",
+          "callee": "createServerClient",
+          "lineNumber": 371
+        },
+        {
+          "caller": "list",
+          "callee": "this.client.from(\"registries\").select",
+          "lineNumber": 375
+        },
+        {
+          "caller": "list",
+          "callee": "this.client.from",
+          "lineNumber": 375
+        },
+        {
+          "caller": "list",
+          "callee": "sortRegistryRows(data || []).map",
+          "lineNumber": 377
+        },
+        {
+          "caller": "list",
+          "callee": "sortRegistryRows",
+          "lineNumber": 377
+        },
+        {
+          "caller": "get",
+          "callee": "this.client.from(\"registries\").select(\"*\").eq(\"client_id\", presetId).maybeSingle",
+          "lineNumber": 383
+        },
+        {
+          "caller": "get",
+          "callee": "this.client.from(\"registries\").select(\"*\").eq",
+          "lineNumber": 383
+        },
+        {
+          "caller": "get",
+          "callee": "this.client.from(\"registries\").select",
+          "lineNumber": 383
+        },
+        {
+          "caller": "get",
+          "callee": "this.client.from",
+          "lineNumber": 383
+        },
+        {
+          "caller": "get",
+          "callee": "toRegistryRow",
+          "lineNumber": 385
+        },
+        {
+          "caller": "first",
+          "callee": "this.client.from(\"registries\").select",
+          "lineNumber": 389
+        },
+        {
+          "caller": "first",
+          "callee": "this.client.from",
+          "lineNumber": 389
+        },
+        {
+          "caller": "first",
+          "callee": "sortRegistryRows",
+          "lineNumber": 391
+        },
+        {
+          "caller": "first",
+          "callee": "toRegistryRow",
+          "lineNumber": 392
+        },
+        {
+          "caller": "upsert",
+          "callee": "this.client.from(\"registries\").upsert",
+          "lineNumber": 408
+        },
+        {
+          "caller": "upsert",
+          "callee": "this.client.from",
+          "lineNumber": 408
+        },
+        {
+          "caller": "upsert",
+          "callee": "error.message.includes",
+          "lineNumber": 413
+        },
+        {
+          "caller": "upsert",
+          "callee": "error.message.includes",
+          "lineNumber": 413
+        },
+        {
+          "caller": "upsert",
+          "callee": "this.client.from(\"registries\").upsert",
+          "lineNumber": 419
+        },
+        {
+          "caller": "upsert",
+          "callee": "this.client.from",
+          "lineNumber": 419
+        },
+        {
+          "caller": "rename",
+          "callee": "this.client.from(\"registries\").update({ name }).eq",
+          "lineNumber": 424
+        },
+        {
+          "caller": "rename",
+          "callee": "this.client.from(\"registries\").update",
+          "lineNumber": 424
+        },
+        {
+          "caller": "rename",
+          "callee": "this.client.from",
+          "lineNumber": 424
+        },
+        {
+          "caller": "delete",
+          "callee": "this.client.from(\"registries\").delete().eq",
+          "lineNumber": 429
+        },
+        {
+          "caller": "delete",
+          "callee": "this.client.from(\"registries\").delete",
+          "lineNumber": 429
+        },
+        {
+          "caller": "delete",
+          "callee": "this.client.from",
+          "lineNumber": 429
+        },
+        {
+          "caller": "getActive",
+          "callee": "this.client.from(\"registries\").select(\"*\").eq(\"is_active\", true).maybeSingle",
+          "lineNumber": 434
+        },
+        {
+          "caller": "getActive",
+          "callee": "this.client.from(\"registries\").select(\"*\").eq",
+          "lineNumber": 434
+        },
+        {
+          "caller": "getActive",
+          "callee": "this.client.from(\"registries\").select",
+          "lineNumber": 434
+        },
+        {
+          "caller": "getActive",
+          "callee": "this.client.from",
+          "lineNumber": 434
+        },
+        {
+          "caller": "getActive",
+          "callee": "error.message?.includes",
+          "lineNumber": 436
+        },
+        {
+          "caller": "getActive",
+          "callee": "error.message?.includes",
+          "lineNumber": 436
+        },
+        {
+          "caller": "getActive",
+          "callee": "toRegistryRow",
+          "lineNumber": 440
+        },
+        {
+          "caller": "setActive",
+          "callee": "this.client.from(\"registries\").update({ is_active: false }).neq",
+          "lineNumber": 444
+        },
+        {
+          "caller": "setActive",
+          "callee": "this.client.from(\"registries\").update",
+          "lineNumber": 444
+        },
+        {
+          "caller": "setActive",
+          "callee": "this.client.from",
+          "lineNumber": 444
+        },
+        {
+          "caller": "setActive",
+          "callee": "clearError.message?.includes",
+          "lineNumber": 446
+        },
+        {
+          "caller": "setActive",
+          "callee": "clearError.message?.includes",
+          "lineNumber": 446
+        },
+        {
+          "caller": "setActive",
+          "callee": "this.client.from(\"registries\").update({ is_active: true }).eq",
+          "lineNumber": 450
+        },
+        {
+          "caller": "setActive",
+          "callee": "this.client.from(\"registries\").update",
+          "lineNumber": 450
+        },
+        {
+          "caller": "setActive",
+          "callee": "this.client.from",
+          "lineNumber": 450
+        },
+        {
+          "caller": "setActive",
+          "callee": "setError.message?.includes",
+          "lineNumber": 452
+        },
+        {
+          "caller": "setActive",
+          "callee": "setError.message?.includes",
+          "lineNumber": 452
+        }
+      ],
+      "metrics": {
+        "importCount": 4,
+        "exportCount": 4,
+        "functionCount": 4,
+        "classCount": 4
+      }
+    },
+    {
+      "path": "src/lib/supabase.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 39,
+      "nonEmptyLines": 33,
+      "functions": [
+        {
+          "name": "getSupabaseClient",
+          "startLine": 9,
+          "endLine": 15,
+          "params": []
+        },
+        {
+          "name": "createServerClient",
+          "startLine": 22,
+          "endLine": 39,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "getSupabaseClient",
+          "line": 9,
+          "isDefault": false
+        },
+        {
+          "name": "createServerClient",
+          "line": 22,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "getSupabaseClient",
+          "callee": "createClient",
+          "lineNumber": 14
+        },
+        {
+          "caller": "createServerClient",
+          "callee": "console.warn",
+          "lineNumber": 33
+        },
+        {
+          "caller": "createServerClient",
+          "callee": "createClient",
+          "lineNumber": 36
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 2,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/shared/models/ontology.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 118,
+      "nonEmptyLines": 105,
+      "exports": [
+        {
+          "name": "ModEntityKind",
+          "line": 14,
+          "isDefault": false
+        },
+        {
+          "name": "ResolvedBy",
+          "line": 19,
+          "isDefault": false
+        },
+        {
+          "name": "ModEntity",
+          "line": 23,
+          "isDefault": false
+        },
+        {
+          "name": "ModRelationshipKind",
+          "line": 43,
+          "isDefault": false
+        },
+        {
+          "name": "ModRelationship",
+          "line": 47,
+          "isDefault": false
+        },
+        {
+          "name": "ModFormula",
+          "line": 53,
+          "isDefault": false
+        },
+        {
+          "name": "ModLayout",
+          "line": 62,
+          "isDefault": false
+        },
+        {
+          "name": "ModValidationRule",
+          "line": 74,
+          "isDefault": false
+        },
+        {
+          "name": "ModDocument",
+          "line": 80,
+          "isDefault": false
+        },
+        {
+          "name": "ModStatus",
+          "line": 99,
+          "isDefault": false
+        },
+        {
+          "name": "ModRow",
+          "line": 102,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 11,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    }
+  ]
+}

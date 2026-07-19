@@ -73,9 +73,11 @@ export default function MappingVerificationPanel({
 
   return (
     <section style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", background: "var(--surface)", padding: 20, marginBottom: 24 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
-        <h3 className="h3" style={{ color: "var(--text)" }}>Mapping verification</h3>
-        <span className="small" style={{ color: "var(--text-3)" }}>MOD pipeline · proposals need your sign-off before anything is learned</span>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4, gap: 12, flexWrap: "wrap" }}>
+        <h3 className="h3" style={{ color: "var(--text)" }}>Confirm column meanings</h3>
+        <span className="small" style={{ color: "var(--text-3)" }}>
+          Step 2 · Accept or fix each Excel header, then load numbers to the ledger
+        </span>
       </div>
       {error && (
         <p className="small" style={{ color: "var(--critical)", marginBottom: 8 }}>{error}</p>
@@ -90,7 +92,7 @@ export default function MappingVerificationPanel({
               </span>
               {published ? (
                 <span className="small" style={{ color: "var(--positive)" }}>
-                  Mappings verified — {published.learned} learned · extracting numbers into the review grid / ledger…
+                  Schema saved ({published.learned} learned) · loading numbers…
                 </span>
               ) : (
                 <button
@@ -101,7 +103,7 @@ export default function MappingVerificationPanel({
                     background: "var(--accent)", color: "#fff", cursor: busy ? "wait" : "pointer", fontSize: 13,
                   }}
                 >
-                  {busy === mod.modId ? "Publishing…" : "Verify & publish"}
+                  {busy === mod.modId ? "Saving schema…" : "Confirm & load numbers"}
                 </button>
               )}
             </div>

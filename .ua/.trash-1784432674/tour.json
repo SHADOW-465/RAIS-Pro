@@ -1,0 +1,105 @@
+[
+ {
+  "order": 1,
+  "title": "Project Overview & Conventions",
+  "description": "Start with the README and AGENTS.md to understand what RAIS Pro is — an enterprise manufacturing-intelligence OS that turns factory Excel reports into quality dashboards — and the hard rules governing the AI pipeline (the model classifies and narrates; it never does maths).",
+  "nodeIds": [
+   "document:README.md",
+   "document:AGENTS.md"
+  ]
+ },
+ {
+  "order": 2,
+  "title": "App Shell & Boot",
+  "description": "How the Next.js App Router boots: the root layout and landing page mount the AppShell, which wires up the registry, events, and page-loading contexts shared across every screen.",
+  "nodeIds": [
+   "file:src/app/layout.tsx",
+   "file:src/app/page.tsx",
+   "file:src/components/app/AppShell.tsx"
+  ]
+ },
+ {
+  "order": 3,
+  "title": "Ingesting a Workbook",
+  "description": "The first stage of the pipeline: UploadZone hands a spreadsheet to the workbook reader and header detector, which turn raw cells into a structured, profiled workbook.",
+  "nodeIds": [
+   "file:src/components/UploadZone.tsx",
+   "file:src/core/workbook/reader.ts",
+   "file:src/core/workbook/header.ts",
+   "file:src/core/profiler/profile.ts"
+  ]
+ },
+ {
+  "order": 4,
+  "title": "Ontology & Column Understanding",
+  "description": "How columns get meaning: the ontology mod-builder and the resolver ladder (exact index → LLM fallback) classify each column, backed by the knowledge store of learned mods.",
+  "nodeIds": [
+   "file:src/core/ontology/builder/build-mod.ts",
+   "file:src/core/ontology/resolver/ladder.ts",
+   "file:src/core/ontology/resolver/llm.ts",
+   "file:src/core/ontology/store/mod-store.ts"
+  ]
+ },
+ {
+  "order": 5,
+  "title": "The AI Provider Chain",
+  "description": "Every AI call flows through tryModels in ai.ts, which walks Gateway → Anthropic → OpenRouter → Google → Groq → Ollama. Zod schemas in schemas.ts are the cross-provider contract for classification and narrative output.",
+  "nodeIds": [
+   "file:src/lib/ai.ts",
+   "file:src/lib/schemas.ts"
+  ]
+ },
+ {
+  "order": 6,
+  "title": "Deterministic Analytics",
+  "description": "All numbers come from pure JS: the analytics modules compute rejection rate, cost of poor quality, defect Pareto, and trust scoring over the raw rows — never from the model.",
+  "nodeIds": [
+   "file:src/lib/analytics/rejection.ts",
+   "file:src/lib/analytics/cost.ts",
+   "file:src/lib/analytics/defect.ts",
+   "file:src/lib/analytics/pareto.ts"
+  ]
+ },
+ {
+  "order": 7,
+  "title": "The Decision Engine",
+  "description": "Reconciled data is run through a rule-based decision engine that emits explainable pass/reject/flag decisions over canonical variables.",
+  "nodeIds": [
+   "file:src/core/decision/engine.ts",
+   "file:src/core/decision/canonical-vars.ts",
+   "file:src/core/decision/explain.ts",
+   "file:src/core/ingest/reconcile.ts"
+  ]
+ },
+ {
+  "order": 8,
+  "title": "Persistence Layer",
+  "description": "How state survives: the store index and Supabase adapter persist sessions, mods, and append-only events; the SQL migrations define the underlying schema and RLS.",
+  "nodeIds": [
+   "file:src/lib/store/index.ts",
+   "file:src/lib/store/supabase.ts",
+   "file:src/lib/supabase.ts"
+  ]
+ },
+ {
+  "order": 9,
+  "title": "Rendering the Dashboard",
+  "description": "The payoff: the editorial charts, Pareto chart, and insight/detail components render KPIs and SPC-style trends. The main dashboard page composes them into the executive view.",
+  "nodeIds": [
+   "file:src/components/editorial/EditorialCharts.tsx",
+   "file:src/components/ParetoChart.tsx",
+   "file:src/components/InsightSlide.tsx",
+   "file:src/app/page.tsx"
+  ]
+ },
+ {
+  "order": 10,
+  "title": "API Surface",
+  "description": "Wrapping up: the route handlers that tie it together — ingest for staging manual entries and workbooks, mods for column-mapping, and events for the audit trail.",
+  "nodeIds": [
+   "file:src/app/api/ingest/route.ts",
+   "file:src/app/api/mods/route.ts",
+   "file:src/app/api/events/route.ts"
+  ]
+ }
+]

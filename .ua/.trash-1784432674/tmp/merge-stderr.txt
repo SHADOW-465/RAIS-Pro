@@ -1,0 +1,30 @@
+Found 16 batch files (9 logical batches, 6 multi-part):
+  batch-1-part-1.json: 39 nodes, 112 edges
+  batch-1-part-2.json: 49 nodes, 88 edges
+  batch-2-part-1.json: 37 nodes, 80 edges
+  batch-2-part-2.json: 37 nodes, 75 edges
+  batch-3-part-1.json: 13 nodes, 64 edges
+  batch-3-part-2.json: 42 nodes, 103 edges
+  batch-3-part-3.json: 31 nodes, 66 edges
+  batch-4-part-1.json: 32 nodes, 77 edges
+  batch-4-part-2.json: 45 nodes, 89 edges
+  batch-5-part-1.json: 28 nodes, 99 edges
+  batch-5-part-2.json: 27 nodes, 88 edges
+  batch-6-part-1.json: 46 nodes, 94 edges
+  batch-6-part-2.json: 20 nodes, 24 edges
+  batch-7.json: 40 nodes, 38 edges
+  batch-8.json: 6 nodes, 11 edges
+  batch-9.json: 11 nodes, 16 edges
+
+Input: 503 nodes, 1124 edges
+
+Tested-by linker:
+     1 × tested_by edges produced (path-convention supplement, production \u2192 test)
+    35 × production nodes tagged "tested"
+
+Output: 503 nodes, 1125 edges
+
+Imports edge recovery:
+  Recovered 0 `imports` edges from importMap (189 entries scanned)
+
+Written to C:\Users\acer\Documents\GitHub\RAIS-Pro\.ua\intermediate\assembled-graph.json (479 KB)

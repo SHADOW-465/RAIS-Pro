@@ -145,6 +145,9 @@ export default function BatchMatrixEntry({
   const [saving, setSaving] = useState(false);
   const [a12, setA12] = useState<{ defectSum: number; reject: number } | null>(null);
   const [a12Choice, setA12Choice] = useState<A12Choice>(null);
+  /** Defects per stageId from verified Excel MODs (entry-template). Empty = use built-in defaults. */
+  const [templateDefects, setTemplateDefects] = useState<Record<string, { key: string; name: string }[]>>({});
+  const [schemaSource, setSchemaSource] = useState<"mod" | "builtin" | "loading">("loading");
 
   useEffect(() => {
     setSaved(loadShift());
@@ -152,6 +155,40 @@ export default function BatchMatrixEntry({
     if (op) setOperator(op);
     const sh = localStorage.getItem("rais_hdr_shift");
     if (sh) setShift(sh);
+  }, []);
+
+  // Schema from verified workbooks — same columns Excel taught the app (no re-typing).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/entry-template")
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.stages?.length) {
+          if (!cancelled) setSchemaSource("builtin");
+          return;
+        }
+        const map: Record<string, { key: string; name: string }[]> = {};
+        let any = false;
+        for (const st of data.stages as { stageId: string; defects?: { defectCode: string; label: string }[] }[]) {
+          if (st.defects?.length) {
+            any = true;
+            map[st.stageId] = st.defects.map((d) => ({
+              key: d.defectCode,
+              name: d.label || d.defectCode,
+            }));
+          }
+        }
+        if (!cancelled) {
+          setTemplateDefects(map);
+          setSchemaSource(any ? "mod" : "builtin");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSchemaSource("builtin");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Form → Batch ID (unless operator is typing the ID manually)
@@ -164,7 +201,13 @@ export default function BatchMatrixEntry({
   const isPrimary = macro === "primary";
   const isSecondary = macro === "secondary";
   const isAssembly = macro === "assembly";
-  const activeDefects = useMemo(() => defectsFor(macro, micro), [macro, micro]);
+  const stageId = resolveStageId(macro, micro);
+  const activeDefects = useMemo(() => {
+    const fromMod = templateDefects[stageId];
+    if (fromMod?.length) return fromMod;
+    return defectsFor(macro, micro);
+  }, [templateDefects, stageId, macro, micro]);
+  const usingModDefects = !!(templateDefects[stageId]?.length);
   const hideDefects = MATRIX_STAGES[macro].hideDefects;
   const parsed = useMemo(() => parseBatchId(batchId), [batchId]);
   const defectSum = useMemo(
@@ -476,6 +519,41 @@ export default function BatchMatrixEntry({
           </div>
         </div>
         <div className="small" style={{ color: "var(--text-2)", fontWeight: 600 }}>{todayLabel}</div>
+      </div>
+
+      {/* Schema source — plant Excel vs built-in defaults */}
+      <div
+        style={{
+          marginBottom: 16,
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid var(--border)",
+          background: schemaSource === "mod" ? "color-mix(in srgb, var(--positive) 8%, var(--surface))" : "var(--surface-2)",
+          fontSize: 12.5,
+          lineHeight: 1.45,
+          color: "var(--text-2)",
+        }}
+      >
+        {schemaSource === "loading" && <span>Loading entry schema…</span>}
+        {schemaSource === "mod" && (
+          <span>
+            <strong style={{ color: "var(--positive)" }}>Defect columns from your uploaded Excel schema</strong>
+            {usingModDefects
+              ? ` · this station uses ${activeDefects.length} mapped codes.`
+              : " · this station has no mapped defects yet (using defaults)."}
+            {" "}
+            <a href="/staging" style={{ color: "var(--accent)", fontWeight: 600 }}>Import another file</a>
+            {" · "}
+            <a href="/workbooks" style={{ color: "var(--accent)", fontWeight: 600 }}>See uploaded files</a>
+          </span>
+        )}
+        {schemaSource === "builtin" && (
+          <span>
+            Using built-in Disposafe defect lists. To use <strong>your plant’s exact Excel columns</strong>,{" "}
+            <a href="/staging" style={{ color: "var(--accent)", fontWeight: 600 }}>Import from Excel</a> once
+            and confirm headers — Data Entry will pick them up automatically.
+          </span>
+        )}
       </div>
 
       {/* Tier 1 + Tier 2 */}

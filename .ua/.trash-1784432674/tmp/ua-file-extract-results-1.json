@@ -1,0 +1,5664 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 33,
+  "filesSkipped": [],
+  "analysisOutcomes": {
+    "structure": {
+      "succeeded": 33,
+      "failed": 0
+    },
+    "callGraph": {
+      "succeeded": 33,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "results": [
+    {
+      "path": "scripts/check-ai.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 96,
+      "nonEmptyLines": 86,
+      "functions": [
+        {
+          "name": "check",
+          "startLine": 27,
+          "endLine": 52,
+          "params": [
+            "backend",
+            "fast"
+          ]
+        },
+        {
+          "name": "pad",
+          "startLine": 54,
+          "endLine": 56,
+          "params": [
+            "s",
+            "n"
+          ]
+        },
+        {
+          "name": "main",
+          "startLine": 58,
+          "endLine": 91,
+          "params": []
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "check",
+          "callee": "Date.now",
+          "lineNumber": 32
+        },
+        {
+          "caller": "check",
+          "callee": "resolveModel",
+          "lineNumber": 34
+        },
+        {
+          "caller": "check",
+          "callee": "generateObject",
+          "lineNumber": 35
+        },
+        {
+          "caller": "check",
+          "callee": "Date.now",
+          "lineNumber": 41
+        },
+        {
+          "caller": "check",
+          "callee": "Date.now",
+          "lineNumber": 48
+        },
+        {
+          "caller": "check",
+          "callee": "String",
+          "lineNumber": 49
+        },
+        {
+          "caller": "check",
+          "callee": "msg.slice",
+          "lineNumber": 50
+        },
+        {
+          "caller": "pad",
+          "callee": "\" \".repeat",
+          "lineNumber": 55
+        },
+        {
+          "caller": "pad",
+          "callee": "Math.max",
+          "lineNumber": 55
+        },
+        {
+          "caller": "main",
+          "callee": "availableBackends",
+          "lineNumber": 59
+        },
+        {
+          "caller": "main",
+          "callee": "console.error",
+          "lineNumber": 61
+        },
+        {
+          "caller": "main",
+          "callee": "process.exit",
+          "lineNumber": 62
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 65
+        },
+        {
+          "caller": "main",
+          "callee": "backends.join",
+          "lineNumber": 65
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "pad",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "pad",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "pad",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "pad",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 67
+        },
+        {
+          "caller": "main",
+          "callee": "\"─\".repeat",
+          "lineNumber": 67
+        },
+        {
+          "caller": "main",
+          "callee": "check",
+          "lineNumber": 72
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 76
+        },
+        {
+          "caller": "main",
+          "callee": "pad",
+          "lineNumber": 77
+        },
+        {
+          "caller": "main",
+          "callee": "pad",
+          "lineNumber": 77
+        },
+        {
+          "caller": "main",
+          "callee": "pad",
+          "lineNumber": 77
+        },
+        {
+          "caller": "main",
+          "callee": "pad",
+          "lineNumber": 77
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 83
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 85
+        },
+        {
+          "caller": "main",
+          "callee": "process.exit",
+          "lineNumber": 86
+        },
+        {
+          "caller": "main",
+          "callee": "console.error",
+          "lineNumber": 88
+        },
+        {
+          "caller": "main",
+          "callee": "process.exit",
+          "lineNumber": 89
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 0,
+        "functionCount": 3,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "scripts/diagnose-extract-once.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 113,
+      "nonEmptyLines": 102,
+      "functions": [
+        {
+          "name": "main",
+          "startLine": 14,
+          "endLine": 108,
+          "params": []
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "main",
+          "callee": "readFileSync",
+          "lineNumber": 16
+        },
+        {
+          "caller": "main",
+          "callee": "basename",
+          "lineNumber": 17
+        },
+        {
+          "caller": "main",
+          "callee": "readWorkbookSnapshot",
+          "lineNumber": 18
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 20
+        },
+        {
+          "caller": "main",
+          "callee": "snapshot.sheets.slice",
+          "lineNumber": 21
+        },
+        {
+          "caller": "main",
+          "callee": "Math.min",
+          "lineNumber": 22
+        },
+        {
+          "caller": "main",
+          "callee": "s.cells.map",
+          "lineNumber": 22
+        },
+        {
+          "caller": "main",
+          "callee": "Math.min",
+          "lineNumber": 23
+        },
+        {
+          "caller": "main",
+          "callee": "s.cells.map",
+          "lineNumber": 23
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 24
+        },
+        {
+          "caller": "main",
+          "callee": "buildProfilingTables(buf, fileName).map",
+          "lineNumber": 27
+        },
+        {
+          "caller": "main",
+          "callee": "buildProfilingTables",
+          "lineNumber": 27
+        },
+        {
+          "caller": "main",
+          "callee": "profileTable",
+          "lineNumber": 29
+        },
+        {
+          "caller": "main",
+          "callee": "sheets.map",
+          "lineNumber": 31
+        },
+        {
+          "caller": "main",
+          "callee": "resolveWorkbook",
+          "lineNumber": 40
+        },
+        {
+          "caller": "main",
+          "callee": "proposals.filter",
+          "lineNumber": 51
+        },
+        {
+          "caller": "main",
+          "callee": "proposals.filter",
+          "lineNumber": 52
+        },
+        {
+          "caller": "main",
+          "callee": "proposals.filter",
+          "lineNumber": 53
+        },
+        {
+          "caller": "main",
+          "callee": "proposals.filter",
+          "lineNumber": 54
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 56
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 57
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 58
+        },
+        {
+          "caller": "main",
+          "callee": "stages.slice",
+          "lineNumber": 59
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 60
+        },
+        {
+          "caller": "main",
+          "callee": "s.reason.slice",
+          "lineNumber": 60
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 62
+        },
+        {
+          "caller": "main",
+          "callee": "dates.slice",
+          "lineNumber": 63
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 64
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "measures.map((m) => m.canonical).slice(0, 12).join",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "measures.map((m) => m.canonical).slice",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "measures.map",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "buildModDocument",
+          "lineNumber": 68
+        },
+        {
+          "caller": "main",
+          "callee": "doc.entities.map",
+          "lineNumber": 70
+        },
+        {
+          "caller": "main",
+          "callee": "doc.entities.filter",
+          "lineNumber": 72
+        },
+        {
+          "caller": "main",
+          "callee": "e.canonical?.startsWith",
+          "lineNumber": 72
+        },
+        {
+          "caller": "main",
+          "callee": "doc.entities.filter",
+          "lineNumber": 73
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 74
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 75
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 76
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 77
+        },
+        {
+          "caller": "main",
+          "callee": "extractFromMod",
+          "lineNumber": 79
+        },
+        {
+          "caller": "main",
+          "callee": "records.filter",
+          "lineNumber": 80
+        },
+        {
+          "caller": "main",
+          "callee": "records.filter",
+          "lineNumber": 81
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 82
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 83
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 85
+        },
+        {
+          "caller": "main",
+          "callee": "doc.entities.filter",
+          "lineNumber": 98
+        },
+        {
+          "caller": "main",
+          "callee": "here.find",
+          "lineNumber": 101
+        },
+        {
+          "caller": "main",
+          "callee": "e.kind === \"stage\" && e.canonical!.startsWith",
+          "lineNumber": 101
+        },
+        {
+          "caller": "main",
+          "callee": "here.find",
+          "lineNumber": 102
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 107
+        }
+      ],
+      "metrics": {
+        "importCount": 6,
+        "exportCount": 0,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "scripts/diagnose-prod-extract.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 118,
+      "nonEmptyLines": 111,
+      "functions": [
+        {
+          "name": "loadEnv",
+          "startLine": 10,
+          "endLine": 21,
+          "params": []
+        },
+        {
+          "name": "main",
+          "startLine": 23,
+          "endLine": 113,
+          "params": []
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "loadEnv",
+          "callee": "existsSync",
+          "lineNumber": 12
+        },
+        {
+          "caller": "loadEnv",
+          "callee": "readFileSync(p, \"utf8\").split",
+          "lineNumber": 13
+        },
+        {
+          "caller": "loadEnv",
+          "callee": "readFileSync",
+          "lineNumber": 13
+        },
+        {
+          "caller": "loadEnv",
+          "callee": "line.match",
+          "lineNumber": 14
+        },
+        {
+          "caller": "loadEnv",
+          "callee": "m[2].trim",
+          "lineNumber": 16
+        },
+        {
+          "caller": "loadEnv",
+          "callee": "v.startsWith",
+          "lineNumber": 17
+        },
+        {
+          "caller": "loadEnv",
+          "callee": "v.endsWith",
+          "lineNumber": 17
+        },
+        {
+          "caller": "loadEnv",
+          "callee": "v.startsWith",
+          "lineNumber": 17
+        },
+        {
+          "caller": "loadEnv",
+          "callee": "v.endsWith",
+          "lineNumber": 17
+        },
+        {
+          "caller": "loadEnv",
+          "callee": "v.slice",
+          "lineNumber": 17
+        },
+        {
+          "caller": "main",
+          "callee": "loadEnv",
+          "lineNumber": 24
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 28
+        },
+        {
+          "caller": "main",
+          "callee": "url.slice",
+          "lineNumber": 28
+        },
+        {
+          "caller": "main",
+          "callee": "createClient",
+          "lineNumber": 30
+        },
+        {
+          "caller": "main",
+          "callee": "db\n    .from(\"mods\")\n    .select(\"mod_id, version, status, snapshot_id, document\")\n    .eq(\"status\", \"verified\")\n    .order(\"created_at\", { ascending: false })\n    .limit",
+          "lineNumber": 31
+        },
+        {
+          "caller": "main",
+          "callee": "db\n    .from(\"mods\")\n    .select(\"mod_id, version, status, snapshot_id, document\")\n    .eq(\"status\", \"verified\")\n    .order",
+          "lineNumber": 31
+        },
+        {
+          "caller": "main",
+          "callee": "db\n    .from(\"mods\")\n    .select(\"mod_id, version, status, snapshot_id, document\")\n    .eq",
+          "lineNumber": 31
+        },
+        {
+          "caller": "main",
+          "callee": "db\n    .from(\"mods\")\n    .select",
+          "lineNumber": 31
+        },
+        {
+          "caller": "main",
+          "callee": "db\n    .from",
+          "lineNumber": 31
+        },
+        {
+          "caller": "main",
+          "callee": "(mods ?? []).filter",
+          "lineNumber": 39
+        },
+        {
+          "caller": "main",
+          "callee": "fn.startsWith",
+          "lineNumber": 41
+        },
+        {
+          "caller": "main",
+          "callee": "fn.startsWith",
+          "lineNumber": 41
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 43
+        },
+        {
+          "caller": "main",
+          "callee": "real.slice",
+          "lineNumber": 44
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 46
+        },
+        {
+          "caller": "main",
+          "callee": "mod.mod_id.slice",
+          "lineNumber": 46
+        },
+        {
+          "caller": "main",
+          "callee": "db\n      .from(\"workbook_snapshots\")\n      .select(\"snapshot_id, file_name, content\")\n      .eq(\"snapshot_id\", mod.snapshot_id)\n      .maybeSingle",
+          "lineNumber": 47
+        },
+        {
+          "caller": "main",
+          "callee": "db\n      .from(\"workbook_snapshots\")\n      .select(\"snapshot_id, file_name, content\")\n      .eq",
+          "lineNumber": 47
+        },
+        {
+          "caller": "main",
+          "callee": "db\n      .from(\"workbook_snapshots\")\n      .select",
+          "lineNumber": 47
+        },
+        {
+          "caller": "main",
+          "callee": "db\n      .from",
+          "lineNumber": 47
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 54
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 58
+        },
+        {
+          "caller": "main",
+          "callee": "Object.keys",
+          "lineNumber": 58
+        },
+        {
+          "caller": "main",
+          "callee": "ents.filter",
+          "lineNumber": 61
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 62
+        },
+        {
+          "caller": "main",
+          "callee": "stages.map",
+          "lineNumber": 64
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 66
+        },
+        {
+          "caller": "main",
+          "callee": "ents.filter",
+          "lineNumber": 68
+        },
+        {
+          "caller": "main",
+          "callee": "ents.filter",
+          "lineNumber": 70
+        },
+        {
+          "caller": "main",
+          "callee": "ents.filter",
+          "lineNumber": 72
+        },
+        {
+          "caller": "main",
+          "callee": "extractFromMod",
+          "lineNumber": 77
+        },
+        {
+          "caller": "main",
+          "callee": "records.filter",
+          "lineNumber": 78
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 79
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 81
+        },
+        {
+          "caller": "main",
+          "callee": "ents.filter",
+          "lineNumber": 94
+        },
+        {
+          "caller": "main",
+          "callee": "here.find",
+          "lineNumber": 101
+        },
+        {
+          "caller": "main",
+          "callee": "String(e.canonical).startsWith",
+          "lineNumber": 101
+        },
+        {
+          "caller": "main",
+          "callee": "String",
+          "lineNumber": 101
+        },
+        {
+          "caller": "main",
+          "callee": "here.find",
+          "lineNumber": 102
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 107
+        },
+        {
+          "caller": "main",
+          "callee": "console.log",
+          "lineNumber": 110
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 0,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/chat/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 150,
+      "nonEmptyLines": 135,
+      "functions": [
+        {
+          "name": "fmtKpi",
+          "startLine": 16,
+          "endLine": 18,
+          "params": [
+            "k"
+          ]
+        },
+        {
+          "name": "fmtChart",
+          "startLine": 20,
+          "endLine": 25,
+          "params": [
+            "c"
+          ]
+        },
+        {
+          "name": "buildChatContext",
+          "startLine": 32,
+          "endLine": 64,
+          "params": [
+            "cfg"
+          ]
+        },
+        {
+          "name": "buildPrompt",
+          "startLine": 66,
+          "endLine": 76,
+          "params": [
+            "question",
+            "currentConfig"
+          ]
+        },
+        {
+          "name": "POST",
+          "startLine": 78,
+          "endLine": 150,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "POST",
+          "line": 78,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "fmtChart",
+          "callee": "labels.map((l, i) => `${l}=${series[i] ?? \"?\"}`).join",
+          "lineNumber": 23
+        },
+        {
+          "caller": "fmtChart",
+          "callee": "labels.map",
+          "lineNumber": 23
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "parts.push",
+          "lineNumber": 34
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "parts.push",
+          "lineNumber": 35
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "parts.push",
+          "lineNumber": 37
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "parts.push",
+          "lineNumber": 38
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "(cfg.kpis ?? []).map(fmtKpi).join",
+          "lineNumber": 38
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "(cfg.kpis ?? []).map",
+          "lineNumber": 38
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "parts.push",
+          "lineNumber": 41
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "parts.push",
+          "lineNumber": 42
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "cfg.charts.map(fmtChart).join",
+          "lineNumber": 42
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "cfg.charts.map",
+          "lineNumber": 42
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "parts.push",
+          "lineNumber": 46
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "parts.push",
+          "lineNumber": 47
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "cfg.sections\r\n        .map(\r\n          (s) =>\r\n            `- ${s.label}: ` +\r\n            s.kpis\r\n              .map((k) => `${k.label}=${k.value}${k.unit ? \" \" + k.unit : \"\"}`)\r\n              .join(\", \"),\r\n        )\r\n        .join",
+          "lineNumber": 48
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "cfg.sections\r\n        .map",
+          "lineNumber": 48
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "s.kpis\r\n              .map((k) => `${k.label}=${k.value}${k.unit ? \" \" + k.unit : \"\"}`)\r\n              .join",
+          "lineNumber": 52
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "s.kpis\r\n              .map",
+          "lineNumber": 52
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "parts.push",
+          "lineNumber": 61
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "cfg.insights.map((i) => `- ${i}`).join",
+          "lineNumber": 61
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "cfg.insights.map",
+          "lineNumber": 61
+        },
+        {
+          "caller": "buildChatContext",
+          "callee": "parts.join",
+          "lineNumber": 63
+        },
+        {
+          "caller": "buildPrompt",
+          "callee": "[\r\n    buildChatContext(currentConfig),\r\n    \"\",\r\n    `USER QUESTION: ${question}`,\r\n    \"\",\r\n    \"Answer using ONLY the verified figures above (reference specific labels and \" +\r\n      \"numbers). For comparisons or trends, build a chart from the per-sheet \" +\r\n      \"breakdown or chart series. Generate the insight slide now.\",\r\n  ].join",
+          "lineNumber": 67
+        },
+        {
+          "caller": "buildPrompt",
+          "callee": "buildChatContext",
+          "lineNumber": 68
+        },
+        {
+          "caller": "POST",
+          "callee": "req.json",
+          "lineNumber": 80
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 83
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 88
+        },
+        {
+          "caller": "POST",
+          "callee": "buildPrompt",
+          "lineNumber": 94
+        },
+        {
+          "caller": "POST",
+          "callee": "tryModels",
+          "lineNumber": 97
+        },
+        {
+          "caller": "POST",
+          "callee": "generateObject",
+          "lineNumber": 98
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 108
+        },
+        {
+          "caller": "POST",
+          "callee": "new Date().toISOString",
+          "lineNumber": 115
+        },
+        {
+          "caller": "POST",
+          "callee": "console.warn",
+          "lineNumber": 119
+        },
+        {
+          "caller": "POST",
+          "callee": "tryModels",
+          "lineNumber": 121
+        },
+        {
+          "caller": "POST",
+          "callee": "generateText",
+          "lineNumber": 122
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 136
+        },
+        {
+          "caller": "POST",
+          "callee": "text.trim",
+          "lineNumber": 136
+        },
+        {
+          "caller": "POST",
+          "callee": "console.error",
+          "lineNumber": 138
+        },
+        {
+          "caller": "POST",
+          "callee": "(cfg.kpis ?? []).map(k => `- ${k.label}: ${k.value}${k.unit ? \" \" + k.unit : \"\"}`).join",
+          "lineNumber": 140
+        },
+        {
+          "caller": "POST",
+          "callee": "(cfg.kpis ?? []).map",
+          "lineNumber": 140
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 142
+        },
+        {
+          "caller": "POST",
+          "callee": "String",
+          "lineNumber": 146
+        },
+        {
+          "caller": "POST",
+          "callee": "console.error",
+          "lineNumber": 147
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 148
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 1,
+        "functionCount": 5,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/mods/verify/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 72,
+      "nonEmptyLines": 64,
+      "functions": [
+        {
+          "name": "POST",
+          "startLine": 18,
+          "endLine": 72,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "POST",
+          "line": 18,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "POST",
+          "callee": "Body.safeParse",
+          "lineNumber": 20
+        },
+        {
+          "caller": "POST",
+          "callee": "req.json",
+          "lineNumber": 20
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 22
+        },
+        {
+          "caller": "POST",
+          "callee": "getModStore",
+          "lineNumber": 26
+        },
+        {
+          "caller": "POST",
+          "callee": "store.get",
+          "lineNumber": 27
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 28
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 30
+        },
+        {
+          "caller": "POST",
+          "callee": "decisions.map",
+          "lineNumber": 33
+        },
+        {
+          "caller": "POST",
+          "callee": "decisions.filter",
+          "lineNumber": 34
+        },
+        {
+          "caller": "POST",
+          "callee": "row.document.entities.some",
+          "lineNumber": 34
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 36
+        },
+        {
+          "caller": "POST",
+          "callee": "unknown.map((d) => d.entityId).join",
+          "lineNumber": 36
+        },
+        {
+          "caller": "POST",
+          "callee": "unknown.map",
+          "lineNumber": 36
+        },
+        {
+          "caller": "POST",
+          "callee": "row.document.entities.map",
+          "lineNumber": 39
+        },
+        {
+          "caller": "POST",
+          "callee": "byId.get",
+          "lineNumber": 40
+        },
+        {
+          "caller": "POST",
+          "callee": "d.comment?.trim",
+          "lineNumber": 52
+        },
+        {
+          "caller": "POST",
+          "callee": "d.comment.trim",
+          "lineNumber": 52
+        },
+        {
+          "caller": "POST",
+          "callee": "deriveCatalogs",
+          "lineNumber": 57
+        },
+        {
+          "caller": "POST",
+          "callee": "store.updateDraft",
+          "lineNumber": 58
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 60
+        },
+        {
+          "caller": "POST",
+          "callee": "entities.filter",
+          "lineNumber": 63
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 70
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/workbooks/__tests__/pipeline.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 91,
+      "nonEmptyLines": 80,
+      "functions": [
+        {
+          "name": "jsonReq",
+          "startLine": 17,
+          "endLine": 19,
+          "params": [
+            "url",
+            "body"
+          ]
+        },
+        {
+          "name": "upload",
+          "startLine": 21,
+          "endLine": 30,
+          "params": []
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "jsonReq",
+          "callee": "JSON.stringify",
+          "lineNumber": 18
+        },
+        {
+          "caller": "upload",
+          "callee": "fs.readFileSync",
+          "lineNumber": 23
+        },
+        {
+          "caller": "upload",
+          "callee": "form.append",
+          "lineNumber": 24
+        },
+        {
+          "caller": "upload",
+          "callee": "form.append",
+          "lineNumber": 25
+        },
+        {
+          "caller": "upload",
+          "callee": "uploadPOST",
+          "lineNumber": 26
+        },
+        {
+          "caller": "upload",
+          "callee": "res.json",
+          "lineNumber": 27
+        },
+        {
+          "caller": "upload",
+          "callee": "expect(res.status).toBe",
+          "lineNumber": 28
+        },
+        {
+          "caller": "upload",
+          "callee": "expect",
+          "lineNumber": 28
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 0,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/app/api/workbooks/route.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 114,
+      "nonEmptyLines": 102,
+      "functions": [
+        {
+          "name": "companyId",
+          "startLine": 21,
+          "endLine": 23,
+          "params": []
+        },
+        {
+          "name": "GET",
+          "startLine": 27,
+          "endLine": 46,
+          "params": []
+        },
+        {
+          "name": "POST",
+          "startLine": 48,
+          "endLine": 114,
+          "params": [
+            "req"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "runtime",
+          "line": 19,
+          "isDefault": false
+        },
+        {
+          "name": "GET",
+          "line": 27,
+          "isDefault": false
+        },
+        {
+          "name": "POST",
+          "line": 48,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "GET",
+          "callee": "Promise.all",
+          "lineNumber": 29
+        },
+        {
+          "caller": "GET",
+          "callee": "getSnapshotStore().list",
+          "lineNumber": 30
+        },
+        {
+          "caller": "GET",
+          "callee": "getSnapshotStore",
+          "lineNumber": 30
+        },
+        {
+          "caller": "GET",
+          "callee": "getModStore().list",
+          "lineNumber": 31
+        },
+        {
+          "caller": "GET",
+          "callee": "getModStore",
+          "lineNumber": 31
+        },
+        {
+          "caller": "GET",
+          "callee": "companyId",
+          "lineNumber": 31
+        },
+        {
+          "caller": "GET",
+          "callee": "latestByLineage.get",
+          "lineNumber": 35
+        },
+        {
+          "caller": "GET",
+          "callee": "latestByLineage.set",
+          "lineNumber": 36
+        },
+        {
+          "caller": "GET",
+          "callee": "snapshots.map",
+          "lineNumber": 38
+        },
+        {
+          "caller": "GET",
+          "callee": "latestByLineage.get",
+          "lineNumber": 40
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 42
+        },
+        {
+          "caller": "GET",
+          "callee": "NextResponse.json",
+          "lineNumber": 44
+        },
+        {
+          "caller": "POST",
+          "callee": "req.formData",
+          "lineNumber": 50
+        },
+        {
+          "caller": "POST",
+          "callee": "form.getAll(\"file\").filter",
+          "lineNumber": 51
+        },
+        {
+          "caller": "POST",
+          "callee": "form.getAll",
+          "lineNumber": 51
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 53
+        },
+        {
+          "caller": "POST",
+          "callee": "form.get",
+          "lineNumber": 55
+        },
+        {
+          "caller": "POST",
+          "callee": "availableBackends",
+          "lineNumber": 55
+        },
+        {
+          "caller": "POST",
+          "callee": "companyId",
+          "lineNumber": 57
+        },
+        {
+          "caller": "POST",
+          "callee": "Promise.all",
+          "lineNumber": 58
+        },
+        {
+          "caller": "POST",
+          "callee": "buildExactIndex",
+          "lineNumber": 59
+        },
+        {
+          "caller": "POST",
+          "callee": "getKnowledgeStore().concepts",
+          "lineNumber": 60
+        },
+        {
+          "caller": "POST",
+          "callee": "getKnowledgeStore",
+          "lineNumber": 60
+        },
+        {
+          "caller": "POST",
+          "callee": "Buffer.from",
+          "lineNumber": 65
+        },
+        {
+          "caller": "POST",
+          "callee": "file.arrayBuffer",
+          "lineNumber": 65
+        },
+        {
+          "caller": "POST",
+          "callee": "readWorkbookSnapshot",
+          "lineNumber": 66
+        },
+        {
+          "caller": "POST",
+          "callee": "getSnapshotStore().put",
+          "lineNumber": 67
+        },
+        {
+          "caller": "POST",
+          "callee": "getSnapshotStore",
+          "lineNumber": 67
+        },
+        {
+          "caller": "POST",
+          "callee": "buildProfilingTables(buf, file.name).map",
+          "lineNumber": 69
+        },
+        {
+          "caller": "POST",
+          "callee": "buildProfilingTables",
+          "lineNumber": 69
+        },
+        {
+          "caller": "POST",
+          "callee": "profileTable",
+          "lineNumber": 71
+        },
+        {
+          "caller": "POST",
+          "callee": "sheets.map",
+          "lineNumber": 73
+        },
+        {
+          "caller": "POST",
+          "callee": "resolveWorkbook",
+          "lineNumber": 81
+        },
+        {
+          "caller": "POST",
+          "callee": "getKnowledgeStore",
+          "lineNumber": 84
+        },
+        {
+          "caller": "POST",
+          "callee": "buildModDocument",
+          "lineNumber": 89
+        },
+        {
+          "caller": "POST",
+          "callee": "getModStore().saveDraft",
+          "lineNumber": 90
+        },
+        {
+          "caller": "POST",
+          "callee": "getModStore",
+          "lineNumber": 90
+        },
+        {
+          "caller": "POST",
+          "callee": "mods.push",
+          "lineNumber": 97
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 109
+        },
+        {
+          "caller": "POST",
+          "callee": "NextResponse.json",
+          "lineNumber": 112
+        }
+      ],
+      "metrics": {
+        "importCount": 11,
+        "exportCount": 3,
+        "functionCount": 3,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/components/app/MappingVerificationPanel.tsx",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 159,
+      "nonEmptyLines": 150,
+      "functions": [
+        {
+          "name": "confidenceTone",
+          "startLine": 18,
+          "endLine": 22,
+          "params": [
+            "score"
+          ]
+        },
+        {
+          "name": "MappingVerificationPanel",
+          "startLine": 24,
+          "endLine": 159,
+          "params": [
+            "{\n  mods,\n  onPublished,\n}"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "MappingVerificationPanel",
+          "line": 24,
+          "isDefault": true
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "confidenceTone",
+          "callee": "Math.round",
+          "lineNumber": 19
+        },
+        {
+          "caller": "confidenceTone",
+          "callee": "Math.round",
+          "lineNumber": 20
+        },
+        {
+          "caller": "confidenceTone",
+          "callee": "Math.round",
+          "lineNumber": 21
+        },
+        {
+          "caller": "MappingVerificationPanel",
+          "callee": "useState",
+          "lineNumber": 32
+        },
+        {
+          "caller": "MappingVerificationPanel",
+          "callee": "useState",
+          "lineNumber": 33
+        },
+        {
+          "caller": "MappingVerificationPanel",
+          "callee": "useState",
+          "lineNumber": 34
+        },
+        {
+          "caller": "MappingVerificationPanel",
+          "callee": "useState",
+          "lineNumber": 35
+        },
+        {
+          "caller": "publish",
+          "callee": "setBusy",
+          "lineNumber": 38
+        },
+        {
+          "caller": "publish",
+          "callee": "setError",
+          "lineNumber": 39
+        },
+        {
+          "caller": "publish",
+          "callee": "mod.proposals.map",
+          "lineNumber": 41
+        },
+        {
+          "caller": "publish",
+          "callee": "edited.trim",
+          "lineNumber": 45
+        },
+        {
+          "caller": "publish",
+          "callee": "fetch",
+          "lineNumber": 48
+        },
+        {
+          "caller": "publish",
+          "callee": "JSON.stringify",
+          "lineNumber": 51
+        },
+        {
+          "caller": "publish",
+          "callee": "vRes.json",
+          "lineNumber": 53
+        },
+        {
+          "caller": "publish",
+          "callee": "fetch",
+          "lineNumber": 55
+        },
+        {
+          "caller": "publish",
+          "callee": "JSON.stringify",
+          "lineNumber": 58
+        },
+        {
+          "caller": "publish",
+          "callee": "pRes.json",
+          "lineNumber": 60
+        },
+        {
+          "caller": "publish",
+          "callee": "pData.details.join",
+          "lineNumber": 61
+        },
+        {
+          "caller": "publish",
+          "callee": "setDone",
+          "lineNumber": 63
+        },
+        {
+          "caller": "publish",
+          "callee": "onPublished",
+          "lineNumber": 64
+        },
+        {
+          "caller": "publish",
+          "callee": "setError",
+          "lineNumber": 66
+        },
+        {
+          "caller": "publish",
+          "callee": "setBusy",
+          "lineNumber": 68
+        },
+        {
+          "caller": "MappingVerificationPanel",
+          "callee": "mods.map",
+          "lineNumber": 83
+        },
+        {
+          "caller": "MappingVerificationPanel",
+          "callee": "publish",
+          "lineNumber": 97
+        },
+        {
+          "caller": "MappingVerificationPanel",
+          "callee": "mod.proposals.map",
+          "lineNumber": 120
+        },
+        {
+          "caller": "MappingVerificationPanel",
+          "callee": "confidenceTone",
+          "lineNumber": 121
+        },
+        {
+          "caller": "MappingVerificationPanel",
+          "callee": "setEdits",
+          "lineNumber": 134
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 1,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/__tests__/fixtures/extract-oracle-helpers.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 64,
+      "nonEmptyLines": 61,
+      "functions": [
+        {
+          "name": "modPathRecords",
+          "startLine": 17,
+          "endLine": 64,
+          "params": [
+            "fileName",
+            "buf",
+            "stageOfSheet",
+            "columnOverrides"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "modPathRecords",
+          "line": 17,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "modPathRecords",
+          "callee": "readWorkbookSnapshot",
+          "lineNumber": 23
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "buildProfilingTables(buf, fileName).map",
+          "lineNumber": 24
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "buildProfilingTables",
+          "lineNumber": 24
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "profileTable",
+          "lineNumber": 25
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "sheets.map",
+          "lineNumber": 27
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "resolveWorkbook",
+          "lineNumber": 30
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "getKnowledgeStore",
+          "lineNumber": 31
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "proposals.map",
+          "lineNumber": 34
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "stageOfSheet.get",
+          "lineNumber": 37
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "stageOfSheet.get",
+          "lineNumber": 38
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "proposalToEntity",
+          "lineNumber": 40
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "columnOverrides.get",
+          "lineNumber": 47
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "p.original.header.trim().toLowerCase",
+          "lineNumber": 47
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "p.original.header.trim",
+          "lineNumber": 47
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "proposalToEntity",
+          "lineNumber": 50
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "override.startsWith",
+          "lineNumber": 52
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "proposalToEntity",
+          "lineNumber": 58
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "buildModDocument",
+          "lineNumber": 61
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "deriveCatalogs",
+          "lineNumber": 62
+        },
+        {
+          "caller": "modPathRecords",
+          "callee": "extractFromMod",
+          "lineNumber": 63
+        }
+      ],
+      "metrics": {
+        "importCount": 9,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/__tests__/reader.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 52,
+      "nonEmptyLines": 44,
+      "metrics": {
+        "importCount": 2,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/__tests__/resolver.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 124,
+      "nonEmptyLines": 106,
+      "functions": [
+        {
+          "name": "col",
+          "startLine": 12,
+          "endLine": 14,
+          "params": [
+            "name",
+            "role",
+            "type",
+            "index"
+          ]
+        },
+        {
+          "name": "ctx",
+          "startLine": 29,
+          "endLine": 36,
+          "params": [
+            "overrides"
+          ]
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "col",
+          "callee": "String.fromCharCode",
+          "lineNumber": 13
+        },
+        {
+          "caller": "ctx",
+          "callee": "getKnowledgeStore",
+          "lineNumber": 33
+        }
+      ],
+      "metrics": {
+        "importCount": 4,
+        "exportCount": 0,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/__tests__/stage-from-filename.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 65,
+      "nonEmptyLines": 61,
+      "metrics": {
+        "importCount": 6,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/__tests__/valve-oracle.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 156,
+      "nonEmptyLines": 139,
+      "functions": [
+        {
+          "name": "referenceSums",
+          "startLine": 27,
+          "endLine": 87,
+          "params": [
+            "buf"
+          ]
+        },
+        {
+          "name": "canonicalTotals",
+          "startLine": 89,
+          "endLine": 101,
+          "params": [
+            "records"
+          ]
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "referenceSums",
+          "callee": "XLSX.read",
+          "lineNumber": 28
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "XLSX.utils.decode_range",
+          "lineNumber": 34
+        },
+        {
+          "caller": "cell",
+          "callee": "XLSX.utils.encode_cell",
+          "lineNumber": 35
+        },
+        {
+          "caller": "num",
+          "callee": "cell",
+          "lineNumber": 37
+        },
+        {
+          "caller": "num",
+          "callee": "Number",
+          "lineNumber": 39
+        },
+        {
+          "caller": "num",
+          "callee": "String(x.v ?? \"\").replace",
+          "lineNumber": 39
+        },
+        {
+          "caller": "num",
+          "callee": "String",
+          "lineNumber": 39
+        },
+        {
+          "caller": "num",
+          "callee": "Number.isFinite",
+          "lineNumber": 40
+        },
+        {
+          "caller": "num",
+          "callee": "String",
+          "lineNumber": 40
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "Math.min",
+          "lineNumber": 45
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "String(cell(r, c)?.v ?? \"\").trim().toUpperCase",
+          "lineNumber": 47
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "String(cell(r, c)?.v ?? \"\").trim",
+          "lineNumber": 47
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "String",
+          "lineNumber": 47
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "cell",
+          "lineNumber": 47
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "String(cell(headerR, c)?.v ?? \"\").trim",
+          "lineNumber": 56
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "String",
+          "lineNumber": 56
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "cell",
+          "lineNumber": 56
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "headers.set",
+          "lineNumber": 57
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "[...headers.entries()].filter(([, v]) => /^checked qty$/i.test(v)).map",
+          "lineNumber": 59
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "[...headers.entries()].filter",
+          "lineNumber": 59
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "headers.entries",
+          "lineNumber": 59
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "/^checked qty$/i.test",
+          "lineNumber": 59
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "out.sheets.push",
+          "lineNumber": 61
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "[...headers.entries()].find",
+          "lineNumber": 63
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "headers.entries",
+          "lineNumber": 63
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "/^date$/i.test",
+          "lineNumber": 63
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "toLocalISODate",
+          "lineNumber": 70
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "cell",
+          "lineNumber": 70
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "cell",
+          "lineNumber": 70
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "[...headers.entries()].find",
+          "lineNumber": 73
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "headers.entries",
+          "lineNumber": 73
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "/^rej\\.? qty$/i.test",
+          "lineNumber": 73
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "num",
+          "lineNumber": 74
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "Math.round",
+          "lineNumber": 75
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "num",
+          "lineNumber": 76
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "Math.round",
+          "lineNumber": 77
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "SKIP_HEADER_RE.test",
+          "lineNumber": 79
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "num",
+          "lineNumber": 80
+        },
+        {
+          "caller": "referenceSums",
+          "callee": "Math.round",
+          "lineNumber": 81
+        },
+        {
+          "caller": "canonicalTotals",
+          "callee": "canonicalizeEvents",
+          "lineNumber": 90
+        },
+        {
+          "caller": "canonicalTotals",
+          "callee": "emitMany",
+          "lineNumber": 90
+        },
+        {
+          "caller": "canonicalTotals",
+          "callee": "[\"production\", \"inspection\", \"rejection\"].includes",
+          "lineNumber": 93
+        },
+        {
+          "caller": "canonicalTotals",
+          "callee": "byStage.get",
+          "lineNumber": 94
+        },
+        {
+          "caller": "canonicalTotals",
+          "callee": "byStage.set",
+          "lineNumber": 98
+        }
+      ],
+      "metrics": {
+        "importCount": 5,
+        "exportCount": 0,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/ingest/extract-from-mod.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 155,
+      "nonEmptyLines": 136,
+      "functions": [
+        {
+          "name": "colLabelToIndex",
+          "startLine": 13,
+          "endLine": 17,
+          "params": [
+            "label"
+          ]
+        },
+        {
+          "name": "rangeOrigin",
+          "startLine": 21,
+          "endLine": 25,
+          "params": [
+            "ref"
+          ]
+        },
+        {
+          "name": "toNumber",
+          "startLine": 27,
+          "endLine": 32,
+          "params": [
+            "v"
+          ]
+        },
+        {
+          "name": "grid",
+          "startLine": 38,
+          "endLine": 45,
+          "params": [
+            "sheet"
+          ]
+        },
+        {
+          "name": "planFor",
+          "startLine": 59,
+          "endLine": 84,
+          "params": [
+            "sheet",
+            "tableId",
+            "entities"
+          ]
+        },
+        {
+          "name": "extractFromMod",
+          "startLine": 86,
+          "endLine": 155,
+          "params": [
+            "doc",
+            "snapshot",
+            "ingestionId",
+            "modRef"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "extractFromMod",
+          "line": 86,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "colLabelToIndex",
+          "callee": "label.charCodeAt",
+          "lineNumber": 15
+        },
+        {
+          "caller": "rangeOrigin",
+          "callee": "ref?.match",
+          "lineNumber": 22
+        },
+        {
+          "caller": "rangeOrigin",
+          "callee": "Number",
+          "lineNumber": 24
+        },
+        {
+          "caller": "rangeOrigin",
+          "callee": "colLabelToIndex",
+          "lineNumber": 24
+        },
+        {
+          "caller": "toNumber",
+          "callee": "Number.isFinite",
+          "lineNumber": 29
+        },
+        {
+          "caller": "toNumber",
+          "callee": "Number",
+          "lineNumber": 30
+        },
+        {
+          "caller": "toNumber",
+          "callee": "String(v).replace",
+          "lineNumber": 30
+        },
+        {
+          "caller": "toNumber",
+          "callee": "String",
+          "lineNumber": 30
+        },
+        {
+          "caller": "toNumber",
+          "callee": "Number.isFinite",
+          "lineNumber": 31
+        },
+        {
+          "caller": "grid",
+          "callee": "rangeOrigin",
+          "lineNumber": 39
+        },
+        {
+          "caller": "grid",
+          "callee": "map.set",
+          "lineNumber": 42
+        },
+        {
+          "caller": "planFor",
+          "callee": "entities.filter",
+          "lineNumber": 60
+        },
+        {
+          "caller": "planFor",
+          "callee": "here.find",
+          "lineNumber": 63
+        },
+        {
+          "caller": "planFor",
+          "callee": "e.kind === \"stage\" && e.canonical!.startsWith",
+          "lineNumber": 63
+        },
+        {
+          "caller": "planFor",
+          "callee": "entities.find",
+          "lineNumber": 68
+        },
+        {
+          "caller": "planFor",
+          "callee": "e.canonical?.startsWith",
+          "lineNumber": 69
+        },
+        {
+          "caller": "byCanonical",
+          "callee": "here.find",
+          "lineNumber": 71
+        },
+        {
+          "caller": "planFor",
+          "callee": "stage.canonical!.slice",
+          "lineNumber": 74
+        },
+        {
+          "caller": "planFor",
+          "callee": "size.canonical!.slice",
+          "lineNumber": 75
+        },
+        {
+          "caller": "planFor",
+          "callee": "byCanonical",
+          "lineNumber": 76
+        },
+        {
+          "caller": "planFor",
+          "callee": "byCanonical",
+          "lineNumber": 77
+        },
+        {
+          "caller": "planFor",
+          "callee": "byCanonical",
+          "lineNumber": 78
+        },
+        {
+          "caller": "planFor",
+          "callee": "byCanonical",
+          "lineNumber": 79
+        },
+        {
+          "caller": "planFor",
+          "callee": "byCanonical",
+          "lineNumber": 80
+        },
+        {
+          "caller": "planFor",
+          "callee": "byCanonical",
+          "lineNumber": 81
+        },
+        {
+          "caller": "planFor",
+          "callee": "here.filter",
+          "lineNumber": 82
+        },
+        {
+          "caller": "planFor",
+          "callee": "e.kind === \"defect\" && e.original.colLetter !== null && e.canonical!.startsWith",
+          "lineNumber": 82
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "planFor",
+          "lineNumber": 96
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "snapshot.sheets.find",
+          "lineNumber": 99
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "rangeOrigin",
+          "lineNumber": 101
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "grid",
+          "lineNumber": 102
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "snapSheet.cells.reduce",
+          "lineNumber": 106
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "Math.max",
+          "lineNumber": 106
+        },
+        {
+          "caller": "at",
+          "callee": "cells.get",
+          "lineNumber": 109
+        },
+        {
+          "caller": "at",
+          "callee": "colLabelToIndex",
+          "lineNumber": 109
+        },
+        {
+          "caller": "sourced",
+          "callee": "toNumber",
+          "lineNumber": 114
+        },
+        {
+          "caller": "sourced",
+          "callee": "at",
+          "lineNumber": 114
+        },
+        {
+          "caller": "sourced",
+          "callee": "Math.round",
+          "lineNumber": 115
+        },
+        {
+          "caller": "sourced",
+          "callee": "cellRef",
+          "lineNumber": 115
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "toLocalISODate",
+          "lineNumber": 119
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "at",
+          "lineNumber": 119
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "toNumber",
+          "lineNumber": 124
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "at",
+          "lineNumber": 124
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "defects.push",
+          "lineNumber": 125
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "Math.round",
+          "lineNumber": 125
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "cellRef",
+          "lineNumber": 125
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "at",
+          "lineNumber": 130
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "toNumber",
+          "lineNumber": 131
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "cellRef",
+          "lineNumber": 132
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "records.push",
+          "lineNumber": 135
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "sourced",
+          "lineNumber": 140
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "sourced",
+          "lineNumber": 141
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "sourced",
+          "lineNumber": 142
+        },
+        {
+          "caller": "extractFromMod",
+          "callee": "sourced",
+          "lineNumber": 143
+        }
+      ],
+      "metrics": {
+        "importCount": 4,
+        "exportCount": 1,
+        "functionCount": 6,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/ontology/builder/build-mod.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 200,
+      "nonEmptyLines": 182,
+      "functions": [
+        {
+          "name": "humanize",
+          "startLine": 17,
+          "endLine": 19,
+          "params": [
+            "name"
+          ]
+        },
+        {
+          "name": "proposalToEntity",
+          "startLine": 21,
+          "endLine": 27,
+          "params": [
+            "p",
+            "verified"
+          ]
+        },
+        {
+          "name": "regionKey",
+          "startLine": 30,
+          "endLine": 31,
+          "params": [
+            "e"
+          ]
+        },
+        {
+          "name": "deriveCatalogs",
+          "startLine": 34,
+          "endLine": 120,
+          "params": [
+            "entities"
+          ]
+        },
+        {
+          "name": "buildModDocument",
+          "startLine": 128,
+          "endLine": 200,
+          "params": [
+            "args"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "proposalToEntity",
+          "line": 21,
+          "isDefault": false
+        },
+        {
+          "name": "deriveCatalogs",
+          "line": 34,
+          "isDefault": false
+        },
+        {
+          "name": "buildModDocument",
+          "line": 128,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "humanize",
+          "callee": "name.trim().replace(/\\s+/g, \" \").toLowerCase().replace",
+          "lineNumber": 18
+        },
+        {
+          "caller": "humanize",
+          "callee": "name.trim().replace(/\\s+/g, \" \").toLowerCase",
+          "lineNumber": 18
+        },
+        {
+          "caller": "humanize",
+          "callee": "name.trim().replace",
+          "lineNumber": 18
+        },
+        {
+          "caller": "humanize",
+          "callee": "name.trim",
+          "lineNumber": 18
+        },
+        {
+          "caller": "humanize",
+          "callee": "c.toUpperCase",
+          "lineNumber": 18
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "e.canonical?.startsWith",
+          "lineNumber": 38
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stageOfSheet.set",
+          "lineNumber": 39
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "regionKey",
+          "lineNumber": 39
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "e.canonical.slice",
+          "lineNumber": 39
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "entities.filter((e) => e.kind === \"size\" && e.canonical).map",
+          "lineNumber": 43
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "entities.filter",
+          "lineNumber": 43
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "e.canonical?.startsWith",
+          "lineNumber": 47
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "e.canonical.slice",
+          "lineNumber": 48
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stages.get",
+          "lineNumber": 49
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "sizeSheets.has",
+          "lineNumber": 50
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stages.set",
+          "lineNumber": 55
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "sizeSheets.has",
+          "lineNumber": 58
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "humanize",
+          "lineNumber": 58
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stageId.replace",
+          "lineNumber": 58
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "humanize",
+          "lineNumber": 58
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stageOfSheet.get",
+          "lineNumber": 69
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "regionKey",
+          "lineNumber": 69
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stages.get",
+          "lineNumber": 70
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stage && !stage.captures!.includes",
+          "lineNumber": 71
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stage.captures!.push",
+          "lineNumber": 71
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stages.values",
+          "lineNumber": 73
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "s.captures?.includes",
+          "lineNumber": 74
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "e.canonical?.startsWith",
+          "lineNumber": 79
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "e.canonical.slice",
+          "lineNumber": 80
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stageOfSheet.get",
+          "lineNumber": 81
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "regionKey",
+          "lineNumber": 81
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "defects.get",
+          "lineNumber": 82
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "existing.aliases.includes",
+          "lineNumber": 84
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "existing.aliases.push",
+          "lineNumber": 84
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "existing.stages.includes",
+          "lineNumber": 85
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "existing.stages.push",
+          "lineNumber": 85
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "defects.set",
+          "lineNumber": 88
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "humanize",
+          "lineNumber": 90
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "e.canonical?.startsWith",
+          "lineNumber": 98
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "e.canonical.slice",
+          "lineNumber": 99
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "sizes.has",
+          "lineNumber": 100
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "sizes.set",
+          "lineNumber": 100
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "sizeId.replace",
+          "lineNumber": 100
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "relationships.push",
+          "lineNumber": 105
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "relationships.push",
+          "lineNumber": 106
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "relationships.push",
+          "lineNumber": 107
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stageOfSheet.get",
+          "lineNumber": 109
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "regionKey",
+          "lineNumber": 109
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "relationships.push",
+          "lineNumber": 110
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "stages.values",
+          "lineNumber": 115
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "defects.values",
+          "lineNumber": 116
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "[...sizes.values()].sort",
+          "lineNumber": 117
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "sizes.values",
+          "lineNumber": 117
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "Number",
+          "lineNumber": 117
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "a.sizeId.slice",
+          "lineNumber": 117
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "Number",
+          "lineNumber": 117
+        },
+        {
+          "caller": "deriveCatalogs",
+          "callee": "b.sizeId.slice",
+          "lineNumber": 117
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "proposals.map",
+          "lineNumber": 136
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "proposalToEntity",
+          "lineNumber": 136
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "deriveCatalogs",
+          "lineNumber": 137
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "formulas.push",
+          "lineNumber": 143
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "sheets.map",
+          "lineNumber": 154
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "snapshot.sheets.find",
+          "lineNumber": 155
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "Array(width).fill",
+          "lineNumber": 161
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "Array",
+          "lineNumber": 161
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "headerRows.push",
+          "lineNumber": 165
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "(snapSheet?.merges ?? []).filter",
+          "lineNumber": 174
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "s.columns.map",
+          "lineNumber": 175
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "entities.map",
+          "lineNumber": 180
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "canonicals.has",
+          "lineNumber": 182
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "canonicals.has",
+          "lineNumber": 182
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "validation.push",
+          "lineNumber": 183
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "canonicals.has",
+          "lineNumber": 185
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "entities.some",
+          "lineNumber": 185
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "validation.push",
+          "lineNumber": 186
+        },
+        {
+          "caller": "buildModDocument",
+          "callee": "snapshot.sheets.map",
+          "lineNumber": 191
+        }
+      ],
+      "metrics": {
+        "importCount": 5,
+        "exportCount": 3,
+        "functionCount": 5,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/ontology/global-ontology.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 28,
+      "nonEmptyLines": 26,
+      "exports": [
+        {
+          "name": "GLOBAL_ONTOLOGY_SEED",
+          "line": 13,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/ontology/resolver/exact-index.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 20,
+      "nonEmptyLines": 18,
+      "functions": [
+        {
+          "name": "buildExactIndex",
+          "startLine": 9,
+          "endLine": 20,
+          "params": [
+            "companyId"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "buildExactIndex",
+          "line": 9,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "buildExactIndex",
+          "callee": "getModStore().verified",
+          "lineNumber": 10
+        },
+        {
+          "caller": "buildExactIndex",
+          "callee": "getModStore",
+          "lineNumber": 10
+        },
+        {
+          "caller": "buildExactIndex",
+          "callee": "normalizeKey",
+          "lineNumber": 15
+        },
+        {
+          "caller": "buildExactIndex",
+          "callee": "index.has",
+          "lineNumber": 16
+        },
+        {
+          "caller": "buildExactIndex",
+          "callee": "index.set",
+          "lineNumber": 16
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/ontology/resolver/ladder.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 271,
+      "nonEmptyLines": 249,
+      "functions": [
+        {
+          "name": "stageFromFileName",
+          "startLine": 61,
+          "endLine": 72,
+          "params": [
+            "fileName"
+          ]
+        },
+        {
+          "name": "conceptsForRole",
+          "startLine": 86,
+          "endLine": 101,
+          "params": [
+            "role",
+            "header",
+            "concepts"
+          ]
+        },
+        {
+          "name": "globalHit",
+          "startLine": 104,
+          "endLine": 123,
+          "params": [
+            "header",
+            "role",
+            "concepts"
+          ]
+        },
+        {
+          "name": "ruleHit",
+          "startLine": 126,
+          "endLine": 146,
+          "params": [
+            "col"
+          ]
+        },
+        {
+          "name": "toProposal",
+          "startLine": 148,
+          "endLine": 168,
+          "params": [
+            "entityId",
+            "original",
+            "hits"
+          ]
+        },
+        {
+          "name": "resolveWorkbook",
+          "startLine": 171,
+          "endLine": 271,
+          "params": [
+            "sheets",
+            "ctx"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "stageFromFileName",
+          "line": 61,
+          "isDefault": false
+        },
+        {
+          "name": "resolveWorkbook",
+          "line": 171,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "stageFromFileName",
+          "callee": "fileName.replace",
+          "lineNumber": 62
+        },
+        {
+          "caller": "stageFromFileName",
+          "callee": "rule.re.test",
+          "lineNumber": 64
+        },
+        {
+          "caller": "stageFromFileName",
+          "callee": "base.slice",
+          "lineNumber": 67
+        },
+        {
+          "caller": "conceptsForRole",
+          "callee": "PCTISH_RE.test",
+          "lineNumber": 93
+        },
+        {
+          "caller": "conceptsForRole",
+          "callee": "concepts.filter",
+          "lineNumber": 94
+        },
+        {
+          "caller": "conceptsForRole",
+          "callee": "concepts.filter",
+          "lineNumber": 95
+        },
+        {
+          "caller": "conceptsForRole",
+          "callee": "concepts.filter",
+          "lineNumber": 96
+        },
+        {
+          "caller": "conceptsForRole",
+          "callee": "concepts.filter",
+          "lineNumber": 97
+        },
+        {
+          "caller": "conceptsForRole",
+          "callee": "concepts.filter",
+          "lineNumber": 98
+        },
+        {
+          "caller": "globalHit",
+          "callee": "header.toLowerCase",
+          "lineNumber": 105
+        },
+        {
+          "caller": "globalHit",
+          "callee": "conceptsForRole",
+          "lineNumber": 107
+        },
+        {
+          "caller": "globalHit",
+          "callee": "/\\w/.test",
+          "lineNumber": 109
+        },
+        {
+          "caller": "globalHit",
+          "callee": "new RegExp(`\\\\b${term.replace(/[.*+?^${}()|[\\]\\\\]/g, \"\\\\$&\")}`, \"i\").test",
+          "lineNumber": 110
+        },
+        {
+          "caller": "globalHit",
+          "callee": "term.replace",
+          "lineNumber": 110
+        },
+        {
+          "caller": "globalHit",
+          "callee": "h.includes",
+          "lineNumber": 111
+        },
+        {
+          "caller": "globalHit",
+          "callee": "best.concept.matchTerms.find",
+          "lineNumber": 121
+        },
+        {
+          "caller": "globalHit",
+          "callee": "header.toLowerCase().includes",
+          "lineNumber": 121
+        },
+        {
+          "caller": "globalHit",
+          "callee": "header.toLowerCase",
+          "lineNumber": 121
+        },
+        {
+          "caller": "ruleHit",
+          "callee": "collapseKey",
+          "lineNumber": 131
+        },
+        {
+          "caller": "toProposal",
+          "callee": "hits.find",
+          "lineNumber": 151
+        },
+        {
+          "caller": "toProposal",
+          "callee": "hits\n      .filter((h) => h !== winner && h.canonical !== null)\n      .map",
+          "lineNumber": 164
+        },
+        {
+          "caller": "toProposal",
+          "callee": "hits\n      .filter",
+          "lineNumber": 164
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "sheet.regionLabel?.trim",
+          "lineNumber": 179
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "sheet.sheetName.trim().match",
+          "lineNumber": 182
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "sheet.sheetName.trim",
+          "lineNumber": 182
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "proposals.push",
+          "lineNumber": 186
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "toProposal",
+          "lineNumber": 186
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "ctx.exact.get",
+          "lineNumber": 193
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "normalizeKey",
+          "lineNumber": 193
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "ctx.exact.get",
+          "lineNumber": 194
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "normalizeKey",
+          "lineNumber": 194
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "ctx.exact.get",
+          "lineNumber": 195
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "normalizeKey",
+          "lineNumber": 195
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "stageHits.push",
+          "lineNumber": 197
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "ctx.knowledge.lookup",
+          "lineNumber": 199
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "ctx.knowledge.lookup",
+          "lineNumber": 200
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "ctx.knowledge.lookup",
+          "lineNumber": 201
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "stageHits.push",
+          "lineNumber": 203
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "stageHits.every",
+          "lineNumber": 206
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "stageFromFileName",
+          "lineNumber": 207
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "stageHits.unshift",
+          "lineNumber": 209
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "stageHits.push",
+          "lineNumber": 219
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "proposals.push",
+          "lineNumber": 223
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "toProposal",
+          "lineNumber": 223
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "ctx.exact.get",
+          "lineNumber": 229
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "normalizeKey",
+          "lineNumber": 229
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "hits.push",
+          "lineNumber": 231
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "ctx.knowledge.lookup",
+          "lineNumber": 233
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "hits.push",
+          "lineNumber": 235
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "known.canonicalId.startsWith",
+          "lineNumber": 235
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "globalHit",
+          "lineNumber": 237
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "hits.push",
+          "lineNumber": 238
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "ruleHit",
+          "lineNumber": 239
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "hits.push",
+          "lineNumber": 240
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "proposals.push",
+          "lineNumber": 242
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "toProposal",
+          "lineNumber": 242
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "proposals.filter",
+          "lineNumber": 249
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "ctx.llm",
+          "lineNumber": 252
+        },
+        {
+          "caller": "resolveWorkbook",
+          "callee": "refined.get",
+          "lineNumber": 254
+        }
+      ],
+      "metrics": {
+        "importCount": 5,
+        "exportCount": 2,
+        "functionCount": 6,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/ontology/resolver/llm.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 62,
+      "nonEmptyLines": 57,
+      "functions": [
+        {
+          "name": "llmResolve",
+          "startLine": 25,
+          "endLine": 62,
+          "params": [
+            "unresolved",
+            "sheets"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "llmResolve",
+          "line": 25,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "llmResolve",
+          "callee": "GLOBAL_ONTOLOGY_SEED.map((c) => `${c.conceptId} (${c.kind}): ${c.description}`).join",
+          "lineNumber": 29
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "GLOBAL_ONTOLOGY_SEED.map",
+          "lineNumber": 29
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "sheets\n    .map((s) => `Sheet \"${s.sheetName}\" (file \"${s.fileName}\"): columns ${s.columns.map((c) => `\"${c.name}\" [${c.type}/${c.role}]`).join(\", \")}`)\n    .join",
+          "lineNumber": 30
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "sheets\n    .map",
+          "lineNumber": 30
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "s.columns.map((c) => `\"${c.name}\" [${c.type}/${c.role}]`).join",
+          "lineNumber": 31
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "s.columns.map",
+          "lineNumber": 31
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "unresolved\n    .map((p) => `- entityId ${p.entityId}: ${p.original.colLetter ? `column \"${p.original.header}\" on sheet \"${p.original.sheet}\"` : `sheet \"${p.original.header}\"`} (current kind guess: ${p.kind})`)\n    .join",
+          "lineNumber": 33
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "unresolved\n    .map",
+          "lineNumber": 33
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "tryModels",
+          "lineNumber": 37
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "generateObject",
+          "lineNumber": 38
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "[\n        \"You are resolving manufacturing spreadsheet fields to a canonical ontology.\",\n        \"Identify every listed entity. Never omit one. If uncertain, keep canonical null and say why — do NOT invent.\",\n        \"Canonical vocabulary:\",\n        \"- measures/dimensions: one of the concept ids below (e.g. CHECKED_QTY, REJECTED_QTY, DATE, SIZE).\",\n        \"- defect tally columns: DEFECT:<CODE> where CODE is the column's code collapsed to A-Z0-9.\",\n        \"- sheets that represent a process/inspection stage: STAGE:<kebab-case-stage-id> derived from the stage's plain name.\",\n        \"- per-size tabs: SIZE:Fr<number>.\",\n        \"\",\n        \"Concepts:\", concepts, \"\",\n        \"Workbook structure:\", structure, \"\",\n        \"Resolve these entities (return one mapping per entityId, confidence 0..1):\", targets,\n      ].join",
+          "lineNumber": 41
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "out.set",
+          "lineNumber": 59
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "Math.max",
+          "lineNumber": 59
+        },
+        {
+          "caller": "llmResolve",
+          "callee": "Math.min",
+          "lineNumber": 59
+        }
+      ],
+      "metrics": {
+        "importCount": 4,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/ontology/store/knowledge-store.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 126,
+      "nonEmptyLines": 115,
+      "functions": [
+        {
+          "name": "normalizeKey",
+          "startLine": 24,
+          "endLine": 26,
+          "params": [
+            "raw"
+          ]
+        },
+        {
+          "name": "entryKey",
+          "startLine": 39,
+          "endLine": 39,
+          "params": [
+            "companyId",
+            "kind",
+            "key"
+          ]
+        },
+        {
+          "name": "getKnowledgeStore",
+          "startLine": 121,
+          "endLine": 126,
+          "params": []
+        }
+      ],
+      "classes": [
+        {
+          "name": "MemoryKnowledgeStore",
+          "startLine": 41,
+          "endLine": 64,
+          "methods": [
+            "lookup",
+            "learn",
+            "recordUse",
+            "list",
+            "concepts"
+          ],
+          "properties": [
+            "entries"
+          ]
+        },
+        {
+          "name": "SupabaseKnowledgeStore",
+          "startLine": 66,
+          "endLine": 118,
+          "methods": [
+            "db",
+            "lookup",
+            "learn",
+            "recordUse",
+            "list",
+            "concepts"
+          ],
+          "properties": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "normalizeKey",
+          "line": 24,
+          "isDefault": false
+        },
+        {
+          "name": "getKnowledgeStore",
+          "line": 121,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "normalizeKey",
+          "callee": "raw.trim().toLowerCase().replace",
+          "lineNumber": 25
+        },
+        {
+          "caller": "normalizeKey",
+          "callee": "raw.trim().toLowerCase",
+          "lineNumber": 25
+        },
+        {
+          "caller": "normalizeKey",
+          "callee": "raw.trim",
+          "lineNumber": 25
+        },
+        {
+          "caller": "lookup",
+          "callee": "this.entries.get",
+          "lineNumber": 45
+        },
+        {
+          "caller": "lookup",
+          "callee": "entryKey",
+          "lineNumber": 45
+        },
+        {
+          "caller": "lookup",
+          "callee": "normalizeKey",
+          "lineNumber": 45
+        },
+        {
+          "caller": "learn",
+          "callee": "entryKey",
+          "lineNumber": 49
+        },
+        {
+          "caller": "learn",
+          "callee": "this.entries.get",
+          "lineNumber": 50
+        },
+        {
+          "caller": "learn",
+          "callee": "this.entries.set",
+          "lineNumber": 51
+        },
+        {
+          "caller": "learn",
+          "callee": "new Date().toISOString",
+          "lineNumber": 51
+        },
+        {
+          "caller": "recordUse",
+          "callee": "this.entries.get",
+          "lineNumber": 55
+        },
+        {
+          "caller": "recordUse",
+          "callee": "entryKey",
+          "lineNumber": 55
+        },
+        {
+          "caller": "list",
+          "callee": "[...this.entries.values()].filter",
+          "lineNumber": 59
+        },
+        {
+          "caller": "list",
+          "callee": "this.entries.values",
+          "lineNumber": 59
+        },
+        {
+          "caller": "db",
+          "callee": "createServerClient",
+          "lineNumber": 67
+        },
+        {
+          "caller": "lookup",
+          "callee": "this.db().from(\"company_knowledge\").select(\"*\")\n      .eq(\"company_id\", companyId).eq(\"kind\", kind).eq(\"key\", normalizeKey(rawLabel)).maybeSingle",
+          "lineNumber": 70
+        },
+        {
+          "caller": "lookup",
+          "callee": "this.db().from(\"company_knowledge\").select(\"*\")\n      .eq(\"company_id\", companyId).eq(\"kind\", kind).eq",
+          "lineNumber": 70
+        },
+        {
+          "caller": "lookup",
+          "callee": "this.db().from(\"company_knowledge\").select(\"*\")\n      .eq(\"company_id\", companyId).eq",
+          "lineNumber": 70
+        },
+        {
+          "caller": "lookup",
+          "callee": "this.db().from(\"company_knowledge\").select(\"*\")\n      .eq",
+          "lineNumber": 70
+        },
+        {
+          "caller": "lookup",
+          "callee": "this.db().from(\"company_knowledge\").select",
+          "lineNumber": 70
+        },
+        {
+          "caller": "lookup",
+          "callee": "this.db().from",
+          "lineNumber": 70
+        },
+        {
+          "caller": "lookup",
+          "callee": "this.db",
+          "lineNumber": 70
+        },
+        {
+          "caller": "lookup",
+          "callee": "normalizeKey",
+          "lineNumber": 71
+        },
+        {
+          "caller": "lookup",
+          "callee": "Number",
+          "lineNumber": 76
+        },
+        {
+          "caller": "learn",
+          "callee": "this.db().from(\"company_knowledge\").upsert",
+          "lineNumber": 82
+        },
+        {
+          "caller": "learn",
+          "callee": "this.db().from",
+          "lineNumber": 82
+        },
+        {
+          "caller": "learn",
+          "callee": "this.db",
+          "lineNumber": 82
+        },
+        {
+          "caller": "learn",
+          "callee": "entries.map",
+          "lineNumber": 83
+        },
+        {
+          "caller": "recordUse",
+          "callee": "this.lookup",
+          "lineNumber": 94
+        },
+        {
+          "caller": "recordUse",
+          "callee": "this.db().from(\"company_knowledge\")\n      .update({ use_count: existing.useCount + 1 })\n      .eq(\"company_id\", companyId).eq(\"kind\", kind).eq",
+          "lineNumber": 96
+        },
+        {
+          "caller": "recordUse",
+          "callee": "this.db().from(\"company_knowledge\")\n      .update({ use_count: existing.useCount + 1 })\n      .eq(\"company_id\", companyId).eq",
+          "lineNumber": 96
+        },
+        {
+          "caller": "recordUse",
+          "callee": "this.db().from(\"company_knowledge\")\n      .update({ use_count: existing.useCount + 1 })\n      .eq",
+          "lineNumber": 96
+        },
+        {
+          "caller": "recordUse",
+          "callee": "this.db().from(\"company_knowledge\")\n      .update",
+          "lineNumber": 96
+        },
+        {
+          "caller": "recordUse",
+          "callee": "this.db().from",
+          "lineNumber": 96
+        },
+        {
+          "caller": "recordUse",
+          "callee": "this.db",
+          "lineNumber": 96
+        },
+        {
+          "caller": "list",
+          "callee": "this.db().from(\"company_knowledge\").select(\"*\").eq",
+          "lineNumber": 102
+        },
+        {
+          "caller": "list",
+          "callee": "this.db().from(\"company_knowledge\").select",
+          "lineNumber": 102
+        },
+        {
+          "caller": "list",
+          "callee": "this.db().from",
+          "lineNumber": 102
+        },
+        {
+          "caller": "list",
+          "callee": "this.db",
+          "lineNumber": 102
+        },
+        {
+          "caller": "list",
+          "callee": "(data ?? []).map",
+          "lineNumber": 104
+        },
+        {
+          "caller": "list",
+          "callee": "Number",
+          "lineNumber": 106
+        },
+        {
+          "caller": "concepts",
+          "callee": "this.db().from(\"global_ontology\").select",
+          "lineNumber": 111
+        },
+        {
+          "caller": "concepts",
+          "callee": "this.db().from",
+          "lineNumber": 111
+        },
+        {
+          "caller": "concepts",
+          "callee": "this.db",
+          "lineNumber": 111
+        },
+        {
+          "caller": "concepts",
+          "callee": "data.map",
+          "lineNumber": 114
+        },
+        {
+          "caller": "getKnowledgeStore",
+          "callee": "shouldUseSupabase",
+          "lineNumber": 123
+        }
+      ],
+      "metrics": {
+        "importCount": 3,
+        "exportCount": 2,
+        "functionCount": 3,
+        "classCount": 2
+      }
+    },
+    {
+      "path": "src/core/profiler/formula-class.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 57,
+      "nonEmptyLines": 52,
+      "functions": [
+        {
+          "name": "classifyFormula",
+          "startLine": 18,
+          "endLine": 57,
+          "params": [
+            "formula",
+            "selfCol",
+            "selfRow"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "classifyFormula",
+          "line": 18,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "classifyFormula",
+          "callee": "formula.trim",
+          "lineNumber": 24
+        },
+        {
+          "caller": "classifyFormula",
+          "callee": "f.startsWith",
+          "lineNumber": 25
+        },
+        {
+          "caller": "classifyFormula",
+          "callee": "f.slice",
+          "lineNumber": 25
+        },
+        {
+          "caller": "classifyFormula",
+          "callee": "f.includes",
+          "lineNumber": 30
+        },
+        {
+          "caller": "classifyFormula",
+          "callee": "/\\[\\d+\\]/.test",
+          "lineNumber": 30
+        },
+        {
+          "caller": "classifyFormula",
+          "callee": "f.match",
+          "lineNumber": 31
+        },
+        {
+          "caller": "classifyFormula",
+          "callee": "f.match",
+          "lineNumber": 38
+        },
+        {
+          "caller": "classifyFormula",
+          "callee": "refRe.exec",
+          "lineNumber": 49
+        },
+        {
+          "caller": "classifyFormula",
+          "callee": "Number",
+          "lineNumber": 51
+        },
+        {
+          "caller": "classifyFormula",
+          "callee": "refs.add",
+          "lineNumber": 52
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/profiler/from-workbook.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 157,
+      "nonEmptyLines": 142,
+      "functions": [
+        {
+          "name": "buildProfilingTables",
+          "startLine": 31,
+          "endLine": 157,
+          "params": [
+            "data",
+            "_fileName",
+            "opts"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "buildProfilingTables",
+          "line": 31,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "buildProfilingTables",
+          "callee": "XLSX.read",
+          "lineNumber": 39
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "XLSX.utils.sheet_to_json",
+          "lineNumber": 49
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "detectHeaderRow",
+          "lineNumber": 52
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "buildHeaderBlock",
+          "lineNumber": 53
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "normalizeHeaders",
+          "lineNumber": 54
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "normalizedHeader.map",
+          "lineNumber": 55
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "colIndexToLabel",
+          "lineNumber": 55
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "rawRows.slice",
+          "lineNumber": 58
+        },
+        {
+          "caller": "named",
+          "callee": "(normalizedHeader[c] ?? \"\").trim",
+          "lineNumber": 68
+        },
+        {
+          "caller": "named",
+          "callee": "h.startsWith",
+          "lineNumber": 69
+        },
+        {
+          "caller": "colHasData",
+          "callee": "dataRows.some",
+          "lineNumber": 71
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "Array(width).fill",
+          "lineNumber": 76
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "Array",
+          "lineNumber": 76
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "Math.min",
+          "lineNumber": 79
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "named",
+          "lineNumber": 80
+        },
+        {
+          "caller": "isDead",
+          "callee": "named",
+          "lineNumber": 85
+        },
+        {
+          "caller": "isDead",
+          "callee": "colHasData",
+          "lineNumber": 85
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "isDead",
+          "lineNumber": 89
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "runs.push",
+          "lineNumber": 91
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "runs.filter",
+          "lineNumber": 93
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "named",
+          "lineNumber": 95
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "dataRows.map",
+          "lineNumber": 101
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "normalizedHeader.map",
+          "lineNumber": 102
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "readCell",
+          "lineNumber": 102
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "rows.some",
+          "lineNumber": 104
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "r.some",
+          "lineNumber": 104
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "tables.push",
+          "lineNumber": 106
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "named",
+          "lineNumber": 114
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "DATE_HEADER_RE.test",
+          "lineNumber": 114
+        },
+        {
+          "caller": "labelFor",
+          "callee": "Math.max",
+          "lineNumber": 120
+        },
+        {
+          "caller": "labelFor",
+          "callee": "Array.isArray",
+          "lineNumber": 122
+        },
+        {
+          "caller": "labelFor",
+          "callee": "v.trim",
+          "lineNumber": 125
+        },
+        {
+          "caller": "labelFor",
+          "callee": "v.trim",
+          "lineNumber": 125
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "regions.forEach",
+          "lineNumber": 131
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "named",
+          "lineNumber": 135
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "DATE_HEADER_RE.test",
+          "lineNumber": 136
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "cols.push",
+          "lineNumber": 137
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "cols.includes",
+          "lineNumber": 139
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "cols.unshift",
+          "lineNumber": 139
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "dataRows.map",
+          "lineNumber": 141
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "cols.map",
+          "lineNumber": 141
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "readCell",
+          "lineNumber": 141
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "rows.some",
+          "lineNumber": 142
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "row.some",
+          "lineNumber": 142
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "tables.push",
+          "lineNumber": 144
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "labelFor",
+          "lineNumber": 147
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "cols.map",
+          "lineNumber": 148
+        },
+        {
+          "caller": "buildProfilingTables",
+          "callee": "cols.map",
+          "lineNumber": 149
+        }
+      ],
+      "metrics": {
+        "importCount": 2,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/profiler/profile.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 119,
+      "nonEmptyLines": 106,
+      "functions": [
+        {
+          "name": "looksSerialDate",
+          "startLine": 18,
+          "endLine": 21,
+          "params": [
+            "nums"
+          ]
+        },
+        {
+          "name": "columnType",
+          "startLine": 24,
+          "endLine": 34,
+          "params": [
+            "cells",
+            "name"
+          ]
+        },
+        {
+          "name": "dominantFormulaClass",
+          "startLine": 37,
+          "endLine": 59,
+          "params": [
+            "cells",
+            "colLetter",
+            "firstDataRow"
+          ]
+        },
+        {
+          "name": "classifyRole",
+          "startLine": 61,
+          "endLine": 95,
+          "params": [
+            "name",
+            "type",
+            "fclass",
+            "cardinality"
+          ]
+        },
+        {
+          "name": "profileColumn",
+          "startLine": 97,
+          "endLine": 110,
+          "params": [
+            "table",
+            "index"
+          ]
+        },
+        {
+          "name": "profileTable",
+          "startLine": 112,
+          "endLine": 119,
+          "params": [
+            "table"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "profileColumn",
+          "line": 97,
+          "isDefault": false
+        },
+        {
+          "name": "profileTable",
+          "line": 112,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "looksSerialDate",
+          "callee": "nums.every",
+          "lineNumber": 20
+        },
+        {
+          "caller": "columnType",
+          "callee": "cells.map((c) => c.value).filter",
+          "lineNumber": 25
+        },
+        {
+          "caller": "columnType",
+          "callee": "cells.map",
+          "lineNumber": 25
+        },
+        {
+          "caller": "columnType",
+          "callee": "DATE_NAME_RE.test",
+          "lineNumber": 27
+        },
+        {
+          "caller": "columnType",
+          "callee": "vals.filter",
+          "lineNumber": 28
+        },
+        {
+          "caller": "columnType",
+          "callee": "Number.isFinite",
+          "lineNumber": 28
+        },
+        {
+          "caller": "columnType",
+          "callee": "looksSerialDate",
+          "lineNumber": 29
+        },
+        {
+          "caller": "columnType",
+          "callee": "vals.filter",
+          "lineNumber": 30
+        },
+        {
+          "caller": "columnType",
+          "callee": "/\\d{4}-\\d{2}-\\d{2}|^\\d{1,2}[\\/-]\\d{1,2}/.test",
+          "lineNumber": 30
+        },
+        {
+          "caller": "columnType",
+          "callee": "Math.max",
+          "lineNumber": 32
+        },
+        {
+          "caller": "dominantFormulaClass",
+          "callee": "cells.forEach",
+          "lineNumber": 44
+        },
+        {
+          "caller": "dominantFormulaClass",
+          "callee": "classifyFormula",
+          "lineNumber": 45
+        },
+        {
+          "caller": "dominantFormulaClass",
+          "callee": "Object.keys",
+          "lineNumber": 55
+        },
+        {
+          "caller": "classifyRole",
+          "callee": "name.trim().toUpperCase",
+          "lineNumber": 67
+        },
+        {
+          "caller": "classifyRole",
+          "callee": "name.trim",
+          "lineNumber": 67
+        },
+        {
+          "caller": "classifyRole",
+          "callee": "DATE_NAME_RE.test",
+          "lineNumber": 69
+        },
+        {
+          "caller": "classifyRole",
+          "callee": "META_NAME_RE.test",
+          "lineNumber": 70
+        },
+        {
+          "caller": "classifyRole",
+          "callee": "DERIVED_NAME_RE.test",
+          "lineNumber": 76
+        },
+        {
+          "caller": "classifyRole",
+          "callee": "MEASURE_NAME_RE.test",
+          "lineNumber": 85
+        },
+        {
+          "caller": "classifyRole",
+          "callee": "SHORT_CODE_RE.test",
+          "lineNumber": 88
+        },
+        {
+          "caller": "classifyRole",
+          "callee": "SIZE_NAME_RE.test",
+          "lineNumber": 90
+        },
+        {
+          "caller": "profileColumn",
+          "callee": "(table.header[index] ?? \"\").trim",
+          "lineNumber": 98
+        },
+        {
+          "caller": "profileColumn",
+          "callee": "table.rows.map",
+          "lineNumber": 103
+        },
+        {
+          "caller": "profileColumn",
+          "callee": "cells.filter",
+          "lineNumber": 104
+        },
+        {
+          "caller": "profileColumn",
+          "callee": "nonEmpty.map",
+          "lineNumber": 105
+        },
+        {
+          "caller": "profileColumn",
+          "callee": "String",
+          "lineNumber": 105
+        },
+        {
+          "caller": "profileColumn",
+          "callee": "columnType",
+          "lineNumber": 106
+        },
+        {
+          "caller": "profileColumn",
+          "callee": "dominantFormulaClass",
+          "lineNumber": 107
+        },
+        {
+          "caller": "profileColumn",
+          "callee": "classifyRole",
+          "lineNumber": 108
+        },
+        {
+          "caller": "profileTable",
+          "callee": "(table.header[i] ?? \"\").trim",
+          "lineNumber": 115
+        },
+        {
+          "caller": "profileTable",
+          "callee": "columns.push",
+          "lineNumber": 116
+        },
+        {
+          "caller": "profileTable",
+          "callee": "profileColumn",
+          "lineNumber": 116
+        }
+      ],
+      "metrics": {
+        "importCount": 2,
+        "exportCount": 2,
+        "functionCount": 6,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/profiler/signature.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 30,
+      "nonEmptyLines": 27,
+      "functions": [
+        {
+          "name": "stableHash",
+          "startLine": 6,
+          "endLine": 12,
+          "params": [
+            "s"
+          ]
+        },
+        {
+          "name": "normalizeName",
+          "startLine": 17,
+          "endLine": 19,
+          "params": [
+            "name"
+          ]
+        },
+        {
+          "name": "computeSignature",
+          "startLine": 24,
+          "endLine": 30,
+          "params": [
+            "columns"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "stableHash",
+          "line": 6,
+          "isDefault": false
+        },
+        {
+          "name": "normalizeName",
+          "line": 17,
+          "isDefault": false
+        },
+        {
+          "name": "computeSignature",
+          "line": 24,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "stableHash",
+          "callee": "s.charCodeAt",
+          "lineNumber": 9
+        },
+        {
+          "caller": "stableHash",
+          "callee": "h.toString(16).padStart",
+          "lineNumber": 11
+        },
+        {
+          "caller": "stableHash",
+          "callee": "h.toString",
+          "lineNumber": 11
+        },
+        {
+          "caller": "normalizeName",
+          "callee": "name.toLowerCase().replace(/\\s+/g, \" \").trim",
+          "lineNumber": 18
+        },
+        {
+          "caller": "normalizeName",
+          "callee": "name.toLowerCase().replace",
+          "lineNumber": 18
+        },
+        {
+          "caller": "normalizeName",
+          "callee": "name.toLowerCase",
+          "lineNumber": 18
+        },
+        {
+          "caller": "computeSignature",
+          "callee": "columns\r\n    .filter((c) => c.role !== \"meta\")\r\n    .map",
+          "lineNumber": 25
+        },
+        {
+          "caller": "computeSignature",
+          "callee": "columns\r\n    .filter",
+          "lineNumber": 25
+        },
+        {
+          "caller": "computeSignature",
+          "callee": "normalizeName",
+          "lineNumber": 27
+        },
+        {
+          "caller": "computeSignature",
+          "callee": "sigCols.map((c) => `${c.role}:${c.name}`).join",
+          "lineNumber": 28
+        },
+        {
+          "caller": "computeSignature",
+          "callee": "sigCols.map",
+          "lineNumber": 28
+        },
+        {
+          "caller": "computeSignature",
+          "callee": "stableHash",
+          "lineNumber": 29
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 3,
+        "functionCount": 3,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/profiler/types.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 62,
+      "nonEmptyLines": 55,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/workbook/header.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 177,
+      "nonEmptyLines": 159,
+      "functions": [
+        {
+          "name": "isDateLike",
+          "startLine": 5,
+          "endLine": 17,
+          "params": [
+            "name",
+            "values"
+          ]
+        },
+        {
+          "name": "looksSerialDate",
+          "startLine": 19,
+          "endLine": 22,
+          "params": [
+            "vals"
+          ]
+        },
+        {
+          "name": "serialToISO",
+          "startLine": 24,
+          "endLine": 26,
+          "params": [
+            "n"
+          ]
+        },
+        {
+          "name": "normalizeHeaders",
+          "startLine": 30,
+          "endLine": 39,
+          "params": [
+            "rawHeader"
+          ]
+        },
+        {
+          "name": "colIndexToLabel",
+          "startLine": 42,
+          "endLine": 50,
+          "params": [
+            "idx"
+          ]
+        },
+        {
+          "name": "rowHasHeaderHint",
+          "startLine": 62,
+          "endLine": 64,
+          "params": [
+            "row"
+          ]
+        },
+        {
+          "name": "detectHeaderRow",
+          "startLine": 78,
+          "endLine": 122,
+          "params": [
+            "rawRows"
+          ]
+        },
+        {
+          "name": "isHeaderLabelRow",
+          "startLine": 126,
+          "endLine": 134,
+          "params": [
+            "row"
+          ]
+        },
+        {
+          "name": "buildHeaderBlock",
+          "startLine": 145,
+          "endLine": 177,
+          "params": [
+            "rawRows",
+            "headerRowIndex"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "normalizeHeaders",
+          "line": 30,
+          "isDefault": false
+        },
+        {
+          "name": "colIndexToLabel",
+          "line": 42,
+          "isDefault": false
+        },
+        {
+          "name": "detectHeaderRow",
+          "line": 78,
+          "isDefault": false
+        },
+        {
+          "name": "buildHeaderBlock",
+          "line": 145,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "isDateLike",
+          "callee": "name.toLowerCase",
+          "lineNumber": 6
+        },
+        {
+          "caller": "isDateLike",
+          "callee": "/month|year|date|period|week|quarter|day/.test",
+          "lineNumber": 7
+        },
+        {
+          "caller": "isDateLike",
+          "callee": "values.slice(0, 10).map",
+          "lineNumber": 8
+        },
+        {
+          "caller": "isDateLike",
+          "callee": "values.slice",
+          "lineNumber": 8
+        },
+        {
+          "caller": "isDateLike",
+          "callee": "String(v ?? '').trim",
+          "lineNumber": 8
+        },
+        {
+          "caller": "isDateLike",
+          "callee": "String",
+          "lineNumber": 8
+        },
+        {
+          "caller": "isDateLike",
+          "callee": "sample.filter",
+          "lineNumber": 16
+        },
+        {
+          "caller": "isDateLike",
+          "callee": "monthRe.test",
+          "lineNumber": 16
+        },
+        {
+          "caller": "isDateLike",
+          "callee": "yearRe.test",
+          "lineNumber": 16
+        },
+        {
+          "caller": "looksSerialDate",
+          "callee": "vals.filter",
+          "lineNumber": 20
+        },
+        {
+          "caller": "looksSerialDate",
+          "callee": "nums.every",
+          "lineNumber": 21
+        },
+        {
+          "caller": "serialToISO",
+          "callee": "new Date(Math.round((n - 25569) * 86400 * 1000)).toISOString().slice",
+          "lineNumber": 25
+        },
+        {
+          "caller": "serialToISO",
+          "callee": "new Date(Math.round((n - 25569) * 86400 * 1000)).toISOString",
+          "lineNumber": 25
+        },
+        {
+          "caller": "serialToISO",
+          "callee": "Math.round",
+          "lineNumber": 25
+        },
+        {
+          "caller": "normalizeHeaders",
+          "callee": "rawHeader.map",
+          "lineNumber": 32
+        },
+        {
+          "caller": "normalizeHeaders",
+          "callee": "String(cell ?? '').replace(/\\s+/g, ' ').trim",
+          "lineNumber": 33
+        },
+        {
+          "caller": "normalizeHeaders",
+          "callee": "String(cell ?? '').replace",
+          "lineNumber": 33
+        },
+        {
+          "caller": "normalizeHeaders",
+          "callee": "String",
+          "lineNumber": 33
+        },
+        {
+          "caller": "normalizeHeaders",
+          "callee": "seen.get",
+          "lineNumber": 35
+        },
+        {
+          "caller": "normalizeHeaders",
+          "callee": "seen.set",
+          "lineNumber": 36
+        },
+        {
+          "caller": "colIndexToLabel",
+          "callee": "String.fromCharCode",
+          "lineNumber": 46
+        },
+        {
+          "caller": "colIndexToLabel",
+          "callee": "Math.floor",
+          "lineNumber": 47
+        },
+        {
+          "caller": "rowHasHeaderHint",
+          "callee": "row.some",
+          "lineNumber": 63
+        },
+        {
+          "caller": "rowHasHeaderHint",
+          "callee": "HEADER_HINT_RE.test",
+          "lineNumber": 63
+        },
+        {
+          "caller": "detectHeaderRow",
+          "callee": "Math.min",
+          "lineNumber": 83
+        },
+        {
+          "caller": "detectHeaderRow",
+          "callee": "row\r\n        .filter(c => typeof c === 'string' && (c as string).trim().length > 0)\r\n        .map",
+          "lineNumber": 87
+        },
+        {
+          "caller": "detectHeaderRow",
+          "callee": "row\r\n        .filter",
+          "lineNumber": 87
+        },
+        {
+          "caller": "detectHeaderRow",
+          "callee": "(c as string).trim",
+          "lineNumber": 88
+        },
+        {
+          "caller": "detectHeaderRow",
+          "callee": "(c as string).trim",
+          "lineNumber": 89
+        },
+        {
+          "caller": "detectHeaderRow",
+          "callee": "row.filter",
+          "lineNumber": 94
+        },
+        {
+          "caller": "detectHeaderRow",
+          "callee": "candidate.every",
+          "lineNumber": 102
+        },
+        {
+          "caller": "detectHeaderRow",
+          "callee": "candidate.some",
+          "lineNumber": 107
+        },
+        {
+          "caller": "detectHeaderRow",
+          "callee": "rowHasHeaderHint",
+          "lineNumber": 115
+        },
+        {
+          "caller": "isHeaderLabelRow",
+          "callee": "row.filter",
+          "lineNumber": 127
+        },
+        {
+          "caller": "isHeaderLabelRow",
+          "callee": "nonEmpty.every",
+          "lineNumber": 129
+        },
+        {
+          "caller": "isHeaderLabelRow",
+          "callee": "Number.isInteger",
+          "lineNumber": 130
+        },
+        {
+          "caller": "isHeaderLabelRow",
+          "callee": "Math.abs",
+          "lineNumber": 130
+        },
+        {
+          "caller": "isHeaderLabelRow",
+          "callee": "SHORT_CODE_RE.test",
+          "lineNumber": 131
+        },
+        {
+          "caller": "isHeaderLabelRow",
+          "callee": "c.trim",
+          "lineNumber": 131
+        },
+        {
+          "caller": "buildHeaderBlock",
+          "callee": "Math.min",
+          "lineNumber": 153
+        },
+        {
+          "caller": "buildHeaderBlock",
+          "callee": "row.every",
+          "lineNumber": 155
+        },
+        {
+          "caller": "buildHeaderBlock",
+          "callee": "isHeaderLabelRow",
+          "lineNumber": 157
+        },
+        {
+          "caller": "buildHeaderBlock",
+          "callee": "labelRows.push",
+          "lineNumber": 158
+        },
+        {
+          "caller": "buildHeaderBlock",
+          "callee": "Math.max",
+          "lineNumber": 166
+        },
+        {
+          "caller": "buildHeaderBlock",
+          "callee": "labelRows.map",
+          "lineNumber": 166
+        },
+        {
+          "caller": "buildHeaderBlock",
+          "callee": "cell.trim",
+          "lineNumber": 172
+        },
+        {
+          "caller": "buildHeaderBlock",
+          "callee": "cell.trim",
+          "lineNumber": 172
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 4,
+        "functionCount": 9,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/workbook/reader.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 62,
+      "nonEmptyLines": 55,
+      "functions": [
+        {
+          "name": "sha256Hex",
+          "startLine": 10,
+          "endLine": 14,
+          "params": [
+            "data"
+          ]
+        },
+        {
+          "name": "readWorkbookSnapshot",
+          "startLine": 17,
+          "endLine": 62,
+          "params": [
+            "data",
+            "fileName"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "readWorkbookSnapshot",
+          "line": 17,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "sha256Hex",
+          "callee": "data.buffer.slice",
+          "lineNumber": 11
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "globalThis.crypto.subtle.digest",
+          "lineNumber": 12
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, \"0\")).join",
+          "lineNumber": 13
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "Array.from(new Uint8Array(digest)).map",
+          "lineNumber": 13
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "Array.from",
+          "lineNumber": 13
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "b.toString(16).padStart",
+          "lineNumber": 13
+        },
+        {
+          "caller": "sha256Hex",
+          "callee": "b.toString",
+          "lineNumber": 13
+        },
+        {
+          "caller": "readWorkbookSnapshot",
+          "callee": "sha256Hex",
+          "lineNumber": 21
+        },
+        {
+          "caller": "readWorkbookSnapshot",
+          "callee": "XLSX.read",
+          "lineNumber": 24
+        },
+        {
+          "caller": "readWorkbookSnapshot",
+          "callee": "wb.SheetNames.map",
+          "lineNumber": 26
+        },
+        {
+          "caller": "readWorkbookSnapshot",
+          "callee": "XLSX.utils.decode_range",
+          "lineNumber": 32
+        },
+        {
+          "caller": "readWorkbookSnapshot",
+          "callee": "XLSX.utils.encode_cell",
+          "lineNumber": 35
+        },
+        {
+          "caller": "readWorkbookSnapshot",
+          "callee": "cells.push",
+          "lineNumber": 37
+        },
+        {
+          "caller": "readWorkbookSnapshot",
+          "callee": "cell.v.toISOString",
+          "lineNumber": 39
+        },
+        {
+          "caller": "readWorkbookSnapshot",
+          "callee": "(ws?.[\"!merges\"] ?? []).map",
+          "lineNumber": 54
+        },
+        {
+          "caller": "readWorkbookSnapshot",
+          "callee": "Array.from",
+          "lineNumber": 57
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 1,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/ai.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 128,
+      "nonEmptyLines": 110,
+      "functions": [
+        {
+          "name": "keyFor",
+          "startLine": 27,
+          "endLine": 32,
+          "params": [
+            "b"
+          ]
+        },
+        {
+          "name": "isAvailable",
+          "startLine": 34,
+          "endLine": 37,
+          "params": [
+            "b"
+          ]
+        },
+        {
+          "name": "availableBackends",
+          "startLine": 40,
+          "endLine": 47,
+          "params": []
+        },
+        {
+          "name": "resolveModel",
+          "startLine": 49,
+          "endLine": 75,
+          "params": [
+            "backend",
+            "fast"
+          ]
+        },
+        {
+          "name": "activeBackend",
+          "startLine": 78,
+          "endLine": 82,
+          "params": []
+        },
+        {
+          "name": "getModel",
+          "startLine": 85,
+          "endLine": 87,
+          "params": [
+            "opts"
+          ]
+        },
+        {
+          "name": "isRetriable",
+          "startLine": 90,
+          "endLine": 96,
+          "params": [
+            "err"
+          ]
+        },
+        {
+          "name": "tryModels",
+          "startLine": 99,
+          "endLine": 122,
+          "params": [
+            "fn",
+            "opts"
+          ]
+        },
+        {
+          "name": "noBackendError",
+          "startLine": 124,
+          "endLine": 128,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "availableBackends",
+          "line": 40,
+          "isDefault": false
+        },
+        {
+          "name": "resolveModel",
+          "line": 49,
+          "isDefault": false
+        },
+        {
+          "name": "activeBackend",
+          "line": 78,
+          "isDefault": false
+        },
+        {
+          "name": "getModel",
+          "line": 85,
+          "isDefault": false
+        },
+        {
+          "name": "tryModels",
+          "line": 99,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "isAvailable",
+          "callee": "keyFor",
+          "lineNumber": 36
+        },
+        {
+          "caller": "availableBackends",
+          "callee": "DEFAULT_ORDER.includes",
+          "lineNumber": 43
+        },
+        {
+          "caller": "availableBackends",
+          "callee": "DEFAULT_ORDER.filter",
+          "lineNumber": 44
+        },
+        {
+          "caller": "availableBackends",
+          "callee": "ordered.filter",
+          "lineNumber": 46
+        },
+        {
+          "caller": "resolveModel",
+          "callee": "keyFor",
+          "lineNumber": 50
+        },
+        {
+          "caller": "resolveModel",
+          "callee": "noBackendError",
+          "lineNumber": 51
+        },
+        {
+          "caller": "resolveModel",
+          "callee": "createOpenAICompatible",
+          "lineNumber": 54
+        },
+        {
+          "caller": "resolveModel",
+          "callee": "provider.chatModel",
+          "lineNumber": 57
+        },
+        {
+          "caller": "resolveModel",
+          "callee": "createOpenAICompatible",
+          "lineNumber": 61
+        },
+        {
+          "caller": "resolveModel",
+          "callee": "provider.chatModel",
+          "lineNumber": 64
+        },
+        {
+          "caller": "resolveModel",
+          "callee": "createOpenRouter",
+          "lineNumber": 68
+        },
+        {
+          "caller": "resolveModel",
+          "callee": "router.chat",
+          "lineNumber": 71
+        },
+        {
+          "caller": "activeBackend",
+          "callee": "availableBackends",
+          "lineNumber": 79
+        },
+        {
+          "caller": "activeBackend",
+          "callee": "noBackendError",
+          "lineNumber": 80
+        },
+        {
+          "caller": "getModel",
+          "callee": "resolveModel",
+          "lineNumber": 86
+        },
+        {
+          "caller": "getModel",
+          "callee": "activeBackend",
+          "lineNumber": 86
+        },
+        {
+          "caller": "isRetriable",
+          "callee": "(err instanceof Error ? err.message : String(err)).toLowerCase",
+          "lineNumber": 91
+        },
+        {
+          "caller": "isRetriable",
+          "callee": "String",
+          "lineNumber": 91
+        },
+        {
+          "caller": "isRetriable",
+          "callee": "/rate.?limit|quota|429|402|unauthor|forbidden|payment|insufficient|overload|capacity|timeout|econnreset|fetch failed/.test",
+          "lineNumber": 95
+        },
+        {
+          "caller": "tryModels",
+          "callee": "availableBackends",
+          "lineNumber": 103
+        },
+        {
+          "caller": "tryModels",
+          "callee": "noBackendError",
+          "lineNumber": 104
+        },
+        {
+          "caller": "tryModels",
+          "callee": "resolveModel",
+          "lineNumber": 109
+        },
+        {
+          "caller": "tryModels",
+          "callee": "console.log",
+          "lineNumber": 110
+        },
+        {
+          "caller": "tryModels",
+          "callee": "fn",
+          "lineNumber": 111
+        },
+        {
+          "caller": "tryModels",
+          "callee": "console.log",
+          "lineNumber": 112
+        },
+        {
+          "caller": "tryModels",
+          "callee": "console.warn",
+          "lineNumber": 116
+        },
+        {
+          "caller": "tryModels",
+          "callee": "isRetriable",
+          "lineNumber": 116
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 5,
+        "functionCount": 9,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/ingest/__tests__/date.test.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 29,
+      "nonEmptyLines": 27,
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/ingest/date.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 45,
+      "nonEmptyLines": 43,
+      "functions": [
+        {
+          "name": "pad",
+          "startLine": 5,
+          "endLine": 5,
+          "params": [
+            "n"
+          ]
+        },
+        {
+          "name": "toLocalISODate",
+          "startLine": 8,
+          "endLine": 29,
+          "params": [
+            "v"
+          ]
+        },
+        {
+          "name": "dateFromFilename",
+          "startLine": 33,
+          "endLine": 45,
+          "params": [
+            "name"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "toLocalISODate",
+          "line": 8,
+          "isDefault": false
+        },
+        {
+          "name": "dateFromFilename",
+          "line": 33,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "pad",
+          "callee": "String(n).padStart",
+          "lineNumber": 5
+        },
+        {
+          "caller": "pad",
+          "callee": "String",
+          "lineNumber": 5
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "isNaN",
+          "lineNumber": 10
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "v.getTime",
+          "lineNumber": 10
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "v.getTime",
+          "lineNumber": 13
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "adjusted.getFullYear",
+          "lineNumber": 14
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "pad",
+          "lineNumber": 14
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "adjusted.getMonth",
+          "lineNumber": 14
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "pad",
+          "lineNumber": 14
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "adjusted.getDate",
+          "lineNumber": 14
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "Math.round",
+          "lineNumber": 18
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "d.getUTCFullYear",
+          "lineNumber": 19
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "pad",
+          "lineNumber": 19
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "d.getUTCMonth",
+          "lineNumber": 19
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "pad",
+          "lineNumber": 19
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "d.getUTCDate",
+          "lineNumber": 19
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "String(v).trim",
+          "lineNumber": 23
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "String",
+          "lineNumber": 23
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "isNaN",
+          "lineNumber": 25
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "d.getTime",
+          "lineNumber": 25
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "/\\d{4}|\\d{1,2}[/-]\\d{1,2}/.test",
+          "lineNumber": 25
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "d.getFullYear",
+          "lineNumber": 26
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "pad",
+          "lineNumber": 26
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "d.getMonth",
+          "lineNumber": 26
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "pad",
+          "lineNumber": 26
+        },
+        {
+          "caller": "toLocalISODate",
+          "callee": "d.getDate",
+          "lineNumber": 26
+        },
+        {
+          "caller": "dateFromFilename",
+          "callee": "name.replace",
+          "lineNumber": 34
+        },
+        {
+          "caller": "dateFromFilename",
+          "callee": "base.match",
+          "lineNumber": 35
+        },
+        {
+          "caller": "dateFromFilename",
+          "callee": "monthMatch[1].toLowerCase",
+          "lineNumber": 37
+        },
+        {
+          "caller": "dateFromFilename",
+          "callee": "base.match",
+          "lineNumber": 38
+        },
+        {
+          "caller": "dateFromFilename",
+          "callee": "base.match",
+          "lineNumber": 38
+        },
+        {
+          "caller": "dateFromFilename",
+          "callee": "Number",
+          "lineNumber": 40
+        },
+        {
+          "caller": "dateFromFilename",
+          "callee": "base.match",
+          "lineNumber": 42
+        },
+        {
+          "caller": "dateFromFilename",
+          "callee": "Number",
+          "lineNumber": 43
+        },
+        {
+          "caller": "dateFromFilename",
+          "callee": "pad",
+          "lineNumber": 44
+        },
+        {
+          "caller": "dateFromFilename",
+          "callee": "pad",
+          "lineNumber": 44
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 2,
+        "functionCount": 3,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/schemas.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 314,
+      "nonEmptyLines": 287,
+      "exports": [
+        {
+          "name": "MergePlanSchema",
+          "line": 22,
+          "isDefault": false
+        },
+        {
+          "name": "DashboardConfigSchema",
+          "line": 131,
+          "isDefault": false
+        },
+        {
+          "name": "InsightSlideAnswerSchema",
+          "line": 171,
+          "isDefault": false
+        },
+        {
+          "name": "SheetGraphSetSchema",
+          "line": 245,
+          "isDefault": false
+        },
+        {
+          "name": "SheetMappingSchema",
+          "line": 252,
+          "isDefault": false
+        },
+        {
+          "name": "SheetMappingSetSchema",
+          "line": 285,
+          "isDefault": false
+        },
+        {
+          "name": "NarrativeSchema",
+          "line": 299,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 7,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/shared/models/entities.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 51,
+      "nonEmptyLines": 45,
+      "exports": [
+        {
+          "name": "ProposalAlternative",
+          "line": 10,
+          "isDefault": false
+        },
+        {
+          "name": "MappingProposal",
+          "line": 18,
+          "isDefault": false
+        },
+        {
+          "name": "MappingProposalSet",
+          "line": 36,
+          "isDefault": false
+        },
+        {
+          "name": "VerificationDecision",
+          "line": 41,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 4,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/shared/models/workbook.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 48,
+      "nonEmptyLines": 42,
+      "exports": [
+        {
+          "name": "SnapshotCell",
+          "line": 9,
+          "isDefault": false
+        },
+        {
+          "name": "SnapshotMerge",
+          "line": 24,
+          "isDefault": false
+        },
+        {
+          "name": "SnapshotSheet",
+          "line": 29,
+          "isDefault": false
+        },
+        {
+          "name": "WorkbookSnapshot",
+          "line": 39,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 4,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    }
+  ]
+}

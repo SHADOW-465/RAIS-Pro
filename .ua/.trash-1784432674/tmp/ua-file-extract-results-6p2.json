@@ -1,0 +1,1080 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 9,
+  "filesSkipped": [],
+  "analysisOutcomes": {
+    "structure": {
+      "succeeded": 9,
+      "failed": 0
+    },
+    "callGraph": {
+      "succeeded": 9,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "results": [
+    {
+      "path": "src/components/editorial/Icon.tsx",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 62,
+      "nonEmptyLines": 58,
+      "functions": [
+        {
+          "name": "Icon",
+          "startLine": 18,
+          "endLine": 62,
+          "params": [
+            "{ name, size = 16, stroke = 1.6, ...rest }"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "Icon",
+          "line": 18,
+          "isDefault": true
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/components/editorial/Pill.tsx",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 47,
+      "nonEmptyLines": 43,
+      "functions": [
+        {
+          "name": "Pill",
+          "startLine": 17,
+          "endLine": 47,
+          "params": [
+            "{\r\n  children,\r\n  tone = \"ink\",\r\n}"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "Pill",
+          "line": 17,
+          "isDefault": true
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 1,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/components/editorial/TweaksContext.tsx",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 80,
+      "nonEmptyLines": 67,
+      "functions": [
+        {
+          "name": "initialTheme",
+          "startLine": 47,
+          "endLine": 53,
+          "params": []
+        },
+        {
+          "name": "TweaksProvider",
+          "startLine": 55,
+          "endLine": 74,
+          "params": [
+            "{ children }"
+          ]
+        },
+        {
+          "name": "useTweaks",
+          "startLine": 76,
+          "endLine": 80,
+          "params": []
+        }
+      ],
+      "exports": [
+        {
+          "name": "TWEAK_DEFAULTS",
+          "line": 27,
+          "isDefault": false
+        },
+        {
+          "name": "TweaksProvider",
+          "line": 55,
+          "isDefault": false
+        },
+        {
+          "name": "useTweaks",
+          "line": 76,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "initialTheme",
+          "callee": "document.documentElement.getAttribute",
+          "lineNumber": 49
+        },
+        {
+          "caller": "TweaksProvider",
+          "callee": "useState",
+          "lineNumber": 56
+        },
+        {
+          "caller": "TweaksProvider",
+          "callee": "initialTheme",
+          "lineNumber": 56
+        },
+        {
+          "caller": "TweaksProvider",
+          "callee": "useEffect",
+          "lineNumber": 59
+        },
+        {
+          "caller": "TweaksProvider",
+          "callee": "document.documentElement.setAttribute",
+          "lineNumber": 60
+        },
+        {
+          "caller": "TweaksProvider",
+          "callee": "localStorage.setItem",
+          "lineNumber": 61
+        },
+        {
+          "caller": "TweaksProvider",
+          "callee": "useCallback",
+          "lineNumber": 64
+        },
+        {
+          "caller": "TweaksProvider",
+          "callee": "setT",
+          "lineNumber": 66
+        },
+        {
+          "caller": "TweaksProvider",
+          "callee": "useCallback",
+          "lineNumber": 70
+        },
+        {
+          "caller": "TweaksProvider",
+          "callee": "setT",
+          "lineNumber": 70
+        },
+        {
+          "caller": "TweaksProvider",
+          "callee": "useMemo",
+          "lineNumber": 72
+        },
+        {
+          "caller": "useTweaks",
+          "callee": "useContext",
+          "lineNumber": 77
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 3,
+        "functionCount": 3,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/core/ontology/empty-registry.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 17,
+      "nonEmptyLines": 16,
+      "exports": [
+        {
+          "name": "EMPTY_REGISTRY",
+          "line": 6,
+          "isDefault": false
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/analytics/index.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 11,
+      "nonEmptyLines": 10,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/analytics/pareto.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 58,
+      "nonEmptyLines": 50,
+      "functions": [
+        {
+          "name": "prettyLabel",
+          "startLine": 16,
+          "endLine": 21,
+          "params": [
+            "raw"
+          ]
+        },
+        {
+          "name": "calculatePareto",
+          "startLine": 23,
+          "endLine": 58,
+          "params": [
+            "data"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "calculatePareto",
+          "line": 23,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "prettyLabel",
+          "callee": "raw\r\n    .toLowerCase()\r\n    .replace(/\\b\\w/g, (c) => c.toUpperCase())\r\n    .trim",
+          "lineNumber": 17
+        },
+        {
+          "caller": "prettyLabel",
+          "callee": "raw\r\n    .toLowerCase()\r\n    .replace",
+          "lineNumber": 17
+        },
+        {
+          "caller": "prettyLabel",
+          "callee": "raw\r\n    .toLowerCase",
+          "lineNumber": 17
+        },
+        {
+          "caller": "prettyLabel",
+          "callee": "c.toUpperCase",
+          "lineNumber": 19
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "data\r\n    .filter((p) => p.value > 0)\r\n    .sort",
+          "lineNumber": 24
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "data\r\n    .filter",
+          "lineNumber": 24
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "sorted.reduce",
+          "lineNumber": 29
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "sorted.map",
+          "lineNumber": 34
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "items.filter",
+          "lineNumber": 45
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "vitalFew.reduce",
+          "lineNumber": 47
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "vitalFew.map",
+          "lineNumber": 49
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "prettyLabel",
+          "lineNumber": 49
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "names.join",
+          "lineNumber": 51
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "names.slice(0, 3).join",
+          "lineNumber": 51
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "names.slice",
+          "lineNumber": 51
+        },
+        {
+          "caller": "calculatePareto",
+          "callee": "vitalFewContribution.toFixed",
+          "lineNumber": 55
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 1,
+        "functionCount": 2,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/audit-package.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 198,
+      "nonEmptyLines": 175,
+      "functions": [
+        {
+          "name": "esc",
+          "startLine": 15,
+          "endLine": 18,
+          "params": [
+            "v"
+          ]
+        },
+        {
+          "name": "toCsv",
+          "startLine": 19,
+          "endLine": 20,
+          "params": [
+            "headers",
+            "rows"
+          ]
+        },
+        {
+          "name": "crc32",
+          "startLine": 32,
+          "endLine": 36,
+          "params": [
+            "bytes"
+          ]
+        },
+        {
+          "name": "makeZip",
+          "startLine": 40,
+          "endLine": 104,
+          "params": [
+            "entries"
+          ]
+        },
+        {
+          "name": "sha256hex",
+          "startLine": 106,
+          "endLine": 109,
+          "params": [
+            "data"
+          ]
+        },
+        {
+          "name": "pct",
+          "startLine": 112,
+          "endLine": 112,
+          "params": [
+            "n"
+          ]
+        },
+        {
+          "name": "buildAuditPackage",
+          "startLine": 114,
+          "endLine": 198,
+          "params": [
+            "events",
+            "scope",
+            "registryVersion"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "buildAuditPackage",
+          "line": 114,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "esc",
+          "callee": "String",
+          "lineNumber": 16
+        },
+        {
+          "caller": "esc",
+          "callee": "/[\",\\n]/.test",
+          "lineNumber": 17
+        },
+        {
+          "caller": "esc",
+          "callee": "s.replace",
+          "lineNumber": 17
+        },
+        {
+          "caller": "toCsv",
+          "callee": "[headers.join(\",\"), ...rows.map((r) => r.map(esc).join(\",\"))].join",
+          "lineNumber": 20
+        },
+        {
+          "caller": "toCsv",
+          "callee": "headers.join",
+          "lineNumber": 20
+        },
+        {
+          "caller": "toCsv",
+          "callee": "rows.map",
+          "lineNumber": 20
+        },
+        {
+          "caller": "toCsv",
+          "callee": "r.map(esc).join",
+          "lineNumber": 20
+        },
+        {
+          "caller": "toCsv",
+          "callee": "r.map",
+          "lineNumber": 20
+        },
+        {
+          "caller": "makeZip",
+          "callee": "enc.encode",
+          "lineNumber": 50
+        },
+        {
+          "caller": "makeZip",
+          "callee": "crc32",
+          "lineNumber": 51
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint32",
+          "lineNumber": 56
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint16",
+          "lineNumber": 57
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint16",
+          "lineNumber": 58
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint16",
+          "lineNumber": 59
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint16",
+          "lineNumber": 60
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint16",
+          "lineNumber": 61
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint32",
+          "lineNumber": 62
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint32",
+          "lineNumber": 63
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint32",
+          "lineNumber": 64
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint16",
+          "lineNumber": 65
+        },
+        {
+          "caller": "makeZip",
+          "callee": "lv.setUint16",
+          "lineNumber": 66
+        },
+        {
+          "caller": "makeZip",
+          "callee": "local.set",
+          "lineNumber": 67
+        },
+        {
+          "caller": "makeZip",
+          "callee": "chunks.push",
+          "lineNumber": 68
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint32",
+          "lineNumber": 72
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint16",
+          "lineNumber": 73
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint16",
+          "lineNumber": 74
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint16",
+          "lineNumber": 75
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint16",
+          "lineNumber": 76
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint16",
+          "lineNumber": 77
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint16",
+          "lineNumber": 78
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint32",
+          "lineNumber": 79
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint32",
+          "lineNumber": 80
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint32",
+          "lineNumber": 81
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint16",
+          "lineNumber": 82
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cv.setUint32",
+          "lineNumber": 83
+        },
+        {
+          "caller": "makeZip",
+          "callee": "cen.set",
+          "lineNumber": 84
+        },
+        {
+          "caller": "makeZip",
+          "callee": "central.push",
+          "lineNumber": 85
+        },
+        {
+          "caller": "makeZip",
+          "callee": "central.reduce",
+          "lineNumber": 90
+        },
+        {
+          "caller": "makeZip",
+          "callee": "ev.setUint32",
+          "lineNumber": 93
+        },
+        {
+          "caller": "makeZip",
+          "callee": "ev.setUint16",
+          "lineNumber": 94
+        },
+        {
+          "caller": "makeZip",
+          "callee": "ev.setUint16",
+          "lineNumber": 95
+        },
+        {
+          "caller": "makeZip",
+          "callee": "ev.setUint32",
+          "lineNumber": 96
+        },
+        {
+          "caller": "makeZip",
+          "callee": "ev.setUint32",
+          "lineNumber": 97
+        },
+        {
+          "caller": "makeZip",
+          "callee": "out.set",
+          "lineNumber": 102
+        },
+        {
+          "caller": "sha256hex",
+          "callee": "crypto.subtle.digest",
+          "lineNumber": 107
+        },
+        {
+          "caller": "sha256hex",
+          "callee": "data.buffer.slice",
+          "lineNumber": 107
+        },
+        {
+          "caller": "sha256hex",
+          "callee": "Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, \"0\")).join",
+          "lineNumber": 108
+        },
+        {
+          "caller": "sha256hex",
+          "callee": "Array.from(new Uint8Array(buf)).map",
+          "lineNumber": 108
+        },
+        {
+          "caller": "sha256hex",
+          "callee": "Array.from",
+          "lineNumber": 108
+        },
+        {
+          "caller": "sha256hex",
+          "callee": "b.toString(16).padStart",
+          "lineNumber": 108
+        },
+        {
+          "caller": "sha256hex",
+          "callee": "b.toString",
+          "lineNumber": 108
+        },
+        {
+          "caller": "pct",
+          "callee": "(n * 100).toFixed",
+          "lineNumber": 112
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "byStage",
+          "lineNumber": 115
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "byDefect",
+          "lineNumber": 116
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "bySize",
+          "lineNumber": 117
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "toCsv",
+          "lineNumber": 122
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "pct",
+          "lineNumber": 125
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "rejectionRate",
+          "lineNumber": 125
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "pct",
+          "lineNumber": 126
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "fpy",
+          "lineNumber": 126
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "totalChecked",
+          "lineNumber": 127
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "totalRejected",
+          "lineNumber": 128
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "(copq(events, scope)?.value ?? 0).toFixed",
+          "lineNumber": 129
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "copq",
+          "lineNumber": 129
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "(savingsOpportunity(events, scope) ?? 0).toFixed",
+          "lineNumber": 130
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "savingsOpportunity",
+          "lineNumber": 130
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "toCsv",
+          "lineNumber": 135
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "stages.map",
+          "lineNumber": 137
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "pct",
+          "lineNumber": 137
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "pct",
+          "lineNumber": 137
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "s.contributionPct.toFixed",
+          "lineNumber": 137
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "toCsv",
+          "lineNumber": 141
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "defects.map",
+          "lineNumber": 143
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "d.pct.toFixed",
+          "lineNumber": 143
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "d.cumPct.toFixed",
+          "lineNumber": 143
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "toCsv",
+          "lineNumber": 147
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "sizes.map",
+          "lineNumber": 149
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "pct",
+          "lineNumber": 149
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "toCsv",
+          "lineNumber": 153
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "trend(events, { ...scope, grain: \"month\" }, \"rejectionRate\").map",
+          "lineNumber": 155
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "trend",
+          "lineNumber": 155
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "periodLabel",
+          "lineNumber": 155
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "pct",
+          "lineNumber": 155
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "toCsv",
+          "lineNumber": 159
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "events.map",
+          "lineNumber": 161
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "Object.entries",
+          "lineNumber": 172
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "enc.encode",
+          "lineNumber": 173
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "entries.push",
+          "lineNumber": 174
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "manifestFiles.push",
+          "lineNumber": 175
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "sha256hex",
+          "lineNumber": 175
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "new Date().toISOString",
+          "lineNumber": 181
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "enc.encode",
+          "lineNumber": 188
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "JSON.stringify",
+          "lineNumber": 188
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "entries.push",
+          "lineNumber": 189
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "makeZip",
+          "lineNumber": 191
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "new Uint8Array(ab).set",
+          "lineNumber": 194
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "new Date().toISOString().slice",
+          "lineNumber": 196
+        },
+        {
+          "caller": "buildAuditPackage",
+          "callee": "new Date().toISOString",
+          "lineNumber": 196
+        }
+      ],
+      "metrics": {
+        "importCount": 2,
+        "exportCount": 1,
+        "functionCount": 7,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/lib/chart-utils.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 78,
+      "nonEmptyLines": 68,
+      "functions": [
+        {
+          "name": "getBaseSpacing",
+          "startLine": 7,
+          "endLine": 13,
+          "params": [
+            "n"
+          ]
+        },
+        {
+          "name": "useContainerWidth",
+          "startLine": 19,
+          "endLine": 42,
+          "params": [
+            "fallbackWidth"
+          ]
+        },
+        {
+          "name": "hoverIndexFromPixels",
+          "startLine": 48,
+          "endLine": 58,
+          "params": [
+            "clientX",
+            "rectLeft",
+            "padX",
+            "spacing",
+            "n"
+          ]
+        },
+        {
+          "name": "shouldShowLabel",
+          "startLine": 64,
+          "endLine": 78,
+          "params": [
+            "label",
+            "index",
+            "labels",
+            "spacing",
+            "grain"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "name": "getBaseSpacing",
+          "line": 7,
+          "isDefault": false
+        },
+        {
+          "name": "useContainerWidth",
+          "line": 19,
+          "isDefault": false
+        },
+        {
+          "name": "hoverIndexFromPixels",
+          "line": 48,
+          "isDefault": false
+        },
+        {
+          "name": "shouldShowLabel",
+          "line": 64,
+          "isDefault": false
+        }
+      ],
+      "callGraph": [
+        {
+          "caller": "useContainerWidth",
+          "callee": "useRef",
+          "lineNumber": 20
+        },
+        {
+          "caller": "useContainerWidth",
+          "callee": "useState",
+          "lineNumber": 21
+        },
+        {
+          "caller": "useContainerWidth",
+          "callee": "useEffect",
+          "lineNumber": 23
+        },
+        {
+          "caller": "useContainerWidth",
+          "callee": "setWidth",
+          "lineNumber": 27
+        },
+        {
+          "caller": "useContainerWidth",
+          "callee": "ref.current.getBoundingClientRect",
+          "lineNumber": 27
+        },
+        {
+          "caller": "useContainerWidth",
+          "callee": "setWidth",
+          "lineNumber": 32
+        },
+        {
+          "caller": "useContainerWidth",
+          "callee": "observer.observe",
+          "lineNumber": 37
+        },
+        {
+          "caller": "useContainerWidth",
+          "callee": "observer.disconnect",
+          "lineNumber": 38
+        },
+        {
+          "caller": "hoverIndexFromPixels",
+          "callee": "Math.round",
+          "lineNumber": 56
+        },
+        {
+          "caller": "hoverIndexFromPixels",
+          "callee": "Math.max",
+          "lineNumber": 56
+        },
+        {
+          "caller": "hoverIndexFromPixels",
+          "callee": "Math.max",
+          "lineNumber": 57
+        },
+        {
+          "caller": "hoverIndexFromPixels",
+          "callee": "Math.min",
+          "lineNumber": 57
+        },
+        {
+          "caller": "shouldShowLabel",
+          "callee": "Math.max",
+          "lineNumber": 76
+        },
+        {
+          "caller": "shouldShowLabel",
+          "callee": "Math.ceil",
+          "lineNumber": 76
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 4,
+        "functionCount": 4,
+        "classCount": 0
+      }
+    },
+    {
+      "path": "src/types/dashboard.ts",
+      "language": "typescript",
+      "fileCategory": "code",
+      "totalLines": 107,
+      "nonEmptyLines": 97,
+      "metrics": {
+        "importCount": 1,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0
+      }
+    }
+  ]
+}

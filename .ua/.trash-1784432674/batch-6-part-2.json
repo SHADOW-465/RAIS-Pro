@@ -1,0 +1,367 @@
+{
+  "nodes": [
+    {
+      "id": "file:src/components/editorial/Icon.tsx",
+      "type": "file",
+      "name": "Icon.tsx",
+      "filePath": "src/components/editorial/Icon.tsx",
+      "summary": "Design-system icon component rendering inline SVG glyphs by name, replacing the removed lucide-react dependency with hand-drawn stroke paths.",
+      "tags": ["component", "icon", "design-system", "svg"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/components/editorial/Icon.tsx:Icon",
+      "type": "function",
+      "name": "Icon",
+      "filePath": "src/components/editorial/Icon.tsx",
+      "lineRange": [18, 62],
+      "summary": "React component that looks up an SVG path set by icon name and renders it at a configurable size and stroke width.",
+      "tags": ["component", "svg", "utility"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/components/editorial/Pill.tsx",
+      "type": "file",
+      "name": "Pill.tsx",
+      "filePath": "src/components/editorial/Pill.tsx",
+      "summary": "Editorial design-system pill/badge component with tone variants, styled inline against CSS variables so the Tweaks theming panel keeps working.",
+      "tags": ["component", "design-system", "badge"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/components/editorial/Pill.tsx:Pill",
+      "type": "function",
+      "name": "Pill",
+      "filePath": "src/components/editorial/Pill.tsx",
+      "lineRange": [17, 47],
+      "summary": "React component rendering a small rounded status label whose colors are chosen by a tone prop (e.g. ink, accent).",
+      "tags": ["component", "badge", "status"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/components/editorial/TweaksContext.tsx",
+      "type": "file",
+      "name": "TweaksContext.tsx",
+      "filePath": "src/components/editorial/TweaksContext.tsx",
+      "summary": "React context providing live theme tweaks (density, background, card style, chart style, dark/light) that are painted onto document body data-attributes and persisted to localStorage.",
+      "tags": ["context", "theming", "design-system", "hook"],
+      "complexity": "moderate",
+      "languageNotes": "Reads the pre-hydration theme from a data-attribute set on documentElement to avoid a flash of wrong theme."
+    },
+    {
+      "id": "function:src/components/editorial/TweaksContext.tsx:TweaksProvider",
+      "type": "function",
+      "name": "TweaksProvider",
+      "filePath": "src/components/editorial/TweaksContext.tsx",
+      "lineRange": [55, 74],
+      "summary": "Context provider that holds tweak state, syncs the theme to the document element and localStorage, and exposes setters via memoized callbacks.",
+      "tags": ["context", "provider", "theming"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/components/editorial/TweaksContext.tsx:useTweaks",
+      "type": "function",
+      "name": "useTweaks",
+      "filePath": "src/components/editorial/TweaksContext.tsx",
+      "lineRange": [76, 80],
+      "summary": "Hook that returns the current tweaks context for consumers across the app's pages.",
+      "tags": ["hook", "context", "theming"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/core/ontology/empty-registry.ts",
+      "type": "file",
+      "name": "empty-registry.ts",
+      "filePath": "src/core/ontology/empty-registry.ts",
+      "summary": "Exports EMPTY_REGISTRY, a registry-shaped empty ontology catalog that pages fall back to when no verified manufacturing ontology exists, so the UI shows an empty state instead of a hardcoded company.",
+      "tags": ["data-model", "fallback", "ontology"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/lib/analytics/index.ts",
+      "type": "file",
+      "name": "index.ts",
+      "filePath": "src/lib/analytics/index.ts",
+      "summary": "Barrel file forming the analytics engine's public API; screens import scope, canonical, rejection, defect, size, cost, trust, status, and narrative modules exclusively through it.",
+      "tags": ["barrel", "entry-point", "analytics"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/lib/analytics/pareto.ts",
+      "type": "file",
+      "name": "pareto.ts",
+      "filePath": "src/lib/analytics/pareto.ts",
+      "summary": "Pure Pareto (80/20) analysis over defect data: sorts contributions, computes cumulative percentages, and identifies the vital-few defects with a human-readable insight string.",
+      "tags": ["analytics", "utility", "pareto"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/lib/analytics/pareto.ts:calculatePareto",
+      "type": "function",
+      "name": "calculatePareto",
+      "filePath": "src/lib/analytics/pareto.ts",
+      "lineRange": [23, 58],
+      "summary": "Filters and sorts labeled values, computes per-item and cumulative percentages, flags the vital-few crossing 80%, and produces a summary insight sentence.",
+      "tags": ["analytics", "pareto", "aggregation"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/lib/audit-package.ts",
+      "type": "file",
+      "name": "audit-package.ts",
+      "filePath": "src/lib/audit-package.ts",
+      "summary": "Builds a downloadable audit evidence ZIP entirely client-side: CSV exports of KPIs, stage/defect/size breakdowns and trends, the raw event log, and a SHA-256 manifest, using a hand-rolled store-only ZIP writer.",
+      "tags": ["utility", "export", "audit", "serialization"],
+      "complexity": "moderate",
+      "languageNotes": "Implements the ZIP local/central-directory format manually with DataView (no compression) and uses Web Crypto for per-file SHA-256 hashes."
+    },
+    {
+      "id": "function:src/lib/audit-package.ts:makeZip",
+      "type": "function",
+      "name": "makeZip",
+      "filePath": "src/lib/audit-package.ts",
+      "lineRange": [40, 104],
+      "summary": "Assembles a store-method ZIP archive from named byte entries by writing local file headers, a central directory, and the end-of-central-directory record.",
+      "tags": ["serialization", "zip", "binary"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/lib/audit-package.ts:buildAuditPackage",
+      "type": "function",
+      "name": "buildAuditPackage",
+      "filePath": "src/lib/audit-package.ts",
+      "lineRange": [114, 198],
+      "summary": "Runs the analytics engine over the event log for a scope, renders KPI/stage/defect/size/trend CSVs plus the raw events, hashes each file into a manifest, and returns the zipped audit package as a Blob.",
+      "tags": ["export", "audit", "analytics", "csv"],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/lib/chart-utils.ts",
+      "type": "file",
+      "name": "chart-utils.ts",
+      "filePath": "src/lib/chart-utils.ts",
+      "summary": "Shared helpers for the inline-SVG editorial charts: point spacing, a ResizeObserver-based container-width hook, hover index math, and axis-label thinning by grain.",
+      "tags": ["utility", "chart", "hook", "layout"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/lib/chart-utils.ts:getBaseSpacing",
+      "type": "function",
+      "name": "getBaseSpacing",
+      "filePath": "src/lib/chart-utils.ts",
+      "lineRange": [7, 13],
+      "summary": "Returns the pixel spacing between chart points based on how many points must fit.",
+      "tags": ["chart", "layout", "utility"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/lib/chart-utils.ts:useContainerWidth",
+      "type": "function",
+      "name": "useContainerWidth",
+      "filePath": "src/lib/chart-utils.ts",
+      "lineRange": [19, 42],
+      "summary": "React hook that tracks a container element's width with a ResizeObserver so SVG charts can re-layout responsively.",
+      "tags": ["hook", "chart", "responsive"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/lib/chart-utils.ts:hoverIndexFromPixels",
+      "type": "function",
+      "name": "hoverIndexFromPixels",
+      "filePath": "src/lib/chart-utils.ts",
+      "lineRange": [48, 58],
+      "summary": "Converts a mouse clientX position into the nearest chart point index, clamped to the valid range.",
+      "tags": ["chart", "interaction", "utility"],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/lib/chart-utils.ts:shouldShowLabel",
+      "type": "function",
+      "name": "shouldShowLabel",
+      "filePath": "src/lib/chart-utils.ts",
+      "lineRange": [64, 78],
+      "summary": "Decides whether an axis label should render for a point, thinning labels by spacing and time grain to avoid clutter.",
+      "tags": ["chart", "labels", "utility"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/types/dashboard.ts",
+      "type": "file",
+      "name": "dashboard.ts",
+      "filePath": "src/types/dashboard.ts",
+      "summary": "Type definitions for the dashboard contract: KPI cards (with trend, delta, sparkline history, source column), raw sheet payloads kept client-side for verification, and chart dataset shapes.",
+      "tags": ["type-definition", "dashboard", "data-model"],
+      "complexity": "moderate"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:src/lib/audit-package.ts",
+      "target": "file:src/lib/analytics/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/lib/audit-package.ts",
+      "target": "file:src/lib/store/types.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/types/dashboard.ts",
+      "target": "file:src/lib/analytics/pareto.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/components/editorial/Icon.tsx",
+      "target": "function:src/components/editorial/Icon.tsx:Icon",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/components/editorial/Icon.tsx",
+      "target": "function:src/components/editorial/Icon.tsx:Icon",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/components/editorial/Pill.tsx",
+      "target": "function:src/components/editorial/Pill.tsx:Pill",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/components/editorial/Pill.tsx",
+      "target": "function:src/components/editorial/Pill.tsx:Pill",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/components/editorial/TweaksContext.tsx",
+      "target": "function:src/components/editorial/TweaksContext.tsx:TweaksProvider",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/components/editorial/TweaksContext.tsx",
+      "target": "function:src/components/editorial/TweaksContext.tsx:TweaksProvider",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/components/editorial/TweaksContext.tsx",
+      "target": "function:src/components/editorial/TweaksContext.tsx:useTweaks",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/components/editorial/TweaksContext.tsx",
+      "target": "function:src/components/editorial/TweaksContext.tsx:useTweaks",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/lib/analytics/pareto.ts",
+      "target": "function:src/lib/analytics/pareto.ts:calculatePareto",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/lib/analytics/pareto.ts",
+      "target": "function:src/lib/analytics/pareto.ts:calculatePareto",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/lib/audit-package.ts",
+      "target": "function:src/lib/audit-package.ts:makeZip",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/lib/audit-package.ts",
+      "target": "function:src/lib/audit-package.ts:buildAuditPackage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/lib/audit-package.ts",
+      "target": "function:src/lib/audit-package.ts:buildAuditPackage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/lib/chart-utils.ts",
+      "target": "function:src/lib/chart-utils.ts:getBaseSpacing",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/lib/chart-utils.ts",
+      "target": "function:src/lib/chart-utils.ts:getBaseSpacing",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/lib/chart-utils.ts",
+      "target": "function:src/lib/chart-utils.ts:useContainerWidth",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/lib/chart-utils.ts",
+      "target": "function:src/lib/chart-utils.ts:useContainerWidth",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/lib/chart-utils.ts",
+      "target": "function:src/lib/chart-utils.ts:hoverIndexFromPixels",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/lib/chart-utils.ts",
+      "target": "function:src/lib/chart-utils.ts:hoverIndexFromPixels",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/lib/chart-utils.ts",
+      "target": "function:src/lib/chart-utils.ts:shouldShowLabel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "file:src/lib/chart-utils.ts",
+      "target": "function:src/lib/chart-utils.ts:shouldShowLabel",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    }
+  ]
+}

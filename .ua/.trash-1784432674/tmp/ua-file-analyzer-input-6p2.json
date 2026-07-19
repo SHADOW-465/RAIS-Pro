@@ -1,0 +1,75 @@
+{
+ "projectRoot": "C:/Users/acer/Documents/GitHub/RAIS-Pro",
+ "batchFiles": [
+  {
+   "path": "src/components/editorial/Icon.tsx",
+   "language": "typescript",
+   "sizeLines": 62,
+   "fileCategory": "code"
+  },
+  {
+   "path": "src/components/editorial/Pill.tsx",
+   "language": "typescript",
+   "sizeLines": 47,
+   "fileCategory": "code"
+  },
+  {
+   "path": "src/components/editorial/TweaksContext.tsx",
+   "language": "typescript",
+   "sizeLines": 80,
+   "fileCategory": "code"
+  },
+  {
+   "path": "src/core/ontology/empty-registry.ts",
+   "language": "typescript",
+   "sizeLines": 17,
+   "fileCategory": "code"
+  },
+  {
+   "path": "src/lib/analytics/index.ts",
+   "language": "typescript",
+   "sizeLines": 11,
+   "fileCategory": "code"
+  },
+  {
+   "path": "src/lib/analytics/pareto.ts",
+   "language": "typescript",
+   "sizeLines": 58,
+   "fileCategory": "code"
+  },
+  {
+   "path": "src/lib/audit-package.ts",
+   "language": "typescript",
+   "sizeLines": 198,
+   "fileCategory": "code"
+  },
+  {
+   "path": "src/lib/chart-utils.ts",
+   "language": "typescript",
+   "sizeLines": 78,
+   "fileCategory": "code"
+  },
+  {
+   "path": "src/types/dashboard.ts",
+   "language": "typescript",
+   "sizeLines": 107,
+   "fileCategory": "code"
+  }
+ ],
+ "batchImportData": {
+  "src/components/editorial/Icon.tsx": [],
+  "src/components/editorial/Pill.tsx": [],
+  "src/components/editorial/TweaksContext.tsx": [],
+  "src/core/ontology/empty-registry.ts": [],
+  "src/lib/analytics/index.ts": [],
+  "src/lib/analytics/pareto.ts": [],
+  "src/lib/audit-package.ts": [
+   "src/lib/analytics/index.ts",
+   "src/lib/store/types.ts"
+  ],
+  "src/lib/chart-utils.ts": [],
+  "src/types/dashboard.ts": [
+   "src/lib/analytics/pareto.ts"
+  ]
+ }
+}

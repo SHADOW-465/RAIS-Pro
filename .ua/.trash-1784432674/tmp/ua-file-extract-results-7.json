@@ -1,0 +1,727 @@
+{
+  "scriptCompleted": true,
+  "filesAnalyzed": 15,
+  "filesSkipped": [],
+  "analysisOutcomes": {
+    "structure": {
+      "succeeded": 15,
+      "failed": 0
+    },
+    "callGraph": {
+      "succeeded": 0,
+      "failed": 0,
+      "skipped": 15
+    }
+  },
+  "results": [
+    {
+      "path": "supabase/migrations/001_sessions.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 25,
+      "nonEmptyLines": 21,
+      "definitions": [
+        {
+          "name": "sessions",
+          "kind": "table",
+          "fields": [
+            "id",
+            "device_id",
+            "title",
+            "files",
+            "dashboard",
+            "created_at"
+          ],
+          "startLine": 4,
+          "endLine": 11
+        },
+        {
+          "name": "insight_slides",
+          "kind": "table",
+          "fields": [
+            "id",
+            "session_id",
+            "device_id",
+            "question",
+            "slide",
+            "created_at"
+          ],
+          "startLine": 16,
+          "endLine": 23
+        },
+        {
+          "name": "sessions_device_id_idx",
+          "kind": "index",
+          "fields": [],
+          "startLine": 13,
+          "endLine": 13
+        },
+        {
+          "name": "slides_session_id_idx",
+          "kind": "index",
+          "fields": [],
+          "startLine": 25,
+          "endLine": 25
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 4
+      }
+    },
+    {
+      "path": "supabase/migrations/002_add_merge_plan.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 5,
+      "nonEmptyLines": 4,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 0
+      }
+    },
+    {
+      "path": "supabase/migrations/003_add_data_summary_and_rls.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 25,
+      "nonEmptyLines": 19,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 0
+      }
+    },
+    {
+      "path": "supabase/migrations/20260615000000_schema.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 156,
+      "nonEmptyLines": 136,
+      "definitions": [
+        {
+          "name": "raw_files",
+          "kind": "table",
+          "fields": [
+            "file_hash",
+            "file_name",
+            "file_bytes",
+            "recorded_at"
+          ],
+          "startLine": 5,
+          "endLine": 10
+        },
+        {
+          "name": "ingestions",
+          "kind": "table",
+          "fields": [
+            "ingestion_id",
+            "file_name",
+            "file_hash",
+            "recorded_at"
+          ],
+          "startLine": 13,
+          "endLine": 18
+        },
+        {
+          "name": "events",
+          "kind": "table",
+          "fields": [
+            "event_id",
+            "schema_version",
+            "ingestion_id",
+            "event_type",
+            "occurred_on",
+            "provenance",
+            "confidence",
+            "extracted_by",
+            "recorded_at",
+            "superseded_by",
+            "payload"
+          ],
+          "startLine": 21,
+          "endLine": 33
+        },
+        {
+          "name": "findings",
+          "kind": "table",
+          "fields": [
+            "finding_id",
+            "schema_version",
+            "ingestion_id",
+            "rule_id",
+            "subtype",
+            "severity",
+            "question",
+            "detail",
+            "evidence",
+            "hypotheses",
+            "requires_gm_authority",
+            "occurred_on",
+            "recorded_at"
+          ],
+          "startLine": 36,
+          "endLine": 50
+        },
+        {
+          "name": "adjudications",
+          "kind": "table",
+          "fields": [
+            "adjudication_id",
+            "finding_id",
+            "verdict",
+            "why",
+            "author",
+            "is_recommendation",
+            "correction_event_id",
+            "recorded_at"
+          ],
+          "startLine": 53,
+          "endLine": 62
+        },
+        {
+          "name": "rulebook_rules",
+          "kind": "table",
+          "fields": [
+            "rulebook_rule_id",
+            "version",
+            "status",
+            "predicate",
+            "action",
+            "rationale",
+            "born_from_adjudication_ids",
+            "drafted_by",
+            "activated_by",
+            "created_at",
+            "retired_at"
+          ],
+          "startLine": 65,
+          "endLine": 77
+        },
+        {
+          "name": "rule_applications",
+          "kind": "table",
+          "fields": [
+            "rulebook_rule_id",
+            "rule_version",
+            "finding_id",
+            "ingestion_id",
+            "applied_at"
+          ],
+          "startLine": 80,
+          "endLine": 87
+        },
+        {
+          "name": "registries",
+          "kind": "table",
+          "fields": [
+            "client_id",
+            "registry_version",
+            "fiscal_year_start_month",
+            "stages",
+            "defects"
+          ],
+          "startLine": 90,
+          "endLine": 96
+        },
+        {
+          "name": "cost_config",
+          "kind": "table",
+          "fields": [
+            "client_id",
+            "enabled",
+            "currency",
+            "finished_unit_cost_inr",
+            "per_stage",
+            "rework_cost_per_unit_inr"
+          ],
+          "startLine": 99,
+          "endLine": 106
+        },
+        {
+          "name": "idx_events_type",
+          "kind": "index",
+          "fields": [],
+          "startLine": 109,
+          "endLine": 109
+        },
+        {
+          "name": "idx_events_ingestion",
+          "kind": "index",
+          "fields": [],
+          "startLine": 110,
+          "endLine": 110
+        },
+        {
+          "name": "idx_findings_rule",
+          "kind": "index",
+          "fields": [],
+          "startLine": 111,
+          "endLine": 111
+        },
+        {
+          "name": "idx_findings_ingestion",
+          "kind": "index",
+          "fields": [],
+          "startLine": 112,
+          "endLine": 112
+        },
+        {
+          "name": "idx_adjudications_finding",
+          "kind": "index",
+          "fields": [],
+          "startLine": 113,
+          "endLine": 113
+        },
+        {
+          "name": "idx_rule_apps_finding",
+          "kind": "index",
+          "fields": [],
+          "startLine": 114,
+          "endLine": 114
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 15
+      }
+    },
+    {
+      "path": "supabase/migrations/20260618_canonical_ledger.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 95,
+      "nonEmptyLines": 87,
+      "definitions": [
+        {
+          "name": "events",
+          "kind": "table",
+          "fields": [
+            "event_id",
+            "schema_version",
+            "ingestion_id",
+            "event_type",
+            "occurred_on",
+            "provenance",
+            "confidence",
+            "extracted_by",
+            "recorded_at",
+            "superseded_by",
+            "payload"
+          ],
+          "startLine": 8,
+          "endLine": 20
+        },
+        {
+          "name": "findings",
+          "kind": "table",
+          "fields": [
+            "finding_id",
+            "schema_version",
+            "ingestion_id",
+            "rule_id",
+            "subtype",
+            "severity",
+            "question",
+            "detail",
+            "evidence",
+            "hypotheses",
+            "requires_gm_authority",
+            "occurred_on",
+            "recorded_at"
+          ],
+          "startLine": 25,
+          "endLine": 39
+        },
+        {
+          "name": "adjudications",
+          "kind": "table",
+          "fields": [
+            "adjudication_id",
+            "finding_id",
+            "verdict",
+            "why",
+            "author",
+            "is_recommendation",
+            "correction_event_id",
+            "recorded_at"
+          ],
+          "startLine": 42,
+          "endLine": 51
+        },
+        {
+          "name": "rulebook_rules",
+          "kind": "table",
+          "fields": [
+            "rulebook_rule_id",
+            "version",
+            "status",
+            "predicate",
+            "action",
+            "rationale",
+            "born_from_adjudication_ids",
+            "drafted_by",
+            "activated_by",
+            "created_at",
+            "retired_at"
+          ],
+          "startLine": 55,
+          "endLine": 67
+        },
+        {
+          "name": "rule_applications",
+          "kind": "table",
+          "fields": [
+            "id",
+            "rulebook_rule_id",
+            "rule_version",
+            "finding_id",
+            "ingestion_id",
+            "applied_at"
+          ],
+          "startLine": 70,
+          "endLine": 77
+        },
+        {
+          "name": "sessions",
+          "kind": "table",
+          "fields": [
+            "id",
+            "status",
+            "created_at"
+          ],
+          "startLine": 81,
+          "endLine": 85
+        },
+        {
+          "name": "dashboards",
+          "kind": "table",
+          "fields": [
+            "id",
+            "session_id",
+            "analysis_json",
+            "metadata_json",
+            "created_at"
+          ],
+          "startLine": 86,
+          "endLine": 92
+        },
+        {
+          "name": "events_event_type_idx",
+          "kind": "index",
+          "fields": [],
+          "startLine": 21,
+          "endLine": 21
+        },
+        {
+          "name": "events_ingestion_id_idx",
+          "kind": "index",
+          "fields": [],
+          "startLine": 22,
+          "endLine": 22
+        },
+        {
+          "name": "adjudications_finding_id_idx",
+          "kind": "index",
+          "fields": [],
+          "startLine": 52,
+          "endLine": 52
+        },
+        {
+          "name": "rule_applications_finding_id_idx",
+          "kind": "index",
+          "fields": [],
+          "startLine": 78,
+          "endLine": 78
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 11
+      }
+    },
+    {
+      "path": "supabase/migrations/20260619120000_add_provenance.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 7,
+      "nonEmptyLines": 6,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 0
+      }
+    },
+    {
+      "path": "supabase/migrations/20260625_add_registry_sizes.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 2,
+      "nonEmptyLines": 2,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 0
+      }
+    },
+    {
+      "path": "supabase/migrations/20260701120000_dataset_rows.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 20,
+      "nonEmptyLines": 18,
+      "definitions": [
+        {
+          "name": "dataset_rows",
+          "kind": "table",
+          "fields": [
+            "id",
+            "dataset_id",
+            "file_name",
+            "sheet_name",
+            "row_index",
+            "values",
+            "updated_at"
+          ],
+          "startLine": 5,
+          "endLine": 14
+        },
+        {
+          "name": "dataset_rows_dataset_id_idx",
+          "kind": "index",
+          "fields": [],
+          "startLine": 16,
+          "endLine": 16
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 2
+      }
+    },
+    {
+      "path": "supabase/migrations/20260701_datasets.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 18,
+      "nonEmptyLines": 16,
+      "definitions": [
+        {
+          "name": "datasets",
+          "kind": "table",
+          "fields": [
+            "id",
+            "signature_hash",
+            "title",
+            "columns",
+            "sources",
+            "total_rows",
+            "updated_at"
+          ],
+          "startLine": 4,
+          "endLine": 12
+        },
+        {
+          "name": "datasets_signature_hash_idx",
+          "kind": "index",
+          "fields": [],
+          "startLine": 14,
+          "endLine": 14
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 2
+      }
+    },
+    {
+      "path": "supabase/migrations/20260702_dataset_recognized_stage.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 4,
+      "nonEmptyLines": 4,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 0
+      }
+    },
+    {
+      "path": "supabase/migrations/20260708_registry_presets.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 8,
+      "nonEmptyLines": 7,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 0
+      }
+    },
+    {
+      "path": "supabase/migrations/20260710_registry_stage_aliases.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 1,
+      "nonEmptyLines": 1,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 0
+      }
+    },
+    {
+      "path": "supabase/migrations/20260711_dataset_recognition_confidence.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 6,
+      "nonEmptyLines": 6,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 0
+      }
+    },
+    {
+      "path": "supabase/migrations/20260712_registry_is_active.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 1,
+      "nonEmptyLines": 1,
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 0
+      }
+    },
+    {
+      "path": "supabase/migrations/20260713000000_mod_core.sql",
+      "language": "sql",
+      "fileCategory": "data",
+      "totalLines": 94,
+      "nonEmptyLines": 86,
+      "definitions": [
+        {
+          "name": "workbook_snapshots",
+          "kind": "table",
+          "fields": [
+            "snapshot_id",
+            "uploaded_at",
+            "content"
+          ],
+          "startLine": 5,
+          "endLine": 10
+        },
+        {
+          "name": "mods",
+          "kind": "table",
+          "fields": [
+            "mod_id",
+            "company_id",
+            "status",
+            "snapshot_id",
+            "document",
+            "verified_by",
+            "verified_at",
+            "supersedes"
+          ],
+          "startLine": 13,
+          "endLine": 25
+        },
+        {
+          "name": "company_knowledge",
+          "kind": "table",
+          "fields": [
+            "company_id",
+            "kind",
+            "confidence",
+            "learned_from",
+            "use_count"
+          ],
+          "startLine": 31,
+          "endLine": 41
+        },
+        {
+          "name": "global_ontology",
+          "kind": "table",
+          "fields": [
+            "concept_id",
+            "kind",
+            "match_terms",
+            "description"
+          ],
+          "startLine": 44,
+          "endLine": 49
+        },
+        {
+          "name": "decision_rules",
+          "kind": "table",
+          "fields": [
+            "rule_id",
+            "version",
+            "status",
+            "definition",
+            "created_at"
+          ],
+          "startLine": 52,
+          "endLine": 59
+        },
+        {
+          "name": "one_active_mod",
+          "kind": "index",
+          "fields": [],
+          "startLine": 27,
+          "endLine": 27
+        },
+        {
+          "name": "mods_company_idx",
+          "kind": "index",
+          "fields": [],
+          "startLine": 28,
+          "endLine": 28
+        }
+      ],
+      "metrics": {
+        "importCount": 0,
+        "exportCount": 0,
+        "functionCount": 0,
+        "classCount": 0,
+        "definitionCount": 7
+      }
+    }
+  ]
+}
