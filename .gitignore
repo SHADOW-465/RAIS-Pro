@@ -98,3 +98,7 @@ phase2-*.jpeg
 .playwright-mcp/
 .superpowers/
 .gstack/
+
+# understand-anything / knowledge graph local cache
+.ua/
+
