@@ -2,6 +2,7 @@ import {
   defectDisplayLabel,
   defectsFor,
   MATRIX_STAGES,
+  previousAssemblyStageId,
 } from "@/lib/entry/disposafe-matrix";
 
 describe("Primary Production matrix UX helpers", () => {
@@ -36,6 +37,36 @@ describe("Primary Production matrix UX helpers", () => {
   test("secondary workflow is qty+bin only (no defect schema)", () => {
     expect(MATRIX_STAGES.secondary.defects).toEqual([]);
     expect(MATRIX_STAGES.secondary.processes.length).toBeGreaterThan(0);
+  });
+});
+
+describe("previousAssemblyStageId — chain order (Visual → Balloon → Valve → Final)", () => {
+  test("first stage (Visual) has no predecessor", () => {
+    expect(previousAssemblyStageId("p15-visual")).toBeNull();
+  });
+
+  test("Balloon's predecessor is Visual", () => {
+    expect(previousAssemblyStageId("p16-balloon")).toBe("visual");
+  });
+
+  test("Valve's predecessor is Balloon", () => {
+    expect(previousAssemblyStageId("p17-valve")).toBe("balloon");
+  });
+
+  test("Final's predecessor is Valve", () => {
+    expect(previousAssemblyStageId("p18-final")).toBe("valve-integrity");
+  });
+
+  test("unknown micro id has no predecessor", () => {
+    expect(previousAssemblyStageId("not-a-stage")).toBeNull();
+  });
+
+  test("chain matches the declared process order exactly", () => {
+    const ids = MATRIX_STAGES.assembly.processes.map((p) => p.id);
+    for (let i = 1; i < ids.length; i++) {
+      const expected = MATRIX_STAGES.assembly.processes[i - 1].stageId;
+      expect(previousAssemblyStageId(ids[i])).toBe(expected);
+    }
   });
 });
 

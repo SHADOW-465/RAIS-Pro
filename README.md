@@ -43,8 +43,7 @@ src/
 │  │  ├─ Pill.tsx                 6-tone label
 │  │  ├─ EditorialHeader.tsx      Landing masthead
 │  │  ├─ EditorialCharts.tsx      Inline SVG: TrendLine, Donut, Bars, Sparkline, DualLine
-│  │  ├─ TweaksContext.tsx        Live-tweak state, paints CSS vars
-│  │  └─ TweaksPanel.tsx          Dev-only floating control panel (⌘.)
+│  │  └─ TweaksContext.tsx        Live-tweak state, paints CSS vars
 │  ├─ Dashboard.tsx               Lead story + KPIs + figures + sources + verify split
 │  ├─ KPICard.tsx                 Serif numeral, accent trend, optional sparkline
 │  ├─ ChartContainer.tsx          Figure wrapper, routes to editorial chart by type
@@ -142,10 +141,6 @@ Dashboard.tsx ← DashboardConfig + MergePlan + RawSheets
                                                       ↓
                                                 InsightSlide (PNG-exportable)
 ```
-
-## Tweaks (dev only)
-
-The editorial design supports live knobs — paper warmth, density, accent color, heading font, card style, chart style, beam visibility. The panel auto-mounts in development (or via `?tweaks=1` on a preview deployment). Open with **⌘.** / **Ctrl+.** or click the FAB.
 
 ## Testing
 

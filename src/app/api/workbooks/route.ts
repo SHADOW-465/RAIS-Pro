@@ -45,6 +45,25 @@ export async function GET() {
   }
 }
 
+/** DELETE /api/workbooks?snapshotId=... — remove an uploaded file from the
+ *  Workbooks explorer (the snapshot + its MOD lineage). Ledger events already
+ *  emitted from a verified version are append-only and are left alone. */
+export async function DELETE(req: NextRequest) {
+  const snapshotId = req.nextUrl.searchParams.get("snapshotId");
+  if (!snapshotId) {
+    return NextResponse.json({ error: "snapshotId is required" }, { status: 400 });
+  }
+  try {
+    await Promise.all([
+      getSnapshotStore().delete(snapshotId),
+      getModStore().deleteLineage(snapshotId), // lineage id = first snapshot hash
+    ]);
+    return NextResponse.json({ ok: true });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to delete workbook" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();

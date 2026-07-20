@@ -43,6 +43,10 @@ export interface ModStore {
   /** Merged stage/defect/size catalog across a company's verified MODs —
    *  the successor of DISPOSAFE_REGISTRY lookups. First occurrence wins per id. */
   catalogFor(companyId: string): Promise<ModCatalog>;
+  /** Remove every version of a lineage (workbook delete). Does not touch
+   *  ledger events already emitted from a verified version — those are
+   *  append-only and stay put. */
+  deleteLineage(modId: string): Promise<void>;
 }
 
 function mergeCatalog(rows: ModRowT[]): ModCatalog {
@@ -117,6 +121,9 @@ class MemoryModStore implements ModStore {
   }
   async catalogFor(companyId: string) {
     return mergeCatalog(await this.verified(companyId));
+  }
+  async deleteLineage(modId: string) {
+    this.rows = this.rows.filter((r) => r.modId !== modId);
   }
 }
 
@@ -197,6 +204,10 @@ class SupabaseModStore implements ModStore {
   }
   async catalogFor(companyId: string) {
     return mergeCatalog(await this.verified(companyId));
+  }
+  async deleteLineage(modId: string) {
+    const { error } = await this.db().from("mods").delete().eq("mod_id", modId);
+    if (error) throw error;
   }
 }
 

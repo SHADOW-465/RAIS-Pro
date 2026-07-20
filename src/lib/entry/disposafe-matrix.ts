@@ -186,6 +186,18 @@ export function processLabel(macro: MacroId, micro: string): string {
   return MATRIX_STAGES.assembly.processes.find((p) => p.id === micro)?.name ?? micro;
 }
 
+/**
+ * The stageId immediately before `micro` in the Assembly chain
+ * (Visual → Balloon → Valve → Final), or null for the first stage.
+ * Used to prefill a stage's Checked qty from the previous stage's
+ * Accepted qty for the same batch — units physically flow forward.
+ */
+export function previousAssemblyStageId(micro: string): string | null {
+  const idx = MATRIX_STAGES.assembly.processes.findIndex((p) => p.id === micro);
+  if (idx <= 0) return null;
+  return MATRIX_STAGES.assembly.processes[idx - 1].stageId;
+}
+
 export type ShiftBatchRecord = {
   id: string;
   date: string;

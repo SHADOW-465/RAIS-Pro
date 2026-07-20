@@ -15,6 +15,7 @@ import Icon from "@/components/editorial/Icon";
 import { buildReviewRows, reviewSummary, applyEdit, defectKey } from "@/lib/ingest/review";
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import MappingVerificationPanel, { type UploadedMod } from "@/components/app/MappingVerificationPanel";
+import QtyInput from "@/components/entry/QtyInput";
 
 const PAGE_SIZE = 31;
 
@@ -166,9 +167,22 @@ export default function StagingPage() {
     }
   }
 
-  const handleCellChange = (recordIndex: number, field: string, valString: string) => {
-    const val = valString === "" ? 0 : Number(valString);
-    if (isNaN(val) || val < 0) return;
+  /** Commit one cell. null clears. Never rewrites sibling columns. */
+  const handleCellChange = (recordIndex: number, field: string, val: number | null) => {
+    if (val == null) {
+      // Clear capture fields via null; for defects, 0 removes the entry.
+      if (field === "checked" || field === "rejected" || field === "acceptedGood" || field === "rework") {
+        setRecords((prev) =>
+          prev.map((rec, i) =>
+            i !== recordIndex ? rec : { ...rec, [field]: null, extractedBy: "direct-entry" },
+          ),
+        );
+        return;
+      }
+      setRecords((prev) => applyEdit(prev, recordIndex, field, 0));
+      return;
+    }
+    if (val < 0) return;
     setRecords((prev) => applyEdit(prev, recordIndex, field, val));
   };
 
@@ -456,35 +470,35 @@ export default function StagingPage() {
                               {/* Editable Quantities — only the cell(s) actually implicated in a
                                   failed rule are highlighted, not the whole row (see r.invalidFields). */}
                               <td style={{ ...std, textAlign: "right" }}>
-                                <input
-                                  type="number"
-                                  value={r.checked ?? ""}
-                                  onChange={(e) => handleCellChange(r.recordIndex, "checked", e.target.value)}
+                                <QtyInput
+                                  value={r.checked}
+                                  onChange={(n) => handleCellChange(r.recordIndex, "checked", n)}
                                   style={{ ...gridInputStyle, borderColor: r.invalidFields.includes("checked") ? "var(--status-bad)" : "var(--border-strong)" }}
+                                  aria-label={`Checked row ${i + 1}`}
                                 />
                               </td>
                               <td style={{ ...std, textAlign: "right" }}>
-                                <input
-                                  type="number"
-                                  value={r.acceptedGood ?? ""}
-                                  onChange={(e) => handleCellChange(r.recordIndex, "acceptedGood", e.target.value)}
+                                <QtyInput
+                                  value={r.acceptedGood}
+                                  onChange={(n) => handleCellChange(r.recordIndex, "acceptedGood", n)}
                                   style={{ ...gridInputStyle, borderColor: r.invalidFields.includes("acceptedGood") ? "var(--status-bad)" : "var(--border-strong)" }}
+                                  aria-label={`Accepted row ${i + 1}`}
                                 />
                               </td>
                               <td style={{ ...std, textAlign: "right" }}>
-                                <input
-                                  type="number"
-                                  value={r.rework ?? ""}
-                                  onChange={(e) => handleCellChange(r.recordIndex, "rework", e.target.value)}
+                                <QtyInput
+                                  value={r.rework}
+                                  onChange={(n) => handleCellChange(r.recordIndex, "rework", n)}
                                   style={{ ...gridInputStyle, borderColor: r.invalidFields.includes("rework") ? "var(--status-bad)" : "var(--border-strong)" }}
+                                  aria-label={`Hold/rework row ${i + 1}`}
                                 />
                               </td>
                               <td style={{ ...std, textAlign: "right" }}>
-                                <input
-                                  type="number"
-                                  value={r.rejected ?? ""}
-                                  onChange={(e) => handleCellChange(r.recordIndex, "rejected", e.target.value)}
+                                <QtyInput
+                                  value={r.rejected}
+                                  onChange={(n) => handleCellChange(r.recordIndex, "rejected", n)}
                                   style={{ ...gridInputStyle, borderColor: r.invalidFields.includes("rejected") ? "var(--status-bad)" : "var(--border-strong)" }}
+                                  aria-label={`Rejected row ${i + 1}`}
                                 />
                               </td>
 
@@ -518,14 +532,14 @@ export default function StagingPage() {
                               {defectsList.map((d: any) => {
                                 // Columns are derived from extracted Excel defects — enable on every row.
                                 const colKey = defectKey(d.defectCode);
-                                const defectVal = r.defects.find(df => defectKey(df.raw) === colKey)?.value ?? 0;
+                                const defectVal = r.defects.find(df => defectKey(df.raw) === colKey)?.value ?? null;
                                 const isCulprit = r.invalidFields.includes(colKey);
                                 return (
                                   <td key={d.defectCode} style={{ ...std, textAlign: "right" }}>
-                                    <input
-                                      type="number"
-                                      value={defectVal || ""}
-                                      onChange={(e) => handleCellChange(r.recordIndex, d.defectCode, e.target.value)}
+                                    <QtyInput
+                                      value={defectVal}
+                                      onChange={(n) => handleCellChange(r.recordIndex, d.defectCode, n)}
+                                      aria-label={`${d.defectCode} row ${i + 1}`}
                                       style={{
                                         ...gridInputStyle,
                                         width: "55px",

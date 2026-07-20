@@ -11,6 +11,7 @@ export interface SnapshotStore {
   put(snapshot: WorkbookSnapshotT): Promise<void>;
   get(snapshotId: string): Promise<WorkbookSnapshotT | null>;
   list(): Promise<{ snapshotId: string; fileName: string; uploadedAt: string }[]>;
+  delete(snapshotId: string): Promise<void>;
 }
 
 class MemorySnapshotStore implements SnapshotStore {
@@ -27,6 +28,9 @@ class MemorySnapshotStore implements SnapshotStore {
     return [...this.byId.values()]
       .map(({ snap, uploadedAt }) => ({ snapshotId: snap.snapshotId, fileName: snap.fileName, uploadedAt }))
       .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+  }
+  async delete(snapshotId: string) {
+    this.byId.delete(snapshotId);
   }
 }
 
@@ -52,6 +56,10 @@ class SupabaseSnapshotStore implements SnapshotStore {
       .select("snapshot_id, file_name, uploaded_at").order("uploaded_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((r) => ({ snapshotId: r.snapshot_id, fileName: r.file_name, uploadedAt: r.uploaded_at }));
+  }
+  async delete(snapshotId: string) {
+    const { error } = await this.db().from("workbook_snapshots").delete().eq("snapshot_id", snapshotId);
+    if (error) throw error;
   }
 }
 

@@ -42,37 +42,43 @@ interface NavSection {
 // Analysis pages are pure views of the same event ledger.
 const NAV_SECTIONS: NavSection[] = [
   {
-    title: "Daily work",
+    title: "Overview",
     items: [
       { key: "dashboard", label: "Dashboard", icon: "table", href: "/" },
-      { key: "data-entry", label: "Data Entry", icon: "file", href: "/data-entry" },
     ],
   },
   {
-    title: "Excel transition",
+    title: "Workbooks",
     items: [
-      { key: "staging", label: "Import from Excel", icon: "upload", href: "/staging" },
-      { key: "workbooks", label: "Uploaded files", icon: "folder", href: "/workbooks" },
+      { key: "workbooks", label: "Workbooks", icon: "folder", href: "/workbooks" },
+    ],
+  },
+  {
+    title: "Data",
+    items: [
+      { key: "data-entry", label: "Data Entry", icon: "file", href: "/data-entry" },
+      { key: "staging", label: "Staging & Review", icon: "upload", href: "/staging" },
     ],
   },
   {
     title: "Analysis",
     items: [
-      { key: "stage", label: "By stage", icon: "trend-up", href: "/stage-analysis" },
-      { key: "size", label: "By size", icon: "tally", href: "/size-analysis" },
-      { key: "defect", label: "By defect", icon: "spark", href: "/defect-analysis" },
-      { key: "spc", label: "SPC charts", icon: "trend-down", href: "/spc" },
-      { key: "copq", label: "COPQ", icon: "lightning", href: "/copq" },
-      { key: "reports", label: "Reports", icon: "print", href: "/reports" },
+      { key: "stage", label: "Stage Analysis", icon: "trend-up", href: "/stage-analysis" },
+      { key: "size", label: "Size Analysis", icon: "tally", href: "/size-analysis" },
+      { key: "defect", label: "Defect Analysis", icon: "spark", href: "/defect-analysis" },
+      { key: "spc", label: "SPC & Control Charts", icon: "trend-down", href: "/spc" },
+      { key: "process-flow", label: "Process Flow", icon: "split", href: "/process-flow" },
+      { key: "copq", label: "COPQ & Savings", icon: "lightning", href: "/copq" },
     ],
   },
   {
-    title: "More",
+    title: "Management",
     items: [
-      { key: "process-flow", label: "Process map", icon: "split", href: "/process-flow" },
-      { key: "capa", label: "CAPA", icon: "check", href: "/capa" },
+      { key: "reports", label: "Reports", icon: "print", href: "/reports" },
+      { key: "capa", label: "CAPA & Actions", icon: "check", href: "/capa" },
       { key: "ask", label: "Ask MOID", icon: "comment", href: "/chat", aiBadge: true },
-      { key: "audit", label: "Audit trail", icon: "search", href: "/audit" },
+      { key: "audit", label: "Audit Trail", icon: "search", href: "/audit" },
+      { key: "schema", label: "Data Schema", icon: "split", href: "/schema" },
       { key: "settings", label: "Settings", icon: "external", href: "/settings" },
     ],
   },

@@ -12,7 +12,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import { buildReviewRows, applyEdit } from "@/lib/ingest/review";
 import { useEvents } from "@/components/app/EventsContext";
+import { loadDraft, saveDraft } from "@/lib/entry/draft";
 import { type EntryGrain, resolvePeriod, stepPeriod, periodLabel } from "@/lib/entry/period";
+import QtyInput from "@/components/entry/QtyInput";
 
 type TemplateColumn = { key: string; label: string; type: "number"; required: boolean };
 type TemplateDefect = { defectCode: string; label: string };
@@ -152,7 +154,8 @@ export default function MonthlyEntryGrid({
     ingestionId: "pending",
   });
 
-  const updateCapture = (date: string, colKey: string, val: string) => {
+  /** Commit a capture column. null clears the field. Never rewrites other columns. */
+  const updateCapture = (date: string, colKey: string, num: number | null) => {
     const prop = COL_TO_RECORD[colKey];
     if (!prop) return;
     setDirty(true);
@@ -160,30 +163,29 @@ export default function MonthlyEntryGrid({
       let idx = prev.findIndex((r) => r.occurredOn.start === date && (r.size ?? "__line__") === rowKey);
       let next = prev;
       if (idx < 0) {
-        if (val === "") return prev;
+        if (num == null) return prev;
         next = [...prev, blankRecord(date)];
         idx = next.length - 1;
       }
-      if (val === "") {
+      if (num == null) {
         return next.map((r, i) => (i !== idx ? r : { ...r, [prop]: null, extractedBy: "direct-entry" }));
       }
-      const num = Number(val);
-      if (isNaN(num) || num < 0) return next;
       return applyEdit(next, idx, prop, num);
     });
   };
 
-  const updateDefect = (date: string, defectCode: string, val: string) => {
+  /** Commit a defect count. null/0 removes that defect. Never touches rejected. */
+  const updateDefect = (date: string, defectCode: string, num: number | null) => {
     setDirty(true);
     setRecords((prev) => {
       let idx = prev.findIndex((r) => r.occurredOn.start === date && (r.size ?? "__line__") === rowKey);
       let next = prev;
       if (idx < 0) {
-        if (val === "") return prev;
+        if (num == null || num === 0) return prev;
         next = [...prev, blankRecord(date)];
         idx = next.length - 1;
       }
-      if (val === "") {
+      if (num == null || num === 0) {
         return next.map((r, i) =>
           i !== idx
             ? r
@@ -194,12 +196,13 @@ export default function MonthlyEntryGrid({
               },
         );
       }
-      const num = Number(val);
-      if (isNaN(num) || num < 0) return next;
-      // Use defectCode as stable raw key (matches resolveEntity / catalog codes).
       return applyEdit(next, idx, defectCode, num);
     });
   };
+
+  /** Draft key is per period + stage + size — editing another slice must not
+   *  resurrect unsaved numbers from a different one. */
+  const draftKey = `moid_entry_draft_grid:${grain}|${from}|${to}|${activeStageId}|${activeSize ?? ""}`;
 
   const loadRange = useCallback(async () => {
     if (!activeStageId) return;
@@ -210,8 +213,11 @@ export default function MonthlyEntryGrid({
     try {
       const res = await fetch(`/api/day-records?${params.toString()}`);
       const data = await res.json();
-      setRecords(data.records ?? []);
-      setDirty(false);
+      // Unsaved edits win over the server copy — that is the whole point of the
+      // draft. Saving (or discarding) clears it, so this can't shadow real data.
+      const draft = loadDraft<StageDayRecord[]>(draftKey);
+      setRecords(draft ?? data.records ?? []);
+      setDirty(!!draft);
     } catch (err) {
       console.error("Error loading range:", err);
       setError("Failed to load this period's data.");
@@ -220,11 +226,16 @@ export default function MonthlyEntryGrid({
     } finally {
       setLoading(false);
     }
-  }, [activeStageId, activeSize, from, to, isSizeWise]);
+  }, [activeStageId, activeSize, from, to, isSizeWise, draftKey]);
 
   useEffect(() => {
     loadRange();
   }, [loadRange]);
+
+  // Autosave unsaved edits so navigating away (or a reload) doesn't lose them.
+  useEffect(() => {
+    if (dirty) saveDraft(draftKey, records);
+  }, [dirty, records, draftKey]);
 
   const days = useMemo(() => {
     const out: string[] = [];
@@ -252,9 +263,11 @@ export default function MonthlyEntryGrid({
 
   const confirmDiscardIfDirty = (actionLabel: string): boolean => {
     if (!dirty) return true;
-    return confirm(
+    const ok = confirm(
       `You have unsaved changes for ${rangeLabel} that haven't been submitted yet. ${actionLabel} will discard them. Continue?`,
     );
+    if (ok) saveDraft(draftKey, null);
+    return ok;
   };
 
   const goToPeriod = (delta: number) => {
@@ -298,6 +311,7 @@ export default function MonthlyEntryGrid({
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Save failed");
       setSuccess(`${payload.length} day(s) saved for ${rangeLabel}.`);
       setDirty(false);
+      saveDraft(draftKey, null);
       await loadRange();
       refreshEvents().catch(console.error);
     } catch (e: any) {
@@ -307,8 +321,8 @@ export default function MonthlyEntryGrid({
     }
   }
 
-  const defectValue = (rec: StageDayRecord | undefined, d: TemplateDefect): string => {
-    if (!rec) return "";
+  const defectValue = (rec: StageDayRecord | undefined, d: TemplateDefect): number | null => {
+    if (!rec) return null;
     const hit = rec.defects.find(
       (x) =>
         x.raw === d.defectCode ||
@@ -316,7 +330,7 @@ export default function MonthlyEntryGrid({
         x.raw.toUpperCase() === d.defectCode.toUpperCase() ||
         x.raw.toUpperCase() === d.label.toUpperCase(),
     );
-    return hit != null ? String(hit.value) : "";
+    return hit != null ? hit.value : null;
   };
 
   if (templateLoading) {
@@ -523,18 +537,17 @@ export default function MonthlyEntryGrid({
                   {captureCols.map((c) => {
                     const field = COL_TO_RECORD[c.key];
                     const sv = field ? rec?.[field] : null;
-                    const val = sv != null ? String(sv.value) : "";
+                    const val = sv != null ? sv.value : null;
                     const isCulprit =
                       !!field &&
                       (review?.invalidFields.includes(field) ||
                         review?.invalidFields.includes(field === "acceptedGood" ? "acceptedGood" : field));
                     return (
                       <td key={c.key} style={{ ...etd, padding: "3px 4px" }}>
-                        <input
-                          type="number"
-                          inputMode="numeric"
+                        <QtyInput
                           value={val}
-                          onChange={(e) => updateCapture(date, c.key, e.target.value)}
+                          onChange={(n) => updateCapture(date, c.key, n)}
+                          aria-label={`${date} ${c.label}`}
                           style={{
                             ...inp,
                             width: 84,
@@ -554,11 +567,11 @@ export default function MonthlyEntryGrid({
                       !!review?.invalidFields.includes(d.label);
                     return (
                       <td key={d.defectCode} style={{ ...etd, padding: "3px 4px" }}>
-                        <input
-                          type="number"
-                          inputMode="numeric"
+                        <QtyInput
                           value={defectValue(rec, d)}
-                          onChange={(e) => updateDefect(date, d.defectCode, e.target.value)}
+                          onChange={(n) => updateDefect(date, d.defectCode, n)}
+                          title={d.label}
+                          aria-label={`${date} ${d.label}`}
                           style={{
                             ...inp,
                             width: 64,
@@ -568,7 +581,6 @@ export default function MonthlyEntryGrid({
                             textAlign: "right",
                             borderColor: isCulprit ? "var(--status-bad)" : "var(--border-strong)",
                           }}
-                          title={d.label}
                         />
                       </td>
                     );
