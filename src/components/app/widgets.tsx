@@ -206,16 +206,27 @@ export function AnimatedValue({ value }: { value: string }) {
   return <span>{displayValue}</span>;
 }
 
-export function Card({ title, sub, children, span, onClick }: { title?: string; sub?: string; children: React.ReactNode; span?: number; onClick?: () => void }) {
+/** Case-insensitive match of a KPI/card's identifying text against the `?highlight=` token. */
+export function kpiMatchesHighlight(
+  fields: (string | null | undefined)[],
+  highlight: string | null | undefined
+): boolean {
+  if (!highlight) return false;
+  const h = highlight.toLowerCase();
+  return fields.some((f) => (f ?? "").toLowerCase().includes(h));
+}
+
+export function Card({ title, sub, children, span, onClick, highlight }: { title?: string; sub?: string; children: React.ReactNode; span?: number; onClick?: () => void; highlight?: string | null }) {
+  const isHighlighted = kpiMatchesHighlight([title], highlight);
   return (
-    <div 
+    <div
       onClick={onClick}
-      className={onClick ? "card-hover" : ""}
-      style={{ 
-        gridColumn: span ? `span ${span}` : undefined, 
-        border: "1.5px solid var(--border)", 
-        borderRadius: "var(--radius-lg)", 
-        background: "var(--surface)", 
+      className={[onClick ? "card-hover" : "", isHighlighted ? "pulse-ring" : ""].filter(Boolean).join(" ") || undefined}
+      style={{
+        gridColumn: span ? `span ${span}` : undefined,
+        border: "1.5px solid var(--border)",
+        borderRadius: "var(--radius-lg)",
+        background: "var(--surface)",
         padding: "var(--pad-card)",
         display: "flex",
         flexDirection: "column",
@@ -224,7 +235,8 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
         minWidth: 0,
         boxShadow: "var(--shadow-2)",
         position: "relative",
-        transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)"
+        transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
+        ...(isHighlighted ? { outline: "2px solid var(--accent)", borderRadius: "var(--radius-sm)" } : {}),
       }}
     >
       {title && (
@@ -266,34 +278,42 @@ function isWordKpiValue(value: string): boolean {
   return /[a-zA-Z]{3,}/.test(value);
 }
 
-export function Kpi({ 
-  label, 
-  value, 
-  sub, 
-  tone, 
-  primary, 
+export function Kpi({
+  label,
+  value,
+  sub,
+  tone,
+  primary,
   spark,
-  onClick
-}: { 
-  label: string; 
-  value: string; 
-  sub?: string; 
-  tone?: "good" | "warn" | "bad"; 
-  primary?: boolean; 
+  onClick,
+  source,
+  sourceColumn,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "good" | "warn" | "bad";
+  primary?: boolean;
   spark?: SeriesPoint[];
   onClick?: () => void;
+  /** Provenance fields used for `?highlight=` matching (Task 9). */
+  source?: string | null;
+  sourceColumn?: string | null;
+  highlight?: string | null;
 }) {
   const color = tone === "bad" ? "var(--critical)" : tone === "warn" ? "var(--warning)" : tone === "good" ? "var(--positive)" : "var(--text)";
   const wordValue = isWordKpiValue(value);
-  
+  const isHighlighted = kpiMatchesHighlight([source, sourceColumn, label], highlight);
+
   return (
-    <div 
+    <div
       onClick={onClick}
-      className={onClick ? "card-hover" : ""}
-      style={{ 
-        border: "1.5px solid var(--border)", 
-        borderRadius: "var(--radius-lg)", 
-        background: primary ? "color-mix(in srgb, var(--accent) 1.5%, var(--surface))" : "var(--surface)", 
+      className={[onClick ? "card-hover" : "", isHighlighted ? "pulse-ring" : ""].filter(Boolean).join(" ") || undefined}
+      style={{
+        border: "1.5px solid var(--border)",
+        borderRadius: "var(--radius-lg)",
+        background: primary ? "color-mix(in srgb, var(--accent) 1.5%, var(--surface))" : "var(--surface)",
         padding: "12px 14px",
         display: "flex",
         flexDirection: "column",
@@ -304,6 +324,7 @@ export function Kpi({
         boxShadow: primary ? "var(--shadow-2), 0 4px 20px -2px color-mix(in srgb, var(--accent) 8%, transparent)" : "var(--shadow-1)",
         position: "relative",
         transition: "all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)",
+        ...(isHighlighted ? { outline: "2px solid var(--accent)", borderRadius: "var(--radius-sm)" } : {}),
       }}
     >
       {tone && (

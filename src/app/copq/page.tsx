@@ -23,7 +23,8 @@ import {
   resolveScope,
   scopeEvents,
   type Scope,
-  copqTrend
+  copqTrend,
+  useApplyInvestigationFromUrl,
 } from "@/lib/analytics";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -55,6 +56,8 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
 
 export default function CopqPage() {
   const { t } = useTweaks();
+  const [highlight, setHighlight] = useState<string | null>(null);
+  useApplyInvestigationFromUrl({ onState: (s) => setHighlight(s.highlight ?? null) });
   const { events: contextEvents, isLoading } = useEvents();
   const events = contextEvents ? (contextEvents as any[]) : null;
   const [modalOpen, setModalOpen] = useState(false);
@@ -189,13 +192,13 @@ export default function CopqPage() {
               {hasLeft && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
                   {m.copq > 0 && (
-                    <Card title={`${grainLabel} COPQ Impact`} onClick={() => openModal(`${grainLabel} COPQ Impact`, `COPQ reaches ${rupee(m.copq)} this period. ${m.copqDiff}. Material waste and tooling downtime are major drivers.`, <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}>
+                    <Card highlight={highlight} title={`${grainLabel} COPQ Impact`} onClick={() => openModal(`${grainLabel} COPQ Impact`, `COPQ reaches ${rupee(m.copq)} this period. ${m.copqDiff}. Material waste and tooling downtime are major drivers.`, <div style={{ display: "flex", justifyContent: "center", width: "100%" }}><GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}>
                       <GaugeChart value={m.copq / 100000} label={rupee(m.copq)} subtext={m.copqDiff} />
                     </Card>
                   )}
 
                   {m.savings > 0 && (
-                    <Card title="Savings Opportunity Summary">
+                    <Card highlight={highlight} title="Savings Opportunity Summary">
                       <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "8px 0" }}>
                         <div>
                           <span className="muted" style={{ fontSize: 11.5, display: "block" }}>Annual Recoverable Opportunity</span>
@@ -213,7 +216,7 @@ export default function CopqPage() {
               )}
 
               {hasRight && (
-                <Card title={`COPQ Trend (${grainLabel})`} onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}>
+                <Card highlight={highlight} title={`COPQ Trend (${grainLabel})`} onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}>
                   <LineChart points={m.copqTrend} fmt={rupee} />
                 </Card>
               )}

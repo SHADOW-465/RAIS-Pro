@@ -65,9 +65,11 @@ export default function SizeAnalysisPage() {
   const activeRegistry = registry || EMPTY_REGISTRY;
   const events = contextEvents ? (contextEvents as any[]) : null;
   const [selectedSize, setSelectedSize] = useState("Fr16");
+  const [highlight, setHighlight] = useState<string | null>(null);
   // Mid-path: carry size + period from attention rail / deep links.
   useApplyInvestigationFromUrl({
     onSize: (size) => setSelectedSize(size),
+    onState: (s) => setHighlight(s.highlight ?? null),
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -223,7 +225,7 @@ export default function SizeAnalysisPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
                 {hasLeft && (
-                  <Card title={`Size-wise Rejection (YTD) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection (YTD) (${grainLabel})`, ytdModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" })}>
+                  <Card highlight={highlight} title={`Size-wise Rejection (YTD) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection (YTD) (${grainLabel})`, ytdModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" })}>
                     <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} />
                   </Card>
                 )}
@@ -253,7 +255,7 @@ export default function SizeAnalysisPage() {
                       </select>
                     </div>
 
-                    <Card title={`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`, trendModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" })}>
+                    <Card highlight={highlight} title={`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`, trendModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" })}>
                       <LineChart points={m.sizeTrend} fmt={pct} />
                     </Card>
                   </div>
@@ -261,7 +263,7 @@ export default function SizeAnalysisPage() {
               </div>
 
               {hasLeft && m.heatMatrix && m.heatMatrix.length > 0 && (
-                <Card title="Size × Defect Correlation Heatmap" sub="rejected quantity by size vs defect category" onClick={() => openModal("Size × Defect Correlation Heatmap", "Correlation matrix mapping rejected quantities across different catheter sizes (Fr10–Fr24) against active defect modes.", <div style={{ minHeight: 320, display: "flex", flexDirection: "column", justifyContent: "center" }}><Heatmap rows={m.heatRows} cols={m.heatCols} matrix={m.heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: num(m.sizes.reduce((s, x) => s + x.rejected, 0)) })}>
+                <Card highlight={highlight} title="Size × Defect Correlation Heatmap" sub="rejected quantity by size vs defect category" onClick={() => openModal("Size × Defect Correlation Heatmap", "Correlation matrix mapping rejected quantities across different catheter sizes (Fr10–Fr24) against active defect modes.", <div style={{ minHeight: 320, display: "flex", flexDirection: "column", justifyContent: "center" }}><Heatmap rows={m.heatRows} cols={m.heatCols} matrix={m.heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: num(m.sizes.reduce((s, x) => s + x.rejected, 0)) })}>
                   <Heatmap 
                     rows={m.heatRows} 
                     cols={m.heatCols} 
