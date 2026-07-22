@@ -52,14 +52,15 @@ export function parseDatePhrase(text: string, dataMaxIso: string): DatePhrase | 
     return { from: iso(my, mm, 1), to: iso(my, mm, lastDay(my, mm)), grain: "month", matchedText: "this month" };
   }
 
-  // "last quarter" — the 3 calendar months ending in the month before dataMax's quarter
+  // "last quarter" — the previous complete calendar quarter relative to dataMax
   if (/\blast quarter\b/.test(t)) {
-    const qEndMonth = (Math.ceil(mm / 3) - 1) * 3; // 0 if in Q1
-    const endM = qEndMonth === 0 ? 12 : qEndMonth;
-    const endY = qEndMonth === 0 ? my - 1 : my;
-    const startM = ((endM - 3 + 12) % 12) + 1;
-    const startY = endM - 3 <= 0 ? endY - 1 : endY;
-    return { from: iso(startY, startM, 1), to: iso(endY, endM, lastDay(endY, endM)), grain: "month", matchedText: "last quarter" };
+    const currentQ = Math.ceil(mm / 3);
+    let prevQ = currentQ - 1;
+    let year = my;
+    if (prevQ === 0) { prevQ = 4; year = my - 1; }
+    const startM = (prevQ - 1) * 3 + 1;
+    const endM = prevQ * 3;
+    return { from: iso(year, startM, 1), to: iso(year, endM, lastDay(year, endM)), grain: "month", matchedText: "last quarter" };
   }
 
   // Bare month name → most recent occurrence at/before dataMax

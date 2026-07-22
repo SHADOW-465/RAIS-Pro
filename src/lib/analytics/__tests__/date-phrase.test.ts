@@ -37,4 +37,22 @@ describe("parseDatePhrase", () => {
   it("returns null when no period phrase is present", () => {
     expect(parseDatePhrase("balloon gate defects", MAX)).toBeNull();
   });
+
+  it("resolves 'last quarter' for a Q2 anchor without a spurious year wrap", () => {
+    expect(parseDatePhrase("copq last quarter", "2025-05-10")).toEqual({
+      from: "2025-01-01", to: "2025-03-31", grain: "month", matchedText: "last quarter",
+    });
+  });
+
+  it("resolves 'last quarter' for a Q1 anchor, wrapping to the previous year", () => {
+    expect(parseDatePhrase("last quarter", "2025-02-15")).toMatchObject({
+      from: "2024-10-01", to: "2024-12-31",
+    });
+  });
+
+  it("resolves 'this month'", () => {
+    expect(parseDatePhrase("this month", "2025-08-15")).toEqual({
+      from: "2025-08-01", to: "2025-08-31", grain: "month", matchedText: "this month",
+    });
+  });
 });
