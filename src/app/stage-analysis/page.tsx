@@ -29,7 +29,8 @@ import {
   resolveScope,
   scopeEvents,
   type Scope,
-  getTargetRejectionRate
+  getTargetRejectionRate,
+  useApplyInvestigationFromUrl,
 } from "@/lib/analytics";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -61,6 +62,8 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
 
 export default function StageAnalysisPage() {
   const { t } = useTweaks();
+  // Mid-path: apply ?grain&from&to&stage from dashboard funnel / attention rail.
+  useApplyInvestigationFromUrl();
   const { events: contextEvents, isLoading } = useEvents();
   const { registry } = useRegistry();
   const activeRegistry = registry || EMPTY_REGISTRY;
@@ -148,7 +151,9 @@ export default function StageAnalysisPage() {
             Stage Analysis
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
-            Inspect quality thresholds, bottleneck gates, and rejection ratios across all five manufacturing stages.
+            Inspect quality thresholds, bottleneck gates, and rejection ratios
+            {t.stageView !== "cumulative" ? ` · focused on ${STAGE_LABELS[t.stageView] ?? t.stageView}` : " across manufacturing stages"}
+            {t.dateFrom && t.dateTo ? ` · ${t.dateFrom} → ${t.dateTo}` : ""}.
           </p>
         </div>
 

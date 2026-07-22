@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=Geist+Mono:ital,wght@0,100..900;1,100..900&family=Inter:ital,wght@0,100..900;1,100..900&display=swap');
+/* Fonts: self-hosted via next/font (Geist Sans + Mono) in layout.tsx — no render-blocking Google CSS. */
 @import "tailwindcss";
 
 /* =========================================================
@@ -113,16 +113,40 @@
 }
 
 :root {
-  /* Fonts */
-  --font-display: 'Geist', 'Inter', system-ui, sans-serif;
-  --font-sans: 'Geist', 'Inter', system-ui, sans-serif;
-  --font-mono: 'Geist Mono', monospace;
+  /*
+   * Typography — product register (enterprise denser UI, Linear/Stripe density).
+   * next/font exposes --font-geist-sans / --font-geist-mono on <html>.
+   * Fallbacks use system stacks with similar metrics to reduce CLS.
+   */
+  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+
+  /* Fixed rem type scale (product UI — not fluid marketing clamp) */
+  --text-2xs: 0.6875rem;  /* 11px — dense chrome only */
+  --text-xs:  0.75rem;    /* 12px — labels / eyebrows */
+  --text-sm:  0.8125rem;  /* 13px — secondary / meta */
+  --text-md:  0.875rem;   /* 14px — body (product floor) */
+  --text-base: 0.9375rem; /* 15px — comfortable body */
+  --text-lg:  1.0625rem;  /* 17px — card emphasis */
+  --text-xl:  1.25rem;    /* 20px — section title / word KPIs */
+  --text-2xl: 1.5rem;     /* 24px — page section */
+  --text-3xl: 1.75rem;    /* 28px — page title */
+  --text-kpi: 1.875rem;   /* 30px — executive KPI numbers (primary) */
+  --text-kpi-sm: 1.5rem;  /* 24px — secondary KPI numbers */
+  --text-kpi-word: 1.25rem; /* 20px — word KPIs e.g. stage / defect names */
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-body: 1.5;
+  --tracking-tight: -0.02em;
+  --tracking-label: 0.05em;
 
   /* Layout metrics */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-pill: 9999px;
 
   --space-1: clamp(2px, 0.3vw, 4px);
@@ -170,17 +194,22 @@ html, body { margin: 0; padding: 0; }
 html {
   background: var(--bg);
   color-scheme: light dark;
-  font-size: clamp(12px, 0.18vw + 10.5px, 15px);
+  /* Stable 16px root — scale steps via rem. Never fluid-shrink the whole app. */
+  font-size: 16px;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-sans), 'Inter', sans-serif;
-  font-size: 1rem;
-  line-height: 1.55;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  font-weight: 400;
+  letter-spacing: -0.006em;
+  font-feature-settings: "ss01" on, "cv11" on;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   min-height: 100vh;
 }
@@ -213,96 +242,126 @@ input:focus-visible, textarea:focus-visible, button:focus-visible {
 
 /* =========================================================
    Typography Utilities
-   Executive KPI 48/Bold > Page Title 32/Bold > Section 24/SemiBold
-   > Card Title 16/Medium > Body 14/Regular > Secondary 13/Regular
+   KPI (mono, semibold) > Page title > Section > Card title
+   > Body 14/400 > Secondary 13/400 > Label 12/600 caps
    ========================================================= */
 .kpi {
-  font-family: var(--font-sans), 'Inter', sans-serif;
-  font-size: 3rem;
-  line-height: 1.05;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: var(--text-kpi);
+  line-height: var(--leading-tight);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums lining-nums;
   text-align: left;
+  font-feature-settings: "tnum" on, "lnum" on;
 }
 .display {
-  font-family: var(--font-sans), 'Inter', sans-serif;
-  font-size: 2rem;
-  line-height: 1.15;
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
 }
 .h1 {
-  font-family: var(--font-sans), 'Inter', sans-serif;
-  font-size: 2rem;
-  line-height: 1.15;
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
 }
 .h2 {
-  font-family: var(--font-sans), 'Inter', sans-serif;
-  font-size: 1.5rem;
-  line-height: 1.3;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--leading-snug);
   font-weight: 600;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.015em;
 }
 .h3 {
-  font-family: var(--font-sans), 'Inter', sans-serif;
-  font-size: 1rem;
-  line-height: 1.4;
-  font-weight: 500;
-  letter-spacing: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 .body-lg {
-  font-size: 1.0625rem;
-  line-height: 1.6;
+  font-size: var(--text-base);
+  line-height: 1.55;
   font-weight: 400;
 }
 .body {
-  font-size: 0.875rem;
-  line-height: 1.6;
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
   font-weight: 400;
 }
 .small {
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
   font-weight: 400;
   color: var(--text-3);
 }
 .label {
-  font-size: 0.75rem;
-  line-height: 1.2;
+  font-size: var(--text-xs);
+  line-height: 1.25;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
+  color: var(--text-3);
 }
 .num {
-  font-family: var(--font-mono), 'Geist Mono', monospace;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" on, "lnum" on;
+  font-weight: 500;
 }
 
-/* Redundant typography class compatibility */
+/* Compatibility aliases */
 .serif {
-  font-family: var(--font-sans), 'Inter', sans-serif;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 600;
 }
 .sans {
-  font-family: var(--font-sans), 'Inter', sans-serif;
+  font-family: var(--font-sans);
 }
 .mono {
-  font-family: var(--font-mono), 'Geist Mono', monospace;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" on, "lnum" on;
 }
 .eyebrow {
-  font-size: 0.75rem;
-  line-height: 1.2;
+  font-size: var(--text-xs);
+  line-height: 1.25;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-  color: var(--text-2);
+  color: var(--text-3);
 }
 .eyebrow.accent {
   color: var(--accent-text);
+}
+
+/* Dense UI chrome (sidebar, topbar filters) */
+.ui-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-3);
+  line-height: 1.25;
+}
+/* KPI tile field labels — larger than chrome for at-a-glance scan */
+.kpi-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  line-height: 1.3;
+}
+.ui-nav {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
 .rule        { height: 1px; background: var(--border); border: none; margin: 0; }
@@ -594,6 +653,30 @@ header {
 .expand-panel {
   animation: slide-down 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   overflow: hidden;
+}
+
+/* Audit accordion panel — opacity + slight lift only (no layout thrash) */
+@keyframes audit-reveal {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.audit-reveal {
+  animation: audit-reveal 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.audit-chevron {
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.audit-row {
+  transition: background-color 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audit-reveal { animation: none; }
+  .audit-chevron { transition: none; }
+  .audit-row { transition: none; }
 }
 
 /* Tactile Microinteractions */

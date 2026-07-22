@@ -63,6 +63,80 @@ function ids(events: Event[], pred: (e: Event) => boolean): string[] {
 
 const stageOf = (e: Event) => ("stageId" in e ? ((e as any).stageId as string) : null);
 
+/**
+ * Batch-aware stage aggregator with dynamic multi-stage yield input cascading.
+ * If a batch's raw Stage 2 production event states initial batch lot size (e.g. 400),
+ * but Stage 1 only passed forward 120 units, Stage 2's input denominator is dynamically
+ * evaluated as 120 for accurate stage rejection rates.
+ */
+function batchCascadedAgg(events: Event[], registry: Registry = DERIVED_REGISTRY): Map<string, StageAgg> {
+  const stageList = stagesFor(events, registry).map((s) => s.stageId);
+  const byStageResult = new Map<string, StageAgg>();
+  for (const s of stageList) {
+    byStageResult.set(s, { checked: 0, good: 0, rework: 0, rejected: 0 });
+  }
+
+  // Group events by batch
+  const byBatch = new Map<string, Event[]>();
+  const unbatched: Event[] = [];
+  for (const e of events) {
+    const b = "batchNo" in e ? (e as any).batchNo : (e as any).customFields?.batch;
+    if (typeof b === "string" && b.trim()) {
+      const k = b.trim();
+      (byBatch.get(k) ?? byBatch.set(k, []).get(k)!).push(e);
+    } else {
+      unbatched.push(e);
+    }
+  }
+
+  // Handle unbatched events normally
+  for (const s of stageList) {
+    const a = aggregate(unbatched.filter((e) => stageOf(e) === s));
+    const cur = byStageResult.get(s)!;
+    cur.checked += a.checked;
+    cur.good += a.good;
+    cur.rework += a.rework;
+    cur.rejected += a.rejected;
+  }
+
+  // Handle batched events with cascading yield
+  for (const [, bevents] of byBatch) {
+    const presentStages = stageList.filter((sid) => bevents.some((e) => stageOf(e) === sid));
+    let initialBatchChecked = 0;
+    let prevAccepted: number | null = null;
+
+    for (let i = 0; i < presentStages.length; i++) {
+      const sid = presentStages[i];
+      const a = aggregate(bevents.filter((e) => stageOf(e) === sid));
+      if (i === 0) {
+        initialBatchChecked = a.checked;
+      }
+
+      let checked = a.checked;
+      let good = a.good > 0 ? a.good : Math.max(0, checked - a.rejected);
+
+      if (i > 0 && prevAccepted != null && prevAccepted > 0) {
+        if (checked === initialBatchChecked || checked === 0) {
+          checked = prevAccepted;
+          good = Math.max(0, checked - a.rejected);
+        }
+      }
+
+      prevAccepted = good;
+
+      const cur = byStageResult.get(sid);
+      if (cur) {
+        cur.checked += checked;
+        cur.good += good;
+        cur.rework += a.rework;
+        cur.rejected += a.rejected;
+      }
+    }
+  }
+
+  return byStageResult;
+}
+
 /** Per-stage {checked, rejected, rate} in registry order, over an event set.
  *  The funnel must NOT be summed across stages — a unit inspected at Visual,
  *  Balloon, Valve and Final is the *same* unit, so a naïve Σ-checked across
@@ -72,8 +146,9 @@ function perStageAgg(
   events: Event[],
   registry: Registry
 ): { stageId: string; checked: number; rejected: number; rate: number }[] {
+  const aggregatedMap = batchCascadedAgg(events, registry);
   return stagesFor(events, registry).map((s) => {
-    const a = aggregate(events.filter((e) => stageOf(e) === s.stageId));
+    const a = aggregatedMap.get(s.stageId) ?? { checked: 0, good: 0, rework: 0, rejected: 0 };
     return { stageId: s.stageId, checked: a.checked, rejected: a.rejected, rate: a.checked > 0 ? a.rejected / a.checked : 0 };
   });
 }
@@ -130,20 +205,17 @@ export interface StageRow extends StageAgg {
 export function byStage(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): StageRow[] {
   const ev = scopeEvents(events, scope);
   const total = aggregate(ev).rejected;
+  const aggregatedMap = batchCascadedAgg(ev, registry);
   return stagesFor(ev, registry)
     .map((s: any) => {
-      const a = aggregate(ev.filter((e) => "stageId" in e && (e as any).stageId === s.stageId));
+      const a = aggregatedMap.get(s.stageId) ?? { checked: 0, good: 0, rework: 0, rejected: 0 };
       return {
         stageId: s.stageId,
         label: s.label,
         ...a,
         rejRate: a.checked > 0 ? a.rejected / a.checked : 0,
         // Stage pass-through yield = the exact complement of the stage's
-        // rejection rate: (checked − rejected) / checked = 1 − rejRate. Do NOT
-        // use `a.good` here — accepted events are only partially captured by the
-        // parsers (most rows carry checked + rejected but no explicit accepted),
-        // so `(a.good || …)` would divide a tiny partial good-count by full
-        // checked and report ~0% yield for a stage that actually passed ~94%.
+        // rejection rate: (checked − rejected) / checked = 1 − rejRate.
         yield: a.checked > 0 ? (a.checked - a.rejected) / a.checked : 1,
         contributionPct: total > 0 ? (a.rejected / total) * 100 : 0,
       };

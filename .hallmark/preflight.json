@@ -1,0 +1,10 @@
+{
+  "scanned": "2026-07-21",
+  "framework": "Next.js 16 (app router)",
+  "font_stack": "Geist + Geist Mono (globals.css :root)",
+  "palette": "warm paper / charcoal ink / burnt orange #C8421C (CSS vars + TweaksContext)",
+  "motion": "motion-cut (pure CSS; no framer-motion)",
+  "spacing": "clamp-based --space-* + --pad-card (globals.css)",
+  "design_md": false,
+  "preserve": ["font stack", "palette", "spacing scale", "AppShell chrome"]
+}

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { emitMany, type StageDayRecord } from "@/lib/ingest/emit";
 import { checkRecord } from "@/lib/entry/validate-entry";
+import { massBalanceIssues } from "@/lib/ingest/mass-balance";
 import { getStores, shouldUseSupabase } from "@/lib/store";
 import { createServerClient } from "@/lib/supabase";
 
@@ -94,9 +95,14 @@ export async function POST(req: NextRequest) {
     });
 
     // 1. Live clarification checks (point-in-time) — surfaced, never blocking.
-    const issues = recordsWithComments.flatMap((r) =>
-      checkRecord(r).map((i) => ({ ...i, stageId: r.stageId, date: r.occurredOn.start }))
-    );
+    const issues = [
+      ...recordsWithComments.flatMap((r) =>
+        checkRecord(r).map((i) => ({ ...i, stageId: r.stageId, date: r.occurredOn.start }))
+      ),
+      // Cross-stage mass balance (V-014): checked(N+1) must not exceed what
+      // stage N passed forward — Disposafe's data-tampering tripwire.
+      ...massBalanceIssues(recordsWithComments),
+    ];
 
     // Query existing events in the date range of the incoming records to check for conflicts
     const dates = recordsWithComments.map(r => r.occurredOn.start);

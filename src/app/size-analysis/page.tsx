@@ -27,7 +27,8 @@ import {
   resolveScope,
   scopeEvents,
   type Scope,
-  byDefect
+  byDefect,
+  useApplyInvestigationFromUrl,
 } from "@/lib/analytics";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -64,6 +65,10 @@ export default function SizeAnalysisPage() {
   const activeRegistry = registry || EMPTY_REGISTRY;
   const events = contextEvents ? (contextEvents as any[]) : null;
   const [selectedSize, setSelectedSize] = useState("Fr16");
+  // Mid-path: carry size + period from attention rail / deep links.
+  useApplyInvestigationFromUrl({
+    onSize: (size) => setSelectedSize(size),
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);

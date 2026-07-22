@@ -59,7 +59,10 @@ import {
   copqTrend,
   getTargetRejectionRate,
   cumulativeStageTrend,
-  CUM_TOTAL_KEY
+  CUM_TOTAL_KEY,
+  goInvestigation,
+  type InvestigationState,
+  type QualityStatusT,
 } from "@/lib/analytics";
 import { decide } from "@/core/decision/engine";
 import { SEED_DECISION_RULES } from "@/core/decision/seed-rules";
@@ -259,7 +262,13 @@ export default function Dashboard() {
       sizeTrendInsight,
       snapshotScope: scope,
       trendScope,
-      latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
+      latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : "",
+      /** Base investigation scope for mid-path links (period + grain). */
+      investigationBase: {
+        grain: t.grain,
+        from: scope.dateFrom,
+        to: scope.dateTo,
+      } satisfies Pick<InvestigationState, "grain" | "from" | "to">,
     };
   }, [events, scope, t.grain, selectedSize, activeRegistry]);
 
@@ -501,10 +510,10 @@ export default function Dashboard() {
       )}
       {!isLoading && events && events.length === 0 && (
         <div style={{ padding: "72px 32px", textAlign: "center" }}>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 12 }}>
+          <div className="h1" style={{ marginBottom: 12 }}>
             No data yet
           </div>
-          <div style={{ color: "var(--text-2)", fontSize: 14, lineHeight: 1.75, maxWidth: 760, margin: "0 auto 20px" }}>
+          <div className="body" style={{ color: "var(--text-2)", lineHeight: 1.65, maxWidth: 42 * 16, margin: "0 auto 20px" }}>
             Upload your monthly inspection workbooks on <strong>Staging &amp; Review</strong> to populate the dashboard —
             the <strong>Visual</strong> size-wise book, the <strong>Valve Integrity</strong> size-wise book (covers Balloon + Valve),
             and the <strong>Rejection Analysis</strong> book (covers Final inspection). Or key figures in manually via <strong>Data Entry</strong>.
@@ -541,11 +550,6 @@ export default function Dashboard() {
             )
           ) : (
           <>
-          {/* Overview strip: 5 large traffic-light tiles — the fixed investigation
-              order (Rejection Rate → FPY → COPQ → Top Bottleneck → Quality Status).
-              Every value is already computed in `m`; this is reordering/relabeling,
-              not new math. Clicking any of the first 4 opens the 5-part drill-down
-              na          <>
           {/* Section 1: Executive KPIs */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
             <Kpi
@@ -604,9 +608,9 @@ export default function Dashboard() {
             />
             <Kpi
               primary
-              label="COPQ"
+              label="COPQ (₹)"
               value={rupee(m.copq)}
-              sub={stats.copqDiff}
+              sub={stats.copqDiff || "Cost of poor quality"}
               tone={m.copq > 0 ? "bad" : "good"}
               spark={m.copqTrend}
               onClick={() => openModal(
@@ -617,7 +621,43 @@ export default function Dashboard() {
               )}
             />
           </div>
- 
+
+          {/* Quality Status strip — comparison frame (target / watch / prior) + integrity. */}
+          <QualityStatusStrip status={m.status} />
+
+          {/* Production funnel: entry qty → loss at each gate → final good.
+              Gate click = mid-path entry (stage analysis with carried scope). */}
+          {m.stages.length > 0 && (
+            <Card
+              title="Production Funnel"
+              sub={`${num(m.checked)} units entered · First Pass Yield ${pct(m.fpy)} · click a gate to investigate`}
+            >
+              <FunnelStrip
+                stages={m.stages}
+                entryChecked={m.checked}
+                fpy={m.fpy}
+                targetRej={targetRej}
+                onGateClick={(row) => {
+                  // Mid-path entry: Stage Analysis with gate + period carried (EX-1 / F7).
+                  goInvestigation(router.push.bind(router), "/stage-analysis", {
+                    ...m.investigationBase,
+                    stage: row.stageId,
+                    metric: "stage",
+                    label: row.label,
+                  });
+                }}
+              />
+            </Card>
+          )}
+
+          {/* Attention rail: ranked next steps with carried investigation scope. */}
+          <AttentionRail
+            m={m}
+            targetRej={targetRej}
+            base={m.investigationBase}
+            onGo={(path, state) => goInvestigation(router.push.bind(router), path, state)}
+          />
+
           {/* Row 1: Primary Rejection Analytics (3-column layout) */}
           <div style={{ 
             display: "grid", 
@@ -643,7 +683,7 @@ export default function Dashboard() {
                       e.stopPropagation();
                       openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) });
                     }}
-                    style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", textDecoration: "none" }}
+                    style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}
                   >
                     View full trend →
                   </a>
@@ -667,13 +707,16 @@ export default function Dashboard() {
                       const colors = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#EC4899", "#65A30D"];
                       const share = ((s.rejected / (m.rejected || 1)) * 100).toFixed(1);
                       return (
-                        <div key={s.stageId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: colors[idx % colors.length] }} />
-                            {s.label}
+                        <div key={s.stageId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--text-sm)", gap: 8 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 600, color: "var(--text)", minWidth: 0 }}>
+                            <span style={{ width: 7, height: 7, borderRadius: "50%", background: colors[idx % colors.length], flexShrink: 0 }} />
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
                           </span>
-                          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>
-                            {pct(s.rejRate)} <span className="muted" style={{ fontWeight: 500, fontSize: 10.5 }}>({share}%)</span>
+                          <span className="num" style={{ fontWeight: 600, flexShrink: 0 }}>
+                            {pct(s.rejRate)}{" "}
+                            <span className="muted" style={{ fontWeight: 500, fontSize: "var(--text-xs)", fontFamily: "var(--font-sans)" }}>
+                              ({share}%)
+                            </span>
                           </span>
                         </div>
                       );
@@ -686,7 +729,7 @@ export default function Dashboard() {
                     onClick={(e) => {
                       e.stopPropagation();
                     }}
-                    style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", textDecoration: "none" }}
+                    style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}
                   >
                     View stage analysis →
                   </a>
@@ -736,16 +779,16 @@ export default function Dashboard() {
                       return (
                         <div key={d.label} style={{ 
                           display: "grid", 
-                          gridTemplateColumns: "20px minmax(0, 1.3fr) 55px 70px 60px", 
+                          gridTemplateColumns: "22px minmax(0, 1.3fr) 58px 70px 56px", 
                           gap: "var(--space-2)", 
                           alignItems: "center", 
-                          fontSize: 11.5,
-                          padding: "clamp(2px, 0.4vh, 4px) 0",
+                          fontSize: "var(--text-sm)",
+                          padding: "4px 0",
                           borderBottom: i < 4 ? "1px solid var(--border)" : "none"
                         }}>
-                          <span style={{ color: "var(--text-3)", fontWeight: 700 }}>{i + 1}</span>
+                          <span style={{ color: "var(--text-3)", fontWeight: 600 }}>{i + 1}</span>
                           <span style={{ fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.label}>{d.label}</span>
-                          <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{(rejRate * 100).toFixed(1)}%</span>
+                          <span className="num" style={{ textAlign: "right", fontWeight: 600, color: "var(--text)" }}>{(rejRate * 100).toFixed(1)}%</span>
                           <div style={{ display: "flex", alignItems: "center", paddingLeft: 6 }}>
                             <div style={{ width: "100%", height: 5, background: "var(--surface-3)", borderRadius: 3, overflow: "hidden", border: "1px solid var(--border)" }}>
                               <div style={{ width: `${d.pct}%`, height: "100%", background: colors[i % colors.length], borderRadius: 3 }} />
@@ -763,7 +806,7 @@ export default function Dashboard() {
                     onClick={(e) => {
                       e.stopPropagation();
                     }}
-                    style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", textDecoration: "none" }}
+                    style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}
                   >
                     View defect Pareto →
                   </a>
@@ -930,22 +973,24 @@ export default function Dashboard() {
                 {/* Left Side: Diagnostic Summary */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div style={{ 
-                      fontFamily: "var(--font-display)", 
-                      fontSize: 16, 
-                      fontWeight: 800, 
-                      lineHeight: 1.45, 
-                      color: "var(--text)" 
-                    }}>
+                    <div
+                      className="h3"
+                      style={{
+                        fontSize: "var(--text-base)",
+                        fontWeight: 600,
+                        lineHeight: 1.45,
+                        color: "var(--text)",
+                      }}
+                    >
                       {execBrief ? safeBolden(execBrief.headline) : (exec[0] ? safeBolden(exec[0]) : "Diagnostics Brief")}
                     </div>
                     {execBrief ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13, lineHeight: 1.6 }}>
+                      <div className="body" style={{ display: "flex", flexDirection: "column", gap: 8, lineHeight: 1.55 }}>
                         <BriefRow label="COPQ Impact" value={execBrief.impact} />
                         {execBrief.primaryDriver && <BriefRow label="Primary Driver" value={execBrief.primaryDriver} />}
                       </div>
                     ) : (
-                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.75 }}>
+                      <ul className="body" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.65 }}>
                         {exec.slice(1).map((bullet, i) => (
                           <li key={i} style={{ listStyleType: "none", position: "relative", paddingLeft: 4, marginBottom: 8 }}>
                             <span style={{
@@ -985,23 +1030,23 @@ export default function Dashboard() {
                           boxShadow: "0 0 8px var(--critical)",
                           animation: "pulse-ring 1.5s infinite"
                         }} />
-                        <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "var(--font-display)" }}>
+                        <span style={{ fontSize: "var(--text-md)", fontWeight: 600, fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }}>
                           {worstStageByRejs} Bottleneck
                         </span>
                       </div>
-                      <p style={{ fontSize: 12.5, lineHeight: 1.5, margin: 0, color: "var(--text-2)" }}>
-                        Quality deviation is concentrated here at a rejection rate of <strong>{worstStageRow ? pct(worstStageRow.rejRate) : "—"}</strong>.
+                      <p className="small" style={{ margin: 0, color: "var(--text-2)", lineHeight: 1.5 }}>
+                        Quality deviation is concentrated here at a rejection rate of <strong style={{ fontWeight: 600 }}>{worstStageRow ? pct(worstStageRow.rejRate) : "—"}</strong>.
                       </p>
                     </div>
 
                     <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: 20, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)", marginBottom: 4 }}>
+                      <div className="ui-label" style={{ marginBottom: 4 }}>
                         Financial Recovery Potential
                       </div>
-                      <div style={{ fontSize: 24, fontWeight: 800, color: "var(--critical)", fontFamily: "var(--font-mono)", letterSpacing: "-0.02em" }}>
+                      <div className="kpi" style={{ fontSize: "var(--text-2xl)", color: "var(--critical)" }}>
                         {rupee(m.savings)}
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+                      <div className="small" style={{ marginTop: 2 }}>
                         YTD scrap reduction potential.
                       </div>
                     </div>
@@ -1050,12 +1095,12 @@ export default function Dashboard() {
                             </span>
                             <a
                               href="/capa"
-                              style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}
+                              style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}
                             >
                               Create CAPA →
                             </a>
                           </div>
-                          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--text)" }}>{safeBolden(rec.text)}</div>
+                          <div style={{ fontSize: "var(--text-md)", lineHeight: 1.5, color: "var(--text)", fontWeight: 500 }}>{safeBolden(rec.text)}</div>
                           {rec.evidence && (
                             <div className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)", marginTop: 2 }}>{rec.evidence}</div>
                           )}
@@ -1096,10 +1141,210 @@ export default function Dashboard() {
 function BriefRow({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-      <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)", minWidth: 108, flexShrink: 0 }}>
+      <span className="kpi-label" style={{ minWidth: 108, flexShrink: 0 }}>
         {label}
       </span>
-      <span style={{ fontSize: 13, color: "var(--text)" }}>{safeBolden(value)}</span>
+      <span style={{ fontSize: "var(--text-md)", color: "var(--text)", lineHeight: 1.45 }}>{safeBolden(value)}</span>
+    </div>
+  );
+}
+
+type FunnelRow = { stageId: string; label: string; checked: number; rejected: number; rejRate: number; contributionPct: number };
+
+/** The sequential gate chain drawn as a funnel: each gate is a block showing its
+ *  own checked/rejected, a survivor bar proportional to units entering the line,
+ *  and a connector stating what it passed forward. Pure presentation over
+ *  `byStage` rows — no new math, no summing across gates. */
+function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
+  stages: FunnelRow[];
+  entryChecked: number;
+  fpy: number;
+  targetRej: number;
+  onGateClick: (row: FunnelRow) => void;
+}) {
+  const denom = Math.max(entryChecked, 1);
+  const last = stages[stages.length - 1];
+  const finalGood = last ? Math.max(last.checked - last.rejected, 0) : 0;
+  return (
+    <div style={{ display: "flex", alignItems: "stretch", gap: 0, overflowX: "auto", padding: "4px 0" }}>
+      {stages.map((s, i) => {
+        const passed = Math.max(s.checked - s.rejected, 0);
+        const over = s.rejRate > targetRej;
+        return (
+          <div key={s.stageId} style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 150 }}>
+            <button
+              type="button"
+              onClick={() => onGateClick(s)}
+              style={{
+                flex: 1, textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+                border: "1px solid var(--border)", borderRadius: "var(--radius-md)",
+                background: "var(--surface)", padding: "10px 12px",
+                display: "flex", flexDirection: "column", gap: 4,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  letterSpacing: "-0.01em",
+                  color: "var(--text)",
+                  lineHeight: 1.3,
+                }}
+              >
+                {s.label}
+              </span>
+              <span className="num" style={{ fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--text)" }}>
+                {num(s.checked)}{" "}
+                <span style={{ fontSize: "var(--text-xs)", fontWeight: 500, color: "var(--text-3)", fontFamily: "var(--font-sans)" }}>
+                  checked
+                </span>
+              </span>
+              <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: over ? "var(--critical, #b42318)" : "var(--text-2)" }}>
+                −{num(s.rejected)} rejected ({pct(s.rejRate)})
+              </span>
+              {/* survivor bar: this gate's throughput as a share of line entry */}
+              <span style={{ display: "block", height: 5, borderRadius: 3, background: "var(--border)", overflow: "hidden" }}>
+                <span style={{
+                  display: "block", height: "100%", borderRadius: 3,
+                  width: `${Math.min((passed / denom) * 100, 100)}%`,
+                  background: over ? "var(--critical, #b42318)" : "var(--accent)",
+                }} />
+              </span>
+            </button>
+            {i < stages.length - 1 && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 6px", flexShrink: 0 }}>
+                <span style={{ fontSize: 11, color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(passed)} →</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", paddingLeft: 12, flexShrink: 0, borderLeft: "1px dashed var(--border)", marginLeft: 10 }}>
+        <span className="ui-label">Final good</span>
+        <span className="num" style={{ fontSize: "var(--text-xl)", fontWeight: 600, color: "var(--text)" }}>{num(finalGood)}</span>
+        <span className="small" style={{ color: "var(--text-2)" }}>FPY {pct(fpy)}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Ranked next steps with carried investigation scope (period + grain + locus). */
+function AttentionRail({ m, targetRej, base, onGo }: {
+  m: {
+    stages: FunnelRow[];
+    defects: { label: string; rejected: number; pct: number }[];
+    worstSize: { size: string; rejRate: number } | null;
+  };
+  targetRej: number;
+  base: Pick<InvestigationState, "grain" | "from" | "to">;
+  onGo: (path: string, state: InvestigationState) => void;
+}) {
+  const worstStage = [...m.stages].sort((a, b) => b.rejected - a.rejected)[0];
+  const topDefect = m.defects[0];
+  const items: { text: string; path: string; label: string; state: InvestigationState }[] = [];
+  if (worstStage && worstStage.rejected > 0) {
+    items.push({
+      label: "Worst gate",
+      text: `${worstStage.label} holds ${worstStage.contributionPct.toFixed(0)}% of all rejections (${pct(worstStage.rejRate)} rate${worstStage.rejRate > targetRej ? ", over target" : ""}).`,
+      path: "/stage-analysis",
+      state: {
+        ...base,
+        stage: worstStage.stageId,
+        metric: "stage",
+        label: worstStage.label,
+      },
+    });
+  }
+  if (topDefect && topDefect.rejected > 0) {
+    items.push({
+      label: "Top defect",
+      text: `${topDefect.label} accounts for ${topDefect.pct.toFixed(0)}% of rejections (${num(topDefect.rejected)} units).`,
+      path: "/defect-analysis",
+      state: {
+        ...base,
+        metric: "defect",
+        label: topDefect.label,
+      },
+    });
+  }
+  if (m.worstSize && m.worstSize.rejRate > 0) {
+    items.push({
+      label: "Worst size",
+      text: `Size ${m.worstSize.size} rejects at ${pct(m.worstSize.rejRate)} — the highest of any size.`,
+      path: "/size-analysis",
+      state: {
+        ...base,
+        size: m.worstSize.size,
+        metric: "size",
+        label: m.worstSize.size,
+      },
+    });
+  }
+  if (items.length === 0) return null;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, gap: "var(--gap-grid)" }}>
+      {items.map((it) => (
+        <button
+          key={`${it.path}|${it.state.stage ?? ""}|${it.state.size ?? ""}|${it.label}`}
+          type="button"
+          onClick={() => onGo(it.path, it.state)}
+          style={{
+            textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+            border: "1px solid var(--border)", borderRadius: "var(--radius-md)",
+            background: "var(--surface)", padding: "10px 14px",
+            display: "flex", flexDirection: "column", gap: 3,
+          }}
+        >
+          <span className="kpi-label" style={{ color: "var(--accent)", letterSpacing: "0.04em" }}>{it.label}</span>
+          <span style={{ fontSize: "var(--text-base)", color: "var(--text)", lineHeight: 1.5, fontWeight: 500 }}>{it.text}</span>
+          <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-2)" }}>Investigate →</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Status surface: ok / watch / at-risk (integrity detail lives on Data Schema). */
+function QualityStatusStrip({ status }: { status: QualityStatusT }) {
+  const tone =
+    status.state === "blocked" || status.state === "at-risk"
+      ? "var(--status-bad, #c44)"
+      : status.state === "watch"
+        ? "var(--status-warn, #b8860b)"
+        : "var(--status-good, #1a7f4b)";
+  const title =
+    status.state === "blocked"
+      ? "Integrity"
+      : status.state === "at-risk"
+        ? "At risk"
+        : status.state === "watch"
+          ? "Watch"
+          : "Within target";
+  const prior =
+    status.priorRate != null
+      ? `Prior period ${(status.priorRate * 100).toFixed(2)}% · Target ${(status.targetLimit * 100).toFixed(1)}%`
+      : `Target ${(status.targetLimit * 100).toFixed(1)}% · Watch ${(status.watchLimit * 100).toFixed(1)}%`;
+  return (
+    <div
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-md)",
+        background: "var(--surface)",
+        padding: "10px 14px",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "8px 20px",
+        alignItems: "baseline",
+      }}
+    >
+      <span className="kpi-label">Quality status</span>
+      <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: tone }}>{title}</span>
+      <span style={{ fontSize: "var(--text-md)", color: "var(--text-2)", lineHeight: 1.5, flex: "1 1 240px" }}>
+        {status.state === "blocked"
+          ? "Open data-integrity issues — see Data Schema for the full list."
+          : status.reason}
+      </span>
+      <span className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--text-3)" }}>{prior}</span>
     </div>
   );
 }

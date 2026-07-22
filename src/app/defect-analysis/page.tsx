@@ -26,7 +26,8 @@ import {
   periodLabel,
   resolveScope,
   scopeEvents,
-  type Scope
+  type Scope,
+  useApplyInvestigationFromUrl,
 } from "@/lib/analytics";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -58,10 +59,12 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
 
 export default function DefectAnalysisPage() {
   const { t } = useTweaks();
+  useApplyInvestigationFromUrl();
   const { events: contextEvents, isLoading } = useEvents();
   const { registry } = useRegistry();
   const activeRegistry = registry || EMPTY_REGISTRY;
   const events = contextEvents ? (contextEvents as any[]) : null;
+
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
@@ -104,6 +107,7 @@ export default function DefectAnalysisPage() {
     } catch { /* ignore */ }
   }, []);
 
+  // Stage scope comes solely from the topbar View switcher (t.stageView).
   const scope: Scope = useMemo(
     () => resolveScope(events ?? [], t),
     [events, t.grain, t.datePreset, t.dateFrom, t.dateTo, t.stageView],
@@ -139,6 +143,7 @@ export default function DefectAnalysisPage() {
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Analyze defect distribution using Six Sigma Pareto categorization and historical reason codes.
+            Scope a single gate via the View switcher in the top bar.
           </p>
         </div>
 
@@ -168,6 +173,17 @@ export default function DefectAnalysisPage() {
         )}
 
         {m && (() => {
+          const stageSuffix =
+            !t.stageView || t.stageView === "cumulative"
+              ? ""
+              : ` — ${STAGE_LABELS[t.stageView] ?? t.stageView}`;
+          if (m.defects.length === 0) {
+            return (
+              <div style={{ padding: "40px 24px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", color: "var(--text-2)", fontSize: 13 }}>
+                No defect records for {!t.stageView || t.stageView === "cumulative" ? "any gate" : (STAGE_LABELS[t.stageView] ?? t.stageView)} in the selected period — widen the date range or change View in the top bar.
+              </div>
+            );
+          }
           const paretoAnalysis = calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected })));
           const paretoText = paretoAnalysis ? paretoAnalysis.criticalAreaText : "Pareto analysis of defect categories.";
           const chartData = paretoAnalysis || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." };
@@ -188,13 +204,13 @@ export default function DefectAnalysisPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
               {hasLeft && (
-                <Card title={`Defect Pareto (${grainLabel})`} onClick={() => openModal(`Defect Pareto (${grainLabel})`, paretoText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={chartData} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
+                <Card title={`Defect Pareto (${grainLabel})${stageSuffix}`} onClick={() => openModal(`Defect Pareto (${grainLabel})${stageSuffix}`, paretoText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={chartData} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
                   <ParetoChart analysis={chartData} showTable={false} />
                 </Card>
               )}
 
               {hasRight && (
-                <Card title={`Defect Trend (Top 5) (${grainLabel})`} onClick={() => openModal(`Defect Trend (Top 5) (${grainLabel})`, `Historical trends for the top 5 defect categories showing performance changes across periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
+                <Card title={`Defect Trend (Top 5) (${grainLabel})${stageSuffix}`} onClick={() => openModal(`Defect Trend (Top 5) (${grainLabel})${stageSuffix}`, `Historical trends for the top 5 defect categories showing performance changes across periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
                   <MultiLine 
                     data={m.defectTrend.map((d) => ({ period: d.period, label: d.label, perStage: d.perDefect }))} 
                     stages={m.defects.slice(0, 5).map((d) => ({ stageId: d.label, label: d.label }))} 
@@ -204,10 +220,10 @@ export default function DefectAnalysisPage() {
             </div>
             {hasLeft && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: 20, alignItems: "start" }}>
-                <Card title="Defect Share" onClick={() => openModal("Defect Share", "Relative percentage contribution of each defect category to total rejections.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={donutData} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(donutData.reduce((s, d) => s + d.value, 0)) })}>
+                <Card title={`Defect Share${stageSuffix}`} onClick={() => openModal(`Defect Share${stageSuffix}`, "Relative percentage contribution of each defect category to total rejections.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={donutData} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(donutData.reduce((s, d) => s + d.value, 0)) })}>
                   <Donut data={donutData} />
                 </Card>
-                <Card title={`Defect Hotspots (${grainLabel})`} sub="rejected qty by defect × period" onClick={() => openModal(`Defect Hotspots (${grainLabel})`, "Distribution of rejected quantities across defect categories and production periods.", <div style={{ minHeight: 320, display: "flex", flexDirection: "column", justifyContent: "center" }}><Heatmap rows={heatRows} cols={heatCols} matrix={heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
+                <Card title={`Defect Hotspots (${grainLabel})${stageSuffix}`} sub="rejected qty by defect × period" onClick={() => openModal(`Defect Hotspots (${grainLabel})${stageSuffix}`, "Distribution of rejected quantities across defect categories and production periods.", <div style={{ minHeight: 320, display: "flex", flexDirection: "column", justifyContent: "center" }}><Heatmap rows={heatRows} cols={heatCols} matrix={heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} /></div>, { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) })}>
                   <Heatmap rows={heatRows} cols={heatCols} matrix={heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} />
                 </Card>
               </div>

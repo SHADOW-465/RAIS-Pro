@@ -1,38 +1,53 @@
 "use client";
 
+import "./settings.css";
+
+/* Hallmark · macrostructure: Index-First · genre: modern-minimal · tone: utilitarian
+ * theme: project-locked (Geist · burnt orange #C8421C · paper surfaces)
+ * enrichment: none · designed-as-app · redesign of /settings
+ * pre-emit critique: P5 H5 E4 S4 R5 V4
+ */
+
 import { useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
-import { Card } from "@/components/app/widgets";
 import Icon from "@/components/editorial/Icon";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 
+type SectionId = "quality" | "valuation" | "registry" | "custom" | "admin";
+
+const SECTIONS: { id: SectionId; label: string; hint: string }[] = [
+  { id: "quality", label: "Quality thresholds", hint: "Rejection limits & status badges" },
+  { id: "valuation", label: "Financial valuation", hint: "Unit cost & stage weights" },
+  { id: "registry", label: "Defect registry", hint: "Read-only plant catalog" },
+  { id: "custom", label: "Custom codes", hint: "Plant-specific aliases" },
+  { id: "admin", label: "Administrative", hint: "Purge & schema reset" },
+];
+
 export default function SettingsPage() {
   const { refreshEvents } = useEvents();
   const { registry } = useRegistry();
   const activeRegistry = registry || EMPTY_REGISTRY;
+  const [section, setSection] = useState<SectionId>("quality");
   const [targetRej, setTargetRej] = useState("10.00");
   const [watchRej, setWatchRej] = useState("5.00");
   const [unitCost, setUnitCost] = useState("20.00");
   const [stageWeights, setStageWeights] = useState<Record<string, string>>({
-    "visual": "0.60",
+    visual: "0.60",
     "eye-punching": "0.70",
-    "balloon": "0.80",
+    balloon: "0.80",
     "valve-integrity": "0.90",
-    "final": "1.00",
+    final: "1.00",
   });
 
   const [saved, setSaved] = useState(false);
   const [resetSaved, setResetSaved] = useState(false);
 
-  // Administrative Reset States
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearConfirmText, setClearConfirmText] = useState("");
   const [showClearSchemaModal, setShowClearSchemaModal] = useState(false);
   const [clearSchemaConfirmText, setClearSchemaConfirmText] = useState("");
-  const [showHardModal, setShowHardModal] = useState(false);
-  const [hardConfirmText, setHardConfirmText] = useState("");
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [actionStatus, setActionStatus] = useState<string | null>(null);
 
@@ -75,34 +90,14 @@ export default function SettingsPage() {
     }
   };
 
-  const handleHardReset = async () => {
-    if (hardConfirmText !== "RESET") return;
-    setBusyAction("hard");
-    setActionStatus(null);
-    try {
-      const res = await fetch("/api/hard-reset", { method: "POST" });
-      if (!res.ok) throw new Error("Hard reset failed");
-      await refreshEvents();
-      setActionStatus("Application has been hard reset to pristine state.");
-      setShowHardModal(false);
-      setHardConfirmText("");
-      setTimeout(() => {
-        window.location.href = "/staging";
-      }, 1500);
-    } catch (e: any) {
-      setActionStatus("Error: " + (e.message ?? "Hard reset failed"));
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  // Editable custom defect mappings (the base registry is read-only; these are
-  // user additions persisted locally and merged into the displayed registry).
-  interface CustomDefect { code: string; label: string; aliases: string }
+  interface CustomDefect {
+    code: string;
+    label: string;
+    aliases: string;
+  }
   const [customDefects, setCustomDefects] = useState<CustomDefect[]>([]);
   const [draft, setDraft] = useState<CustomDefect>({ code: "", label: "", aliases: "" });
 
-  // Load from localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const tr = localStorage.getItem("rais_settings_target_rejection");
@@ -114,23 +109,34 @@ export default function SettingsPage() {
       try {
         const cd = localStorage.getItem("rais_custom_defects");
         if (cd) setCustomDefects(JSON.parse(cd));
-      } catch { /* ignore malformed */ }
+      } catch {
+        /* ignore malformed */
+      }
 
       const weights: Record<string, string> = {};
       activeRegistry.stages.forEach((s: any) => {
         const stored = localStorage.getItem(`rais_settings_weight_${s.stageId}`);
-        weights[s.stageId] = stored || (s.stageId === "visual" ? "0.60" : s.stageId === "eye-punching" ? "0.70" : s.stageId === "balloon" ? "0.80" : s.stageId === "valve-integrity" ? "0.90" : "1.00");
+        weights[s.stageId] =
+          stored ||
+          (s.stageId === "visual"
+            ? "0.60"
+            : s.stageId === "eye-punching"
+              ? "0.70"
+              : s.stageId === "balloon"
+                ? "0.80"
+                : s.stageId === "valve-integrity"
+                  ? "0.90"
+                  : "1.00");
       });
       setStageWeights(weights);
     }
-    // Re-derive when the catalog arrives (async fetch).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRegistry.stages.length]);
 
   const handleWeightChange = (stageId: string, val: string) => {
-    setStageWeights(prev => ({
+    setStageWeights((prev) => ({
       ...prev,
-      [stageId]: val
+      [stageId]: val,
     }));
   };
 
@@ -168,372 +174,671 @@ export default function SettingsPage() {
     setWatchRej("5.00");
     setUnitCost("20.00");
     setStageWeights({
-      "visual": "0.60",
+      visual: "0.60",
       "eye-punching": "0.70",
-      "balloon": "0.80",
+      balloon: "0.80",
       "valve-integrity": "0.90",
-      "final": "1.00",
+      final: "1.00",
     });
     setResetSaved(true);
     setTimeout(() => setResetSaved(false), 1500);
   };
 
+  const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
+  const stageCount = activeRegistry.stages?.length ?? 0;
+  const defectCount = activeRegistry.defects?.length ?? 0;
+
   return (
     <AppShell active="settings">
-      <div style={{ width: "100%", paddingBottom: 48 }}>
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 800, margin: "0 0 4px", color: "var(--text)" }}>
-            System Settings
-          </h1>
-          <p className="muted" style={{ fontSize: 14, margin: 0 }}>
-            Configure default plant targets, financial cost structures, quality status limits, and inspect active registries.
-          </p>
-        </div>
+      <div className="settings-page">
+        {/* Masthead — compact index header, not a marketing hero */}
+        <header className="settings-mast">
+          <div className="settings-mast-copy">
+            <p className="settings-kicker">Plant configuration</p>
+            <h1 className="settings-title">Settings</h1>
+            <p className="settings-lede">
+              Thresholds, cost weights, defect codes, and administrative reset.
+              Changes apply to dashboard status and COPQ after save.
+            </p>
+          </div>
+          <div className="settings-mast-meta" aria-label="Registry snapshot">
+            <div className="settings-stat">
+              <span className="settings-stat-val">{stageCount}</span>
+              <span className="settings-stat-lab">Stages</span>
+            </div>
+            <div className="settings-stat-rule" />
+            <div className="settings-stat">
+              <span className="settings-stat-val">{defectCount}</span>
+              <span className="settings-stat-lab">Defect codes</span>
+            </div>
+            <div className="settings-stat-rule" />
+            <div className="settings-stat">
+              <span className="settings-stat-val">{customDefects.length}</span>
+              <span className="settings-stat-lab">Custom</span>
+            </div>
+          </div>
+        </header>
 
         {saved && (
-          <div style={{
-            marginBottom: 20,
-            padding: "12px 18px",
-            background: "var(--positive-weak)",
-            border: "1px solid var(--positive)",
-            borderRadius: "var(--radius-md)",
-            color: "var(--positive)",
-            fontSize: 13,
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            animation: "fade-up 0.2s ease"
-          }}>
-            <Icon name="check" size={16} stroke={2.5} />
-            Settings saved successfully. Dashboard calculations updated.
+          <div className="settings-toast settings-toast--ok" role="status">
+            <Icon name="check" size={15} stroke={2.5} />
+            Saved. Dashboard calculations use the new values.
           </div>
         )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-            {/* Rejection Thresholds */}
-            <Card title="Quality Thresholds" sub="Configures warnings and status badges">
-              <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 8 }}>
-                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span className="muted" style={{ fontSize: 11.5, fontWeight: 600 }}>Target Rejection Limit (%)</span>
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <input 
-                      type="number" 
-                      value={targetRej} 
-                      onChange={(e) => setTargetRej(e.target.value)} 
-                      style={inpStyle} 
-                      step="0.01" 
-                    />
-                    <span style={suffixStyle}>%</span>
-                  </div>
-                  <span className="muted" style={{ fontSize: 10 }}>Overall shopfloor rejection rates above this trigger an &quot;At Risk&quot; warning.</span>
-                </label>
+        {actionStatus && (
+          <div
+            className={`settings-toast ${actionStatus.startsWith("Error") ? "settings-toast--bad" : "settings-toast--ok"}`}
+            role="status"
+          >
+            {actionStatus}
+          </div>
+        )}
 
-                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span className="muted" style={{ fontSize: 11.5, fontWeight: 600 }}>Watch Warning Limit (%)</span>
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <input 
-                      type="number" 
-                      value={watchRej} 
-                      onChange={(e) => setWatchRej(e.target.value)} 
-                      style={inpStyle} 
-                      step="0.01" 
-                    />
-                    <span style={suffixStyle}>%</span>
-                  </div>
-                  <span className="muted" style={{ fontSize: 10 }}>Overall rates between this and the target trigger a &quot;Watch&quot; status.</span>
-                </label>
-              </div>
-            </Card>
+        {/* Index-first workbench: rail + focused panel */}
+        <div className="settings-workbench">
+          <nav className="settings-rail" aria-label="Settings sections">
+            <ul className="settings-rail-list">
+              {SECTIONS.map((s, i) => {
+                const isActive = section === s.id;
+                const danger = s.id === "admin";
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      className={`settings-rail-item ${isActive ? "is-active" : ""} ${danger ? "is-danger" : ""}`}
+                      onClick={() => setSection(s.id)}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      <span className="settings-rail-idx" aria-hidden>
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span className="settings-rail-text">
+                        <span className="settings-rail-label">{s.label}</span>
+                        <span className="settings-rail-hint">{s.hint}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
 
-            {/* Cost Configurations */}
-            <Card title="Financial Valuation Defaults" sub="Drives COPQ and Savings Opportunity analytics">
-              <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 8 }}>
-                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span className="muted" style={{ fontSize: 11.5, fontWeight: 600 }}>Finished Catheter Valuation (₹)</span>
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <span style={prefixStyle}>₹</span>
-                    <input 
-                      type="number" 
-                      value={unitCost} 
-                      onChange={(e) => setUnitCost(e.target.value)} 
-                      style={{ ...inpStyle, paddingLeft: 28 }} 
-                      step="0.01" 
-                    />
-                    <span style={suffixStyle}>INR</span>
-                  </div>
-                  <span className="muted" style={{ fontSize: 10 }}>Default base value-add per catheter at the Final stage.</span>
-                </label>
+          <section className="settings-panel" aria-labelledby="settings-panel-title">
+            <div className="settings-panel-head">
+              <h2 id="settings-panel-title" className="settings-panel-title">
+                {active.label}
+              </h2>
+              <p className="settings-panel-sub">{active.hint}</p>
+            </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <span className="muted" style={{ fontSize: 11.5, fontWeight: 600, marginBottom: 2 }}>Stage-wise Added Value Cost Weights</span>
-                  {activeRegistry.stages.map((s: any) => (
-                    <div key={s.stageId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
-                      <span className="muted" style={{ fontWeight: 500 }}>{s.label}</span>
-                      <div style={{ position: "relative", display: "flex", alignItems: "center", width: 100 }}>
-                        <input 
-                          type="number" 
-                          value={stageWeights[s.stageId] ?? ""} 
-                          onChange={(e) => handleWeightChange(s.stageId, e.target.value)} 
-                          style={{ ...inpStyle, width: 100, textAlign: "right", paddingRight: 24 }} 
-                          step="0.01" 
-                          min="0" 
-                          max="2" 
-                        />
-                        <span style={{ ...suffixStyle, right: 8 }}>x</span>
-                      </div>
+            <div className="settings-panel-body">
+              {section === "quality" && (
+                <div className="settings-field-grid">
+                  <label className="settings-field">
+                    <span className="settings-field-label">Target rejection limit</span>
+                    <div className="settings-input-wrap">
+                      <input
+                        type="number"
+                        value={targetRej}
+                        onChange={(e) => setTargetRej(e.target.value)}
+                        style={inpStyle}
+                        step="0.01"
+                        className="settings-input"
+                      />
+                      <span className="settings-affix settings-affix--r">%</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </div>
+                    <span className="settings-field-help">
+                      Shopfloor rates above this mark an &quot;At Risk&quot; badge.
+                    </span>
+                  </label>
 
-          {/* Active Registry View */}
-          <Card title="Quality Registry (Read-Only)" sub="Active client definitions for parsing validation">
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div>
-                <span className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: 6 }}>
-                  Defect Class Mapping Registry
-                </span>
-                <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10, textTransform: "uppercase" }}>
-                      <th style={thStyle}>Code</th>
-                      <th style={thStyle}>Official Label</th>
-                      <th style={thStyle}>Observed Aliases</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeRegistry.defects.map((d: any) => (
-                      <tr key={d.defectCode} style={{ borderTop: "1px solid var(--border)" }}>
-                        <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{d.defectCode}</td>
-                        <td style={tdStyle}>{d.label}</td>
-                        <td style={tdStyle}>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                            {d.aliases.map((a: string) => (
-                              <span key={a} style={{ fontSize: 10, background: "var(--surface-3)", padding: "1px 6px", borderRadius: 4, border: "1px solid var(--border)" }}>
-                                {a}
-                              </span>
-                            ))}
+                  <label className="settings-field">
+                    <span className="settings-field-label">Watch warning limit</span>
+                    <div className="settings-input-wrap">
+                      <input
+                        type="number"
+                        value={watchRej}
+                        onChange={(e) => setWatchRej(e.target.value)}
+                        style={inpStyle}
+                        step="0.01"
+                        className="settings-input"
+                      />
+                      <span className="settings-affix settings-affix--r">%</span>
+                    </div>
+                    <span className="settings-field-help">
+                      Rates between watch and target show a &quot;Watch&quot; status.
+                    </span>
+                  </label>
+
+                  <div className="settings-callout">
+                    <span className="settings-callout-lab">Status ladder</span>
+                    <div className="settings-ladder">
+                      <span>
+                        <i className="dot dot--good" /> Good · below watch
+                      </span>
+                      <span>
+                        <i className="dot dot--warn" /> Watch · {watchRej}%–{targetRej}%
+                      </span>
+                      <span>
+                        <i className="dot dot--bad" /> At risk · above {targetRej}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {section === "valuation" && (
+                <div className="settings-field-stack">
+                  <label className="settings-field settings-field--wide">
+                    <span className="settings-field-label">Finished catheter valuation</span>
+                    <div className="settings-input-wrap">
+                      <span className="settings-affix settings-affix--l">₹</span>
+                      <input
+                        type="number"
+                        value={unitCost}
+                        onChange={(e) => setUnitCost(e.target.value)}
+                        style={{ ...inpStyle, paddingLeft: 28 }}
+                        step="0.01"
+                        className="settings-input"
+                      />
+                      <span className="settings-affix settings-affix--r">INR</span>
+                    </div>
+                    <span className="settings-field-help">
+                      Base value-add per unit at Final stage. Drives COPQ and savings.
+                    </span>
+                  </label>
+
+                  <div className="settings-weights">
+                    <div className="settings-weights-head">
+                      <span className="settings-field-label">Stage-wise cost weights</span>
+                      <span className="settings-field-help" style={{ margin: 0 }}>
+                        Multiplier × finished valuation
+                      </span>
+                    </div>
+                    <ul className="settings-weight-list">
+                      {activeRegistry.stages.map((s: any) => (
+                        <li key={s.stageId} className="settings-weight-row">
+                          <span className="settings-weight-name">{s.label}</span>
+                          <span className="settings-weight-id">{s.stageId}</span>
+                          <div className="settings-input-wrap settings-input-wrap--sm">
+                            <input
+                              type="number"
+                              value={stageWeights[s.stageId] ?? ""}
+                              onChange={(e) => handleWeightChange(s.stageId, e.target.value)}
+                              style={{ ...inpStyle, width: "100%", textAlign: "right", paddingRight: 28 }}
+                              step="0.01"
+                              min="0"
+                              max="2"
+                              className="settings-input"
+                            />
+                            <span className="settings-affix settings-affix--r">×</span>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </Card>
-
-          {/* Editable Custom Defect Mappings */}
-          <Card title="Custom Defect Mappings (Editable)" sub="Add plant-specific defect codes & aliases — merged into parsing on save">
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {customDefects.length > 0 && (
-                <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ color: "var(--text-3)", textAlign: "left", fontSize: 10, textTransform: "uppercase" }}>
-                      <th style={thStyle}>Code</th>
-                      <th style={thStyle}>Label</th>
-                      <th style={thStyle}>Aliases</th>
-                      <th style={thStyle}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {customDefects.map((d) => (
-                      <tr key={d.code} style={{ borderTop: "1px solid var(--border)" }}>
-                        <td style={{ ...tdStyle, fontFamily: "var(--font-mono)", fontWeight: 700 }}>{d.code}</td>
-                        <td style={tdStyle}>{d.label}</td>
-                        <td style={tdStyle}>{d.aliases || "—"}</td>
-                        <td style={{ ...tdStyle, textAlign: "right" }}>
-                          <button onClick={() => removeCustomDefect(d.code)} style={{ background: "transparent", border: "none", color: "var(--status-bad)", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>Remove</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 1.4fr auto", gap: 8, alignItems: "end" }}>
-                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span className="muted" style={{ fontSize: 10.5, fontWeight: 600 }}>Code</span>
-                  <input value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} placeholder="e.g. KINK" style={{ ...inpStyle, fontFamily: "var(--font-mono)" }} />
-                </label>
-                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span className="muted" style={{ fontSize: 10.5, fontWeight: 600 }}>Official Label</span>
-                  <input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} placeholder="e.g. Kinked Shaft" style={inpStyle} />
-                </label>
-                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span className="muted" style={{ fontSize: 10.5, fontWeight: 600 }}>Aliases (comma-separated)</span>
-                  <input value={draft.aliases} onChange={(e) => setDraft({ ...draft, aliases: e.target.value })} placeholder="KINK, KNK, BENT" style={inpStyle} />
-                </label>
-                <button onClick={addCustomDefect} disabled={!draft.code.trim() || !draft.label.trim()} style={{ ...btnPrimary, padding: "8px 16px", opacity: !draft.code.trim() || !draft.label.trim() ? 0.5 : 1 }}>
-                  + Add
-                </button>
-              </div>
-              <span className="muted" style={{ fontSize: 10.5 }}>Click <strong>Save Configurations</strong> below to persist. Base registry codes (above) are managed in code and remain read-only.</span>
-            </div>
-          </Card>
-
-          {/* Administrative Actions */}
-          <Card title="Administrative Actions" sub="System resets, ledger purging, and decommissioning operations">
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
-              {actionStatus && (
-                <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: actionStatus.startsWith("Error") ? "color-mix(in srgb, var(--status-bad) 12%, transparent)" : "var(--positive-weak)", color: actionStatus.startsWith("Error") ? "var(--status-bad)" : "var(--positive)", fontSize: 13, fontWeight: 600 }}>
-                  {actionStatus}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               )}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                {/* Clear transaction data */}
-                <div style={{ border: "1.5px solid var(--border)", borderRadius: "var(--radius-md)", padding: 16, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14 }}>
-                  <div>
-                    <h4 style={{ margin: "0 0 6px 0", fontSize: 14, fontWeight: 700 }}>Purge Transactional Logs</h4>
-                    <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-3)", lineHeight: "1.5" }}>
-                      Wipes all production, inspection, rejection records, trend logs, and findings. Registry schema and configurations remain fully intact.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => { setShowClearModal(true); setActionStatus(null); }}
-                    style={{ ...btnGhost, color: "var(--status-bad)", borderColor: "var(--status-bad)", width: "100%", padding: "8px 16px" }}
-                  >
-                    Clear Transaction Data
-                  </button>
-                </div>
 
-                {/* Clear schema registry */}
-                <div style={{ border: "1.5px solid var(--status-bad)", borderRadius: "var(--radius-md)", padding: 16, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14, background: "color-mix(in srgb, var(--status-bad) 4%, transparent)" }}>
-                  <div>
-                    <h4 style={{ margin: "0 0 6px 0", fontSize: 14, fontWeight: 700, color: "var(--status-bad)" }}>Clear Schema Registry</h4>
-                    <p style={{ margin: 0, fontSize: 11.5, color: "var(--text-3)", lineHeight: "1.5" }}>
-                      Removes all custom-defined fields and custom inspection stages. Resets the schema registry back to the default layout. Keeps base configurations.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => { setShowClearSchemaModal(true); setActionStatus(null); }}
-                    style={{ ...btnPrimary, background: "var(--status-bad)", color: "#fff", width: "100%", padding: "8px 16px" }}
-                  >
-                    Clear Schema Registry
-                  </button>
+              {section === "registry" && (
+                <div className="settings-table-wrap">
+                  <p className="settings-field-help" style={{ marginBottom: 12 }}>
+                    Active client definitions used for parsing validation. Managed from verified MOD catalog — not editable here.
+                  </p>
+                  <table className="settings-table">
+                    <thead>
+                      <tr>
+                        <th>Code</th>
+                        <th>Official label</th>
+                        <th>Observed aliases</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeRegistry.defects.map((d: any) => (
+                        <tr key={d.defectCode}>
+                          <td className="settings-mono">{d.defectCode}</td>
+                          <td>{d.label}</td>
+                          <td>
+                            <div className="settings-chips">
+                              {(d.aliases ?? []).map((a: string) => (
+                                <span key={a} className="settings-chip">
+                                  {a}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {activeRegistry.defects.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="settings-empty-cell">
+                            No defect codes in registry. Ingest a master workbook on Staging.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
+              )}
+
+              {section === "custom" && (
+                <div className="settings-field-stack">
+                  <p className="settings-field-help" style={{ marginBottom: 4 }}>
+                    Plant-specific codes and aliases merge into parsing on save. Base registry stays read-only.
+                  </p>
+
+                  {customDefects.length > 0 && (
+                    <table className="settings-table">
+                      <thead>
+                        <tr>
+                          <th>Code</th>
+                          <th>Label</th>
+                          <th>Aliases</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {customDefects.map((d) => (
+                          <tr key={d.code}>
+                            <td className="settings-mono">{d.code}</td>
+                            <td>{d.label}</td>
+                            <td>{d.aliases || "—"}</td>
+                            <td style={{ textAlign: "right" }}>
+                              <button
+                                type="button"
+                                onClick={() => removeCustomDefect(d.code)}
+                                className="settings-link-danger"
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+
+                  <div className="settings-draft-row">
+                    <label className="settings-field">
+                      <span className="settings-field-label">Code</span>
+                      <input
+                        value={draft.code}
+                        onChange={(e) => setDraft({ ...draft, code: e.target.value })}
+                        placeholder="e.g. KINK"
+                        style={{ ...inpStyle, fontFamily: "var(--font-mono)" }}
+                        className="settings-input"
+                      />
+                    </label>
+                    <label className="settings-field">
+                      <span className="settings-field-label">Official label</span>
+                      <input
+                        value={draft.label}
+                        onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+                        placeholder="e.g. Kinked Shaft"
+                        style={inpStyle}
+                        className="settings-input"
+                      />
+                    </label>
+                    <label className="settings-field settings-field--grow">
+                      <span className="settings-field-label">Aliases</span>
+                      <input
+                        value={draft.aliases}
+                        onChange={(e) => setDraft({ ...draft, aliases: e.target.value })}
+                        placeholder="KINK, KNK, BENT"
+                        style={inpStyle}
+                        className="settings-input"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={addCustomDefect}
+                      disabled={!draft.code.trim() || !draft.label.trim()}
+                      className="settings-btn settings-btn--primary settings-btn--add"
+                      style={{
+                        opacity: !draft.code.trim() || !draft.label.trim() ? 0.45 : 1,
+                      }}
+                    >
+                      Add code
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {section === "admin" && (
+                <div className="settings-admin">
+                  <p className="settings-admin-warn">
+                    Destructive operations. Type the confirmation word in the dialog before any purge runs.
+                  </p>
+                  <div className="settings-admin-grid">
+                    <article className="settings-admin-card">
+                      <h3 className="settings-admin-title">Purge transactional logs</h3>
+                      <p className="settings-admin-body">
+                        Deletes production, inspection, rejection records, trends, and findings. Registry schema and
+                        configurations stay intact.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowClearModal(true);
+                          setActionStatus(null);
+                        }}
+                        className="settings-btn settings-btn--outline-danger"
+                      >
+                        Clear transaction data
+                      </button>
+                    </article>
+
+                    <article className="settings-admin-card settings-admin-card--critical">
+                      <h3 className="settings-admin-title settings-admin-title--critical">
+                        Clear schema registry
+                      </h3>
+                      <p className="settings-admin-body">
+                        Removes custom fields and custom inspection stages. Resets schema to default layout. Keeps base
+                        configurations.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowClearSchemaModal(true);
+                          setActionStatus(null);
+                        }}
+                        className="settings-btn settings-btn--danger"
+                      >
+                        Clear schema registry
+                      </button>
+                    </article>
+                  </div>
+                </div>
+              )}
             </div>
-          </Card>
+          </section>
+        </div>
 
-          {/* Bottom Actions */}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, borderTop: "1px solid var(--border)", paddingTop: 20 }}>
-            <button 
-              onClick={handleReset} 
-              style={{
-                ...btnGhost,
-                color: resetSaved ? "var(--status-good)" : "var(--text-2)",
-                borderColor: resetSaved ? "var(--status-good)" : "var(--border)",
-                transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
-              }}
+        {/* Sticky save bar */}
+        <footer className="settings-foot">
+          <p className="settings-foot-note">
+            Local to this browser until saved. Reset restores quality defaults only — not custom codes.
+          </p>
+          <div className="settings-foot-actions">
+            <button
+              type="button"
+              onClick={handleReset}
+              className={`settings-btn settings-btn--ghost ${resetSaved ? "is-success" : ""}`}
             >
-              {resetSaved ? "✓ Values Reset" : "Reset to Defaults"}
+              {resetSaved ? "Values reset" : "Reset defaults"}
             </button>
-            <button 
-              onClick={handleSave} 
-              style={{
-                ...btnPrimary,
-                background: saved ? "var(--status-good)" : "var(--accent)",
-                transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)"
-              }}
+            <button
+              type="button"
+              onClick={handleSave}
+              className={`settings-btn settings-btn--primary ${saved ? "is-success" : ""}`}
             >
-              {saved ? "✓ Configurations Saved" : "Save Configurations"}
+              {saved ? "Saved" : "Save configurations"}
             </button>
           </div>
-        </div>
+        </footer>
       </div>
 
-      {/* Clear transaction confirmation modal */}
       {showClearModal && (
-        <div 
+        <div
           className="modal-backdrop"
-          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(18,16,14,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowClearModal(false); }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "var(--overlay)",
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowClearModal(false);
+          }}
         >
-          <div 
+          <div
             className="modal-panel"
-            style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "500px", display: "flex", flexDirection: "column", color: "var(--ink)" }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clear-tx-title"
+            style={{
+              background: "var(--surface)",
+              border: "1.5px solid var(--border-strong)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-3)",
+              width: "100%",
+              maxWidth: 480,
+              display: "flex",
+              flexDirection: "column",
+              color: "var(--text)",
+            }}
           >
-            <div style={{ padding: "20px 24px", borderBottom: "2px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: 0 }}>Purge Transactions Confirmation</h3>
-              <button onClick={() => setShowClearModal(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--text-2)" }}>&times;</button>
+            <div
+              style={{
+                padding: "18px 22px",
+                borderBottom: "1px solid var(--border)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <h3 id="clear-tx-title" style={{ fontFamily: "var(--font-sans)", fontSize: 16, fontWeight: 700, margin: 0 }}>
+                Purge transactions
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowClearModal(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  fontSize: 22,
+                  cursor: "pointer",
+                  color: "var(--text-2)",
+                  lineHeight: 1,
+                }}
+                aria-label="Close"
+              >
+                ×
+              </button>
             </div>
-            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14 }}>
               <p style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.5, margin: 0 }}>
-                This will delete all quality inspections, defect logs, findings, and events. Your plant configurations and defect codes will be retained.
+                Deletes quality inspections, defect logs, findings, and events. Plant configurations and defect codes
+                are retained.
               </p>
-              <div style={{ background: "color-mix(in srgb, var(--status-warn) 10%, transparent)", border: "1.5px solid var(--status-warn)", borderRadius: "var(--radius-md)", padding: 12, fontSize: 12, color: "var(--text)", fontWeight: 600 }}>
-                ⚠ Warning: This operation is irreversible. All historical charts and trend lines will be cleared.
+              <div
+                style={{
+                  background: "var(--warning-weak)",
+                  border: "1px solid var(--warning)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "10px 12px",
+                  fontSize: 12,
+                  color: "var(--text)",
+                  fontWeight: 600,
+                }}
+              >
+                Irreversible. Historical charts and trend lines will clear.
               </div>
               <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>Type CLEAR to confirm:</span>
-                <input 
-                  type="text" 
-                  value={clearConfirmText} 
-                  onChange={(e) => setClearConfirmText(e.target.value.toUpperCase())} 
-                  placeholder="CLEAR" 
-                  style={{ ...inpStyle, fontFamily: "var(--font-mono)", textAlign: "center", textTransform: "uppercase" }} 
+                <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>
+                  Type CLEAR to confirm
+                </span>
+                <input
+                  type="text"
+                  value={clearConfirmText}
+                  onChange={(e) => setClearConfirmText(e.target.value.toUpperCase())}
+                  placeholder="CLEAR"
+                  style={{
+                    ...inpStyle,
+                    fontFamily: "var(--font-mono)",
+                    textAlign: "center",
+                    textTransform: "uppercase",
+                  }}
                 />
               </label>
             </div>
-            <div style={{ padding: "14px 20px", borderTop: "1.5px solid var(--border)", background: "var(--surface-2)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button onClick={() => setShowClearModal(false)} style={{ ...btnGhost, transition: "all 0.2s ease" }}>Cancel</button>
-              <button 
-                onClick={handleClearTransactions} 
-                disabled={clearConfirmText.trim().toUpperCase() !== "CLEAR" || busyAction === "clear"} 
-                style={{ ...btnPrimary, background: "var(--status-bad)", color: "#fff", opacity: clearConfirmText.trim().toUpperCase() === "CLEAR" ? 1 : 0.5, transition: "all 0.2s ease" }}
+            <div
+              style={{
+                padding: "12px 18px",
+                borderTop: "1px solid var(--border)",
+                background: "var(--surface-2)",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+              }}
+            >
+              <button type="button" onClick={() => setShowClearModal(false)} className="settings-btn settings-btn--ghost">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleClearTransactions}
+                disabled={clearConfirmText.trim().toUpperCase() !== "CLEAR" || busyAction === "clear"}
+                className="settings-btn settings-btn--danger"
+                style={{
+                  opacity: clearConfirmText.trim().toUpperCase() === "CLEAR" ? 1 : 0.45,
+                }}
               >
-                {busyAction === "clear" ? "Clearing..." : "Yes, Purge Data"}
+                {busyAction === "clear" ? "Clearing…" : "Yes, purge data"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Clear schema confirmation modal */}
       {showClearSchemaModal && (
-        <div 
+        <div
           className="modal-backdrop"
-          style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(18,16,14,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowClearSchemaModal(false); }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "var(--overlay)",
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowClearSchemaModal(false);
+          }}
         >
-          <div 
+          <div
             className="modal-panel"
-            style={{ background: "var(--paper)", border: "2px solid var(--ink)", borderRadius: "var(--radius-lg)", boxShadow: "8px 8px 0px var(--ink)", width: "100%", maxWidth: "500px", display: "flex", flexDirection: "column", color: "var(--ink)" }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clear-schema-title"
+            style={{
+              background: "var(--surface)",
+              border: "1.5px solid var(--border-strong)",
+              borderRadius: "var(--radius-lg)",
+              boxShadow: "var(--shadow-3)",
+              width: "100%",
+              maxWidth: 480,
+              display: "flex",
+              flexDirection: "column",
+              color: "var(--text)",
+            }}
           >
-            <div style={{ padding: "20px 24px", borderBottom: "2px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontFamily: "var(--font-display)", fontSize: 18, margin: 0, color: "var(--status-bad)" }}>Clear Schema Registry Confirmation</h3>
-              <button onClick={() => setShowClearSchemaModal(false)} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--text-2)" }}>&times;</button>
+            <div
+              style={{
+                padding: "18px 22px",
+                borderBottom: "1px solid var(--border)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <h3
+                id="clear-schema-title"
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  margin: 0,
+                  color: "var(--status-bad)",
+                }}
+              >
+                Clear schema registry
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowClearSchemaModal(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  fontSize: 22,
+                  cursor: "pointer",
+                  color: "var(--text-2)",
+                  lineHeight: 1,
+                }}
+                aria-label="Close"
+              >
+                ×
+              </button>
             </div>
-            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14 }}>
               <p style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.5, margin: 0 }}>
-                This removes all custom fields and custom inspection stages. Your master schema registry will be reset back to the default configuration.
+                Removes custom fields and custom inspection stages. Master schema returns to default configuration.
               </p>
-              <div style={{ background: "color-mix(in srgb, var(--status-bad) 10%, transparent)", border: "1.5px solid var(--status-bad)", borderRadius: "var(--radius-md)", padding: 12, fontSize: 12, color: "var(--status-bad)", fontWeight: 700 }}>
-                CRITICAL WARNING: This will reset custom fields in all stages. Direct entry tables will reload to base default fields.
+              <div
+                style={{
+                  background: "var(--critical-weak)",
+                  border: "1px solid var(--status-bad)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "10px 12px",
+                  fontSize: 12,
+                  color: "var(--status-bad)",
+                  fontWeight: 700,
+                }}
+              >
+                Critical: custom fields in all stages reset. Direct entry tables reload to base defaults.
               </div>
               <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>Type RESET to confirm:</span>
-                <input 
-                  type="text" 
-                  value={clearSchemaConfirmText} 
-                  onChange={(e) => setClearSchemaConfirmText(e.target.value.toUpperCase())} 
-                  placeholder="RESET" 
-                  style={{ ...inpStyle, fontFamily: "var(--font-mono)", textAlign: "center", textTransform: "uppercase" }} 
+                <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>
+                  Type RESET to confirm
+                </span>
+                <input
+                  type="text"
+                  value={clearSchemaConfirmText}
+                  onChange={(e) => setClearSchemaConfirmText(e.target.value.toUpperCase())}
+                  placeholder="RESET"
+                  style={{
+                    ...inpStyle,
+                    fontFamily: "var(--font-mono)",
+                    textAlign: "center",
+                    textTransform: "uppercase",
+                  }}
                 />
               </label>
             </div>
-            <div style={{ padding: "14px 20px", borderTop: "1.5px solid var(--border)", background: "var(--surface-2)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button onClick={() => setShowClearSchemaModal(false)} style={{ ...btnGhost, transition: "all 0.2s ease" }}>Cancel</button>
-              <button 
-                onClick={handleClearSchema} 
-                disabled={clearSchemaConfirmText.trim().toUpperCase() !== "RESET" || busyAction === "clear-schema"} 
-                style={{ ...btnPrimary, background: "var(--status-bad)", color: "#fff", opacity: clearSchemaConfirmText.trim().toUpperCase() === "RESET" ? 1 : 0.5, transition: "all 0.2s ease" }}
+            <div
+              style={{
+                padding: "12px 18px",
+                borderTop: "1px solid var(--border)",
+                background: "var(--surface-2)",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowClearSchemaModal(false)}
+                className="settings-btn settings-btn--ghost"
               >
-                {busyAction === "clear-schema" ? "Resetting..." : "Yes, Reset Registry"}
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleClearSchema}
+                disabled={clearSchemaConfirmText.trim().toUpperCase() !== "RESET" || busyAction === "clear-schema"}
+                className="settings-btn settings-btn--danger"
+                style={{
+                  opacity: clearSchemaConfirmText.trim().toUpperCase() === "RESET" ? 1 : 0.45,
+                }}
+              >
+                {busyAction === "clear-schema" ? "Resetting…" : "Yes, reset registry"}
               </button>
             </div>
           </div>
@@ -552,47 +857,5 @@ const inpStyle: React.CSSProperties = {
   color: "var(--text)",
   fontSize: "13.5px",
   fontFamily: "var(--font-mono)",
-  outline: "none"
+  outline: "none",
 };
-
-const prefixStyle: React.CSSProperties = {
-  position: "absolute",
-  left: 10,
-  fontSize: "13.5px",
-  color: "var(--text-3)",
-  fontWeight: 600
-};
-
-const suffixStyle: React.CSSProperties = {
-  position: "absolute",
-  right: 12,
-  fontSize: "11px",
-  color: "var(--text-3)",
-  fontWeight: 700
-};
-
-const btnPrimary: React.CSSProperties = {
-  background: "var(--accent)",
-  color: "var(--text-invert)",
-  border: "none",
-  borderRadius: "var(--radius-md)",
-  padding: "10px 24px",
-  fontSize: "13.5px",
-  fontWeight: 700,
-  cursor: "pointer",
-  boxShadow: "var(--shadow-1)"
-};
-
-const btnGhost: React.CSSProperties = {
-  background: "transparent",
-  color: "var(--text-2)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-md)",
-  padding: "10px 24px",
-  fontSize: "13.5px",
-  fontWeight: 600,
-  cursor: "pointer"
-};
-
-const thStyle: React.CSSProperties = { padding: "8px 10px", fontWeight: 600 };
-const tdStyle: React.CSSProperties = { padding: "8px 10px", color: "var(--text-2)" };

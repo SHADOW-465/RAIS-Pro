@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Icon, { type IconName } from "@/components/editorial/Icon";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { useEvents } from "@/components/app/EventsContext";
@@ -18,9 +18,18 @@ import type { DashboardConfig } from "@/types/dashboard";
 import { resolveScope } from "@/lib/analytics/scope";
 import { trustScore as computeTrustScore } from "@/lib/analytics/trust";
 
-export type NavKey =
-  | "dashboard" | "workbooks" | "data-entry" | "staging" | "stage" | "size" | "defect"
-  | "spc" | "process-flow" | "copq" | "reports" | "capa" | "ask" | "audit" | "schema" | "settings" | "clear-data";
+import type { NavKey } from "@/lib/nav-keys";
+export type { NavKey };
+import {
+  PERSONAS,
+  PERSONA_ORDER,
+  DEFAULT_PERSONA,
+  readStoredPersona,
+  writeStoredPersona,
+  personaAllowsNav,
+  type PersonaId,
+} from "@/lib/persona";
+import CommandPalette, { useCommandPaletteHotkey } from "@/components/app/CommandPalette";
 
 interface NavItem {
   key: NavKey;
@@ -112,6 +121,30 @@ export default function AppShell({
   const { t, setTweak } = useTweaks();
   const [mounted, setMounted] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [persona, setPersona] = useState<PersonaId>(DEFAULT_PERSONA);
+  const [showPersonaMenu, setShowPersonaMenu] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useCommandPaletteHotkey(useCallback(() => setPaletteOpen(true), []));
+
+  useEffect(() => {
+    setPersona(readStoredPersona());
+  }, []);
+
+  const setPersonaAndStore = (id: PersonaId) => {
+    setPersona(id);
+    writeStoredPersona(id);
+    setShowPersonaMenu(false);
+  };
+
+  const visibleNavSections = useMemo(() => {
+    return NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: section.items.filter((n) => personaAllowsNav(persona, n.key)),
+    })).filter((section) => section.items.length > 0);
+  }, [persona]);
+
+  const personaDef = PERSONAS[persona];
   const navRef = useRef<HTMLDivElement>(null);
   const lastPos = typeof window !== "undefined" ? (window as any).__last_nav_pos : null;
   const [activeOffsetTop, setActiveOffsetTop] = useState(lastPos ? lastPos.top : -1000);
@@ -702,7 +735,7 @@ export default function AppShell({
             opacity: activeOffsetTop === -1000 ? 0 : 1,
             zIndex: 0
           }} />
-          {NAV_SECTIONS.map((section) => {
+          {visibleNavSections.map((section) => {
             const isCollapsed = !!collapsedSections[section.title];
             return (
               <div key={section.title} style={{ marginBottom: 4 }}>
@@ -883,7 +916,7 @@ export default function AppShell({
         }}>
           {/* Global View Selector */}
           <div className="view-picker-container" style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
-            <span className="muted" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            <span className="ui-label">
               View
             </span>
             <div
@@ -950,7 +983,7 @@ export default function AppShell({
 
           {/* D, W, M, FY Segmented Control */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span className="muted" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            <span className="ui-label">
               Interval
             </span>
             <div style={{ 
@@ -1002,7 +1035,7 @@ export default function AppShell({
 
           {/* Interactive Date Range Selector */}
           <div className="date-picker-container" style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
-            <span className="muted" style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+            <span className="ui-label" style={{ whiteSpace: "nowrap" }}>
               Range
             </span>
             <div 
@@ -1144,34 +1177,38 @@ export default function AppShell({
 
         {/* right profile / actions: styled cleanly in pillbox cards */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Notifications */}
-          <button style={{ 
-            position: "relative",
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            border: "1px solid var(--border-strong)",
-            display: "grid",
-            placeItems: "center",
-            background: "var(--surface)",
-            cursor: "pointer",
-            boxShadow: "var(--shadow-sm)"
-          }}>
-            <Icon name="alert" size={14} />
-            <span style={{
-              position: "absolute",
-              top: -2,
-              right: -2,
-              background: "var(--critical)",
-              color: "#fff",
+          {/* Jump / command palette */}
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            title="Jump (Ctrl+K)"
+            style={{
+              height: 32,
+              borderRadius: "30px",
+              border: "1px solid var(--border-strong)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "0 12px",
+              background: "var(--surface)",
+              cursor: "pointer",
+              boxShadow: "var(--shadow-sm)",
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: "var(--text-2)",
+              fontFamily: "inherit",
+            }}
+          >
+            <Icon name="search" size={13} />
+            Jump
+            <kbd style={{
               fontSize: 9,
-              fontWeight: 800,
-              width: 14,
-              height: 14,
-              borderRadius: "50%",
-              display: "grid",
-              placeItems: "center"
-            }}>4</span>
+              fontFamily: "var(--font-mono)",
+              border: "1px solid var(--border)",
+              borderRadius: 3,
+              padding: "1px 4px",
+              color: "var(--text-3)",
+            }}>⌘K</kbd>
           </button>
 
           {/* Theme Toggle */}
@@ -1192,37 +1229,94 @@ export default function AppShell({
             <Icon name={mounted && isDark ? "sun" : "moon"} size={14} />
           </button>
 
-          {/* User Profile */}
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: 8, 
-            background: "var(--surface)", 
-            border: "1px solid var(--border-strong)", 
-            borderRadius: "30px", 
-            padding: "2px 10px 2px 2px", 
-            boxShadow: "var(--shadow-sm)", 
-            height: 32 
-          }}>
-            <div style={{ 
-              width: 26, 
-              height: 26, 
-              borderRadius: "50%", 
-              background: "var(--surface-3)", 
-              color: "var(--text)", 
-              display: "grid", 
-              placeItems: "center",
-              fontFamily: "var(--font-display)",
-              fontWeight: 700,
-              fontSize: 11,
-              border: "1px solid var(--border-strong)"
-            }}>
-              S
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.1 }}>Swamiji</span>
-              <span className="muted" style={{ fontSize: 9, lineHeight: 1.1 }}>General Manager</span>
-            </div>
+          {/* Persona proxy (interim until real auth) */}
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setShowPersonaMenu((v) => !v)}
+              title="Switch role view (interim proxy)"
+              style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 8, 
+                background: "var(--surface)", 
+                border: "1px solid var(--border-strong)", 
+                borderRadius: "30px", 
+                padding: "2px 10px 2px 2px", 
+                boxShadow: "var(--shadow-sm)", 
+                height: 32,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              <div style={{ 
+                width: 26, 
+                height: 26, 
+                borderRadius: "50%", 
+                background: "var(--surface-3)", 
+                color: "var(--text)", 
+                display: "grid", 
+                placeItems: "center",
+                fontFamily: "var(--font-display)",
+                fontWeight: 700,
+                fontSize: 11,
+                border: "1px solid var(--border-strong)"
+              }}>
+                {personaDef.initial}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.1 }}>{personaDef.label}</span>
+                <span className="muted" style={{ fontSize: 9, lineHeight: 1.1 }}>{personaDef.title}</span>
+              </div>
+            </button>
+            {showPersonaMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  right: 0,
+                  marginTop: 6,
+                  background: "var(--surface)",
+                  border: "1px solid var(--border-strong)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "var(--shadow-lg)",
+                  padding: 6,
+                  zIndex: 220,
+                  width: 220,
+                }}
+              >
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)", padding: "4px 8px 6px" }}>
+                  Role view (proxy)
+                </div>
+                {PERSONA_ORDER.map((id) => {
+                  const p = PERSONAS[id];
+                  const on = id === persona;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setPersonaAndStore(id)}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        border: "none",
+                        borderRadius: "var(--radius-sm)",
+                        padding: "8px 10px",
+                        cursor: "pointer",
+                        background: on ? "var(--accent-weak)" : "transparent",
+                        fontFamily: "inherit",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1,
+                      }}
+                    >
+                      <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{p.label}</span>
+                      <span style={{ fontSize: 11, color: "var(--text-3)" }}>{p.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Export Action: Pillbox Card Button */}
@@ -1265,6 +1359,13 @@ export default function AppShell({
           </button>
         </div>
       </header>
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        events={events}
+        persona={persona}
+      />
 
       {/* Main Content Area */}
       <main style={{ 

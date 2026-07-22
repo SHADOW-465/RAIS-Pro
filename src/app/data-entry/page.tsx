@@ -81,6 +81,10 @@ export default function DataEntryPage() {
       const savedSize = localStorage.getItem("rais_hdr_size");
       const savedBatch = localStorage.getItem("rais_hdr_batch");
       const savedShift = localStorage.getItem("rais_hdr_shift");
+      // Mid-path jump from command palette / integrity focus: ?batch=&date=
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlBatch = urlParams.get("batch");
+      const urlDate = urlParams.get("date");
 
       setHdr((prev) => ({
         shift: savedShift !== null ? savedShift : prev.shift,
@@ -89,8 +93,17 @@ export default function DataEntryPage() {
         machine: savedMachine !== null ? savedMachine : prev.machine,
         product: savedProduct !== null ? savedProduct : prev.product,
         size: savedSize !== null ? savedSize : prev.size,
-        batch: savedBatch !== null ? savedBatch : prev.batch
+        batch: urlBatch?.trim() || (savedBatch !== null ? savedBatch : prev.batch),
       }));
+      if (urlBatch?.trim()) {
+        setLedgerSearch(urlBatch.trim());
+      } else if (urlDate?.trim()) {
+        setLedgerSearch(urlDate.trim());
+      }
+      // Land the entry grid on the issue day when deep-linked from integrity focus
+      if (urlDate?.trim() && /^\d{4}-\d{2}-\d{2}$/.test(urlDate.trim())) {
+        setDate(urlDate.trim());
+      }
     }
   }, []);
 

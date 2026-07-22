@@ -621,7 +621,23 @@ export default function BatchMatrixEntry({
             </div>
           </div>
         </div>
-        <div className="small" style={{ color: "var(--text-2)", fontWeight: 600 }}>{todayLabel}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            type="button"
+            onClick={submitForm}
+            disabled={saving || !!a12}
+            style={{
+              ...btnPrimary,
+              padding: "8px 18px",
+              fontSize: 13.5,
+              fontWeight: 700,
+              boxShadow: "0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent)",
+            }}
+          >
+            {saving ? "Saving…" : "Save Batch Entry"}
+          </button>
+          <div className="small" style={{ color: "var(--text-2)", fontWeight: 600 }}>{todayLabel}</div>
+        </div>
       </div>
 
       {/* Schema source — plant Excel vs built-in defaults */}
@@ -1060,12 +1076,6 @@ export default function BatchMatrixEntry({
         <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, background: "var(--positive-weak)", color: "var(--positive)", fontSize: 13 }}>{msg}</div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", borderBottom: "1px solid var(--border)", paddingBottom: 16, marginBottom: 20 }}>
-        <button type="button" onClick={submitForm} disabled={saving || !!a12} style={btnPrimary}>
-          {saving ? "Saving…" : "Save Batch Entry"}
-        </button>
-      </div>
-
       {/* Shift list */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -1212,8 +1222,8 @@ const sectionLabel: React.CSSProperties = {
 };
 
 const chipOn: React.CSSProperties = {
-  padding: "8px 14px",
-  borderRadius: 8,
+  padding: "8px 16px",
+  borderRadius: 9999,
   border: "none",
   background: "var(--accent)",
   color: "var(--text-invert)",
@@ -1223,8 +1233,8 @@ const chipOn: React.CSSProperties = {
 };
 
 const chipOff: React.CSSProperties = {
-  padding: "8px 14px",
-  borderRadius: 8,
+  padding: "8px 16px",
+  borderRadius: 9999,
   border: "1px solid var(--border-strong)",
   background: "var(--surface-2)",
   color: "var(--text-2)",
@@ -1276,8 +1286,8 @@ const btnPrimary: React.CSSProperties = {
   background: "var(--accent)",
   color: "var(--text-invert)",
   border: "none",
-  borderRadius: 8,
-  padding: "10px 22px",
+  borderRadius: 9999,
+  padding: "10px 24px",
   fontSize: 13,
   fontWeight: 700,
   cursor: "pointer",
@@ -1287,8 +1297,8 @@ const btnGhost: React.CSSProperties = {
   background: "transparent",
   color: "var(--text-2)",
   border: "1px solid var(--border)",
-  borderRadius: 8,
-  padding: "8px 14px",
+  borderRadius: 9999,
+  padding: "8px 16px",
   fontSize: 12,
   fontWeight: 600,
   cursor: "pointer",

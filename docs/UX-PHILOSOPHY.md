@@ -1,184 +1,331 @@
-# RAIS-Pro / MO!D — UX Philosophy
+# RAIS-Pro / MO!D — UX Philosophy (v3)
 
-**Status:** Derived 2026-07-20 from first-principles research across product docs
-(PRODUCT-MAP, GRAIN-CONTRACT-DECISIONS, disposafe-problems, the 2026-07-01 GM
-review audit, SESSION-HANDOFF) and the current codebase (AppShell nav, staging,
-data-entry, analytics pages).
-**Role:** Reusable decision framework for every future screen, module, and
-workflow. Not a redesign spec. Not a component library.
+**Status:** Governing product doctrine · Refined 2026-07-21 after adversarial critique  
+**Supersedes:** v2 essay (investigation-first manifesto). v3 keeps what survived challenge; operationalizes what failed.  
+**Not this document:** Screen layouts, visual redesigns, component libraries.
+
+**Target vs current:** This is **target product law**. Shipped `AppShell` peer Analysis routes and PRODUCT-MAP “KEEP” pages are **as-is debt** until migrated under these laws — not counter-evidence that the laws are wrong.
 
 ---
 
-## 1. What this product actually is
+## 1. Thesis
 
-Not a dashboard. It is an **operational evidence system** for a regulated
-factory (ISO 13485 / CDSCO). The core loop is:
+> **Simple + powerful** means: at every moment the user faces **one job-relevant question** in plant language, with **ledger-backed truth** (or an honest next step), a **ranked path deeper**, and **no requirement to become a BI analyst** — while full analytical power remains reachable without losing context.
+
+Simplicity is not fewer capabilities.  
+Simplicity is **fewer simultaneous questions**, **stable interaction grammar**, and **role-filtered chrome**.
+
+---
+
+## 2. What this product is
+
+An **operational evidence system** for a regulated plant (ISO 13485 / CDSCO):
 
 ```
-capture facts (entry / Excel) → verify & adjudicate → ledger →
-answer operational questions → decide & act → prove it to an auditor
+capture → verify/adjudicate → append-only ledger →
+answer → decide/own → prove
 ```
 
-Everything in the architecture already says this: append-only events,
-provenance on every fact, deterministic math, "model never does maths," View
-Source, audit package export. **The UX philosophy must be the interface
-expression of the same value the architecture encodes: trust.** The GM review
-confirmed it — the client is not asking for more charts; they are asking for
-this system to be *simpler, safer, and more governed*.
+Not a chart catalog. Not an Excel clone. Not “smart” silent reconciliation.
 
-## 2. Who the users are and how they actually work
+UX is the human face of the architecture: **trust under operational pressure**.
 
-| User | Enters with | Cadence | Tolerance for complexity |
+---
+
+## 3. What survived critique (do not reopen lightly)
+
+| Claim | Why it holds |
+|---|---|
+| Users open under **pressure**, not data tourism | Situation awareness (Endsley); shop-floor + audit reality |
+| **Plant language** only (gate, lot, FR, FY Apr–Mar, ₹) | Extraneous load from jargon (Sweller); Grain Contract law |
+| **Capture quality bounds all insight** | Garbage-in / falsification incentive (Disposafe #1) |
+| **Trust is continuous** — provenance, no false success | ALCOA+; one bad number collapses reliance |
+| **Capability ≠ navigation budget** | Hick’s law; enterprise module sprawl (classic SAP failure mode) |
+| **System asks; never assumes** on conflicts (A12/A21) | Automation bias; forensic defensibility |
+| **Same ledger, role-shaped first jobs** | Fiori-style role spaces over one truth |
+
+---
+
+## 4. What v2 got wrong (fixed in v3)
+
+| Failure | Fix |
+|---|---|
+| One **universal** funnel for all roles | **Role × primary path** (shared vocabulary, different order/home) |
+| Integrity only as investigation step 4 | **Integrity gates Capture and qualifies Understand** |
+| Continuity without **work objects** | First-class **Investigation / Finding / Entry session** state |
+| Hide depth with no **discoverability** | Depth hidden by moment/role, never unsearchable to the right role |
+| No expert mid-entry | **Mid-path entry** + search/recents legal |
+| “Okay in 5s” without semantics | **Default comparison frame** required for Status |
+| Three rooms as slogans | Rooms + **objects** + **global scope chrome** + **ritual modes** |
+| Manifesto length | **Ten principles** + short laws; essays cut |
+
+---
+
+## 5. Foundational principles (the operating system)
+
+### F1 — Ledger truth or honest next step
+Nothing presents as success unless **events exist on the ledger** (or a hard error / explicit “not ready” with the exact next action). Recomputed values are labeled. Sheet % is a claim (A11). Demo/fake KPIs banned.
+
+### F2 — Trust chrome is universal; analysis chrome is contextual
+Every quantity can answer “where did you come from?” in **≤ 2 interactions**, via one **identical, boring** provenance pattern. Analytical density (Pareto, SPC, heatmaps) appears only when relevant to the active job and locus — never as equal-weight permanent peers of status.
+
+### F3 — Plant language is the system language
+Labels, filters, empty states, and exports use gates, lots/batches, FR sizes, FY Apr–Mar, dispositions, and ₹. Analytics jargon is forbidden where plant terms exist. Technique names (SPC, Pareto) are allowed **only after locus is known** or for expert re-entry — never as primary IA.
+
+### F4 — Role × primary path (not one funnel for all)
+Shared **question vocabulary**; different **homes and order**.
+
+| Role | Home question | Primary path (ordered) | Usually skips until needed |
 |---|---|---|---|
-| Operator / production engineer | "Log today's batch for my gate" | Daily, minutes | Near zero — busy terminal, no analytics vocabulary |
-| Quality engineer | "Why did Visual spike? Which defect, size, batch?" | On anomaly, weekly | High — wants depth, drilldowns, evidence |
-| QA manager | "Are we audit-ready? What's unresolved?" | Weekly + audit panic | Medium — wants queues, sign-off, exports |
-| GM / plant head | "Is the factory okay? What does it cost me? Who owns the fix?" | Monthly review + exceptions | Low — wants 5 numbers, 3 losses, owners |
-| Factory owner | "Trend, ₹ impact, risk exposure" | Quarterly | Lowest |
+| **Operator** | What do I log now? | Capture → Integrity (inline) → Confirm (ledger) | Cost, full cause, audit pack |
+| **Supervisor** | What’s blocked / needs my call? | Attention queue → Adjudicate → Confirm | Deep correlation |
+| **QE** | What’s abnormal, and why? | Status → Locus → Cause → Integrity (signal) → Cost → Action → Proof | Admin config |
+| **QA Manager** | What’s unresolved / audit-risky? | Queue → Integrity → Action/ownership → Proof pack | Day-to-day entry |
+| **GM** | Are we okay, and what’s the ₹ / who owns it? | Status → Cost → Ownership → Proof pack | Deep cause unless exception |
 
-Two structural facts about their thinking:
+**Shared vocabulary of steps** (reuse names everywhere):  
+`Status · Locus · Cause · Integrity · Cost · Action · Proof · Capture`
 
-1. **They enter with a question, not a chart type.** The natural investigation
-   path is *Overview → what's wrong → why → evidence → action*. Nobody wakes up
-   wanting "Size Analysis"; they want "which size is bleeding money this month
-   and is it the same defect as last month."
-2. **They think in the plant's language**: lots/batches (`25A28`), quality
-   gates (Visual, Balloon, Valve, Final), FR sizes 6–24, FY Apr–Mar, rupees.
-   The Grain Contract froze this. The calendar-first, analytics-vocabulary UI
-   is the residue of the tool's history, not the users' mental model.
+### F5 — Integrity is a gate, not only a chapter
+- **Capture integrity** (A12, mass balance, negatives, conflicts): resolved or explicitly escalated **before** facts are treated as clean ledger truth.  
+- **Signal integrity** during investigation: “can I trust this spike?” remains a step when chasing anomalies.  
+- **Hard law:** Understand must not present a **trustworthy “okay”** verdict for a scope that still has **open integrity conflicts** in that scope. Status may show “blocked / needs adjudication” — never green calm over dirty data.
 
-## 3. Where the current UX breaks (observed, not assumed)
+### F6 — One job in attention; many jobs in the product
+At any moment the UI optimizes for **one primary job question**. Concurrent open work (parked investigations, open findings, draft entries) is allowed as **parked objects**, not as equal competing chrome. Chunk working memory: ≤ ~4 simultaneous high-salience items (Cowan).
 
-- **Overload at capture points.** Staging mixes upload + schema mapping +
-  validation + comments + publish in one screen; data-entry historically mixed
-  operator entry + ledger editing + schema admin. The people with the least
-  complexity tolerance face the most complexity.
-- **Flat navigation as feature inventory.** ~17 sidebar items at one level
-  (Dashboard, Workbooks, Staging, five analysis pages, SPC, COPQ, CAPA, Chat,
-  Audit, Schema…). Navigation communicates the codebase's history, not the
-  user's tasks. Every new era added a page; none retired one.
-- **Context evaporates.** Drilldowns are modals with no URL; an investigation
-  can't be shared, resumed, or cited in a review meeting. Raw-sheet
-  verification lived in sessionStorage. Filters (grain/stage/date) are global
-  chrome, disconnected from "the question I'm chasing."
-- **False success states.** Workbooks page "looks like success" after an Excel
-  upload that produced zero events — the exact trust failure the ledger exists
-  to prevent, reproduced in the UI.
-- **Hierarchy inversion on the dashboard.** Executive summary prose, KPI
-  strip, 8+ chart sections compete equally; "what needs attention today" is
-  derivable but not stated.
-- **Same chrome for every role.** A hard-coded Quality Manager profile serves
-  operator, engineer, and GM the same dense cockpit.
+### F7 — Progressive depth with mid-path entry
+Default depth = answer for the role’s home. Deeper steps are intentional.  
+Experts and rituals may **enter mid-path** (e.g. “Visual · June · size concentration”) without replaying Status theater — provided **scope context is visible** and they can move up/down the path.  
+Linear wizard-only flows are banned for investigation.
 
-## 4. The philosophy
+### F8 — Context is a first-class object
+Period (D/W/M/FY), gate/stage, size, batch, starting metric, plant/line (when multi-site), and claim-vs-recomputed must **survive** navigation, share, interrupt, and handoff.  
+Investigations that matter for review/CAPA are **addressable work objects** (stable identity / URL or equivalent), not modal-only smoke.
 
-**Simplicity is not fewer features. Simplicity is that at every moment, the
-screen contains exactly what the user's current question needs — and a visible,
-trustworthy path to the next question.** Power stays; it moves *behind* the
-question instead of beside it.
+### F9 — Decision support = ranked few + one next step
+State situation → rank ≤ few drivers (worst gate, top defect, worst size, open conflicts) → one role-appropriate next step → evidence one step away.  
+“More charts” is not insight. AI prose **follows** deterministic numbers; never invents KPIs; **degraded mode = numbers-only is a complete product**. Verdict language for “okay/abnormal” uses an explicit **default comparison frame** (prior period and/or client threshold and/or control limits) — never designer taste alone.
 
-Seven principles, each earned from this product specifically:
+### F10 — Growth as depth; destinations need jobs **and** retire rules
+New capability lands as depth, evidence type, or role emphasis **inside an existing job question** by default.  
+New top-level destination requires: (1) a genuinely new **user job**, (2) which role homes there, (3) what existing surface is **retired or demoted**.  
+Complexity budget = concurrent top-level jobs a role sees — not engine count.
 
-### P1 — Trust is the interface, not a feature
-Every number visible anywhere must be able to answer "where did you come from?"
-within two interactions, and must never appear at all if the system can't back
-it (D9: honest empty states; no demo numbers). *Why here:* falsified logs are
-Disposafe's stated problem #1; ALCOA+ is the purchase justification; a single
-unverifiable KPI poisons trust in all of them. View Source is the moat —
-generalize it from a modal feature into a universal affordance.
+---
 
-### P2 — One question per surface
-Every screen, card, and drilldown level answers exactly one operational
-question, named in its title in plant language ("Which gate is losing the most
-this month?"), and offers the *next* question as its exits. Navigation is
-organized by question/task, not by chart type or subsystem. *Why here:*
-users' questions are few and stable (is it okay → what's wrong → why → cost →
-who fixes it → prove it), while analytical capability grows unboundedly. Pinning
-IA to questions is what lets the feature set grow without the surface growing.
+## 6. Information architecture laws
 
-### P3 — Progressive disclosure along the investigation path
-The default depth is the answer; detail is one intentional step down, always in
-the fixed narrative order **what happened → why → cost → evidence → action**.
-The factory overview (A15) answers "okay or not" in five seconds; everything
-else is reached *from* a problem, not from a menu. SPC, COPQ, defect Pareto,
-size heatmaps are steps inside an investigation, not sibling destinations.
-*Why here:* the GM's own review ranked "simpler layout" and dense-UX complaints
-above new capability; the 2026-07-01 investigation-UX plan already proved every
-narrative step exists in computed data — this is ordering, not building.
+### 6.1 Three rooms (jobs), not seventeen modules
 
-### P4 — Role shapes the surface
-An operator terminal (capture + confirm), an engineer workbench (investigate +
-adjudicate), and a management cockpit (status + cost + owners + export) are
-different *surfaces over the same ledger*, not one surface with everything.
-Complexity is hidden by role and authority, not buried in menus — schema
-governance and destructive actions never render for people who shouldn't hold
-them. *Why here:* the users' complexity tolerances differ by an order of
-magnitude, and the client explicitly asked for "authority-wise reserved
-rights"; RBAC is a UX principle before it is a security one.
+| Room | Job | Contains (examples of depth, not peer apps) |
+|---|---|---|
+| **Capture** | Put truth on the ledger | Batch/day entry, validation, A12 dialog, Excel bulk/history (secondary) |
+| **Understand** | Status → investigate | Status surface, locus/cause depth, SPC/COPQ as steps, trends, compare |
+| **Govern** | Own, prove, configure | Findings queue, CAPA, audit pack, authority-bound schema/cost |
 
-### P5 — Capture deserves the best UX in the product
-Data entry is the front door and the daily habit; analytics is the payoff.
-Entry must speak the shop floor's grain (batch-first, per-gate, per-size),
-validate inline against the ledger's rules, and cost minutes, not attention.
-*Why here:* the product contract is now entry-first; every downstream insight
-is bounded by capture quality; the incentive to falsify shrinks when honest
-entry is the easiest path. A tool operators resent produces the dirty data the
-system exists to eliminate.
+Furniture inside rooms can be rich. Rooms stay few.
 
-### P6 — The system asks; it never assumes
-Ambiguity (defect-sum ≠ rejected, dept-vs-dept conflicts, manual-vs-Excel) is
-surfaced as an explicit human decision with both options shown, applied only on
-confirmation, and recorded in provenance (A12 option 3, A21, A9/A19). Warnings
-are a workqueue with ownership and status, not toasts. *Why here:* the client
-literally chose "always ask" over auto-fix; in a regulated plant, a silent
-"smart" correction is indistinguishable from tampering. Adjudication *is* a
-core workflow, so give it first-class workflow UX.
+### 6.2 Global scope chrome (lenses, not destinations)
 
-### P7 — Honest states, always
-Success means events on the ledger; anything less renders as "not done yet,
-here's the next step." Empty states name the exact action and data source that
-would fill them. Processing states show real pipeline phases. Numbers the
-system recomputed (A11: sheet % is a claim) are labeled as recomputed. *Why
-here:* the Workbooks false-success and empty-dashboard-after-upload incidents
-are this product's specific recurring failure mode, and each occurrence burns
-the exact trust the product sells.
+Always in plant language: **period grain · date range · quality gate · (plant/line when needed)**.  
+One truth source: the ledger. Lenses never imply a second truth.
 
-## 5. The growth rule (how it stays simple as it gets powerful)
+### 6.3 Work objects (enterprise object model)
 
-**New capability must land as a deeper answer inside an existing question — a
-new step, dimension, or evidence type in the investigation path — never as a
-new top-level destination by default.** The count of top-level surfaces is the
-complexity budget; spending it requires demonstrating a genuinely new *user
-question* (not a new analysis technique). Correlation engines, VSM/WIP
-diagnostics, multi-plant comparison, CAPA memory — every roadmap item in the
-problem statement maps onto an existing question (why / where / cost / act) and
-should ship as depth, not breadth. This is the single rule that prevents the
-next three eras of the codebase from re-creating today's 17-item sidebar.
+| Object | Why |
+|---|---|
+| **Entry session / draft** | Interrupt-resilient capture on shared terminals |
+| **Finding** | Conflict/validation as owned work, not toast |
+| **Investigation** | Continuable, shareable chase with scope stack |
+| **CAPA / action** | Ownership and due state |
+| **Audit package** | Proof ritual artifact |
 
-## 6. Anti-patterns (banned)
+Fiori/Atlassian-style: users navigate **objects + jobs**, not only abstract “questions.”
 
-- Adding a nav item because a subsystem exists (Workbooks-style "internal organ
-  as a page").
-- Modal-only drilldowns for anything worth sharing in a review meeting —
-  investigations get URLs.
-- Any success indication not backed by ledger events.
-- Auto-resolving data conflicts, however "obvious."
-- Showing operators governance/admin controls, or GMs raw adjudication noise.
-- Analytics vocabulary where plant vocabulary exists (say "gate," "lot,"
-  "FY 25-26," "₹"; not "dimension," "aggregate," "series").
-- A chart that doesn't state which question it answers.
+### 6.4 Exception / attention channel
 
-## 7. How to apply this doc
+Unresolved, unowned, integrity-blocked, and threshold breaches are a **first-class queue**, not buried under equal chart weight. (Siemens-style interrupt channel; QA Manager home.)
 
-Before building or changing a screen, answer in one line each:
-1. Which single question does this surface answer, in plant language? (P2)
-2. Which role is it for, and what must therefore be absent? (P4)
-3. What is the step-down path what→why→cost→evidence→action? (P3)
-4. Can every number on it reach its source in ≤2 interactions? (P1)
-5. What does it show when the honest answer is "nothing yet"? (P7)
-6. Is any ambiguity auto-resolved anywhere on it? (must be no) (P6)
-7. Is this depth inside an existing question, or a new top-level surface —
-   and if the latter, which new user question justifies the budget? (§5)
+### 6.5 Discoverability without module sprawl
 
-If a proposal can't answer these, it isn't ready — regardless of how good it
-looks.
+Depth must remain findable via: attention rail / next-step links, **search & jump** (batch, defect, finding), **recents / pinned investigations**, and optional command palette.  
+Law: *Hidden from the wrong moment; searchable to the right role.*
+
+### 6.6 Ritual modes (standing work without peer apps)
+
+Weekly SPC review, monthly GM pack, audit defense are **ritual modes** over the same rooms/objects — saved scopes and export shapes — not permanent sidebar siblings named after techniques.
+
+### 6.7 Environment classes (device/context)
+
+| Class | Chrome law |
+|---|---|
+| **Operator terminal** | Capture + inline integrity only; no schema, no dense analytics |
+| **QE desk** | Full Understand depth + Govern as needed |
+| **Meeting / projection** | Status + Cost + Ownership; large type; stable shared scope |
+
+Shared-PC reality: identity, draft privacy, and walk-away resume are **UX laws**, not only future RBAC tickets.
+
+### 6.8 Interaction grammar (consistency)
+
+Across rooms, the same verbs mean the same thing: **select → inspect (provenance) → act (confirm) → park/hand off**. Ranking, filtering, and period change behave identically wherever they appear. Question-first IA without shared grammar produces seventeen mini-products.
+
+---
+
+## 7. Cognitive load doctrine
+
+| Load type | How MO!D handles it |
+|---|---|
+| **Intrinsic** (hard plant work) | Structure by path/objects; don’t pretend yield math is “simple” |
+| **Extraneous** (bad design) | Eliminate module inventory, jargon, dual truth sources, false success |
+| **Germane** (learning) | Consistent grammar; empty states teach the **job**, not the architecture |
+
+**Working memory:** ≤4 high-salience items at a decision point.  
+**Interrupt law:** Any workflow longer than one uninterrupted attention span defines **durable draft + one-action resume**.
+
+---
+
+## 8. Multi-role, scale, and decision speed
+
+| Criterion | How philosophy addresses it |
+|---|---|
+| Cognitive load | F3–F6, §7 |
+| Scale to many features | F10, rooms, depth, ritual modes, search |
+| Progressive disclosure | F7, F2 |
+| Context preservation | F8, work objects |
+| Discoverability | §6.5 |
+| Consistency | §6.8, plant language |
+| Multiple roles | F4, environment classes |
+| Navigation | Jobs/rooms/objects — not engines |
+| Faster decisions | F9 + integrity gate + attention queue |
+
+---
+
+## 9. Anti-patterns (banned)
+
+1. Subsystem-as-destination (nav item because a module exists)  
+2. Success without ledger events  
+3. Silent conflict resolution  
+4. Green “okay” over open integrity conflicts in scope  
+5. Same dense chrome for every role/environment  
+6. Modal-**only** investigations for shareable/review work (peek modals OK)  
+7. Equal visual weight for status, eight charts, and admin on first load  
+8. Capture mixed with schema governance for operators  
+9. Fake density (demo KPIs, invented AI numbers)  
+10. Growth that adds destinations without retire/demote  
+11. Requiring users to understand MOD vs events vs staging to finish a daily job  
+12. Linear-only investigation (no mid-path entry, no park/resume)
+
+---
+
+## 10. Build governance checklist
+
+Before shipping or changing a surface:
+
+1. **Job** — Which role’s home or path step is this? (F4)  
+2. **Question** — One plant-language job question in attention? (F6)  
+3. **Truth** — Ledger-backed or honest next step? (F1)  
+4. **Integrity** — Can this show “okay” with open conflicts? (must be no) (F5)  
+5. **Provenance** — Every number ≤2 interactions, same pattern? (F2)  
+6. **Context** — Which object carries period/gate/size/batch across leave/share? (F8)  
+7. **Next** — Ranked next step for this role? (F9)  
+8. **Entry** — Can experts mid-enter without losing scope? (F7)  
+9. **Growth** — Depth or new destination? If new: job + role + retire? (F10)  
+10. **Environment** — What must be absent on operator terminal? (F4, §6.7)
+
+If unanswered, not ready.
+
+---
+
+## 11. Comparison anchors (for future design reviews)
+
+| System | Steal | Don’t steal |
+|---|---|---|
+| **SAP Fiori** | Role spaces, object pages, explicit confirm for critical acts | Portal module catalogs |
+| **Siemens industrial** | Alarm/exception channels, HMI focus under stress | Over-dense SCADA chrome for GM |
+| **Atlassian** | Issue/object as work unit, queue IA | Jira sprawl as feature inventory |
+| **Linear** | Job-first home + command/search expert re-entry | Consumer polish over plant gravity |
+| **Stripe Dashboard** | Explainable money numbers, clear status | Generic SaaS marketing density |
+| **Apple HIG** | Interrupt/resume, clarity of primary action | Consumer metaphors that hide industrial risk |
+| **One UI / Fluent / MD3** | Consistency, density modes, progressive complexity | Material/Fluent visual kits as product identity |
+
+---
+
+## 12. Relationship to other docs
+
+| Doc | Role |
+|---|---|
+| `PRODUCT.md` | Register, users, purpose (Impeccable) |
+| `docs/PRODUCT-MAP.md` | Runtime keep/cut; migrate toward this IA |
+| `docs/GRAIN-CONTRACT-DECISIONS.md` | Frozen plant rules — never contradict |
+| `docs/build-spec/18-correctness-invariants.md` | Numerical truth |
+| `docs/UX-IMPLEMENTATION-PLAN.md` | Near-term builds; must not reintroduce peer-module IA without demotion plan |
+
+---
+
+## 13. Acceptance tests (doctrine → falsifiable)
+
+*Prioritized after critique: both Role × path and Integrity gate as gates; full expert layer; top fixes only (not full nav migration yet).*
+
+### A. Integrity gate (F5) — P0
+
+| ID | Test | Pass |
+|---|---|---|
+| IG-1 | Scope has open A12/conflict findings | Status/home **must not** show trustworthy “okay/green” for that scope; must show blocked/needs adjudication |
+| IG-2 | Operator completes entry with defect sum ≠ rejected | Both options shown; apply only on confirm; choice in provenance |
+| IG-3 | Mass-balance / cross-gate issue in scope | Surfaced as Finding/queue item, not silent accept |
+| IG-4 | After conflicts resolved | “Okay” / normal Status allowed again for that scope |
+
+### B. Role × primary path (F4) — P0
+
+| ID | Test | Pass |
+|---|---|---|
+| RP-1 | Each role has a documented **home question** and ordered path (table in F4) | Spec exists; no role forced through full QE funnel |
+| RP-2 | Operator environment class | Schema, hard-reset, dense multi-chart Analysis **absent** |
+| RP-3 | GM path | Can reach Status → Cost → Ownership → Proof pack without Cause depth |
+| RP-4 | QE path | Can walk Status → … → Proof with context preserved |
+| RP-5 | QA Manager path | Can land on attention/findings queue as home |
+
+*(Until real auth exists: environment class or explicit persona switch is an acceptable interim proxy — not “everyone sees everything.”)*
+
+### C. Investigation object + context (F8) — P1
+
+| ID | Test | Pass |
+|---|---|---|
+| IO-1 | Active investigation carries period + gate + size/batch + starting metric | Survives navigation within Understand |
+| IO-2 | Shareable/resumable identity | URL or equivalent; not modal-only for review-grade chases |
+| IO-3 | Park / resume | User can leave and return without re-setting scope |
+
+### D. Expert layer (F7 + §6.5) — P1, full aggression
+
+| ID | Test | Pass |
+|---|---|---|
+| EX-1 | Mid-path entry | Deep link to locus/cause (e.g. gate + period + size view) without replaying Status |
+| EX-2 | Search / jump | Find batch id, defect, or finding without sidebar archaeology |
+| EX-3 | Recents or pins | Last N investigations or pinned scopes one action away |
+| EX-4 | Optional command palette | Jump by plant-language job or object name (not only module names) |
+
+### E. Decision semantics (F9) — P1
+
+| ID | Test | Pass |
+|---|---|---|
+| DS-1 | “Okay / abnormal” uses documented default comparison frame | Prior period and/or client threshold and/or control limits — written and consistent |
+| DS-2 | AI narrative unavailable | Numbers-only Status remains complete and trustworthy |
+
+### Out of scope for this acceptance slice
+
+Full AppShell three-room migration, demoting all Analysis peers, multi-plant chrome, bilingual IA — track separately; do not block A–E.
+
+---
+
+## 14. Closing
+
+Manufacturing users already know how to chase a bad batch.  
+Software should **respect that expertise**, make honest capture the easy path, rank what matters, and prove every number — without forcing a module map into working memory.
+
+**Build for:**
+
+> *What must I do now? Is it okay? Where? Why? Is it honest? What’s the ₹? Who owns it? Prove it.*
+
+Everything else is depth, search, or noise.
+)

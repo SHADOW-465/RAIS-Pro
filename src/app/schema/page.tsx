@@ -2,12 +2,22 @@
 
 // Data Schema — how the ledger connects: inspection stages + defect catalog from
 // the verified MOD catalog, plus per-file Data Entry schema and column mappings
-// (moved here from Uploaded files).
+// (moved here from Uploaded files). Also surfaces open ledger integrity issues.
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import { Card, Empty } from "@/components/app/widgets";
+import { useEvents } from "@/components/app/EventsContext";
+import { useTweaks } from "@/components/editorial/TweaksContext";
+import {
+  qualityStatus,
+  resolveScope,
+  integrityAuditHref,
+  integrityFixHref,
+  integrityIssueId,
+  type IntegrityIssue,
+} from "@/lib/analytics";
 
 interface Stage { stageId: string; label: string; upstream?: string[]; captures?: string[] }
 interface Defect { defectCode: string; label: string; stages?: string[] }
@@ -44,6 +54,8 @@ interface ModDetail {
 }
 
 export default function SchemaPage() {
+  const { events } = useEvents();
+  const { t } = useTweaks();
   const [reg, setReg] = useState<{ stages: Stage[]; defects: Defect[] }>({ stages: [], defects: [] });
   const [configured, setConfigured] = useState(false);
   const [workbooks, setWorkbooks] = useState<WorkbookRow[]>([]);
@@ -51,6 +63,20 @@ export default function SchemaPage() {
   const [detail, setDetail] = useState<ModDetail | null>(null);
   const [sheetFilter, setSheetFilter] = useState<string | null>(null);
   const [tab, setTab] = useState<"entry" | "mappings">("entry");
+
+  const integrity = useMemo(() => {
+    if (!events || events.length === 0) {
+      return { state: "ok" as const, reason: "", integrityIssues: [] as IntegrityIssue[] };
+    }
+    const scope = resolveScope(events, {
+      grain: t.grain,
+      datePreset: t.datePreset,
+      dateFrom: t.dateFrom,
+      dateTo: t.dateTo,
+      stageView: t.stageView,
+    });
+    return qualityStatus(events, scope);
+  }, [events, t.grain, t.datePreset, t.dateFrom, t.dateTo, t.stageView]);
 
   useEffect(() => {
     fetch("/api/schema")
@@ -123,6 +149,14 @@ export default function SchemaPage() {
             )}
           </p>
         </div>
+
+        {integrity.integrityIssues.length > 0 && (
+          <IntegrityIssuesPanel
+            blocked={integrity.state === "blocked"}
+            reason={integrity.reason}
+            issues={integrity.integrityIssues}
+          />
+        )}
 
         <Card title="Inspection Stages (process flow)">
           {reg.stages.length === 0 ? <Empty label="No stages yet" /> : (
@@ -289,6 +323,225 @@ export default function SchemaPage() {
         </Card>
       </div>
     </AppShell>
+  );
+}
+
+/**
+ * Open integrity issues as jumpable work objects.
+ * Click → Audit trail focused on batch·stage·day. Secondary: Data Entry to fix.
+ */
+function IntegrityIssuesPanel({
+  blocked,
+  reason,
+  issues,
+}: {
+  blocked: boolean;
+  reason: string;
+  issues: IntegrityIssue[];
+}) {
+  const critical = issues.filter((i) => i.severity === "critical").length;
+  const border = blocked ? "var(--critical)" : "var(--warning)";
+  const bg = blocked
+    ? "color-mix(in srgb, var(--critical-weak) 80%, var(--surface))"
+    : "color-mix(in srgb, var(--warning-weak) 80%, var(--surface))";
+  const titleColor = blocked ? "var(--critical)" : "var(--warning)";
+
+  return (
+    <div
+      role="region"
+      aria-label="Open data integrity issues"
+      style={{
+        border: `1px solid color-mix(in srgb, ${border} 40%, var(--border))`,
+        background: bg,
+        borderRadius: 14,
+        padding: "14px 16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        boxShadow: "var(--shadow-1)",
+      }}
+    >
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: titleColor, letterSpacing: "-0.01em" }}>
+          {blocked ? "Data integrity blocked — ledger is not OK" : "Open integrity warnings"}
+        </div>
+        {reason ? (
+          <div style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.5, marginTop: 4 }}>{reason}</div>
+        ) : null}
+        <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 6, lineHeight: 1.45 }}>
+          {issues.length} open issue{issues.length === 1 ? "" : "s"}
+          {critical > 0 ? ` · ${critical} critical` : ""}
+          {" · "}
+          Click an issue to jump to the exact batch and stage in the audit trail.
+        </div>
+      </div>
+
+      <ul
+        style={{
+          margin: 0,
+          padding: 0,
+          listStyle: "none",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        {issues.map((issue) => {
+          const auditHref = integrityAuditHref(issue);
+          const fixHref = integrityFixHref(issue);
+          const locus = [issue.batch, issue.stageId, issue.date, issue.size].filter(Boolean).join(" · ");
+          const sevColor = issue.severity === "critical" ? "var(--critical)" : "var(--warning)";
+          const sevBg = issue.severity === "critical" ? "var(--critical-weak)" : "var(--warning-weak)";
+
+          return (
+            <li key={integrityIssueId(issue)}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  boxShadow: "var(--shadow-1)",
+                }}
+              >
+                <Link
+                  href={auditHref}
+                  style={{
+                    textDecoration: "none",
+                    color: "inherit",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 8px" }}>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                        background: sevBg,
+                        color: sevColor,
+                        border: `1px solid color-mix(in srgb, ${sevColor} 30%, var(--border))`,
+                      }}
+                    >
+                      {issue.code}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        color: sevColor,
+                      }}
+                    >
+                      {issue.severity}
+                    </span>
+                    {locus ? (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "var(--text-3)",
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        {locus}
+                      </span>
+                    ) : null}
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "var(--accent)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Open in audit →
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13.5, color: "var(--text)", lineHeight: 1.45, fontWeight: 500 }}>
+                    {issue.message}
+                  </div>
+                  {(issue.stated != null || issue.computed != null) && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 2 }}>
+                      {issue.stated != null && (
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontFamily: "var(--font-mono)",
+                            fontWeight: 600,
+                            padding: "3px 8px",
+                            borderRadius: 8,
+                            background: "var(--surface-2)",
+                            color: "var(--text-2)",
+                          }}
+                        >
+                          Stated {issue.stated.toLocaleString()}
+                        </span>
+                      )}
+                      {issue.computed != null && (
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontFamily: "var(--font-mono)",
+                            fontWeight: 600,
+                            padding: "3px 8px",
+                            borderRadius: 8,
+                            background: "var(--critical-weak)",
+                            color: "var(--critical)",
+                          }}
+                        >
+                          Computed {issue.computed.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </Link>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 10,
+                    alignItems: "center",
+                    paddingTop: 2,
+                    borderTop: "1px solid var(--border)",
+                  }}
+                >
+                  <Link
+                    href={auditHref}
+                    style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}
+                  >
+                    See evidence in audit trail
+                  </Link>
+                  {fixHref && (
+                    <Link
+                      href={fixHref}
+                      style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", textDecoration: "none" }}
+                    >
+                      Fix in Data Entry
+                    </Link>
+                  )}
+                  <Link
+                    href="/staging"
+                    style={{ fontSize: 12, fontWeight: 500, color: "var(--text-3)", textDecoration: "none" }}
+                  >
+                    Staging
+                  </Link>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 

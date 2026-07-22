@@ -19,6 +19,7 @@
     "@openrouter/ai-sdk-provider": "^2.9.0",
     "@supabase/supabase-js": "^2.101.1",
     "ai": "^6.0.191",
+    "geist": "^1.7.2",
     "html2canvas": "^1.4.1",
     "next": "16.2.2",
     "react": "19.2.4",

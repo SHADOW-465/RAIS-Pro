@@ -228,9 +228,27 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
       }}
     >
       {title && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "var(--space-3)" }}>
-          <span style={{ fontSize: "clamp(11.5px, 0.9vw, 13px)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-3)", fontFamily: "var(--font-sans)" }}>{title}</span>
-          {sub && <span className="muted" style={{ fontSize: "clamp(9.5px, 0.8vw, 11px)", fontFamily: "var(--font-mono)" }}>{sub}</span>}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "var(--space-3)", gap: 12 }}>
+          <span
+            className="h3"
+            style={{
+              fontSize: "var(--text-md)",
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
+              color: "var(--text)",
+              textTransform: "none",
+            }}
+          >
+            {title}
+          </span>
+          {sub && (
+            <span
+              className="mono"
+              style={{ fontSize: "var(--text-xs)", color: "var(--text-3)", fontWeight: 500, flexShrink: 0 }}
+            >
+              {sub}
+            </span>
+          )}
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>{children}</div>
@@ -240,6 +258,12 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
 
 export function Empty({ label }: { label: string }) {
   return <div className="muted" style={{ padding: "28px 8px", fontSize: 12, textAlign: "center" }}>{label}</div>;
+}
+
+/** True when the KPI hero is a name/phrase (e.g. stage, defect) not a pure metric. */
+function isWordKpiValue(value: string): boolean {
+  // Pure metrics: 12.56%, ₹1.2L, 1,234 — treat everything with real words as word KPIs
+  return /[a-zA-Z]{3,}/.test(value);
 }
 
 export function Kpi({ 
@@ -260,6 +284,7 @@ export function Kpi({
   onClick?: () => void;
 }) {
   const color = tone === "bad" ? "var(--critical)" : tone === "warn" ? "var(--warning)" : tone === "good" ? "var(--positive)" : "var(--text)";
+  const wordValue = isWordKpiValue(value);
   
   return (
     <div 
@@ -269,12 +294,13 @@ export function Kpi({
         border: "1.5px solid var(--border)", 
         borderRadius: "var(--radius-lg)", 
         background: primary ? "color-mix(in srgb, var(--accent) 1.5%, var(--surface))" : "var(--surface)", 
-        padding: "clamp(6px, 0.8vh, 10px) clamp(8px, 1vw, 12px)",
+        padding: "12px 14px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         cursor: onClick ? "pointer" : "default",
         minWidth: 0,
+        minHeight: primary ? 108 : undefined,
         boxShadow: primary ? "var(--shadow-2), 0 4px 20px -2px color-mix(in srgb, var(--accent) 8%, transparent)" : "var(--shadow-1)",
         position: "relative",
         transition: "all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)",
@@ -294,33 +320,57 @@ export function Kpi({
         }} />
       )}
       
-      <div>
-        <div className="muted" style={{ fontSize: "clamp(9.5px, 0.8vw, 11px)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, fontFamily: "var(--font-sans)", color: "var(--text-3)" }}>{label}</div>
-        <div style={{
-          fontFamily: /[\d%₹]/.test(value) && !/[a-zA-Z]{5,}/.test(value) ? "var(--font-mono)" : "var(--font-display)",
-          fontSize: primary ? "clamp(19px, 1.4vw, 22px)" : "clamp(15px, 1.1vw, 17px)",
-          fontWeight: 800,
-          color,
-          margin: "clamp(2px, 0.4vh, 4px) 0 clamp(1px, 0.1vh, 2px)",
-          letterSpacing: "-0.015em",
-          lineHeight: 1.15
-        }}>
-          <AnimatedValue value={value} />
+      <div style={{ minWidth: 0 }}>
+        <div className="kpi-label">
+          {label}
+        </div>
+        <div
+          className={wordValue ? undefined : "num"}
+          title={value}
+          style={{
+            fontFamily: wordValue ? "var(--font-display)" : "var(--font-mono)",
+            // Word KPIs (Valve Integrity, defect names) need readable multi-line type;
+            // pure numbers stay large mono for executive scan.
+            fontSize: wordValue
+              ? "var(--text-kpi-word)"
+              : primary
+                ? "var(--text-kpi)"
+                : "var(--text-kpi-sm)",
+            fontWeight: 600,
+            color,
+            margin: "8px 0 4px",
+            letterSpacing: wordValue ? "-0.02em" : "var(--tracking-tight)",
+            lineHeight: wordValue ? 1.25 : "var(--leading-tight)",
+            overflowWrap: "anywhere",
+            wordBreak: wordValue ? "break-word" : "normal",
+            hyphens: wordValue ? "auto" : undefined,
+            maxWidth: "100%",
+          }}
+        >
+          {wordValue ? value : <AnimatedValue value={value} />}
         </div>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "clamp(2px, 0.4vh, 6px)", gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 8, gap: 12 }}>
         {sub && (
-          <div className="muted" style={{ 
-            fontSize: "clamp(10px, 0.8vw, 11.5px)", 
-            fontFamily: "var(--font-sans)", 
-            color: tone === "bad" ? "var(--critical)" : tone === "good" ? "var(--positive)" : "var(--text-3)",
-            fontWeight: 700
-          }}>
+          <div
+            style={{
+              fontSize: "var(--text-sm)",
+              fontFamily: "var(--font-sans)",
+              color:
+                tone === "bad"
+                  ? "var(--critical)"
+                  : tone === "good"
+                    ? "var(--positive)"
+                    : "var(--text-3)",
+              fontWeight: 500,
+              lineHeight: 1.35,
+            }}
+          >
             {sub}
           </div>
         )}
         {spark && spark.length > 1 && (
-          <div style={{ marginLeft: "auto", opacity: 0.85 }}>
+          <div style={{ marginLeft: "auto", opacity: 0.85, flexShrink: 0 }}>
             <Spark points={spark} tone={tone} />
           </div>
         )}

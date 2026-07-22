@@ -421,8 +421,33 @@ export default function MonthlyEntryGrid({
             Loading…
           </span>
         )}
+        <button
+          onClick={saveMonth}
+          disabled={saving || invalidCount > 0 || !!blockedReason}
+          style={{
+            marginLeft: "auto",
+            background: "var(--status-good)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 9999,
+            padding: "8px 20px",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: saving || invalidCount > 0 || blockedReason ? "not-allowed" : "pointer",
+            opacity: saving || invalidCount > 0 || blockedReason ? 0.6 : 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {saving
+            ? "Saving…"
+            : grain === "day"
+              ? "Save Day"
+              : grain === "week"
+                ? "Save Week"
+                : "Save Month"}
+        </button>
         {sourceHint && (
-          <span className="muted" style={{ fontSize: 11, marginLeft: "auto", maxWidth: 280, textAlign: "right" }} title={sourceHint}>
+          <span className="muted" style={{ fontSize: 11, maxWidth: 220, textAlign: "right" }} title={sourceHint}>
             From: {sourceHint}
           </span>
         )}
@@ -670,8 +695,8 @@ const ghost: React.CSSProperties = {
   background: "transparent",
   color: "var(--text-2)",
   border: "1px solid var(--border)",
-  borderRadius: 9,
-  padding: "8px 14px",
+  borderRadius: 9999,
+  padding: "8px 16px",
   fontSize: 13,
   cursor: "pointer",
 };
