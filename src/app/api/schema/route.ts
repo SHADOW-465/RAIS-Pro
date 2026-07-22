@@ -65,10 +65,35 @@ async function loadCatalog(company: string): Promise<CompanyCatalog> {
   const verified = await getModStore().verified(company);
   if (verified.length === 0) return catalog;
 
-  for (const mod of verified) {
-    catalog = await store.mergeFromMod(mod);
+  // Prefer durable write; if company_catalog table is still missing in prod,
+  // merge in-memory from verified MODs so /api/schema never 500s the shell.
+  try {
+    for (const mod of verified) {
+      catalog = await store.mergeFromMod(mod);
+    }
+    return catalog;
+  } catch {
+    const stages = new Map<string, CompanyCatalog["stages"][number]>();
+    const defects = new Map<string, CompanyCatalog["defects"][number]>();
+    const sizes = new Map<string, CompanyCatalog["sizes"][number]>();
+    let fiscal = 4;
+    let last: string | null = null;
+    for (const mod of verified) {
+      for (const s of mod.document.stages ?? []) if (!stages.has(s.stageId)) stages.set(s.stageId, s);
+      for (const d of mod.document.defects ?? []) if (!defects.has(d.defectCode)) defects.set(d.defectCode, d);
+      for (const s of mod.document.sizes ?? []) if (!sizes.has(s.sizeId)) sizes.set(s.sizeId, s);
+      fiscal = mod.document.fiscalYearStartMonth ?? fiscal;
+      last = mod.modId;
+    }
+    return {
+      stages: [...stages.values()],
+      defects: [...defects.values()],
+      sizes: [...sizes.values()],
+      fiscalYearStartMonth: fiscal,
+      updatedAt: new Date().toISOString(),
+      lastMergedFrom: last,
+    };
   }
-  return catalog;
 }
 
 export async function GET() {
@@ -89,10 +114,21 @@ export async function GET() {
       configured: true,
     });
   } catch (err: unknown) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to load catalog" },
-      { status: 500 },
-    );
+    // Last resort: never blank the app shell — return empty registry.
+    console.error("[api/schema] GET failed:", err);
+    return NextResponse.json({
+      registry: EMPTY_REGISTRY,
+      catalog: {
+        stages: [],
+        defects: [],
+        sizes: [],
+        fiscalYearStartMonth: 4,
+        updatedAt: null,
+        lastMergedFrom: null,
+      },
+      configured: false,
+      error: err instanceof Error ? err.message : "Failed to load catalog",
+    });
   }
 }
 

@@ -216,7 +216,20 @@ class SupabaseCatalogStore implements CatalogStore {
       .select("*")
       .eq("company_id", companyId)
       .maybeSingle();
-    if (error) throw error;
+    // Missing table / not-migrated prod → empty catalog (caller backfills from MODs).
+    // Never hard-crash the whole app over schema bootstrap.
+    if (error) {
+      const code = (error as { code?: string }).code;
+      const msg = error.message ?? "";
+      if (
+        code === "42P01" || // undefined_table
+        code === "PGRST205" || // PostgREST schema cache: table not found
+        /company_catalog/i.test(msg) && /does not exist|not find|schema cache/i.test(msg)
+      ) {
+        return { ...EMPTY_CATALOG, stages: [], defects: [], sizes: [] };
+      }
+      throw error;
+    }
     if (!data) return { ...EMPTY_CATALOG, stages: [], defects: [], sizes: [] };
     return fromDb(data as CatalogDbRow);
   }
