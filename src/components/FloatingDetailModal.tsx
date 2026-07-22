@@ -41,13 +41,7 @@ interface FloatingDetailModalProps {
   periodGrain?: SourcePeriodGrain;
 }
 
-interface BeamTree {
-  fromX: number;
-  fromY: number;
-  nodeX: number;
-  nodeY: number;
-  branches: { x2: number; y2: number; key: string }[];
-}
+interface Beam { x1: number; y1: number; x2: number; y2: number; key: string }
 
 const ISO_DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])(?:$|[T ])/;
 
@@ -117,7 +111,7 @@ export default function FloatingDetailModal({
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
   const cellRefs = useRef<Map<string, HTMLTableCellElement>>(new Map());
   const tableScrollRef = useRef<HTMLDivElement>(null);
-  const [beamTree, setBeamTree] = useState<BeamTree | null>(null);
+  const [beams, setBeams] = useState<Beam[]>([]);
 
   const [groupMode, setGroupMode] = useState<SourceGroupMode>(() => defaultGroupMode(metricKind));
   const [filters, setFilters] = useState<SourceTraceFilters>(defaultSourceFilters);
@@ -267,10 +261,12 @@ export default function FloatingDetailModal({
   const excelCount = useMemo(() => normalizedAll.filter((r) => !r.isDirect).length, [normalizedAll]);
   const manualCount = useMemo(() => normalizedAll.filter((r) => r.isDirect).length, [normalizedAll]);
 
-  // Beams only in spreadsheet surface (focused, ≤5 targets)
+  // Bezier beams: one smooth S-curve from the computed-value anchor to each
+  // on-screen source target. Spreadsheet surface points at highlighted Excel
+  // cells; the classified surface points at the open group's detail rows.
   const computeBeams = useCallback(() => {
-    if (!showSource || sourceSurface !== "spreadsheet" || !containerRef.current || !anchorRef.current) {
-      setBeamTree(null);
+    if (!showSource || !containerRef.current || !anchorRef.current) {
+      setBeams([]);
       return;
     }
     const base = containerRef.current.getBoundingClientRect();
@@ -278,37 +274,31 @@ export default function FloatingDetailModal({
     const fromX = a.right - base.left;
     const fromY = a.top + a.height / 2 - base.top;
     const scroll = tableScrollRef.current?.getBoundingClientRect();
-    const targets: { x2: number; y2: number; key: string }[] = [];
+    const next: Beam[] = [];
     const push = (el: Element, key: string) => {
-      if (targets.length >= 5) return;
+      if (next.length >= 15) return; // keep it clean
       const r = el.getBoundingClientRect();
       const midY = r.top + r.height / 2;
+      // Clip beams whose target is scrolled out of the source table viewport.
       if (scroll && (midY < scroll.top || midY > scroll.bottom)) return;
-      targets.push({ key: `b-${key}`, x2: r.left - base.left, y2: midY - base.top });
+      next.push({ key: `b-${key}`, x1: fromX, y1: fromY, x2: r.left - base.left, y2: midY - base.top });
     };
-    if (activeRawSheets.length > 0) {
+    if (sourceSurface === "spreadsheet") {
       cellRefs.current.forEach((el, key) => push(el, key));
     } else {
       rowRefs.current.forEach((el, i) => push(el, String(i)));
     }
-    if (targets.length === 0) {
-      setBeamTree(null);
-      return;
-    }
-    const minX2 = Math.min(...targets.map((t) => t.x2));
-    const nodeX = fromX + (minX2 - fromX) * 0.5;
-    const nodeY = targets.reduce((s, t) => s + t.y2, 0) / targets.length;
-    setBeamTree({ fromX, fromY, nodeX, nodeY, branches: targets });
-  }, [showSource, sourceSurface, activeRawSheets, activeTab]);
+    setBeams(next);
+  }, [showSource, sourceSurface, activeTab]);
 
   useLayoutEffect(() => {
     if (!isOpen) return;
     const id = requestAnimationFrame(computeBeams);
     return () => cancelAnimationFrame(id);
-  }, [isOpen, showSource, computeBeams, activeTab, sourceSurface, detailSlice.length]);
+  }, [isOpen, showSource, computeBeams, activeTab, sourceSurface, detailSlice.length, openGroupKey, detailPage]);
 
   useEffect(() => {
-    if (!showSource || sourceSurface !== "spreadsheet") return;
+    if (!showSource) return;
     let raf = 0;
     const handler = () => {
       cancelAnimationFrame(raf);
@@ -322,7 +312,7 @@ export default function FloatingDetailModal({
       scroller?.removeEventListener("scroll", handler);
       window.removeEventListener("resize", handler);
     };
-  }, [showSource, computeBeams, activeTab, sourceSurface]);
+  }, [showSource, computeBeams, activeTab, sourceSurface, openGroupKey]);
 
   useEffect(() => {
     cellRefs.current.clear();
@@ -1052,8 +1042,8 @@ export default function FloatingDetailModal({
                 )}
               </div>
 
-              {/* Optional beams for spreadsheet surface */}
-              {sourceSurface === "spreadsheet" && (
+              {/* Bezier beams: computed value → on-screen source targets (both surfaces) */}
+              {(
                 <svg
                   style={{
                     position: "absolute",
@@ -1078,42 +1068,26 @@ export default function FloatingDetailModal({
                       <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)" />
                     </marker>
                   </defs>
-                  {beamTree &&
-                    (() => {
-                      const { fromX, fromY, nodeX, nodeY, branches } = beamTree;
-                      const tdx = nodeX - fromX;
-                      const trunk = `M ${fromX} ${fromY} C ${fromX + tdx * 0.5} ${fromY}, ${nodeX - tdx * 0.5} ${nodeY}, ${nodeX} ${nodeY}`;
-                      return (
-                        <>
-                          <path
-                            d={trunk}
-                            fill="none"
-                            stroke="var(--accent)"
-                            strokeWidth="1.6"
-                            opacity="0.55"
-                            className="beam-flow"
-                          />
-                          {branches.map((b) => {
-                            const dx = b.x2 - nodeX;
-                            const d = `M ${nodeX} ${nodeY} C ${nodeX + dx * 0.4} ${nodeY}, ${b.x2 - dx * 0.4} ${b.y2}, ${b.x2 - 3} ${b.y2}`;
-                            return (
-                              <path
-                                key={b.key}
-                                d={d}
-                                fill="none"
-                                stroke="var(--accent)"
-                                strokeWidth="1.3"
-                                opacity="0.45"
-                                markerEnd="url(#modal-beam-arrow)"
-                                className="beam-flow"
-                              />
-                            );
-                          })}
-                          <circle cx={nodeX} cy={nodeY} r="4" fill="var(--accent)" />
-                          <circle cx={fromX} cy={fromY} r="3.5" fill="var(--accent)" />
-                        </>
-                      );
-                    })()}
+                  {beams.map((b) => {
+                    const dx = b.x2 - b.x1;
+                    const c1x = b.x1 + Math.max(40, dx * 0.4);
+                    const c2x = b.x2 - Math.max(40, dx * 0.4);
+                    return (
+                      <path
+                        key={b.key}
+                        d={`M ${b.x1} ${b.y1} C ${c1x} ${b.y1}, ${c2x} ${b.y2}, ${b.x2 - 3} ${b.y2}`}
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeWidth="1.3"
+                        opacity="0.5"
+                        markerEnd="url(#modal-beam-arrow)"
+                        pathLength="1"
+                        className="draw-line"
+                        style={{ animationDuration: "0.6s" }}
+                      />
+                    );
+                  })}
+                  {beams[0] && <circle cx={beams[0].x1} cy={beams[0].y1} r="4" fill="var(--accent)" />}
                 </svg>
               )}
             </div>
@@ -1364,10 +1338,10 @@ function modeChip(active: boolean): React.CSSProperties {
 }
 
 const selectStyle: React.CSSProperties = {
-  padding: "6px 10px",
+  padding: "6px 28px 6px 12px",
   borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--surface-2)",
+  border: "1px solid var(--border-strong)",
+  background: "var(--surface)",
   color: "var(--text)",
   fontSize: 12,
   fontWeight: 600,

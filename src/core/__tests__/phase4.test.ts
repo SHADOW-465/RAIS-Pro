@@ -86,7 +86,7 @@ describe("Phase 4: preset → MOD migration + generated entry + schema shim", ()
     const data = await res.json();
 
     expect(data.configured).toBe(true);
-    expect(data.registry.presetId).toBe("mod-catalog");
+    expect(data.registry.presetId).toBe("master-catalog");
     const visual = data.registry.stages.find((s: any) => s.stageId === "visual");
     expect(visual).toBeTruthy();
     // The exact field shape legacy data-entry consumes.

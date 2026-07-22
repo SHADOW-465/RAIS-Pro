@@ -22,7 +22,9 @@ import {
   trend,
   DERIVED_REGISTRY,
   toSourceRows,
+  qualityStatus,
 } from "@/lib/analytics";
+import QualityStatusStrip from "@/components/app/QualityStatusStrip";
 import type { Event } from "@/lib/store/types";
 
 interface WorkbookRow {
@@ -242,6 +244,7 @@ export default function WorkbooksPage() {
   }, [fileEvents]);
 
   const fileSourceRows = useMemo(() => toSourceRows(fileEvents), [fileEvents]);
+  const fileQualityStatus = useMemo(() => qualityStatus(fileEvents, { grain: "month" }), [fileEvents]);
 
   return (
     <AppShell active="workbooks">
@@ -368,14 +371,96 @@ export default function WorkbooksPage() {
               <Empty label="Select a file with a saved schema to see numbers and Data Entry columns." />
             ) : (
               <>
-                <Card
-                  title={detail.document.workbook.fileName}
-                  sub={`${detail.status} · v${detail.version} · ${detail.document.stages.length} stages · ${detail.document.defects.length} defect codes`}
-                >
-                  <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>
-                    Data Entry schema and column mappings for this file live on{" "}
-                    <Link href="/schema" style={{ color: "var(--accent)", fontWeight: 600 }}>Data Schema</Link>.
-                  </p>
+                <Card>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                        <div
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: "var(--radius-md)",
+                            background: "color-mix(in srgb, var(--accent) 12%, var(--surface))",
+                            border: "1px solid color-mix(in srgb, var(--accent) 25%, var(--border))",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "var(--accent)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Icon name="file" size={18} />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontFamily: "var(--font-display)",
+                              fontSize: 18,
+                              fontWeight: 800,
+                              color: "var(--text)",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {detail.document.workbook.fileName}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                            <span
+                              style={{
+                                fontSize: 10.5,
+                                fontWeight: 800,
+                                fontFamily: "var(--font-mono)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                padding: "2px 8px",
+                                borderRadius: 4,
+                                background: detail.status === "verified" ? "color-mix(in srgb, var(--positive) 14%, transparent)" : "color-mix(in srgb, var(--warning) 14%, transparent)",
+                                color: detail.status === "verified" ? "var(--positive)" : "var(--warning)",
+                                border: `1px solid ${detail.status === "verified" ? "var(--positive)" : "var(--warning)"}`,
+                              }}
+                            >
+                              {detail.status}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 10.5,
+                                fontWeight: 700,
+                                fontFamily: "var(--font-mono)",
+                                color: "var(--text-3)",
+                                background: "var(--surface-2)",
+                                padding: "2px 8px",
+                                borderRadius: 4,
+                                border: "1px solid var(--border)",
+                              }}
+                            >
+                              v{detail.version}
+                            </span>
+                            <span style={{ fontSize: 12, color: "var(--text-2)", fontWeight: 500 }}>
+                              {detail.document.stages.length} stage{detail.document.stages.length !== 1 ? "s" : ""} · {detail.document.defects.length} defect code{detail.document.defects.length !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Link
+                        href="/schema"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "6px 14px",
+                          borderRadius: 9999,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: "var(--accent)",
+                          background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
+                          border: "1px solid color-mix(in srgb, var(--accent) 30%, var(--border))",
+                          textDecoration: "none",
+                        }}
+                      >
+                        Data Schema &amp; Mappings →
+                      </Link>
+                    </div>
+                  </div>
                 </Card>
 
                 {!fileStats ? (
@@ -402,9 +487,9 @@ export default function WorkbooksPage() {
                         )}
                       />
                       <Kpi
-                        label="Checked"
+                        label="Checked Qty"
                         value={fileStats.chk.toLocaleString()}
-                        sub="sum"
+                        sub="total sum"
                         onClick={() => openModal(
                           "Checked — sum",
                           "Total checked quantity summed across this file's events.",
@@ -413,9 +498,9 @@ export default function WorkbooksPage() {
                         )}
                       />
                       <Kpi
-                        label="Rejected"
+                        label="Rejected Qty"
                         value={fileStats.rej.toLocaleString()}
-                        sub="sum"
+                        sub="total sum"
                         tone="bad"
                         onClick={() => openModal(
                           "Rejected — sum",
@@ -425,9 +510,9 @@ export default function WorkbooksPage() {
                         )}
                       />
                       <Kpi
-                        label="Rej. rate"
+                        label="Rejection Rate"
                         value={`${fileStats.rate.toFixed(2)}%`}
-                        sub="from ledger"
+                        sub="from ledger facts"
                         tone={fileStats.rate > 5 ? "bad" : "good"}
                         onClick={() => openModal(
                           "Rejection rate",
@@ -439,8 +524,8 @@ export default function WorkbooksPage() {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                       <Card
-                        title="By stage"
-                        sub="Rejection rate from this file’s events"
+                        title="By Stage Performance"
+                        sub="Rejection rate computed from this file’s events"
                         onClick={() => openModal(
                           "By stage",
                           "Rejection rate per stage, computed from this file's own checked and rejected counts.",
@@ -454,7 +539,7 @@ export default function WorkbooksPage() {
                         )}
                       >
                         {fileStats.stages.length === 0 ? (
-                          <Empty label="No stage breakdown" />
+                          <Empty label="No stage breakdown for this file" />
                         ) : (
                           <BarsH
                             rows={fileStats.stages.map((s) => ({
@@ -467,8 +552,8 @@ export default function WorkbooksPage() {
                         )}
                       </Card>
                       <Card
-                        title="Top defects"
-                        sub="Counts from this file"
+                        title="Top Defect Drivers"
+                        sub="Rejection counts from this file"
                         onClick={() => openModal(
                           "Top defects",
                           "Defect counts from this file's rejection events.",
@@ -482,7 +567,7 @@ export default function WorkbooksPage() {
                         )}
                       >
                         {fileStats.defects.length === 0 ? (
-                          <Empty label="No defect events" />
+                          <Empty label="No defect events for this file" />
                         ) : (
                           <BarsH
                             rows={fileStats.defects.map((d) => ({
@@ -495,8 +580,8 @@ export default function WorkbooksPage() {
                       </Card>
                     </div>
                     <Card
-                      title="Rejection rate trend"
-                      sub="From events attributed to this workbook"
+                      title="Rejection Rate Trend"
+                      sub="Monthly rejection rate trend for this file"
                       onClick={() => openModal(
                         "Rejection rate trend",
                         "Monthly rejection rate trend recomputed from this file's raw counts.",
@@ -516,6 +601,11 @@ export default function WorkbooksPage() {
                         />
                       )}
                     </Card>
+
+                    {/* ─── Data Integrity Banner placed BELOW Per File Interpretation ─── */}
+                    <div style={{ marginTop: 4 }}>
+                      <QualityStatusStrip status={fileQualityStatus} />
+                    </div>
                   </>
                 )}
               </>
