@@ -7,7 +7,7 @@ import AppShell from "@/components/app/AppShell";
 import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import Icon from "@/components/editorial/Icon";
-import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
+import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
   Card, 
@@ -63,40 +63,12 @@ import {
   goInvestigation,
   type InvestigationState,
   type QualityStatusT,
+  toSourceRows,
+  STAGE_LABELS,
 } from "@/lib/analytics";
 import { decide } from "@/core/decision/engine";
 import { SEED_DECISION_RULES } from "@/core/decision/seed-rules";
 import type { RecommendationT } from "@/shared/models/decision";
-
-const STAGE_LABELS: Record<string, string> = {
-  visual: "Visual Inspection", "eye-punching": "Eye Punching", balloon: "Balloon Testing",
-  "valve-integrity": "Valve Integrity", final: "Final Inspection",
-};
-
-/** Map canonical events → provenance rows for the "View Source" verification panel. */
-function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: string; size?: string; types?: string[] } = {}): SourceRow[] {
-  const out: SourceRow[] = [];
-  for (const e of events as any[]) {
-    if (filter.types && !filter.types.includes(e.eventType)) continue;
-    if (filter.stageId && e.stageId !== filter.stageId) continue;
-    if (filter.size && e.size !== filter.size) continue;
-    if (filter.defectCode && e.defectCodeRaw !== filter.defectCode && e.defectCode !== filter.defectCode) continue;
-    const prov = e.provenance ?? {};
-    out.push({
-      date: e.occurredOn?.start ?? "—",
-      stage: STAGE_LABELS[e.stageId] ?? e.stageId ?? "—",
-      size: e.size ?? null,
-      type: e.eventType + (e.disposition ? `·${e.disposition}` : "") + (e.defectCodeRaw ? ` ${e.defectCodeRaw}` : ""),
-      qty: e.quantity ?? e.statedValue ?? "—",
-      file: prov.file ?? "Manual Entry",
-      fileHash: prov.fileHash ?? null,
-      sheet: prov.sheet,
-      cell: prov.cells?.[0] ?? "ENTRY",
-      isDirect: prov.is_direct_entry === true,
-    });
-  }
-  return out.sort((a, b) => b.date.localeCompare(a.date));
-}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -112,6 +84,7 @@ export default function Dashboard() {
   const [modalContent, setModalContent] = useState<React.ReactNode>(null);
   const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
   const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
+  const [modalMetricKind, setModalMetricKind] = useState<SourceMetricKind>("generic");
   const [modalOriginRect, setModalOriginRect] = useState<DOMRect | null>(null);
   const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
   const lastClickRect = useRef<DOMRect | null>(null);
@@ -131,13 +104,14 @@ export default function Dashboard() {
     title: string,
     insight: string | string[],
     content: React.ReactNode,
-    source?: { rows: SourceRow[]; value: string },
+    source?: { rows: SourceRow[]; value: string; metricKind?: SourceMetricKind },
   ) => {
     setModalTitle(title);
     setModalInsight(insight);
     setModalContent(content);
     setModalSourceRows(source?.rows);
     setModalPrimaryValue(source?.value);
+    setModalMetricKind(source?.metricKind ?? "generic");
     setModalOriginRect(lastClickRect.current);
     setModalOpen(true);
   };
@@ -564,7 +538,7 @@ export default function Dashboard() {
                 `${grainLabel} Rejection Rate — Drill-down`,
                 kpiNarrative("rate", `The rejection rate stands at ${pct(m.rate)}, compared to the target of ${pct(targetRej)} (${stats.rateDiff}).`),
                 <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>,
-                { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) },
+                { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) , metricKind: "rejection_rate"},
               )}
             />
             <Kpi
@@ -578,7 +552,7 @@ export default function Dashboard() {
                 `${grainLabel} First Pass Yield — Drill-down`,
                 kpiNarrative("fpy", `First Pass Yield stands at ${pct(m.fpy)} for the latest period (${stats.fpyDiff}).`),
                 <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: 1 - p.value }))} fmt={pct} /></div>,
-                { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.fpy) },
+                { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.fpy) , metricKind: "rejection_rate"},
               )}
             />
             <Kpi
@@ -591,7 +565,7 @@ export default function Dashboard() {
                 `${worstStageByRejs} — Drill-down`,
                 kpiNarrative("bottleneck", `${worstStageByRejs} is the top bottleneck stage, contributing ${num(worstStageRow?.rejected ?? 0)} rejections (${worstStageRow ? pct(worstStageRow.rejRate) : "—"} rejection rate).`),
                 <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>,
-                { rows: srcRows({ stageId: worstStageRow?.stageId, types: ["production", "inspection"] }), value: worstStageRow ? pct(worstStageRow.rejRate) : "—" },
+                { rows: srcRows({ stageId: worstStageRow?.stageId, types: ["production", "inspection"] }), value: worstStageRow ? pct(worstStageRow.rejRate) : "—" , metricKind: "rejection_rate"},
               )}
             />
             <Kpi
@@ -604,7 +578,7 @@ export default function Dashboard() {
                 `Top Defect — ${m.defects[0].label}`,
                 `The top defect category is ${m.defects[0].label}, accounting for ${m.defects[0].rejected.toLocaleString()} rejects (${m.defects[0].pct.toFixed(1)}% of all rejections).`,
                 <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "" }} showTable={true} /></div>,
-                { rows: srcRows({ defectCode: m.defects[0].label, types: ["rejection"] }), value: m.defects[0].rejected.toLocaleString() }
+                { rows: srcRows({ defectCode: m.defects[0].label, types: ["rejection"] }), value: m.defects[0].rejected.toLocaleString() , metricKind: "pareto"}
               )}
             />
             <Kpi
@@ -618,7 +592,7 @@ export default function Dashboard() {
                 `COPQ Trend (${grainLabel})`,
                 kpiNarrative("copq", `Cost of Poor Quality (COPQ) is ${rupee(m.copq)} for the latest period (${stats.copqDiff}).`),
                 <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>,
-                { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) },
+                { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) , metricKind: "copq"},
               )}
             />
           </div>
@@ -636,7 +610,7 @@ export default function Dashboard() {
             <Card 
               title="Rejection Trend" 
               sub={`Target (${(targetRej * 100).toFixed(0)}%) & Mean`} 
-              onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}
+              onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) , metricKind: "rejection_rate" })}
             >
               <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
                 <div style={{ flex: 1, minHeight: 180, display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -648,7 +622,7 @@ export default function Dashboard() {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) });
+                      openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) , metricKind: "rejection_rate"});
                     }}
                     style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}
                   >
@@ -662,7 +636,7 @@ export default function Dashboard() {
             <Card 
               title="Rejection By Stage" 
               sub="YTD Rejection Shares"
-              onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected) })}
+              onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected) , metricKind: "rejected" })}
             >
               <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
@@ -714,7 +688,7 @@ export default function Dashboard() {
                 <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                   <ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "No defect data available for this period." }} showTable={false} />
                 </div>, 
-                { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) }
+                { rows: srcRows({ types: ["rejection"] }), value: num(m.defects.reduce((s, d) => s + d.rejected, 0)) , metricKind: "pareto"}
               )}
             >
               <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
@@ -792,7 +766,7 @@ export default function Dashboard() {
             <Card 
               title={`Stage-wise Rejection Trend (${grainLabel})`} 
               sub="per-stage + Total — hover for values" 
-              onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Each line is a station's rejection rate over its own checked quantity; the Total line is the per-period sum of those stage rates. Recomputed from raw counts.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}
+              onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Each line is a station's rejection rate over its own checked quantity; the Total line is the per-period sum of those stage rates. Recomputed from raw counts.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) , metricKind: "rejection_rate" })}
             >
               <MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} height={180} />
             </Card>
@@ -808,7 +782,7 @@ export default function Dashboard() {
                   "Stage x Size Concentration",
                   "Rejection rate for every stage x size combination present in the selected period — darker/warmer cells indicate where quality problems concentrate.",
                   <div style={{ minHeight: 200 }}><StageSizeHeatmap cells={m.stageSize} /></div>,
-                  { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? `${(Math.max(...m.stageSize.map(c => c.rejRate)) * 100).toFixed(1)}%` : "—" },
+                  { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? `${(Math.max(...m.stageSize.map(c => c.rejRate)) * 100).toFixed(1)}%` : "—" , metricKind: "rejection_rate"},
                 )}
               >
                 <StageSizeHeatmap cells={m.stageSize} />
@@ -832,7 +806,7 @@ export default function Dashboard() {
                 <Card 
                   title="Rejection by Size (YTD)" 
                   sub={m.worstSize ? `Worst: ${m.worstSize.size}` : "YTD"}
-                  onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" })}
+                  onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—", metricKind: "size" })}
                 >
                   <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} />
                 </Card>
@@ -840,7 +814,7 @@ export default function Dashboard() {
                 {hasSizeTrend && (
                   <Card 
                     title={`Size Trend (${selectedSize})`} 
-                    onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" })}
+                    onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" , metricKind: "size" })}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
                       <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Size:</span>
@@ -889,7 +863,7 @@ export default function Dashboard() {
                 {hasCopq && (
                   <Card 
                     title={`COPQ Trend (${grainLabel})`} 
-                    onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) })}
+                    onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) , metricKind: "copq" })}
                   >
                     <LineChart points={m.copqTrend} fmt={rupee} height={180} />
                   </Card>
@@ -1136,6 +1110,8 @@ export default function Dashboard() {
         insight={modalInsight}
         primaryValue={modalPrimaryValue}
         sourceRows={modalSourceRows}
+        metricKind={modalMetricKind}
+        periodGrain={t.grain === "week" ? "week" : t.grain === "day" ? "day" : "month"}
         rawSheets={rawSheets}
         originRect={modalOriginRect}
       >
@@ -1369,7 +1345,7 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
   trendScope: Scope;
   grainLabel: string;
   targetRej: number;
-  openModal: (title: string, insight: string | string[], content: React.ReactNode, source?: { rows: SourceRow[]; value: string }) => void;
+  openModal: (title: string, insight: string | string[], content: React.ReactNode, source?: { rows: SourceRow[]; value: string; metricKind?: SourceMetricKind }) => void;
   srcRows: (filter?: { stageId?: string; defectCode?: string; size?: string; types?: string[] }) => SourceRow[];
   registry: typeof EMPTY_REGISTRY;
 }) {
@@ -1398,20 +1374,20 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-grid)" }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
         <Kpi primary label={`${label} — Rejection Rate`} value={pct(d.rate)} tone={d.rate > targetRej ? "bad" : "good"} spark={d.trend}
-          onClick={() => openModal(`${label} — Rejection Rate`, `${label} rejection rate is ${pct(d.rate)} for the selected range.`, <div style={{ minHeight: 280, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection"] }), value: pct(d.rate) })} />
+          onClick={() => openModal(`${label} — Rejection Rate`, `${label} rejection rate is ${pct(d.rate)} for the selected range.`, <div style={{ minHeight: 280, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection"] }), value: pct(d.rate) , metricKind: "rejection_rate" })} />
         <Kpi label="Quantity Checked" value={num(d.checked)} />
         <Kpi label="Total Rejected" value={num(d.rejected)} tone="bad" />
         <Kpi label="First Pass Yield" value={pct(d.fpy)} tone={d.fpy >= 1 - targetRej ? "good" : "bad"} />
       </div>
 
       <Card title={`${label} — Rejection % Trend (${grainLabel})`} sub="recomputed from raw checked / rejected"
-        onClick={() => openModal(`${label} — Rejection % Trend (${grainLabel})`, `${label} rejection rate per period, from this station's own checked and rejected counts.`, <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection"] }), value: pct(d.rate) })}>
+        onClick={() => openModal(`${label} — Rejection % Trend (${grainLabel})`, `${label} rejection rate per period, from this station's own checked and rejected counts.`, <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection"] }), value: pct(d.rate) , metricKind: "rejection_rate" })}>
         <LineChart points={d.trend} target={targetRej} fmt={pct} mean height={180} />
       </Card>
 
       {d.defects.length > 0 && (
         <Card title={`${label} — Defect Pareto`}
-          onClick={() => openModal(`${label} — Defect Pareto`, `Defect distribution for ${label} over the selected range.`, <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={paretoFor(d.defects)} /></div>, { rows: srcRows({ stageId, types: ["rejection"] }), value: num(d.defects.reduce((s, x) => s + x.rejected, 0)) })}>
+          onClick={() => openModal(`${label} — Defect Pareto`, `Defect distribution for ${label} over the selected range.`, <div style={{ minHeight: 300, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={paretoFor(d.defects)} /></div>, { rows: srcRows({ stageId, types: ["rejection"] }), value: num(d.defects.reduce((s, x) => s + x.rejected, 0)), metricKind: "pareto" })}>
           <ParetoChart analysis={paretoFor(d.defects)} showTable={false} />
         </Card>
       )}

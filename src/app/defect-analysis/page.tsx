@@ -6,7 +6,7 @@ import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
-import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
+import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import {
   Card,
@@ -15,7 +15,6 @@ import {
   Heatmap,
   num
 } from "@/components/app/widgets";
-import type { Event } from "@/lib/store/types";
 import ParetoChart from "@/components/ParetoChart";
 import { calculatePareto } from "@/lib/analytics/pareto";
 import {
@@ -28,35 +27,9 @@ import {
   scopeEvents,
   type Scope,
   useApplyInvestigationFromUrl,
+  toSourceRows,
+  STAGE_LABELS,
 } from "@/lib/analytics";
-
-const STAGE_LABELS: Record<string, string> = {
-  visual: "Visual Inspection", "eye-punching": "Eye Punching", balloon: "Balloon Testing",
-  "valve-integrity": "Valve Integrity", final: "Final Inspection",
-};
-
-function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: string; size?: string; types?: string[] } = {}): SourceRow[] {
-  const out: SourceRow[] = [];
-  for (const e of events as any[]) {
-    if (filter.types && !filter.types.includes(e.eventType)) continue;
-    if (filter.stageId && e.stageId !== filter.stageId) continue;
-    if (filter.size && e.size !== filter.size) continue;
-    if (filter.defectCode && e.defectCodeRaw !== filter.defectCode && e.defectCode !== filter.defectCode) continue;
-    const prov = e.provenance ?? {};
-    out.push({
-      date: e.occurredOn?.start ?? "—",
-      stage: STAGE_LABELS[e.stageId] ?? e.stageId ?? "—",
-      size: e.size ?? null,
-      type: e.eventType + (e.disposition ? `·${e.disposition}` : "") + (e.defectCodeRaw ? ` ${e.defectCodeRaw}` : ""),
-      qty: e.quantity ?? e.statedValue ?? "—",
-      file: prov.file ?? "Manual Entry",
-      sheet: prov.sheet,
-      cell: prov.cells?.[0] ?? "ENTRY",
-      isDirect: prov.is_direct_entry === true,
-    });
-  }
-  return out.sort((a, b) => b.date.localeCompare(a.date));
-}
 
 export default function DefectAnalysisPage() {
   const { t } = useTweaks();
@@ -72,19 +45,21 @@ export default function DefectAnalysisPage() {
   const [modalContent, setModalContent] = useState<React.ReactNode>(null);
   const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
   const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
+  const [modalMetricKind, setModalMetricKind] = useState<SourceMetricKind>("pareto");
   const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
 
   const openModal = (
     title: string,
     insight: string | string[],
     content: React.ReactNode,
-    source?: { rows: SourceRow[]; value: string }
+    source?: { rows: SourceRow[]; value: string; metricKind?: SourceMetricKind }
   ) => {
     setModalTitle(title);
     setModalInsight(insight);
     setModalContent(content);
     setModalSourceRows(source?.rows);
     setModalPrimaryValue(source?.value);
+    setModalMetricKind(source?.metricKind ?? "pareto");
     setModalOpen(true);
   };
 
@@ -240,6 +215,7 @@ export default function DefectAnalysisPage() {
         title={modalTitle}
         insight={modalInsight}
         sourceRows={modalSourceRows}
+        metricKind={modalMetricKind}
         primaryValue={modalPrimaryValue}
         rawSheets={rawSheets}
       >

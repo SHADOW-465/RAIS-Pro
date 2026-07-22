@@ -81,6 +81,10 @@ export default function StagingPage() {
       if (!res.ok) throw new Error(data.error ?? "Workbook processing failed");
       setModUploads(data.mods ?? []);
       setFileName(files.length === 1 ? files[0].name : `${files.length} files`);
+      // Land the operator on Step 2 without hunting past the upload card.
+      requestAnimationFrame(() => {
+        document.getElementById("mapping-verify")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } catch (e: any) {
       console.error("File upload reading error:", e);
       let errMsg = e?.message ?? "Could not read the file.";
@@ -96,6 +100,10 @@ export default function StagingPage() {
       setBusy(false);
     }
   }
+
+  /** 1 = upload, 2 = confirm mappings, 3 = review/publish numbers */
+  const activeStep: 1 | 2 | 3 =
+    records.length > 0 || done ? 3 : modUploads.length > 0 ? 2 : 1;
 
   // After Verify & publish (ontology): extract day-records into the review
   // grid. If the extract is clean (no invalid rows), auto-ingest into the
@@ -261,6 +269,7 @@ export default function StagingPage() {
 
   return (
     <AppShell active="staging" statusCounts={{ anomalies: summary.invalid + summary.corrected }}>
+      {/* Hallmark · Workbench · product register · step-focused import flow */}
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 800, margin: "0 0 2px" }}>Import from Excel</h1>
       <p className="muted" style={{ fontSize: 13, margin: "0 0 12px", maxWidth: 720, lineHeight: 1.55 }}>
         Transition path: load your existing plant workbook once so the app learns <strong>your columns</strong>
@@ -268,24 +277,54 @@ export default function StagingPage() {
         <a href="/data-entry" style={{ color: "var(--accent)", fontWeight: 600 }}>Data Entry</a>.
       </p>
 
-      {/* Operator path — plain language, not MOD jargon */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 18,
-      }}>
-        {[
-          { n: "1", t: "Upload workbook", d: "Drop the Excel you already use (Visual, Valve, Rejection Analysis, …)." },
-          { n: "2", t: "Confirm column meanings", d: "Check each header maps to Checked / Rejected / defect codes. Fix if wrong." },
-          { n: "3", t: "Load numbers", d: "Clean rows go to the ledger automatically. Then open Dashboard or keep entering new days." },
-        ].map((s) => (
-          <div key={s.n} style={{
-            padding: "12px 14px", borderRadius: 10, border: "1px solid var(--border)",
-            background: "var(--surface)",
-          }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.04em", marginBottom: 4 }}>STEP {s.n}</div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>{s.t}</div>
-            <div className="muted" style={{ fontSize: 12, lineHeight: 1.45 }}>{s.d}</div>
-          </div>
-        ))}
+      {/* Operator path — active step highlighted; inactive steps quiet */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+          gap: 10,
+          marginBottom: 18,
+        }}
+      >
+        {(
+          [
+            { n: 1 as const, t: "Upload workbook", d: "Drop the Excel you already use (Visual, Valve, Rejection Analysis, …)." },
+            { n: 2 as const, t: "Confirm column meanings", d: "Check each header maps to Checked / Rejected / defect codes. Fix if wrong." },
+            { n: 3 as const, t: "Load numbers", d: "Clean rows go to the ledger automatically. Then open Dashboard or keep entering new days." },
+          ] as const
+        ).map((s) => {
+          const active = activeStep === s.n;
+          const doneStep = activeStep > s.n;
+          return (
+            <div
+              key={s.n}
+              style={{
+                padding: "12px 14px",
+                borderRadius: 10,
+                border: `1.5px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                background: active
+                  ? "color-mix(in srgb, var(--accent) 7%, var(--surface))"
+                  : "var(--surface)",
+                opacity: doneStep ? 0.72 : 1,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: active || doneStep ? "var(--accent)" : "var(--text-3)",
+                  letterSpacing: "0.04em",
+                  marginBottom: 4,
+                }}
+              >
+                {doneStep ? "DONE" : `STEP ${s.n}`}
+                {active ? " · NOW" : ""}
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 4 }}>{s.t}</div>
+              <div className="muted" style={{ fontSize: 12, lineHeight: 1.45 }}>{s.d}</div>
+            </div>
+          );
+        })}
       </div>
 
       {error && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 9, background: "color-mix(in srgb, var(--status-bad) 12%, transparent)", color: "var(--status-bad)", fontSize: 13 }}>{error}</div>}
@@ -301,18 +340,59 @@ export default function StagingPage() {
         </div>
       </div>}
 
+      {/* Step 2 first in the reading order once a file is analyzed */}
       {modUploads.length > 0 && (
         <MappingVerificationPanel mods={modUploads} onPublished={handleModPublished} />
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 18 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Card
-            title="Upload plant Excel"
-            sub="Close the file in Excel first if it is open. We never change your original workbook."
-          >
-            <UploadZone onUpload={handleUpload} />
-          </Card>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 300px)", gap: 18 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+          {/* Collapse upload chrome while confirming mappings to cut scroll thrash */}
+          {activeStep === 1 ? (
+            <Card
+              title="Upload plant Excel"
+              sub="Close the file in Excel first if it is open. We never change your original workbook."
+            >
+              <UploadZone onUpload={handleUpload} />
+            </Card>
+          ) : (
+            <details
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 10,
+                background: "var(--surface)",
+                padding: "0 14px",
+              }}
+            >
+              <summary
+                style={{
+                  cursor: "pointer",
+                  padding: "12px 0",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--text-2)",
+                  listStyle: "none",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <span>
+                  Upload another file
+                  {fileName ? (
+                    <span className="muted" style={{ fontWeight: 500, marginLeft: 8 }}>
+                      · last: {fileName}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="small" style={{ color: "var(--text-3)" }}>Expand</span>
+              </summary>
+              <div style={{ paddingBottom: 14 }}>
+                <UploadZone onUpload={handleUpload} />
+              </div>
+            </details>
+          )}
 
           {/* ─── Invalid-row Error Navigator ─────────────────────────────────── */}
           {invalidRows.length > 0 && (

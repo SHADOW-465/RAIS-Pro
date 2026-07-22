@@ -10,7 +10,7 @@ import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import { Card, Empty, Kpi, BarsH, LineChart } from "@/components/app/widgets";
 import PageLoader from "@/components/app/PageLoader";
-import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
+import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
 import {
@@ -21,6 +21,7 @@ import {
   totalRejected,
   trend,
   DERIVED_REGISTRY,
+  toSourceRows,
 } from "@/lib/analytics";
 import type { Event } from "@/lib/store/types";
 
@@ -71,26 +72,7 @@ function fileOf(e: Event): string {
   return p?.file || p?.provenance_file || "";
 }
 
-/** Map canonical events → provenance rows for the "View Source" panel. */
-function toSourceRows(events: Event[]): SourceRow[] {
-  const out: SourceRow[] = [];
-  for (const e of events as any[]) {
-    const prov = e.provenance ?? {};
-    out.push({
-      date: e.occurredOn?.start ?? "—",
-      stage: e.stageId ?? "—",
-      size: e.size ?? null,
-      type: e.eventType + (e.disposition ? `·${e.disposition}` : "") + (e.defectCodeRaw ? ` ${e.defectCodeRaw}` : ""),
-      qty: e.quantity ?? e.statedValue ?? "—",
-      file: prov.file ?? "Manual Entry",
-      fileHash: prov.fileHash ?? null,
-      sheet: prov.sheet,
-      cell: prov.cells?.[0] ?? "ENTRY",
-      isDirect: prov.is_direct_entry === true,
-    });
-  }
-  return out.sort((a, b) => b.date.localeCompare(a.date));
-}
+
 
 export default function WorkbooksPage() {
   const { events, isLoading: eventsLoading } = useEvents();
@@ -112,6 +94,7 @@ export default function WorkbooksPage() {
   const [modalContent, setModalContent] = useState<React.ReactNode>(null);
   const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
   const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
+  const [modalMetricKind, setModalMetricKind] = useState<SourceMetricKind>("generic");
   const [modalOriginRect, setModalOriginRect] = useState<DOMRect | null>(null);
   const lastClickRect = useRef<DOMRect | null>(null);
 
@@ -128,13 +111,14 @@ export default function WorkbooksPage() {
     title: string,
     insight: string | string[],
     content: React.ReactNode,
-    source?: { rows: SourceRow[]; value: string },
+    source?: { rows: SourceRow[]; value: string; metricKind?: SourceMetricKind },
   ) => {
     setModalTitle(title);
     setModalInsight(insight);
     setModalContent(content);
     setModalSourceRows(source?.rows);
     setModalPrimaryValue(source?.value);
+    setModalMetricKind(source?.metricKind ?? "generic");
     setModalOriginRect(lastClickRect.current);
     setModalOpen(true);
   };
@@ -550,6 +534,7 @@ export default function WorkbooksPage() {
         insight={modalInsight}
         primaryValue={modalPrimaryValue}
         sourceRows={modalSourceRows}
+        metricKind={modalMetricKind}
         originRect={modalOriginRect}
       >
         {modalContent}
