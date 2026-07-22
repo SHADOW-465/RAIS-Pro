@@ -69,6 +69,36 @@ import {
 import { decide } from "@/core/decision/engine";
 import { SEED_DECISION_RULES } from "@/core/decision/seed-rules";
 import type { RecommendationT } from "@/shared/models/decision";
+import QualityStatusStrip from "@/components/app/QualityStatusStrip";
+
+function DashboardSectionLabel({ title }: { title: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        marginTop: "var(--space-4)",
+        marginBottom: "var(--space-2)",
+        paddingBottom: 4,
+        borderBottom: "1px solid var(--border)",
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10.5,
+          fontWeight: 700,
+          color: "var(--text-3)",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        {title}
+      </span>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -526,6 +556,7 @@ export default function Dashboard() {
           ) : (
           <>
           {/* Section 1: Executive KPIs */}
+          <DashboardSectionLabel title="Executive Snapshot" />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
             <Kpi
               primary
@@ -600,12 +631,13 @@ export default function Dashboard() {
 
 
           {/* Row 1: Primary Rejection Analytics (3-column layout) */}
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))", 
-            gap: "var(--gap-grid)",
-            marginTop: "var(--gap-grid)"
-          }}>
+          <div>
+            <DashboardSectionLabel title="Rejection & Defect Analysis" />
+            <div style={{ 
+              display: "grid", 
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))", 
+              gap: "var(--gap-grid)"
+            }}>
             {/* Card 1: Rejection Trend */}
             <Card 
               title="Rejection Trend" 
@@ -755,14 +787,11 @@ export default function Dashboard() {
               </div>
             </Card>
           </div>
- 
+          </div>
+
           {/* Row 2: Stage wise Rejection Trend (Full Width) */}
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "1fr", 
-            gap: "var(--gap-grid)",
-            marginTop: "var(--gap-grid)"
-          }}>
+          <div>
+            <DashboardSectionLabel title="Process & Station Performance" />
             <Card 
               title={`Stage-wise Rejection Trend (${grainLabel})`} 
               sub="per-stage + Total — hover for values" 
@@ -774,7 +803,8 @@ export default function Dashboard() {
 
           {/* Row 4: Stage x Size Concentration Heatmap */}
           {m.stageSize.length > 0 && (
-            <div style={{ marginTop: "var(--gap-grid)" }}>
+            <div>
+              <DashboardSectionLabel title="Concentration Hotspots" />
               <Card
                 title="Stage x Size Concentration"
                 sub="Rejection rate by stage and catheter size (warmer cells indicate concentration hotspots)"
@@ -797,50 +827,52 @@ export default function Dashboard() {
             if (!hasSizeYtd) return null;
             const gridCols = hasSizeTrend ? "minmax(0, 1fr) minmax(0, 2fr)" : "minmax(0, 1fr)";
             return (
-              <div style={{ 
-                display: "grid", 
-                gridTemplateColumns: gridCols, 
-                gap: "var(--gap-grid)",
-                marginTop: "var(--gap-grid)"
-              }}>
-                <Card 
-                  title="Rejection by Size (YTD)" 
-                  sub={m.worstSize ? `Worst: ${m.worstSize.size}` : "YTD"}
-                  onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—", metricKind: "size" })}
-                >
-                  <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} />
-                </Card>
-
-                {hasSizeTrend && (
+              <div>
+                <DashboardSectionLabel title="Catheter Size Analytics" />
+                <div style={{ 
+                  display: "grid", 
+                  gridTemplateColumns: gridCols, 
+                  gap: "var(--gap-grid)"
+                }}>
                   <Card 
-                    title={`Size Trend (${selectedSize})`} 
-                    onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" , metricKind: "size" })}
+                    title="Rejection by Size (YTD)" 
+                    sub={m.worstSize ? `Worst: ${m.worstSize.size}` : "YTD"}
+                    onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—", metricKind: "size" })}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
-                      <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Size:</span>
-                      <select
-                        value={selectedSize}
-                        onChange={(e) => setSelectedSize(e.target.value)}
-                        style={{
-                          padding: "2px 6px",
-                          borderRadius: "var(--radius-sm)",
-                          border: "1px solid var(--border)",
-                          background: "var(--surface)",
-                          color: "var(--text)",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          outline: "none",
-                          cursor: "pointer"
-                        }}
-                      >
-                        {(m.sizes.length > 0 ? m.sizes.map(s => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => (
-                          <option key={sz} value={sz}>{sz}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <LineChart points={m.sizeTrend} fmt={pct} height={180} />
+                    <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} />
                   </Card>
-                )}
+
+                  {hasSizeTrend && (
+                    <Card 
+                      title={`Size Trend (${selectedSize})`} 
+                      onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" , metricKind: "size" })}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
+                        <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Size:</span>
+                        <select
+                          value={selectedSize}
+                          onChange={(e) => setSelectedSize(e.target.value)}
+                          style={{
+                            padding: "4px 26px 4px 10px",
+                            borderRadius: "var(--radius-sm)",
+                            border: "1px solid var(--border-strong)",
+                            background: "var(--surface)",
+                            color: "var(--text)",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            outline: "none",
+                            cursor: "pointer"
+                          }}
+                        >
+                          {(m.sizes.length > 0 ? m.sizes.map(s => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => (
+                            <option key={sz} value={sz}>{sz}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <LineChart points={m.sizeTrend} fmt={pct} height={180} />
+                    </Card>
+                  )}
+                </div>
               </div>
             );
           })()}
@@ -854,98 +886,98 @@ export default function Dashboard() {
             ].filter(Boolean);
             const gridCols = colList.join(" ");
             return (
-              <div style={{ 
-                display: "grid", 
-                gridTemplateColumns: gridCols, 
-                gap: "var(--gap-grid)",
-                marginTop: "var(--gap-grid)"
-              }}>
-                {hasCopq && (
-                  <Card 
-                    title={`COPQ Trend (${grainLabel})`} 
-                    onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) , metricKind: "copq" })}
-                  >
-                    <LineChart points={m.copqTrend} fmt={rupee} height={180} />
-                  </Card>
-                )}
- 
-                <Card 
-                  title="Audit &amp; Verification" 
-                  onClick={() => openModal("Audit & Verification", `Ledger verification metrics derived from processed source files.`, <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable sourceFiles={m.audit.sourceFilesProcessed} validation={m.audit.dataValidationChecks} integrity={m.audit.formulaIntegrity} overrides={m.audit.manualOverrides} completeness={m.audit.dataCompleteness} /></div>)}
-                >
-                  <AuditVerificationTable 
-                    sourceFiles={m.audit.sourceFilesProcessed}
-                    validation={m.audit.dataValidationChecks}
-                    integrity={m.audit.formulaIntegrity}
-                    overrides={m.audit.manualOverrides}
-                    completeness={m.audit.dataCompleteness}
-                  />
-                  <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); router.push("/audit"); }}
-                      style={{
-                        background: "var(--surface-2)",
-                        border: "1px solid var(--border-strong)",
-                        borderRadius: "var(--radius-sm)",
-                        padding: "6px 16px",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        width: "100%"
-                      }}
+              <div>
+                <DashboardSectionLabel title="Financial Impact & Ledger Verification" />
+                <div style={{ 
+                  display: "grid", 
+                  gridTemplateColumns: gridCols, 
+                  gap: "var(--gap-grid)"
+                }}>
+                  {hasCopq && (
+                    <Card 
+                      title={`COPQ Trend (${grainLabel})`} 
+                      onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq) , metricKind: "copq" })}
                     >
-                      View Audit Trail
-                    </button>
-                  </div>
-                </Card>
+                      <LineChart points={m.copqTrend} fmt={rupee} height={180} />
+                    </Card>
+                  )}
+ 
+                  <Card 
+                    title="Audit &amp; Verification" 
+                    onClick={() => openModal("Audit & Verification", `Ledger verification metrics derived from processed source files.`, <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable sourceFiles={m.audit.sourceFilesProcessed} validation={m.audit.dataValidationChecks} integrity={m.audit.formulaIntegrity} overrides={m.audit.manualOverrides} completeness={m.audit.dataCompleteness} /></div>)}
+                  >
+                    <AuditVerificationTable 
+                      sourceFiles={m.audit.sourceFilesProcessed}
+                      validation={m.audit.dataValidationChecks}
+                      integrity={m.audit.formulaIntegrity}
+                      overrides={m.audit.manualOverrides}
+                      completeness={m.audit.dataCompleteness}
+                    />
+                    <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); router.push("/audit"); }}
+                        style={{
+                          background: "var(--surface-2)",
+                          border: "1px solid var(--border-strong)",
+                          borderRadius: "var(--radius-sm)",
+                          padding: "6px 16px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          width: "100%"
+                        }}
+                      >
+                        View Audit Trail
+                      </button>
+                    </div>
+                  </Card>
+                </div>
               </div>
             );
           })()}
 
-          {/* Quality Status strip — comparison frame (target / watch / prior) + integrity. */}
-          <div style={{ marginTop: "var(--gap-grid)" }}>
+          {/* Quality Status & Production Flow */}
+          <div>
+            <DashboardSectionLabel title="Production Flow & Operational Attention" />
             <QualityStatusStrip status={m.status} />
-          </div>
 
-          {/* Production funnel: entry qty → loss at each gate → final good.
-              Gate click = mid-path entry (stage analysis with carried scope). */}
-          {m.stages.length > 0 && (
+            {m.stages.length > 0 && (
+              <div style={{ marginTop: "var(--gap-grid)" }}>
+                <Card
+                  title="Production Funnel"
+                  sub={`${num(m.checked)} units entered · First Pass Yield ${pct(m.fpy)} · click a gate to investigate`}
+                >
+                  <FunnelStrip
+                    stages={m.stages}
+                    entryChecked={m.checked}
+                    fpy={m.fpy}
+                    targetRej={targetRej}
+                    onGateClick={(row) => {
+                      goInvestigation(router.push.bind(router), "/stage-analysis", {
+                        ...m.investigationBase,
+                        stage: row.stageId,
+                        metric: "stage",
+                        label: row.label,
+                      });
+                    }}
+                  />
+                </Card>
+              </div>
+            )}
+
             <div style={{ marginTop: "var(--gap-grid)" }}>
-              <Card
-                title="Production Funnel"
-                sub={`${num(m.checked)} units entered · First Pass Yield ${pct(m.fpy)} · click a gate to investigate`}
-              >
-                <FunnelStrip
-                  stages={m.stages}
-                  entryChecked={m.checked}
-                  fpy={m.fpy}
-                  targetRej={targetRej}
-                  onGateClick={(row) => {
-                    // Mid-path entry: Stage Analysis with gate + period carried (EX-1 / F7).
-                    goInvestigation(router.push.bind(router), "/stage-analysis", {
-                      ...m.investigationBase,
-                      stage: row.stageId,
-                      metric: "stage",
-                      label: row.label,
-                    });
-                  }}
-                />
-              </Card>
+              <AttentionRail
+                m={m}
+                targetRej={targetRej}
+                base={m.investigationBase}
+                onGo={(path, state) => goInvestigation(router.push.bind(router), path, state)}
+              />
             </div>
-          )}
-
-          {/* Attention rail: ranked next steps with carried investigation scope. */}
-          <div style={{ marginTop: "var(--gap-grid)" }}>
-            <AttentionRail
-              m={m}
-              targetRej={targetRej}
-              base={m.investigationBase}
-              onGo={(path, state) => goInvestigation(router.push.bind(router), path, state)}
-            />
           </div>
  
           {/* Section 3: AI Diagnostics & Actionable Brief */}
-          <div style={{ marginTop: "var(--gap-grid)" }}>
+          <div>
+            <DashboardSectionLabel title="AI Intelligence & Actionable Brief" />
             <Card title="AI Diagnostics & Actionable Brief">
               <div style={{ 
                 display: "grid", 
@@ -1290,49 +1322,7 @@ function AttentionRail({ m, targetRej, base, onGo }: {
 }
 
 /** Status surface: ok / watch / at-risk (integrity detail lives on Data Schema). */
-function QualityStatusStrip({ status }: { status: QualityStatusT }) {
-  const tone =
-    status.state === "blocked" || status.state === "at-risk"
-      ? "var(--status-bad, #c44)"
-      : status.state === "watch"
-        ? "var(--status-warn, #b8860b)"
-        : "var(--status-good, #1a7f4b)";
-  const title =
-    status.state === "blocked"
-      ? "Integrity"
-      : status.state === "at-risk"
-        ? "At risk"
-        : status.state === "watch"
-          ? "Watch"
-          : "Within target";
-  const prior =
-    status.priorRate != null
-      ? `Prior period ${(status.priorRate * 100).toFixed(2)}% · Target ${(status.targetLimit * 100).toFixed(1)}%`
-      : `Target ${(status.targetLimit * 100).toFixed(1)}% · Watch ${(status.watchLimit * 100).toFixed(1)}%`;
-  return (
-    <div
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-md)",
-        background: "var(--surface)",
-        padding: "10px 14px",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "8px 20px",
-        alignItems: "baseline",
-      }}
-    >
-      <span className="kpi-label">Quality status</span>
-      <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: tone }}>{title}</span>
-      <span style={{ fontSize: "var(--text-md)", color: "var(--text-2)", lineHeight: 1.5, flex: "1 1 240px" }}>
-        {status.state === "blocked"
-          ? "Open data-integrity issues — see Data Schema for the full list."
-          : status.reason}
-      </span>
-      <span className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--text-3)" }}>{prior}</span>
-    </div>
-  );
-}
+
 
 /** A single inspection station, scoped to the selected date range — KPIs, daily-%
  *  trend, and (when present) its defect Pareto. Mirrors a station sheet in the
