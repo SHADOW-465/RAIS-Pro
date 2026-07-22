@@ -524,7 +524,6 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.35; transform: scale(1.05); }
 }
-.pulse-ring { animation: pulse-ring 1.6s ease-in-out infinite; }
 @keyframes blink {
   0%, 49%   { opacity: 1; }
   50%, 100% { opacity: 0; }

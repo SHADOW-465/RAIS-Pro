@@ -75,14 +75,13 @@ export default function CommandPalette({
 
     if (result.confidence >= CONFIDENT) {
       const fromHref = window.location.pathname + window.location.search;
-      const stateWithHighlight = { ...result.state, highlight: result.highlights[0] };
       const label =
         [result.matched.defect, result.matched.stage, result.matched.size, result.matched.metric, result.matched.period]
           .filter(Boolean)
           .join(" · ") || "view";
       emitNavBanner({ label, reason: q, fromHref });
       onClose();
-      goInvestigation((href) => router.push(href), hrefForNav(result.navKey), stateWithHighlight);
+      goInvestigation((href) => router.push(href), hrefForNav(result.navKey), result.state);
       return;
     }
     // ambiguous → leave the existing hit list visible (no-op)

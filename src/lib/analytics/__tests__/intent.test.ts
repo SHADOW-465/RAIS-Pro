@@ -20,7 +20,6 @@ describe("resolveIntentDeterministic", () => {
     expect(r.navKey).toBe("defect");
     expect(r.state).toMatchObject({ grain: "month", from: "2025-04-01", to: "2025-04-30", metric: "defect" });
     expect(r.confidence).toBeGreaterThanOrEqual(CONFIDENT);
-    expect(r.highlights).toContain("defect");
   });
 
   it("routes a matched gate to stage analysis", () => {

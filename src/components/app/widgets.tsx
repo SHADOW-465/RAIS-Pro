@@ -206,16 +206,6 @@ export function AnimatedValue({ value }: { value: string }) {
   return <span>{displayValue}</span>;
 }
 
-/** Case-insensitive match of a KPI/card's identifying text against the `?highlight=` token. */
-export function kpiMatchesHighlight(
-  fields: (string | null | undefined)[],
-  highlight: string | null | undefined
-): boolean {
-  if (!highlight) return false;
-  const h = highlight.toLowerCase();
-  return fields.some((f) => (f ?? "").toLowerCase().includes(h));
-}
-
 export function Card({ title, sub, children, span, onClick }: { title?: string; sub?: string; children: React.ReactNode; span?: number; onClick?: () => void }) {
   return (
     <div
@@ -284,9 +274,6 @@ export function Kpi({
   primary,
   spark,
   onClick,
-  source,
-  sourceColumn,
-  highlight,
 }: {
   label: string;
   value: string;
@@ -295,19 +282,14 @@ export function Kpi({
   primary?: boolean;
   spark?: SeriesPoint[];
   onClick?: () => void;
-  /** Provenance fields used for `?highlight=` matching (Task 9). */
-  source?: string | null;
-  sourceColumn?: string | null;
-  highlight?: string | null;
 }) {
   const color = tone === "bad" ? "var(--critical)" : tone === "warn" ? "var(--warning)" : tone === "good" ? "var(--positive)" : "var(--text)";
   const wordValue = isWordKpiValue(value);
-  const isHighlighted = kpiMatchesHighlight([source, sourceColumn, label], highlight);
 
   return (
     <div
       onClick={onClick}
-      className={[onClick ? "card-hover" : "", isHighlighted ? "pulse-ring" : ""].filter(Boolean).join(" ") || undefined}
+      className={onClick ? "card-hover" : undefined}
       style={{
         border: "1.5px solid var(--border)",
         borderRadius: "var(--radius-lg)",
@@ -322,7 +304,6 @@ export function Kpi({
         boxShadow: primary ? "var(--shadow-2), 0 4px 20px -2px color-mix(in srgb, var(--accent) 8%, transparent)" : "var(--shadow-1)",
         position: "relative",
         transition: "all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)",
-        ...(isHighlighted ? { outline: "2px solid var(--accent)", borderRadius: "var(--radius-sm)" } : {}),
       }}
     >
       {tone && (

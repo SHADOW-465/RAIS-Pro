@@ -26,7 +26,6 @@ export interface IntentCtx {
 export interface IntentResult {
   state: InvestigationState;
   navKey: NavKey;
-  highlights: string[];
   confidence: number;
   matched: { period?: string; metric?: string; stage?: string; size?: string; batch?: string; defect?: string };
   alternatives: SearchHit[];
@@ -81,10 +80,9 @@ export function resolveIntentDeterministic(text: string, ctx: IntentCtx): Intent
   const batch = bestEntity(text, sets.batches);
 
   let navKey: NavKey | null = null;
-  const highlights: string[] = [];
 
   const metric = matchMetric(text);
-  if (metric) { matched.metric = metric; state.metric = metric; highlights.push(metric); score += 0.4; }
+  if (metric) { matched.metric = metric; state.metric = metric; score += 0.4; }
 
   if (defect) { matched.defect = defect.value; navKey = "defect"; state.metric = "defect"; score = Math.max(score, defect.score); }
   else if (stage) { matched.stage = stage.value; state.stage = stage.value; navKey = "stage"; score = Math.max(score, stage.score); }
@@ -104,8 +102,6 @@ export function resolveIntentDeterministic(text: string, ctx: IntentCtx): Intent
     score = Math.min(score, CONFIDENT - 0.01);
   }
 
-  if (state.metric && !highlights.includes(state.metric)) highlights.push(state.metric);
-
   const confident = score >= CONFIDENT;
   const searchOpts = { events: ctx.events, allowedNavKeys: PERSONAS[ctx.persona].navAllow };
   let alternatives: SearchHit[] = [];
@@ -116,7 +112,7 @@ export function resolveIntentDeterministic(text: string, ctx: IntentCtx): Intent
     if (alternatives.length === 0) alternatives = searchJumpTargets("", searchOpts);
   }
 
-  return { state, navKey, highlights, confidence: Math.min(score, 1), matched, alternatives };
+  return { state, navKey, confidence: Math.min(score, 1), matched, alternatives };
 }
 
 export type SlotExtractor = (
