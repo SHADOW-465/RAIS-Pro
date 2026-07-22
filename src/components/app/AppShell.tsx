@@ -30,6 +30,7 @@ import {
   type PersonaId,
 } from "@/lib/persona";
 import CommandPalette, { useCommandPaletteHotkey } from "@/components/app/CommandPalette";
+import { subscribeNavBanner, type NavBanner } from "@/lib/analytics/nav-banner";
 
 interface NavItem {
   key: NavKey;
@@ -124,8 +125,17 @@ export default function AppShell({
   const [persona, setPersona] = useState<PersonaId>(DEFAULT_PERSONA);
   const [showPersonaMenu, setShowPersonaMenu] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [banner, setBanner] = useState<NavBanner | null>(null);
 
   useCommandPaletteHotkey(useCallback(() => setPaletteOpen(true), []));
+
+  useEffect(() => subscribeNavBanner(setBanner), []);
+
+  useEffect(() => {
+    if (!banner) return;
+    const timer = window.setTimeout(() => setBanner(null), 8000);
+    return () => window.clearTimeout(timer);
+  }, [banner]);
 
   useEffect(() => {
     setPersona(readStoredPersona());
@@ -1380,6 +1390,33 @@ export default function AppShell({
           maxWidth: "1400px",
           margin: "0 auto"
         }}>
+        {banner && (
+          <div
+            role="status"
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "8px 14px", margin: "0 0 12px",
+              background: "var(--accent-weak)", border: "1px solid var(--border)",
+              borderRadius: "var(--radius-sm)", fontSize: 13, color: "var(--text)",
+            }}
+          >
+            <span>
+              Opened <strong>{banner.label}</strong>{" "}
+              <span style={{ color: "var(--text-3)" }}>· {banner.reason}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => { const to = banner.fromHref; setBanner(null); router.push(to); }}
+              style={{
+                marginLeft: "auto", border: "1px solid var(--border-strong)",
+                borderRadius: 4, padding: "2px 10px", background: "transparent",
+                color: "var(--accent)", cursor: "pointer", fontFamily: "inherit", fontSize: 12,
+              }}
+            >
+              Undo
+            </button>
+          </div>
+        )}
         {isConfigured === false && active !== "staging" && active !== "settings" && active !== "clear-data" ? (
           <div style={{
             display: "flex",
