@@ -7,6 +7,7 @@ import {
   listInvestigationRecents,
   type InvestigationRecent,
 } from "./investigation-state";
+import { buildEntitySets, scoreMatch } from "./intent-vocab";
 
 export type SearchHitKind =
   | "destination"
@@ -55,47 +56,6 @@ const STAGE_LABELS: Record<string, string> = {
   final: "Final Inspection",
   "eye-punching": "Eye Punching",
 };
-
-function batchOf(e: Event): string {
-  const cf = (e as { customFields?: Record<string, unknown> }).customFields;
-  const b = cf?.batch ?? cf?.batchId ?? (e as { batchNo?: string | null }).batchNo;
-  return typeof b === "string" ? b.trim() : "";
-}
-
-function stageOf(e: Event): string | null {
-  return "stageId" in e ? ((e as { stageId?: string }).stageId ?? null) : null;
-}
-
-function sizeOf(e: Event): string | null {
-  return "size" in e ? ((e as { size?: string | null }).size ?? null) : null;
-}
-
-function defectOf(e: Event): string | null {
-  if (e.eventType !== "rejection") return null;
-  const raw =
-    (e as { defectCodeRaw?: string }).defectCodeRaw ||
-    (e as { defectCode?: string }).defectCode;
-  return raw ? String(raw) : null;
-}
-
-function norm(s: string): string {
-  return s.toLowerCase().trim();
-}
-
-function scoreMatch(query: string, ...fields: string[]): number {
-  if (!query) return 0.5;
-  const q = norm(query);
-  let best = 0;
-  for (const f of fields) {
-    const t = norm(f);
-    if (!t) continue;
-    if (t === q) best = Math.max(best, 1);
-    else if (t.startsWith(q)) best = Math.max(best, 0.9);
-    else if (t.includes(q)) best = Math.max(best, 0.7);
-    else if (q.split(/\s+/).every((w) => w && t.includes(w))) best = Math.max(best, 0.55);
-  }
-  return best;
-}
 
 export interface SearchIndexInput {
   events: Event[];
@@ -157,21 +117,7 @@ export function searchJumpTargets(
   }
 
   // Entity index from events
-  const batches = new Set<string>();
-  const stages = new Set<string>();
-  const sizes = new Set<string>();
-  const defects = new Set<string>();
-
-  for (const e of input.events) {
-    const b = batchOf(e);
-    if (b) batches.add(b);
-    const st = stageOf(e);
-    if (st) stages.add(st);
-    const sz = sizeOf(e);
-    if (sz) sizes.add(sz);
-    const df = defectOf(e);
-    if (df) defects.add(df);
-  }
+  const { batches, stages, sizes, defects } = buildEntitySets(input.events);
 
   for (const b of batches) {
     const sc = q ? scoreMatch(q, b) : 0;
