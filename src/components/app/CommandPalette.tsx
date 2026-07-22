@@ -6,7 +6,10 @@ import {
   searchJumpTargets,
   type SearchHit,
 } from "@/lib/analytics/search-index";
-import { listInvestigationRecents } from "@/lib/analytics/investigation-state";
+import { listInvestigationRecents, goInvestigation } from "@/lib/analytics/investigation-state";
+import { resolveIntent, hrefForNav, CONFIDENT } from "@/lib/analytics/intent";
+import { llmSlotExtractor } from "@/lib/analytics/intent-llm";
+import { emitNavBanner } from "@/lib/analytics/nav-banner";
 import type { Event } from "@/lib/store/types";
 import type { PersonaId } from "@/lib/persona";
 import { PERSONAS } from "@/lib/persona";
@@ -57,6 +60,34 @@ export default function CommandPalette({
     [onClose, router]
   );
 
+  const submitIntent = useCallback(async () => {
+    const q = query.trim();
+    if (!q) return;
+    const evs = events ?? [];
+    const dates = evs.map((e) => e.occurredOn?.start).filter(Boolean).sort();
+    const dataMaxIso = dates[dates.length - 1] ?? new Date().toISOString().slice(0, 10);
+
+    const result = await resolveIntent(
+      q,
+      { events: evs, currentScope: { grain: "month" }, persona, dataMaxIso },
+      llmSlotExtractor,
+    );
+
+    if (result.confidence >= CONFIDENT) {
+      const fromHref = window.location.pathname + window.location.search;
+      const stateWithHighlight = { ...result.state, highlight: result.highlights[0] };
+      const label =
+        [result.matched.defect, result.matched.stage, result.matched.size, result.matched.metric, result.matched.period]
+          .filter(Boolean)
+          .join(" · ") || "view";
+      emitNavBanner({ label, reason: q, fromHref });
+      onClose();
+      goInvestigation((href) => router.push(href), hrefForNav(result.navKey), stateWithHighlight);
+      return;
+    }
+    // ambiguous → leave the existing hit list visible (no-op)
+  }, [query, events, persona, onClose, router]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -69,14 +100,18 @@ export default function CommandPalette({
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setActiveIdx((i) => Math.max(i - 1, 0));
-      } else if (e.key === "Enter" && hits[activeIdx]) {
+      } else if (e.key === "Enter") {
         e.preventDefault();
-        go(hits[activeIdx]);
+        if (hits[activeIdx] && hits[activeIdx].kind !== "destination") {
+          go(hits[activeIdx]);
+        } else {
+          void submitIntent();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, hits, activeIdx, go, onClose]);
+  }, [open, hits, activeIdx, go, onClose, submitIntent]);
 
   if (!open) return null;
 
