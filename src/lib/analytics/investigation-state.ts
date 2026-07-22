@@ -23,6 +23,8 @@ export interface InvestigationState {
   size?: string;
   batch?: string;
   metric?: InvestigationMetric;
+  /** KPI/chart id to spotlight on arrival (v1: a metric key). */
+  highlight?: string;
   /** Optional label for recents / pins */
   label?: string;
 }
@@ -72,6 +74,7 @@ export function parseInvestigationState(
     size: get("size"),
     batch: get("batch"),
     metric: get("metric"),
+    highlight: get("highlight"),
     label: get("label"),
   };
 }
@@ -88,6 +91,7 @@ export function serializeInvestigationState(
   if (state.size) q.set("size", state.size);
   if (state.batch) q.set("batch", state.batch);
   if (state.metric) q.set("metric", state.metric);
+  if (state.highlight) q.set("highlight", state.highlight);
   if (state.label) q.set("label", state.label);
   return q;
 }
