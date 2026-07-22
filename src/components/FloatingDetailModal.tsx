@@ -17,6 +17,8 @@ export interface SourceRow {
                              // of the CURRENT browser session's upload
   sheet?: string;
   cell: string;        // A1 ref or ENTRY!… token
+  /** provenance.is_direct_entry === true ⇒ Manual/DB entry; else Excel-ingested. */
+  isDirect?: boolean;
 }
 
 interface FloatingDetailModalProps {
@@ -35,7 +37,28 @@ interface FloatingDetailModalProps {
   originRect?: DOMRect | null;
 }
 
-interface Beam { x1: number; y1: number; x2: number; y2: number; key: string }
+/** Branched pointer geometry: one trunk (origin → central node), N branches. */
+interface BeamTree {
+  fromX: number; fromY: number;                          // anchor origin (Computed-value panel)
+  nodeX: number; nodeY: number;                          // central node in the gap
+  branches: { x2: number; y2: number; key: string }[];   // one per visible target
+}
+
+/** Range-validated YYYY-MM-DD so an arbitrary 4-2-2 code is never split. */
+const ISO_DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])(?:$|[T ])/;
+
+/** Render an ISO date across two lines (year on top); pass non-dates through. */
+function DateCell({ value }: { value: unknown }) {
+  const s = String(value ?? "");
+  if (!ISO_DATE.test(s)) return <>{s}</>;
+  const i = s.indexOf("-");
+  return (
+    <>
+      <span style={{ display: "block" }}>{s.slice(0, i + 1)}</span>
+      <span style={{ display: "block" }}>{s.slice(i + 1)}</span>
+    </>
+  );
+}
 
 function colIndexToLabel(idx: number): string {
   let label = "";
@@ -86,7 +109,8 @@ export default function FloatingDetailModal({
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
   const cellRefs = useRef<Map<string, HTMLTableCellElement>>(new Map());
   const tableScrollRef = useRef<HTMLDivElement>(null);
-  const [beams, setBeams] = useState<Beam[]>([]);
+  const [beamTree, setBeamTree] = useState<BeamTree | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<"all" | "excel" | "manual">("all");
 
   // FLIP Transition logic using Web Animations API
   useEffect(() => {
@@ -141,15 +165,25 @@ export default function FloatingDetailModal({
     // the modal falls back to the flat provenance table, which it always supported.
   }, [showSource, sourceRows, allRawSheets]);
 
-  // Find sheets that contributed to this metric based on sourceRows
+  // Source-origin split. Counts always reflect the FULL dataset; filteredRows
+  // drives what the table, highlights and beams actually show.
+  const excelCount = useMemo(() => (sourceRows ?? []).filter(r => !r.isDirect).length, [sourceRows]);
+  const manualCount = useMemo(() => (sourceRows ?? []).filter(r => r.isDirect).length, [sourceRows]);
+  const filteredRows = useMemo(() => {
+    const rows = sourceRows ?? [];
+    if (sourceFilter === "excel") return rows.filter(r => !r.isDirect);
+    if (sourceFilter === "manual") return rows.filter(r => r.isDirect);
+    return rows;
+  }, [sourceRows, sourceFilter]);
+
+  // Find sheets that contributed to this metric based on the (filtered) rows.
   const contributingSheets = useMemo(() => {
-    if (!sourceRows) return [];
     const sheets = new Set<string>();
-    sourceRows.forEach(r => {
+    filteredRows.forEach(r => {
       if (r.sheet) sheets.add(r.sheet);
     });
     return Array.from(sheets);
-  }, [sourceRows]);
+  }, [filteredRows]);
 
   // Find raw sheets matching contributing sheets (exact bare-name match on the
   // "<file> - <sheet>" suffix — loose endsWith made "4FR" claim "14FR"/"24FR").
@@ -182,6 +216,7 @@ export default function FloatingDetailModal({
   useEffect(() => {
     if (!isOpen) {
       setShowSource(false);
+      setSourceFilter("all");
     }
   }, [isOpen]);
 
@@ -200,11 +235,11 @@ export default function FloatingDetailModal({
 
   const hasSource = !!sourceRows && sourceRows.length > 0;
   // Cap drawn rows so huge ledgers stay legible; beams only to visible rows.
-  const visibleRows = (sourceRows ?? []).slice(0, 60);
+  const visibleRows = filteredRows.slice(0, 60);
 
   const computeBeams = useCallback(() => {
     if (!showSource || !containerRef.current || !anchorRef.current) {
-      setBeams([]);
+      setBeamTree(null);
       return;
     }
     const base = containerRef.current.getBoundingClientRect();
@@ -212,47 +247,42 @@ export default function FloatingDetailModal({
     const fromX = a.right - base.left;
     const fromY = a.top + a.height / 2 - base.top;
     const scroll = tableScrollRef.current?.getBoundingClientRect();
-    const next: Beam[] = [];
+
+    // Collect visible targets (highlighted cells, or provenance rows as fallback),
+    // clipped to the scroll viewport and capped so the tree stays legible.
+    const targets: { x2: number; y2: number; key: string }[] = [];
+    const push = (el: Element, key: string) => {
+      if (targets.length >= 15) return;
+      const r = el.getBoundingClientRect();
+      const midY = r.top + r.height / 2;
+      if (scroll && (midY < scroll.top || midY > scroll.bottom)) return;
+      targets.push({ key: `b-${key}`, x2: r.left - base.left, y2: midY - base.top });
+    };
 
     if (activeRawSheets.length > 0) {
-      // Draw beams to visible highlighted cells
-      let beamCount = 0;
-      cellRefs.current.forEach((el, key) => {
-        if (beamCount >= 15) return; // Limit beams to keep it clean
-        const r = el.getBoundingClientRect();
-        // Clip beams whose cell is scrolled out of the source table viewport.
-        if (scroll && (r.top + r.height / 2 < scroll.top || r.top + r.height / 2 > scroll.bottom)) return;
-        next.push({
-          key: `b-${key}`,
-          x1: fromX,
-          y1: fromY,
-          x2: r.left - base.left,
-          y2: r.top + r.height / 2 - base.top,
-        });
-        beamCount++;
-      });
+      cellRefs.current.forEach((el, key) => push(el, key));
     } else {
-      // Fallback: draw beams to rows
-      rowRefs.current.forEach((el, i) => {
-        const r = el.getBoundingClientRect();
-        if (scroll && (r.top + r.height / 2 < scroll.top || r.top + r.height / 2 > scroll.bottom)) return;
-        next.push({
-          key: `b-${i}`,
-          x1: fromX,
-          y1: fromY,
-          x2: r.left - base.left,
-          y2: r.top + r.height / 2 - base.top,
-        });
-      });
+      rowRefs.current.forEach((el, i) => push(el, String(i)));
     }
-    setBeams(next);
-  }, [showSource, activeRawSheets, activeTab]);
+
+    if (targets.length === 0) {
+      setBeamTree(null);
+      return;
+    }
+
+    // Central node: midpoint of the gap (panel → nearest target), vertically
+    // centered on the targets — the trunk lands here, then branches fan out.
+    const minX2 = Math.min(...targets.map(t => t.x2));
+    const nodeX = fromX + (minX2 - fromX) * 0.5;
+    const nodeY = targets.reduce((s, t) => s + t.y2, 0) / targets.length;
+    setBeamTree({ fromX, fromY, nodeX, nodeY, branches: targets });
+  }, [showSource, activeRawSheets, activeTab, sourceFilter]);
 
   useLayoutEffect(() => {
     if (!isOpen) return;
     const id = requestAnimationFrame(computeBeams);
     return () => cancelAnimationFrame(id);
-  }, [isOpen, showSource, computeBeams, visibleRows.length, activeTab]);
+  }, [isOpen, showSource, computeBeams, visibleRows.length, activeTab, sourceFilter]);
 
   useEffect(() => {
     if (!showSource) return;
@@ -316,6 +346,39 @@ export default function FloatingDetailModal({
             <span style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 800, color: "var(--text)" }}>{title}</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {showSource && hasSource && ([
+              { key: "excel", label: "Excel Records", count: excelCount },
+              { key: "manual", label: "Manual/DB Entries", count: manualCount },
+            ] as const).map(({ key, label, count }) => {
+              const active = sourceFilter === key;
+              const dim = sourceFilter !== "all" && !active;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setSourceFilter((f) => (f === key ? "all" : key))}
+                  aria-pressed={active}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 14px",
+                    borderRadius: "9999px",
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    border: `1.5px solid ${active ? "var(--accent)" : "var(--border-strong)"}`,
+                    background: active ? "var(--accent)" : "var(--surface)",
+                    color: active ? "var(--text-invert)" : "var(--text)",
+                    opacity: dim ? 0.4 : 1,
+                    filter: dim ? "grayscale(1)" : "none",
+                    transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
+                  }}
+                >
+                  {label}
+                  <span style={{ fontFamily: "var(--font-mono)", opacity: 0.85 }}>{count}</span>
+                </button>
+              );
+            })}
             {hasSource && (
               <button
                 onClick={() => setShowSource((s) => !s)}
@@ -480,7 +543,7 @@ export default function FloatingDetailModal({
                                     <th style={{ ...th, width: 40, borderRight: "1px solid var(--border-strong)", textAlign: "center" }}>#</th>
                                     {sheet.columns.map((col, cIdx) => {
                                       const colLetter = sheet.colLetters?.[col] || colIndexToLabel(cIdx);
-                                      const isColumnUsed = sourceRows?.some(r => {
+                                      const isColumnUsed = filteredRows.some(r => {
                                         const ref = parseRef(r.cell);
                                         return ref && ref.col === colLetter && rawSheetMatches(sheet, ref.sheet);
                                       });
@@ -505,7 +568,7 @@ export default function FloatingDetailModal({
                                         </td>
                                         {sheet.columns.map((col, cIdx) => {
                                           const colLetter = sheet.colLetters?.[col] || colIndexToLabel(cIdx);
-                                          const matchingSource = sourceRows?.find(r => {
+                                          const matchingSource = filteredRows.find(r => {
                                             const ref = parseRef(r.cell);
                                             return ref && ref.col === colLetter && ref.row === rowNum && rawSheetMatches(sheet, ref.sheet);
                                           });
@@ -535,7 +598,7 @@ export default function FloatingDetailModal({
                                               }}
                                               title={isHighlighted ? `Qty: ${matchingSource.qty} (${matchingSource.type})\nCell: ${matchingSource.cell}` : undefined}
                                             >
-                                              {String(row[col] ?? "")}
+                                              <DateCell value={row[col]} />
                                             </td>
                                           );
                                         })}
@@ -568,7 +631,7 @@ export default function FloatingDetailModal({
                           <tbody>
                             {visibleRows.map((r, i) => (
                               <tr key={i} ref={(el) => { if (el) rowRefs.current.set(i, el); else rowRefs.current.delete(i); }} style={{ borderTop: "1px solid var(--border)" }}>
-                                <td style={{ ...td, fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>{r.date}</td>
+                                <td style={{ ...td, fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}><DateCell value={r.date} /></td>
                                 <td style={td}>{r.stage}</td>
                                 <td style={td}>{r.size || "—"}</td>
                                 <td style={td}><span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", color: "var(--text-2)" }}>{r.type}</span></td>
@@ -580,8 +643,8 @@ export default function FloatingDetailModal({
                           </tbody>
                         </table>
                       </div>
-                      {(sourceRows ?? []).length > visibleRows.length && (
-                        <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>Showing first {visibleRows.length} of {(sourceRows ?? []).length.toLocaleString()} source records.</div>
+                      {filteredRows.length > visibleRows.length && (
+                        <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>Showing first {visibleRows.length} of {filteredRows.length.toLocaleString()} source records.</div>
                       )}
                     </>
                   )}
@@ -595,17 +658,28 @@ export default function FloatingDetailModal({
                     <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)" />
                   </marker>
                 </defs>
-                {beams.map((b) => {
-                  const dx = b.x2 - b.x1;
-                  const c1x = b.x1 + Math.max(40, dx * 0.4);
-                  const c2x = b.x2 - Math.max(40, dx * 0.4);
+                {beamTree && (() => {
+                  const { fromX, fromY, nodeX, nodeY, branches } = beamTree;
+                  const tdx = nodeX - fromX;
+                  const trunk = `M ${fromX} ${fromY} C ${fromX + tdx * 0.5} ${fromY}, ${nodeX - tdx * 0.5} ${nodeY}, ${nodeX} ${nodeY}`;
                   return (
-                    <path key={b.key} d={`M ${b.x1} ${b.y1} C ${c1x} ${b.y1}, ${c2x} ${b.y2}, ${b.x2 - 3} ${b.y2}`}
-                      fill="none" stroke="var(--accent)" strokeWidth="1.3" opacity="0.5" markerEnd="url(#modal-beam-arrow)"
-                      pathLength="1" className="draw-line" style={{ animationDuration: "0.6s" }} />
+                    <>
+                      {/* trunk: origin → central node */}
+                      <path d={trunk} fill="none" stroke="var(--accent)" strokeWidth="1.6" opacity="0.6" className="beam-flow" />
+                      {/* branches: central node → each target */}
+                      {branches.map((b) => {
+                        const dx = b.x2 - nodeX;
+                        const d = `M ${nodeX} ${nodeY} C ${nodeX + dx * 0.4} ${nodeY}, ${b.x2 - dx * 0.4} ${b.y2}, ${b.x2 - 3} ${b.y2}`;
+                        return (
+                          <path key={b.key} d={d} fill="none" stroke="var(--accent)" strokeWidth="1.3" opacity="0.5"
+                            markerEnd="url(#modal-beam-arrow)" className="beam-flow" />
+                        );
+                      })}
+                      <circle cx={nodeX} cy={nodeY} r="4.5" fill="var(--accent)" />
+                      <circle cx={fromX} cy={fromY} r="4" fill="var(--accent)" />
+                    </>
                   );
-                })}
-                {beams[0] && <circle cx={beams[0].x1} cy={beams[0].y1} r="4" fill="var(--accent)" />}
+                })()}
               </svg>
             </>
           )}

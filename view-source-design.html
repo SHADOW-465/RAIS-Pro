@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAIS - Functional Provenance Drill-down</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #1A1A1A;
+            --bg-hover: #262626;
+            --text-main: #F3F4F6;
+            --text-muted: #9CA3AF;
+            --accent-orange: #F97316;
+            --border-color: #333333;
+            --success-green: #10B981;
+            --danger-red: #EF4444;
+            --excel-green: #15803d;
+            --excel-bg: rgba(21, 128, 61, 0.15);
+            --dashboard-blue: #3b82f6;
+            --dashboard-bg: rgba(59, 130, 246, 0.15);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .modal-container {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 1200px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Section */
+        .modal-header {
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .badge-rais {
+            background-color: rgba(249, 115, 22, 0.15);
+            color: var(--accent-orange);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid rgba(249, 115, 22, 0.3);
+        }
+
+        /* Functional Header Stats */
+        .header-stats {
+            display: flex;
+            gap: 12px;
+            margin-left: auto;
+            margin-right: 20px;
+        }
+
+        .stat-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .stat-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .stat-badge.inactive {
+            opacity: 0.3;
+            filter: grayscale(100%);
+        }
+
+        .stat-badge strong {
+            font-size: 14px;
+            color: var(--text-main);
+        }
+
+        .stat-excel { background-color: var(--excel-bg); color: #4ade80; border: 1px solid rgba(21, 128, 61, 0.4); }
+        .stat-dashboard { background-color: var(--dashboard-bg); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+
+        .btn-hide {
+            background: var(--bg-hover);
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* Content Layout */
+        .modal-body { display: flex; position: relative; min-height: 500px; }
+
+        /* Left Panel */
+        .left-panel {
+            width: 280px;
+            padding: 24px;
+            border-right: 1px solid var(--border-color);
+            position: relative;
+            z-index: 2;
+        }
+
+        .computed-card {
+            border: 1px solid var(--accent-orange);
+            border-radius: 8px;
+            padding: 20px;
+            background: linear-gradient(180deg, rgba(249, 115, 22, 0.05) 0%, rgba(26, 26, 26, 0) 100%);
+            position: relative;
+        }
+
+        .pointer-origin {
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent-orange);
+            border-radius: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 0 10px var(--accent-orange);
+        }
+
+        .computed-title { color: var(--accent-orange); font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+        .computed-value { font-size: 36px; font-weight: 700; color: var(--accent-orange); margin: 0 0 12px 0; }
+        .computed-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 24px; }
+        .schema-verified { font-size: 12px; color: var(--success-green); display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-weight: 600; }
+        .schema-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+        /* Right Panel */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* SVG Pointers */
+        .pointers-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50px;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .pointer-path {
+            fill: none;
+            stroke: var(--accent-orange);
+            stroke-width: 1.5;
+            opacity: 0.6;
+            stroke-dasharray: 4;
+            animation: dash 20s linear infinite;
+        }
+        @keyframes dash { to { stroke-dashoffset: -100; } }
+
+        /* Tabs */
+        .tabs { display: flex; background-color: rgba(0, 0, 0, 0.2); border-bottom: 1px solid var(--border-color); padding-left: 20px; }
+        .tab-btn { background: none; border: none; color: var(--text-muted); padding: 16px 20px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab-btn.active { color: var(--accent-orange); border-bottom-color: var(--accent-orange); }
+
+        /* Table Area */
+        .tab-content { display: none; overflow-y: auto; flex: 1; padding-left: 20px; }
+        .tab-content.active { display: block; }
+        table { width: 100%; border-collapse: collapse; }
+        th { position: sticky; top: 0; background-color: var(--bg-panel); color: var(--text-muted); font-size: 11px; text-transform: uppercase; padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-color); z-index: 5; }
+        td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border-color); position: relative; }
+        tr:hover td { background-color: var(--bg-hover); }
+
+        /* Badges */
+        .source-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+        .source-excel { background-color: var(--excel-bg); color: #4ade80; border: 1px solid rgba(21, 128, 61, 0.4); }
+        .source-dashboard { background-color: var(--dashboard-bg); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+        .source-icon { width: 16px; height: 16px; }
+        .source-icon-small { width: 14px; height: 14px; }
+
+        .target-node {
+            position: absolute;
+            left: -10px;
+            top: 50%;
+            width: 6px;
+            height: 6px;
+            background-color: var(--accent-orange);
+            border-radius: 50%;
+            transform: translateY(-50%);
+        }
+
+        .col-mono { font-family: monospace; color: var(--text-muted); }
+        .col-num { text-align: right; font-variant-numeric: tabular-nums; }
+        .text-danger { color: var(--danger-red); font-weight: 600; }
+        .text-accent { color: var(--accent-orange); }
+    </style>
+</head>
+<body>
+
+<div class="modal-container">
+    <div class="modal-header">
+        <div class="modal-title"><span class="badge-rais">RAIS</span> Weekly Rejection Rate — Drill-down</div>
+        
+        <!-- Header Stats (Now Clickable) -->
+        <div class="header-stats">
+            <div class="stat-badge stat-excel" id="filter-excel" onclick="toggleFilter('Excel')">
+                <svg class="source-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span><strong id="count-excel">0</strong> Excel Records</span>
+            </div>
+            <div class="stat-badge stat-dashboard" id="filter-dashboard" onclick="toggleFilter('Dashboard')">
+                <svg class="source-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                <span><strong id="count-dashboard">0</strong> DB Entries</span>
+            </div>
+        </div>
+        <button class="btn-hide">Hide Source</button>
+    </div>
+
+    <div class="modal-body">
+        <div class="left-panel">
+            <div class="computed-card">
+                <div class="pointer-origin"></div>
+                <div class="computed-title">COMPUTED VALUE</div>
+                <h1 class="computed-value">18.84%</h1>
+                <div class="computed-desc">Traced to <strong id="total-records">0</strong> source records below.</div>
+                <div class="schema-verified">✓ Data Schema Verified</div>
+                <div class="schema-desc">Beams map this computed value directly to the exact file/sheet or dashboard database entry.</div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <!-- Dynamic SVG Overlay -->
+            <svg class="pointers-overlay" id="svg-beams" viewBox="0 0 50 500" preserveAspectRatio="none"></svg>
+
+            <div class="tabs">
+                <button class="tab-btn" onclick="openSheet(event, 'COMMULATIVE')">COMMULATIVE</button>
+                <button class="tab-btn active" onclick="openSheet(event, 'PROVENANCE')">SOURCE PROVENANCE</button>
+            </div>
+
+            <div id="PROVENANCE" class="tab-content active">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Stage</th>
+                            <th>Size</th>
+                            <th>Type</th>
+                            <th class="col-num">Qty</th>
+                            <th>Data Source</th>
+                            <th>Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="COMMULATIVE" class="tab-content">
+                <div style="padding: 40px; text-align: center; color: var(--text-muted);">Switch back to Source Provenance to see the functional testing tool.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Sample Data Generation
+    const sampleData = [
+        { date: "2026-07-22", stage: "Visual Inspection", size: "Fr14", type: "PRODUCTION", qty: 100, source: "Dashboard", ref: "DB_ID: #4092A" },
+        { date: "2026-07-22", stage: "Visual Inspection", size: "Fr14", type: "INSPECTION-REJECTED", qty: 30, source: "Excel", ref: "VISUAL!D14", isTarget: true },
+        { date: "2026-07-22", stage: "Visual Inspection", size: "Fr14", type: "INSPECTION-ACCEPTED", qty: 70, source: "Dashboard", ref: "DB_ID: #4092B" },
+        { date: "2026-07-22", stage: "Balloon Testing", size: "Fr14", type: "PRODUCTION", qty: 70, source: "Excel", ref: "BALLOON!C42" },
+        { date: "2026-07-22", stage: "Balloon Testing", size: "Fr14", type: "INSPECTION-REJECTED", qty: 5, source: "Excel", ref: "BALLOON!D42", isTarget: true },
+        { date: "2026-07-22", stage: "Balloon Testing", size: "Fr14", type: "INSPECTION-ACCEPTED", qty: 65, source: "Excel", ref: "BALLOON!E42" },
+        { date: "2026-07-21", stage: "Final Inspection", size: "Fr14", type: "PRODUCTION", qty: 250, source: "Dashboard", ref: "DB_ID: #4088A" },
+        { date: "2026-07-21", stage: "Final Inspection", size: "Fr14", type: "INSPECTION-REJECTED", qty: 12, source: "Dashboard", ref: "DB_ID: #4088B" }
+    ];
+
+    const icons = {
+        Excel: `<svg class="source-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`,
+        Dashboard: `<svg class="source-icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>`
+    };
+
+    let activeFilter = 'All';
+
+    // 2. Main Render Function
+    function renderTable() {
+        const tbody = document.getElementById('table-body');
+        const svgContainer = document.getElementById('svg-beams');
+        tbody.innerHTML = '';
+        svgContainer.innerHTML = '';
+
+        let excelCount = 0;
+        let dbCount = 0;
+        let rowIndex = 0;
+
+        sampleData.forEach((row, index) => {
+            // Tally counts (ignore filter for totals)
+            if (row.source === 'Excel') excelCount++;
+            if (row.source === 'Dashboard') dbCount++;
+
+            // Apply active filter
+            if (activeFilter !== 'All' && row.source !== activeFilter) return;
+
+            // Generate HTML Row
+            const isDanger = row.type === 'INSPECTION-REJECTED';
+            const badgeClass = row.source === 'Excel' ? 'source-excel' : 'source-dashboard';
+            const badgeLabel = row.source === 'Excel' ? '09 REJECTION...' : 'Dashboard';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="col-mono">
+                    ${row.isTarget && activeFilter === 'All' ? '<div class="target-node"></div>' : ''}
+                    ${row.date}
+                </td>
+                <td>${row.stage}</td>
+                <td>${row.size}</td>
+                <td class="${isDanger ? 'text-danger' : ''}">${row.type}</td>
+                <td class="col-num ${isDanger ? 'text-danger' : ''}">${row.qty}</td>
+                <td>
+                    <div class="source-badge ${badgeClass}">
+                        ${icons[row.source]} ${badgeLabel}
+                    </div>
+                </td>
+                <td class="text-accent col-mono">${row.ref}</td>
+            `;
+            tbody.appendChild(tr);
+
+            // Dynamic SVG Beam Drawing (Assumes ~45px height per row for demo purposes)
+            if (row.isTarget && activeFilter === 'All') {
+                const yPos = 20 + (rowIndex * 45); 
+                svgContainer.innerHTML += `<path class="pointer-path" d="M 0 150 C 25 150, 25 ${yPos}, 50 ${yPos}" />`;
+            }
+            rowIndex++;
+        });
+
+        // Update Header Stats
+        document.getElementById('count-excel').innerText = excelCount;
+        document.getElementById('count-dashboard').innerText = dbCount;
+        document.getElementById('total-records').innerText = excelCount + dbCount;
+    }
+
+    // 3. Filter Toggle Logic
+    function toggleFilter(sourceType) {
+        if (activeFilter === sourceType) {
+            activeFilter = 'All'; // Turn off filter if clicked again
+            document.getElementById('filter-excel').classList.remove('inactive');
+            document.getElementById('filter-dashboard').classList.remove('inactive');
+        } else {
+            activeFilter = sourceType;
+            // Manage UI states for buttons
+            if (sourceType === 'Excel') {
+                document.getElementById('filter-excel').classList.remove('inactive');
+                document.getElementById('filter-dashboard').classList.add('inactive');
+            } else {
+                document.getElementById('filter-dashboard').classList.remove('inactive');
+                document.getElementById('filter-excel').classList.add('inactive');
+            }
+        }
+        renderTable();
+    }
+
+    // 4. Tab Navigation (Updated to handle SVG visibility)
+    function openSheet(evt, sheetName) {
+        const tabcontent = document.getElementsByClassName("tab-content");
+        for (let i = 0; i < tabcontent.length; i++) tabcontent[i].classList.remove("active");
+        
+        const tablinks = document.getElementsByClassName("tab-btn");
+        for (let i = 0; i < tablinks.length; i++) tablinks[i].classList.remove("active");
+        
+        document.getElementById(sheetName).classList.add("active");
+        evt.currentTarget.classList.add("active");
+
+        const svgOverlay = document.querySelector('.pointers-overlay');
+        svgOverlay.style.display = (sheetName === 'PROVENANCE') ? 'block' : 'none';
+    }
+
+    // Initialize on load
+    renderTable();
+</script>
+
+</body>
+</html>

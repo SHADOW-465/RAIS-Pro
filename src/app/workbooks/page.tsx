@@ -86,6 +86,7 @@ function toSourceRows(events: Event[]): SourceRow[] {
       fileHash: prov.fileHash ?? null,
       sheet: prov.sheet,
       cell: prov.cells?.[0] ?? "ENTRY",
+      isDirect: prov.is_direct_entry === true,
     });
   }
   return out.sort((a, b) => b.date.localeCompare(a.date));

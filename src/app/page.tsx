@@ -92,6 +92,7 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
       fileHash: prov.fileHash ?? null,
       sheet: prov.sheet,
       cell: prov.cells?.[0] ?? "ENTRY",
+      isDirect: prov.is_direct_entry === true,
     });
   }
   return out.sort((a, b) => b.date.localeCompare(a.date));
@@ -622,41 +623,7 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Quality Status strip — comparison frame (target / watch / prior) + integrity. */}
-          <QualityStatusStrip status={m.status} />
 
-          {/* Production funnel: entry qty → loss at each gate → final good.
-              Gate click = mid-path entry (stage analysis with carried scope). */}
-          {m.stages.length > 0 && (
-            <Card
-              title="Production Funnel"
-              sub={`${num(m.checked)} units entered · First Pass Yield ${pct(m.fpy)} · click a gate to investigate`}
-            >
-              <FunnelStrip
-                stages={m.stages}
-                entryChecked={m.checked}
-                fpy={m.fpy}
-                targetRej={targetRej}
-                onGateClick={(row) => {
-                  // Mid-path entry: Stage Analysis with gate + period carried (EX-1 / F7).
-                  goInvestigation(router.push.bind(router), "/stage-analysis", {
-                    ...m.investigationBase,
-                    stage: row.stageId,
-                    metric: "stage",
-                    label: row.label,
-                  });
-                }}
-              />
-            </Card>
-          )}
-
-          {/* Attention rail: ranked next steps with carried investigation scope. */}
-          <AttentionRail
-            m={m}
-            targetRej={targetRej}
-            base={m.investigationBase}
-            onGo={(path, state) => goInvestigation(router.push.bind(router), path, state)}
-          />
 
           {/* Row 1: Primary Rejection Analytics (3-column layout) */}
           <div style={{ 
@@ -960,6 +927,48 @@ export default function Dashboard() {
               </div>
             );
           })()}
+
+          {/* Quality Status strip — comparison frame (target / watch / prior) + integrity. */}
+          <div style={{ marginTop: "var(--gap-grid)" }}>
+            <QualityStatusStrip status={m.status} />
+          </div>
+
+          {/* Production funnel: entry qty → loss at each gate → final good.
+              Gate click = mid-path entry (stage analysis with carried scope). */}
+          {m.stages.length > 0 && (
+            <div style={{ marginTop: "var(--gap-grid)" }}>
+              <Card
+                title="Production Funnel"
+                sub={`${num(m.checked)} units entered · First Pass Yield ${pct(m.fpy)} · click a gate to investigate`}
+              >
+                <FunnelStrip
+                  stages={m.stages}
+                  entryChecked={m.checked}
+                  fpy={m.fpy}
+                  targetRej={targetRej}
+                  onGateClick={(row) => {
+                    // Mid-path entry: Stage Analysis with gate + period carried (EX-1 / F7).
+                    goInvestigation(router.push.bind(router), "/stage-analysis", {
+                      ...m.investigationBase,
+                      stage: row.stageId,
+                      metric: "stage",
+                      label: row.label,
+                    });
+                  }}
+                />
+              </Card>
+            </div>
+          )}
+
+          {/* Attention rail: ranked next steps with carried investigation scope. */}
+          <div style={{ marginTop: "var(--gap-grid)" }}>
+            <AttentionRail
+              m={m}
+              targetRej={targetRej}
+              base={m.investigationBase}
+              onGo={(path, state) => goInvestigation(router.push.bind(router), path, state)}
+            />
+          </div>
  
           {/* Section 3: AI Diagnostics & Actionable Brief */}
           <div style={{ marginTop: "var(--gap-grid)" }}>

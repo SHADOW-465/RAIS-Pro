@@ -52,6 +52,7 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
       file: prov.file ?? "Manual Entry",
       sheet: prov.sheet,
       cell: prov.cells?.[0] ?? "ENTRY",
+      isDirect: prov.is_direct_entry === true,
     });
   }
   return out.sort((a, b) => b.date.localeCompare(a.date));
