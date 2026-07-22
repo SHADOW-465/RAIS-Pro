@@ -58,12 +58,15 @@ describe("resolveIntentDeterministic", () => {
 
 describe("resolveIntent (LLM fallback)", () => {
   it("uses the extractor on low-confidence and reconciles against real entities", async () => {
-    // "we slipped last period on the balloon step" — deterministic misses the
-    // gate word ("step"), so the extractor supplies stage=balloon.
-    const extract = async () => ({ stage: "balloon", metric: "defect", size: "99Fr" /* hallucinated */ });
-    const r = await resolveIntent("we slipped on the balloon step", baseCtx(), extract);
-    expect(r.state.stage).toBe("balloon");   // real entity kept
-    expect(r.state.size).toBeUndefined();     // hallucinated 99Fr dropped
+    let called = false;
+    const extract = async () => {
+      called = true;
+      return { stage: "balloon", metric: "defect", size: "99Fr" /* hallucinated */ };
+    };
+    const r = await resolveIntent("we slipped there recently", baseCtx(), extract);
+    expect(called).toBe(true);          // extractor actually ran (deterministic pass was low-confidence)
+    expect(r.state.stage).toBe("balloon"); // real entity kept
+    expect(r.state.size).toBeUndefined();   // hallucinated 99Fr dropped
     expect(r.navKey).toBe("stage");
   });
 

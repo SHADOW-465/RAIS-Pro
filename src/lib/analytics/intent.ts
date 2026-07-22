@@ -143,7 +143,7 @@ export async function resolveIntent(
   const sets = buildEntitySets(ctx.events);
   const inSet = (v: string | undefined, set: Set<string>) =>
     v && [...set].some((x) => x.toLowerCase() === v.toLowerCase())
-      ? [...set].find((x) => x.toLowerCase() === v!.toLowerCase())
+      ? [...set].find((x) => x.toLowerCase() === v.toLowerCase())
       : undefined;
 
   // Reconcile: keep only real values; re-inject them as plain words so the
