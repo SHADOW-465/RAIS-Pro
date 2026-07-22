@@ -119,6 +119,46 @@ export function resolveIntentDeterministic(text: string, ctx: IntentCtx): Intent
   return { state, navKey, highlights, confidence: Math.min(score, 1), matched, alternatives };
 }
 
+export type SlotExtractor = (
+  text: string,
+) => Promise<Partial<Record<"period" | "metric" | "stage" | "size" | "batch", string>>>;
+
+/** Rebuild the request text with reconciled slots, then re-run the deterministic
+ *  resolver. Only slots that exist in the real entity sets survive. */
+export async function resolveIntent(
+  text: string,
+  ctx: IntentCtx,
+  extract?: SlotExtractor,
+): Promise<IntentResult> {
+  const first = resolveIntentDeterministic(text, ctx);
+  if (first.confidence >= CONFIDENT || !extract) return first;
+
+  let slots: Awaited<ReturnType<SlotExtractor>>;
+  try {
+    slots = await extract(text);
+  } catch {
+    return first; // AI down → deterministic result (pick-list)
+  }
+
+  const sets = buildEntitySets(ctx.events);
+  const inSet = (v: string | undefined, set: Set<string>) =>
+    v && [...set].some((x) => x.toLowerCase() === v.toLowerCase())
+      ? [...set].find((x) => x.toLowerCase() === v!.toLowerCase())
+      : undefined;
+
+  // Reconcile: keep only real values; re-inject them as plain words so the
+  // deterministic resolver scores them normally.
+  const parts: string[] = [text];
+  const stage = inSet(slots.stage, sets.stages); if (stage) parts.push(stage);
+  const size = inSet(slots.size, sets.sizes); if (size) parts.push(size);
+  const batch = inSet(slots.batch, sets.batches); if (batch) parts.push(batch);
+  if (slots.metric) parts.push(slots.metric);
+  if (slots.period) parts.push(slots.period);
+
+  const second = resolveIntentDeterministic(parts.join(" "), ctx);
+  return second.confidence >= first.confidence ? second : first;
+}
+
 /** Href for a resolved result (scope carried as query params — see Task 5). */
 export function hrefForNav(navKey: NavKey): string {
   return NAV_HREF[navKey];

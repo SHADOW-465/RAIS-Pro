@@ -1,4 +1,5 @@
 import { resolveIntentDeterministic, CONFIDENT, type IntentCtx } from "../intent";
+import { resolveIntent } from "../intent";
 import type { Event } from "@/lib/store/types";
 
 const ev = (over: Partial<Event>) => over as unknown as Event;
@@ -52,5 +53,30 @@ describe("resolveIntentDeterministic", () => {
     const r = resolveIntentDeterministic("what should I look at", baseCtx());
     expect(r.confidence).toBeLessThan(CONFIDENT);
     expect(r.alternatives.length).toBeGreaterThan(0);
+  });
+});
+
+describe("resolveIntent (LLM fallback)", () => {
+  it("uses the extractor on low-confidence and reconciles against real entities", async () => {
+    // "we slipped last period on the balloon step" — deterministic misses the
+    // gate word ("step"), so the extractor supplies stage=balloon.
+    const extract = async () => ({ stage: "balloon", metric: "defect", size: "99Fr" /* hallucinated */ });
+    const r = await resolveIntent("we slipped on the balloon step", baseCtx(), extract);
+    expect(r.state.stage).toBe("balloon");   // real entity kept
+    expect(r.state.size).toBeUndefined();     // hallucinated 99Fr dropped
+    expect(r.navKey).toBe("stage");
+  });
+
+  it("does NOT call the extractor when the deterministic parse is already confident", async () => {
+    let called = false;
+    const extract = async () => { called = true; return {}; };
+    await resolveIntent("rejection in April", baseCtx(), extract);
+    expect(called).toBe(false);
+  });
+
+  it("falls back to the deterministic result if the extractor throws (AI down)", async () => {
+    const extract = async () => { throw new Error("all backends failed"); };
+    const r = await resolveIntent("what should I look at", baseCtx(), extract);
+    expect(r.alternatives.length).toBeGreaterThan(0); // graceful pick-list
   });
 });
