@@ -216,12 +216,11 @@ export function kpiMatchesHighlight(
   return fields.some((f) => (f ?? "").toLowerCase().includes(h));
 }
 
-export function Card({ title, sub, children, span, onClick, highlight }: { title?: string; sub?: string; children: React.ReactNode; span?: number; onClick?: () => void; highlight?: string | null }) {
-  const isHighlighted = kpiMatchesHighlight([title], highlight);
+export function Card({ title, sub, children, span, onClick }: { title?: string; sub?: string; children: React.ReactNode; span?: number; onClick?: () => void }) {
   return (
     <div
       onClick={onClick}
-      className={[onClick ? "card-hover" : "", isHighlighted ? "pulse-ring" : ""].filter(Boolean).join(" ") || undefined}
+      className={onClick ? "card-hover" : ""}
       style={{
         gridColumn: span ? `span ${span}` : undefined,
         border: "1.5px solid var(--border)",
@@ -236,7 +235,6 @@ export function Card({ title, sub, children, span, onClick, highlight }: { title
         boxShadow: "var(--shadow-2)",
         position: "relative",
         transition: "all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)",
-        ...(isHighlighted ? { outline: "2px solid var(--accent)", borderRadius: "var(--radius-sm)" } : {}),
       }}
     >
       {title && (

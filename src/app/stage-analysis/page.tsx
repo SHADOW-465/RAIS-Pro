@@ -62,9 +62,8 @@ function toSourceRows(events: Event[], filter: { stageId?: string; defectCode?: 
 
 export default function StageAnalysisPage() {
   const { t } = useTweaks();
-  const [highlight, setHighlight] = useState<string | null>(null);
   // Mid-path: apply ?grain&from&to&stage from dashboard funnel / attention rail.
-  useApplyInvestigationFromUrl({ onState: (s) => setHighlight(s.highlight ?? null) });
+  useApplyInvestigationFromUrl();
   const { events: contextEvents, isLoading } = useEvents();
   const { registry } = useRegistry();
   const activeRegistry = registry || EMPTY_REGISTRY;
@@ -194,13 +193,13 @@ export default function StageAnalysisPage() {
               {hasLeft && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
                   {m.stageTrend.length > 0 && (
-                    <Card highlight={highlight} title={`Stage-wise Rejection Trend (${grainLabel})`} onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Visual Inspection continues to drive the highest defect volume, followed by Valve Integrity and Balloon Inspection.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.stageTrend} stages={activeRegistry.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+                    <Card title={`Stage-wise Rejection Trend (${grainLabel})`} onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Visual Inspection continues to drive the highest defect volume, followed by Valve Integrity and Balloon Inspection.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.stageTrend} stages={activeRegistry.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
                       <MultiLine data={m.stageTrend} stages={activeRegistry.stages} />
                     </Card>
                   )}
 
                   {m.tr.length > 0 && (
-                    <Card highlight={highlight} title={`Overall Rejection Trend (${grainLabel})`} onClick={() => openModal(`Overall Rejection Trend (${grainLabel})`, `Overall ${grainLabel.toLowerCase()} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}%.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+                    <Card title={`Overall Rejection Trend (${grainLabel})`} onClick={() => openModal(`Overall Rejection Trend (${grainLabel})`, `Overall ${grainLabel.toLowerCase()} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}%.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
                       <LineChart points={m.tr} target={targetRej} fmt={pct} />
                     </Card>
                   )}
@@ -209,15 +208,15 @@ export default function StageAnalysisPage() {
 
               {hasRight && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
-                  <Card highlight={highlight} title="Process Flow Quality Gates" onClick={() => openModal("Process Flow Quality Gates", "catheter manufacturing process flow highlights Balloon Sealing and Valve Integrity as crucial quality checkpoints.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+                  <Card title="Process Flow Quality Gates" onClick={() => openModal("Process Flow Quality Gates", "catheter manufacturing process flow highlights Balloon Sealing and Valve Integrity as crucial quality checkpoints.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
                     <ProcessFlow rows={m.stages} />
                   </Card>
 
-                  <Card highlight={highlight} title="Stage Contribution (YTD)" onClick={() => openModal("Stage Contribution (YTD)", "Visual Inspection represents the single largest quality loss stage, contributing over half of all shopfloor rejects.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: pct(m.rate) })}>
+                  <Card title="Stage Contribution (YTD)" onClick={() => openModal("Stage Contribution (YTD)", "Visual Inspection represents the single largest quality loss stage, contributing over half of all shopfloor rejects.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: pct(m.rate) })}>
                     <BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} />
                   </Card>
 
-                  <Card highlight={highlight} title="Rejection Share by Stage">
+                  <Card title="Rejection Share by Stage">
                     <Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} />
                   </Card>
                 </div>
