@@ -195,7 +195,12 @@ export default function WorkbooksPage() {
   };
 
   const deleteWorkbook = async (wb: WorkbookRow) => {
-    if (!confirm(`Delete "${wb.fileName}" from Workbooks? Ledger data already saved from it is not affected.`)) return;
+    if (!confirm(
+      `Delete "${wb.fileName}" from Workbooks?\n\n` +
+        "• Ledger numbers already saved from this file are kept.\n" +
+        "• Master plant schema (stages / defects / sizes) is kept — manage it on Data Schema.\n" +
+        "• Only this file’s upload and column-mapping document are removed.",
+    )) return;
     setDeleting(wb.snapshotId);
     try {
       const res = await fetch(`/api/workbooks?snapshotId=${encodeURIComponent(wb.snapshotId)}`, { method: "DELETE" });

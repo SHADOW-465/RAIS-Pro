@@ -44,8 +44,8 @@ export interface ModStore {
    *  the successor of DISPOSAFE_REGISTRY lookups. First occurrence wins per id. */
   catalogFor(companyId: string): Promise<ModCatalog>;
   /** Remove every version of a lineage (workbook delete). Does not touch
-   *  ledger events already emitted from a verified version — those are
-   *  append-only and stay put. */
+   *  ledger events, company knowledge, or the company master catalog
+   *  (company_catalog) — schema is owned by Data Schema, not by workbooks. */
   deleteLineage(modId: string): Promise<void>;
 }
 

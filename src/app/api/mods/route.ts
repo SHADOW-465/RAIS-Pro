@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getModStore } from "@/core/ontology/store/mod-store";
+import { getCatalogStore } from "@/core/ontology/store/catalog-store";
 import { validateModDocument } from "@/core/ontology/validate/mod-validator";
 import { learnFromMod } from "@/core/ontology/builder/learn";
 
@@ -46,6 +47,9 @@ export async function POST(req: NextRequest) {
     }
 
     const published = await store.publish(modId, version, verifiedBy || "steward");
+    // Promote stages/defects/sizes into the company-owned master catalog.
+    // This catalog survives workbook delete — only Data Schema may edit it.
+    const catalog = await getCatalogStore().mergeFromMod(published);
     const learned = await learnFromMod(published);
     return NextResponse.json({
       modId: published.modId,
@@ -53,6 +57,11 @@ export async function POST(req: NextRequest) {
       status: published.status,
       supersedes: published.supersedes,
       learnedMappings: learned,
+      catalogCounts: {
+        stages: catalog.stages.length,
+        defects: catalog.defects.length,
+        sizes: catalog.sizes.length,
+      },
     });
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to publish MOD" }, { status: 500 });

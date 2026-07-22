@@ -46,19 +46,29 @@ export async function GET() {
 }
 
 /** DELETE /api/workbooks?snapshotId=... — remove an uploaded file from the
- *  Workbooks explorer (the snapshot + its MOD lineage). Ledger events already
- *  emitted from a verified version are append-only and are left alone. */
+ *  Workbooks explorer (the snapshot + its MOD lineage for that file).
+ *
+ *  Does NOT touch:
+ *    · the company master catalog (stages/defects/sizes) — owned by Data Schema
+ *    · ledger events already emitted (append-only)
+ *    · company knowledge mappings learned at publish time
+ *
+ *  Order: MOD lineage first (FK → snapshot), then snapshot. */
 export async function DELETE(req: NextRequest) {
   const snapshotId = req.nextUrl.searchParams.get("snapshotId");
   if (!snapshotId) {
     return NextResponse.json({ error: "snapshotId is required" }, { status: 400 });
   }
   try {
-    await Promise.all([
-      getSnapshotStore().delete(snapshotId),
-      getModStore().deleteLineage(snapshotId), // lineage id = first snapshot hash
-    ]);
-    return NextResponse.json({ ok: true });
+    // lineage id = first snapshot hash; removing it only drops this file's
+    // interpretation documents — master schema lives in company_catalog.
+    await getModStore().deleteLineage(snapshotId);
+    await getSnapshotStore().delete(snapshotId);
+    return NextResponse.json({
+      ok: true,
+      schemaPreserved: true,
+      note: "Master catalog is unchanged. Edit or delete schema on Data Schema.",
+    });
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to delete workbook" }, { status: 500 });
   }

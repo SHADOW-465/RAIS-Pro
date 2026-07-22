@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-07-23",
+    "macrostructure": "Workbench",
+    "theme": "project-locked",
+    "theme_axes": "light / geometric-sans / warm",
+    "enrichment": "none",
+    "brief": "Data Schema master catalog — ownership + editable stages/defects/sizes",
+    "nav": "N/A (AppShell)",
+    "genre": "modern-minimal"
+  },
+  {
     "date": "2026-07-21",
     "macrostructure": "Index-First",
     "theme": "project-locked",
