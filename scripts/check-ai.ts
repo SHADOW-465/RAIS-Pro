@@ -1,5 +1,6 @@
 // scripts/check-ai.ts
-// Pings OpenRouter with a minimal generateObject call and reports status.
+// Pings each configured backend (MiniCPM, Groq) with a minimal
+// generateObject call and reports status.
 //
 // Usage:
 //   npm run check:ai
@@ -58,7 +59,7 @@ function pad(s: string, n: number): string {
 async function main() {
   const backends = availableBackends();
   if (backends.length === 0) {
-    console.error("✗ No backends configured. Set NVIDIA_API_KEY or OPENROUTER_API_KEY in .env.local.");
+    console.error("✗ No backends configured. Set MINICPM_BASE_URL or GROQ_API_KEY in .env.local.");
     process.exit(1);
   }
 

@@ -1,39 +1,31 @@
 // src/lib/ai.ts
-// Multi-provider AI backend for free-tier, rate-limited keys.
+// AI backend chain: MiniCPM (self-hosted, primary) → Groq (API fallback).
 //
-// Chain (priority order): Groq → NVIDIA NIM → OpenRouter. Every configured
-// backend is tried in turn; a rate-limit / failure on one cascades to the next,
-// so a single throttled free tier never takes the whole feature down.
+// MiniCPM runs on our own servers behind an OpenAI-compatible endpoint
+// (vLLM / llama.cpp / SGLang) addressed by MINICPM_BASE_URL. When it's
+// unreachable or throttled the request cascades to Groq's free API tier.
 // RAIS_AI_BACKEND names a PREFERRED backend (moved to the front) but is NOT
-// exclusive — the others still act as fallbacks.
+// exclusive — the other still acts as a fallback.
 
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
 
-// Free-tier-friendly, JSON-capable defaults. Override per-backend via env.
+// JSON-capable defaults. Override per-backend via env.
 const MODELS = {
-  groq:       { main: "llama-3.3-70b-versatile",       fast: "llama-3.1-8b-instant" },
-  nvidia:     { main: "meta/llama-3.3-70b-instruct",   fast: "meta/llama-3.1-8b-instruct" },
-  openrouter: { main: "meta-llama/llama-3.3-70b-instruct:free", fast: "meta-llama/llama-3.1-8b-instruct:free" },
+  minicpm: { main: "openbmb/MiniCPM5-1B", fast: "openbmb/MiniCPM5-1B" },
+  groq:    { main: "llama-3.3-70b-versatile", fast: "llama-3.1-8b-instant" },
 } as const;
 
-export type ModelBackend = "groq" | "nvidia" | "openrouter";
+export type ModelBackend = "minicpm" | "groq";
 
-// Default reliability order for free tiers: Groq is fastest + most reliable,
-// NVIDIA NIM next. OpenRouter is disabled due to free-tier model unavailability.
-const DEFAULT_ORDER: readonly ModelBackend[] = ["groq", "nvidia"];
-
-function keyFor(b: ModelBackend): string | undefined {
-  if (b === "groq") return process.env.GROQ_API_KEY;
-  if (b === "nvidia") return process.env.NVIDIA_API_KEY;
-  if (b === "openrouter") return process.env.OPENROUTER_API_KEY;
-  return undefined;
-}
+// Priority order: our own MiniCPM first (no rate limits, data stays in-house),
+// Groq as the online fallback.
+const DEFAULT_ORDER: readonly ModelBackend[] = ["minicpm", "groq"];
 
 function isAvailable(b: ModelBackend): boolean {
-  if (b === "openrouter") return false; // OpenRouter free tier models are currently unavailable
-  return !!keyFor(b);
+  if (b === "minicpm") return !!process.env.MINICPM_BASE_URL;
+  if (b === "groq") return !!process.env.GROQ_API_KEY;
+  return false;
 }
 
 /** Configured backends in priority order. RAIS_AI_BACKEND is preferred-first, not exclusive. */
@@ -47,28 +39,24 @@ export function availableBackends(): ModelBackend[] {
 }
 
 export function resolveModel(backend: ModelBackend, fast: boolean): LanguageModel {
-  const apiKey = keyFor(backend);
-  if (!apiKey) throw noBackendError();
+  if (backend === "minicpm") {
+    const baseURL = process.env.MINICPM_BASE_URL;
+    if (!baseURL) throw noBackendError();
+    // Local servers usually accept any bearer token; MINICPM_API_KEY overrides.
+    const apiKey = process.env.MINICPM_API_KEY ?? "local";
+    const provider = createOpenAICompatible({ name: "minicpm", apiKey, baseURL });
+    const main = process.env.MINICPM_MODEL ?? MODELS.minicpm.main;
+    const f = process.env.MINICPM_MODEL_FAST ?? MODELS.minicpm.fast;
+    return provider.chatModel(fast ? f : main);
+  }
 
   if (backend === "groq") {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw noBackendError();
     const provider = createOpenAICompatible({ name: "groq", apiKey, baseURL: "https://api.groq.com/openai/v1" });
     const main = process.env.GROQ_MODEL ?? MODELS.groq.main;
     const f = process.env.GROQ_MODEL_FAST ?? MODELS.groq.fast;
     return provider.chatModel(fast ? f : main);
-  }
-
-  if (backend === "nvidia") {
-    const provider = createOpenAICompatible({ name: "nvidia", apiKey, baseURL: "https://integrate.api.nvidia.com/v1" });
-    const main = process.env.NVIDIA_MODEL ?? MODELS.nvidia.main;
-    const f = process.env.NVIDIA_MODEL_FAST ?? MODELS.nvidia.fast;
-    return provider.chatModel(fast ? f : main);
-  }
-
-  if (backend === "openrouter") {
-    const router = createOpenRouter({ apiKey });
-    const main = process.env.OPENROUTER_MODEL ?? MODELS.openrouter.main;
-    const f = process.env.OPENROUTER_MODEL_FAST ?? MODELS.openrouter.fast;
-    return router.chat(fast ? f : main, { maxTokens: 2000 });
   }
 
   throw new Error(`Unsupported backend: ${backend}`);
@@ -123,6 +111,6 @@ export async function tryModels<T>(
 
 function noBackendError(): Error {
   return new Error(
-    "No AI backend is configured. Set GROQ_API_KEY, NVIDIA_API_KEY, or OPENROUTER_API_KEY in .env.local.",
+    "No AI backend is configured. Set MINICPM_BASE_URL (self-hosted) or GROQ_API_KEY in .env.local.",
   );
 }

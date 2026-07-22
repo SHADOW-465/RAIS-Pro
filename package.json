@@ -16,7 +16,6 @@
     "@ai-sdk/google": "^3.0.80",
     "@ai-sdk/groq": "^3.0.39",
     "@ai-sdk/openai-compatible": "^2.0.48",
-    "@openrouter/ai-sdk-provider": "^2.9.0",
     "@supabase/supabase-js": "^2.101.1",
     "ai": "^6.0.191",
     "geist": "^1.7.2",
