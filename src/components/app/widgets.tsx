@@ -644,23 +644,23 @@ export function LineChart({
             );
           })}
         </svg>
-
-        {hover != null && (
-          <ChartTip 
-            leftPx={x(hover)} 
-            topPx={y(points[hover].value)} 
-            below={y(points[hover].value) < H * 0.32} 
-            title={points[hover].label} 
-            rows={[
-              { label: "Metric", value: activeMetric },
-              { label: "Value", value: fmt(points[hover].value), color },
-              ...(points[hover].rejected != null ? [{ label: "Rejected", value: num(points[hover].rejected!) }] : []),
-              ...(points[hover].checked ? [{ label: "Checked", value: num(points[hover].checked!) }] : []),
-              { label: "Stage", value: activeStage }
-            ]} 
-          />
-        )}
       </div>
+
+      {hover != null && (
+        <ChartTip
+          leftPx={x(hover) - scrollLeft}
+          topPx={y(points[hover].value)}
+          below={y(points[hover].value) < H * 0.32}
+          title={points[hover].label}
+          rows={[
+            { label: "Metric", value: activeMetric },
+            { label: "Value", value: fmt(points[hover].value), color },
+            ...(points[hover].rejected != null ? [{ label: "Rejected", value: num(points[hover].rejected!) }] : []),
+            ...(points[hover].checked ? [{ label: "Checked", value: num(points[hover].checked!) }] : []),
+            { label: "Stage", value: activeStage }
+          ]}
+        />
+      )}
     </div>
   );
 }
@@ -853,24 +853,24 @@ export function MultiLine({
             </g>
           ))}
         </svg>
-
-        {hover != null && (
-          <ChartTip
-            leftPx={x(hover)}
-            topPx={y(maxValAtHover)}
-            below={y(maxValAtHover) < H * 0.32}
-            title={data[hover].label}
-            rows={[...stages]
-              .map((s, si) => {
-                const c = data[hover].counts?.[s.stageId];
-                const exact = c && c.checked > 0 ? ` · ${num(c.rejected)}/${num(c.checked)}` : "";
-                return { label: s.label.split(" ")[0], value: fmtVal(data[hover].perStage[s.stageId] ?? 0) + exact, color: getStageColor(s, si), raw: data[hover].perStage[s.stageId] ?? 0 };
-              })
-              .sort((a, b) => b.raw - a.raw)
-              .map(({ label, value, color }) => ({ label, value, color }))}
-          />
-        )}
       </div>
+
+      {hover != null && (
+        <ChartTip
+          leftPx={x(hover) - scrollLeft}
+          topPx={y(maxValAtHover)}
+          below={y(maxValAtHover) < H * 0.32}
+          title={data[hover].label}
+          rows={[...stages]
+            .map((s, si) => {
+              const c = data[hover].counts?.[s.stageId];
+              const exact = c && c.checked > 0 ? ` · ${num(c.rejected)}/${num(c.checked)}` : "";
+              return { label: s.label.split(" ")[0], value: fmtVal(data[hover].perStage[s.stageId] ?? 0) + exact, color: getStageColor(s, si), raw: data[hover].perStage[s.stageId] ?? 0 };
+            })
+            .sort((a, b) => b.raw - a.raw)
+            .map(({ label, value, color }) => ({ label, value, color }))}
+        />
+      )}
     </div>
   );
 }
