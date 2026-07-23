@@ -142,9 +142,15 @@ export default function AppShell({
   }, []);
 
   const setPersonaAndStore = (id: PersonaId) => {
+    if (id === persona) {
+      setShowPersonaMenu(false);
+      return;
+    }
     setPersona(id);
     writeStoredPersona(id);
     setShowPersonaMenu(false);
+    // Role switch is chrome-only; land on the main dashboard for a consistent view.
+    router.push(PERSONAS[id].homeHref);
   };
 
   const visibleNavSections = useMemo(() => {
@@ -1239,12 +1245,14 @@ export default function AppShell({
             <Icon name={mounted && isDark ? "sun" : "moon"} size={14} />
           </button>
 
-          {/* Persona proxy (interim until real auth) */}
+          {/* Role selector — sidebar visibility only; no auth / data impact */}
           <div style={{ position: "relative" }}>
             <button
               type="button"
               onClick={() => setShowPersonaMenu((v) => !v)}
-              title="Switch role view (interim proxy)"
+              title="Switch dashboard role view"
+              aria-haspopup="listbox"
+              aria-expanded={showPersonaMenu}
               style={{ 
                 display: "flex", 
                 alignItems: "center", 
@@ -1257,6 +1265,7 @@ export default function AppShell({
                 height: 32,
                 cursor: "pointer",
                 fontFamily: "inherit",
+                maxWidth: 220,
               }}
             >
               <div style={{ 
@@ -1270,17 +1279,20 @@ export default function AppShell({
                 fontFamily: "var(--font-display)",
                 fontWeight: 700,
                 fontSize: 11,
-                border: "1px solid var(--border-strong)"
+                border: "1px solid var(--border-strong)",
+                flexShrink: 0,
               }}>
                 {personaDef.initial}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
-                <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.1 }}>{personaDef.label}</span>
+              <div style={{ display: "flex", flexDirection: "column", textAlign: "left", minWidth: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{personaDef.label}</span>
                 <span className="muted" style={{ fontSize: 9, lineHeight: 1.1 }}>{personaDef.title}</span>
               </div>
             </button>
             {showPersonaMenu && (
               <div
+                role="listbox"
+                aria-label="Dashboard role"
                 style={{
                   position: "absolute",
                   top: "100%",
@@ -1292,11 +1304,11 @@ export default function AppShell({
                   boxShadow: "var(--shadow-lg)",
                   padding: 6,
                   zIndex: 220,
-                  width: 220,
+                  width: 240,
                 }}
               >
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)", padding: "4px 8px 6px" }}>
-                  Role view (proxy)
+                  Dashboard role
                 </div>
                 {PERSONA_ORDER.map((id) => {
                   const p = PERSONAS[id];
@@ -1305,6 +1317,8 @@ export default function AppShell({
                     <button
                       key={id}
                       type="button"
+                      role="option"
+                      aria-selected={on}
                       onClick={() => setPersonaAndStore(id)}
                       style={{
                         width: "100%",

@@ -1,5 +1,6 @@
 import { resolveIntentDeterministic, CONFIDENT, type IntentCtx } from "../intent";
 import { resolveIntent } from "../intent";
+import { personaAllowsNav } from "../../persona";
 import type { Event } from "@/lib/store/types";
 
 const ev = (over: Partial<Event>) => over as unknown as Event;
@@ -7,7 +8,7 @@ const EVENTS: Event[] = [
   ev({ eventType: "rejection", stageId: "balloon", size: "24Fr", defectCode: "PINHOLE" }),
   ev({ eventType: "rejection", stageId: "visual", size: "22Fr", defectCode: "CRACK" }),
 ];
-const baseCtx = (persona: IntentCtx["persona"] = "qe"): IntentCtx => ({
+const baseCtx = (persona: IntentCtx["persona"] = "gm"): IntentCtx => ({
   events: EVENTS,
   currentScope: { grain: "month" },
   persona,
@@ -41,11 +42,11 @@ describe("resolveIntentDeterministic", () => {
     expect(r.state).toMatchObject({ grain: "fy", metric: "copq" });
   });
 
-  it("does not route an operator to a screen their role can't see", () => {
-    const r = resolveIntentDeterministic("copq this fy", baseCtx("operator"));
-    // operator navAllow = ["dashboard","data-entry"] → copq denied
-    expect(["dashboard", "data-entry"]).toContain(r.navKey);
-    expect(r.confidence).toBeLessThan(CONFIDENT);
+  it("does not route Owner to a screen their role can't see", () => {
+    // Owner hides data-entry; batch matches still cannot land on data-entry
+    const r = resolveIntentDeterministic("batch 25A28", baseCtx("owner"));
+    expect(r.navKey).not.toBe("data-entry");
+    expect(personaAllowsNav("owner", r.navKey)).toBe(true);
   });
 
   it("returns alternatives when nothing confident matches", () => {

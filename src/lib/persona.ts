@@ -1,10 +1,13 @@
 // Interim role / environment proxy (UX philosophy F4, RP-*).
-// Real auth later; until then a stored persona shapes nav chrome.
+// Real auth later; until then a stored persona shapes nav chrome only.
+// Does not affect APIs, analytics, routing tables, or page functionality —
+// only which sidebar (and command-palette destination) items are visible.
 
 import type { NavKey } from "@/lib/nav-keys";
 export type { NavKey };
 
-export type PersonaId = "operator" | "supervisor" | "qe" | "qa" | "gm";
+/** Dashboard role views: GM (full), Owner, Data Entry Operator. */
+export type PersonaId = "gm" | "owner" | "operator";
 
 export interface PersonaDef {
   id: PersonaId;
@@ -14,46 +17,75 @@ export interface PersonaDef {
   title: string;
   /** Display initial */
   initial: string;
-  /** Home route for this role */
+  /** Home route for this role (navigate here on role switch) */
   homeHref: string;
   /** Nav keys this persona may see (deny by omission). */
   navAllow: readonly NavKey[];
 }
 
+/** Full sidebar — every key used by AppShell NAV_SECTIONS (+ clear-data for palette). */
+const FULL_NAV: readonly NavKey[] = [
+  "dashboard",
+  "workbooks",
+  "data-entry",
+  "staging",
+  "stage",
+  "size",
+  "defect",
+  "spc",
+  "process-flow",
+  "copq",
+  "reports",
+  "capa",
+  "ask",
+  "audit",
+  "schema",
+  "settings",
+  "clear-data",
+];
+
 /**
  * Allowed destinations per role. Analysis engines stay in the product;
- * chrome is filtered so operators never see schema / admin / dense tools.
+ * chrome is filtered so each role only sees its sidebar items.
  */
 export const PERSONAS: Record<PersonaId, PersonaDef> = {
-  operator: {
-    id: "operator",
-    label: "Operator",
-    title: "Shop floor entry",
-    initial: "O",
-    homeHref: "/data-entry",
-    navAllow: ["dashboard", "data-entry"],
+  gm: {
+    id: "gm",
+    label: "General Manager (GM)",
+    title: "Full access",
+    initial: "G",
+    homeHref: "/",
+    navAllow: FULL_NAV,
   },
-  supervisor: {
-    id: "supervisor",
-    label: "Supervisor",
-    title: "Shift lead",
-    initial: "S",
-    homeHref: "/data-entry",
+  owner: {
+    id: "owner",
+    label: "Owner",
+    title: "Executive view",
+    initial: "O",
+    homeHref: "/",
+    // Hide: Workbooks category, Data category, and under Management:
+    // Audit Trail, Data Schema, Settings.
     navAllow: [
       "dashboard",
-      "data-entry",
-      "staging",
-      "audit",
-      "capa",
+      "stage",
+      "size",
+      "defect",
+      "spc",
+      "process-flow",
+      "copq",
       "reports",
+      "capa",
+      "ask",
+      "clear-data",
     ],
   },
-  qe: {
-    id: "qe",
-    label: "Quality Eng.",
-    title: "Investigation",
-    initial: "Q",
+  operator: {
+    id: "operator",
+    label: "Data Entry Operator",
+    title: "Entry & review",
+    initial: "D",
     homeHref: "/",
+    // Hide under Management: Data Schema, Settings.
     navAllow: [
       "dashboard",
       "workbooks",
@@ -69,59 +101,15 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       "capa",
       "ask",
       "audit",
-      "schema",
-      "settings",
-    ],
-  },
-  qa: {
-    id: "qa",
-    label: "QA Manager",
-    title: "Governance",
-    initial: "A",
-    homeHref: "/",
-    navAllow: [
-      "dashboard",
-      "staging",
-      "stage",
-      "size",
-      "defect",
-      "spc",
-      "copq",
-      "reports",
-      "capa",
-      "ask",
-      "audit",
-      "settings",
-    ],
-  },
-  gm: {
-    id: "gm",
-    label: "GM",
-    title: "Plant head",
-    initial: "G",
-    homeHref: "/",
-    navAllow: [
-      "dashboard",
-      "copq",
-      "reports",
-      "capa",
-      "ask",
-      "audit",
-      "settings",
       "clear-data",
     ],
   },
 };
 
-export const PERSONA_ORDER: PersonaId[] = [
-  "operator",
-  "supervisor",
-  "qe",
-  "qa",
-  "gm",
-];
+export const PERSONA_ORDER: PersonaId[] = ["gm", "owner", "operator"];
 
-export const DEFAULT_PERSONA: PersonaId = "qe";
+/** Default: full-access GM dashboard (matches complete sidebar). */
+export const DEFAULT_PERSONA: PersonaId = "gm";
 export const PERSONA_STORAGE_KEY = "moid_persona";
 
 export function isPersonaId(v: string | null | undefined): v is PersonaId {
