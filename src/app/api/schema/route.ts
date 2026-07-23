@@ -1,13 +1,13 @@
 // src/app/api/schema/route.ts
-// Master plant catalog endpoint.
+// Master plant schema — the system brain:
+//   · catalog: stages / defects / sizes (company_catalog)
+//   · mappings: learned Excel labels → canonical (company_knowledge)
 //
-// GET    → company master schema (stages / defects / sizes)
-// POST   → upsert or delete individual entities (Data Schema page only)
-// DELETE → remove one entity (?kind=stage|defect|size&id=…)
+// GET    → full brain snapshot
+// POST   → upsert/delete catalog entities or knowledge mappings
+// DELETE → remove one catalog entity (?kind=stage|defect|size&id=…)
 //
-// Catalog is company-owned. Workbook delete does not touch it. When the
-// durable catalog is empty we lazily backfill once from any remaining
-// verified MODs (migration path for pre-catalog deployments).
+// Workbook delete never touches this. Only Data Schema mutations do.
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -15,6 +15,12 @@ import { StageDef, DefectDef, SizeDef } from "@/lib/contract/d1";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import { getCatalogStore, type CompanyCatalog } from "@/core/ontology/store/catalog-store";
 import { getModStore } from "@/core/ontology/store/mod-store";
+import {
+  getKnowledgeStore,
+  normalizeKey,
+  type KnowledgeEntry,
+  type KnowledgeKind,
+} from "@/core/ontology/store/knowledge-store";
 
 function companyId(): string {
   return process.env.MOID_COMPANY_ID || "default";
@@ -65,8 +71,6 @@ async function loadCatalog(company: string): Promise<CompanyCatalog> {
   const verified = await getModStore().verified(company);
   if (verified.length === 0) return catalog;
 
-  // Prefer durable write; if company_catalog table is still missing in prod,
-  // merge in-memory from verified MODs so /api/schema never 500s the shell.
   try {
     for (const mod of verified) {
       catalog = await store.mergeFromMod(mod);
@@ -96,25 +100,94 @@ async function loadCatalog(company: string): Promise<CompanyCatalog> {
   }
 }
 
+/** Verified MOD entities promoted into knowledge-shaped rows for the brain UI. */
+async function mappingsFromVerifiedMods(company: string): Promise<
+  Array<KnowledgeEntry & { source: "mod" }>
+> {
+  const verified = await getModStore().verified(company);
+  const map = new Map<string, KnowledgeEntry & { source: "mod" }>();
+  for (const mod of verified) {
+    for (const e of mod.document.entities ?? []) {
+      if (!e.verified || !e.canonical) continue;
+      const header = (e.original?.header ?? "").trim();
+      if (!header) continue;
+      let kind: KnowledgeKind = "column-mapping";
+      if (e.kind === "stage") kind = "stage-alias";
+      else if (e.kind === "defect") kind = "defect-alias";
+      const key = normalizeKey(header);
+      const id = `${kind}|${key}`;
+      if (map.has(id)) continue;
+      map.set(id, {
+        companyId: company,
+        kind,
+        key,
+        canonicalId: e.canonical,
+        confidence: e.confidence ?? 1,
+        learnedFrom: mod.modId,
+        learnedAt: mod.verifiedAt ?? mod.createdAt ?? new Date().toISOString(),
+        useCount: 0,
+        source: "mod",
+      });
+    }
+  }
+  return [...map.values()];
+}
+
+async function loadMappings(company: string): Promise<
+  Array<KnowledgeEntry & { source: "knowledge" | "mod" }>
+> {
+  let knowledge: KnowledgeEntry[] = [];
+  try {
+    knowledge = await getKnowledgeStore().list(company);
+  } catch {
+    knowledge = [];
+  }
+  const fromKnowledge = knowledge.map((e) => ({ ...e, source: "knowledge" as const }));
+  const seen = new Set(fromKnowledge.map((e) => `${e.kind}|${e.key}`));
+
+  let fromMods: Array<KnowledgeEntry & { source: "mod" }> = [];
+  try {
+    fromMods = await mappingsFromVerifiedMods(company);
+  } catch {
+    fromMods = [];
+  }
+
+  const extras = fromMods.filter((e) => !seen.has(`${e.kind}|${e.key}`));
+  return [...fromKnowledge, ...extras].sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
+    return a.key.localeCompare(b.key);
+  });
+}
+
 export async function GET() {
   try {
     const company = companyId();
-    const catalog = await loadCatalog(company);
-    if (catalog.stages.length === 0 && catalog.defects.length === 0) {
-      return NextResponse.json({
-        registry: EMPTY_REGISTRY,
-        catalog,
-        configured: false,
-      });
-    }
+    const [catalog, mappings] = await Promise.all([
+      loadCatalog(company),
+      loadMappings(company),
+    ]);
+
+    const configured =
+      catalog.stages.length > 0 ||
+      catalog.defects.length > 0 ||
+      catalog.sizes.length > 0 ||
+      mappings.length > 0;
 
     return NextResponse.json({
-      registry: toRegistry(catalog, company),
+      registry: configured ? toRegistry(catalog, company) : EMPTY_REGISTRY,
       catalog,
-      configured: true,
+      mappings,
+      configured,
+      brain: {
+        stageCount: catalog.stages.length,
+        defectCount: catalog.defects.length,
+        sizeCount: catalog.sizes.length,
+        mappingCount: mappings.length,
+        knowledgeCount: mappings.filter((m) => m.source === "knowledge").length,
+        modDerivedCount: mappings.filter((m) => m.source === "mod").length,
+      },
     });
   } catch (err: unknown) {
-    // Last resort: never blank the app shell — return empty registry.
     console.error("[api/schema] GET failed:", err);
     return NextResponse.json({
       registry: EMPTY_REGISTRY,
@@ -126,11 +199,19 @@ export async function GET() {
         updatedAt: null,
         lastMergedFrom: null,
       },
+      mappings: [],
       configured: false,
       error: err instanceof Error ? err.message : "Failed to load catalog",
     });
   }
 }
+
+const KnowledgeKindSchema = z.enum([
+  "stage-alias",
+  "defect-alias",
+  "column-mapping",
+  "header-pattern",
+]);
 
 const UpsertStageBody = z.object({
   action: z.literal("upsert-stage"),
@@ -152,6 +233,20 @@ const FiscalBody = z.object({
   action: z.literal("set-fiscal-year-start"),
   month: z.number().int().min(1).max(12),
 });
+const UpsertMappingBody = z.object({
+  action: z.literal("upsert-mapping"),
+  mapping: z.object({
+    kind: KnowledgeKindSchema,
+    key: z.string().min(1),
+    canonicalId: z.string().min(1),
+    confidence: z.number().min(0).max(1).optional(),
+  }),
+});
+const DeleteMappingBody = z.object({
+  action: z.literal("delete-mapping"),
+  kind: KnowledgeKindSchema,
+  key: z.string().min(1),
+});
 
 const BodySchema = z.discriminatedUnion("action", [
   UpsertStageBody,
@@ -159,6 +254,8 @@ const BodySchema = z.discriminatedUnion("action", [
   UpsertSizeBody,
   DeleteBody,
   FiscalBody,
+  UpsertMappingBody,
+  DeleteMappingBody,
 ]);
 
 export async function POST(req: NextRequest) {
@@ -174,11 +271,12 @@ export async function POST(req: NextRequest) {
     }
 
     const store = getCatalogStore();
-    // Ensure lazy backfill before mutation so we don't overwrite a migrated set.
+    const knowledge = getKnowledgeStore();
     await loadCatalog(company);
 
-    let catalog: CompanyCatalog;
+    let catalog: CompanyCatalog = await store.get(company);
     const body = parsed.data;
+
     switch (body.action) {
       case "upsert-stage":
         catalog = await store.upsertStage(company, body.stage);
@@ -207,13 +305,39 @@ export async function POST(req: NextRequest) {
         });
         break;
       }
+      case "upsert-mapping": {
+        await knowledge.learn([
+          {
+            companyId: company,
+            kind: body.mapping.kind,
+            key: normalizeKey(body.mapping.key),
+            canonicalId: body.mapping.canonicalId.trim(),
+            confidence: body.mapping.confidence ?? 1,
+            learnedFrom: "master-schema",
+          },
+        ]);
+        catalog = await store.get(company);
+        break;
+      }
+      case "delete-mapping": {
+        await knowledge.remove(company, body.kind, body.key);
+        catalog = await store.get(company);
+        break;
+      }
     }
+
+    const mappings = await loadMappings(company);
 
     return NextResponse.json({
       ok: true,
       registry: toRegistry(catalog, company),
       catalog,
-      configured: catalog.stages.length > 0 || catalog.defects.length > 0,
+      mappings,
+      configured:
+        catalog.stages.length > 0 ||
+        catalog.defects.length > 0 ||
+        catalog.sizes.length > 0 ||
+        mappings.length > 0,
     });
   } catch (err: unknown) {
     return NextResponse.json(
@@ -223,14 +347,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** DELETE /api/schema?kind=stage|defect|size&id=… */
+/** DELETE /api/schema?kind=stage|defect|size|mapping&id=… [&mappingKind=…] */
 export async function DELETE(req: NextRequest) {
   try {
     const kind = req.nextUrl.searchParams.get("kind");
     const id = req.nextUrl.searchParams.get("id");
-    if (!kind || !id || !["stage", "defect", "size"].includes(kind)) {
+    if (!kind || !id) {
       return NextResponse.json(
-        { error: "kind (stage|defect|size) and id are required" },
+        { error: "kind and id are required" },
         { status: 400 },
       );
     }
@@ -240,15 +364,40 @@ export async function DELETE(req: NextRequest) {
     await loadCatalog(company);
 
     let catalog: CompanyCatalog;
-    if (kind === "stage") catalog = await store.deleteStage(company, id);
-    else if (kind === "defect") catalog = await store.deleteDefect(company, id);
-    else catalog = await store.deleteSize(company, id);
+    if (kind === "mapping") {
+      const mappingKind = req.nextUrl.searchParams.get("mappingKind") as KnowledgeKind | null;
+      if (!mappingKind) {
+        return NextResponse.json(
+          { error: "mappingKind is required when kind=mapping" },
+          { status: 400 },
+        );
+      }
+      await getKnowledgeStore().remove(company, mappingKind, id);
+      catalog = await store.get(company);
+    } else if (kind === "stage") {
+      catalog = await store.deleteStage(company, id);
+    } else if (kind === "defect") {
+      catalog = await store.deleteDefect(company, id);
+    } else if (kind === "size") {
+      catalog = await store.deleteSize(company, id);
+    } else {
+      return NextResponse.json(
+        { error: "kind must be stage|defect|size|mapping" },
+        { status: 400 },
+      );
+    }
 
+    const mappings = await loadMappings(company);
     return NextResponse.json({
       ok: true,
       registry: toRegistry(catalog, company),
       catalog,
-      configured: catalog.stages.length > 0 || catalog.defects.length > 0,
+      mappings,
+      configured:
+        catalog.stages.length > 0 ||
+        catalog.defects.length > 0 ||
+        catalog.sizes.length > 0 ||
+        mappings.length > 0,
     });
   } catch (err: unknown) {
     return NextResponse.json(

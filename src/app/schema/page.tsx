@@ -5,8 +5,9 @@
  * enrichment: none · nav: N/A (AppShell) · brief: master plant schema ownership
  * Pre-emit critique: P5 H5 E5 S5 R4 V4
  *
- * Master plant schema is company-owned. Workbooks may contribute on verify;
- * only this page edits or deletes stages / defects / sizes.
+ * Master Schema is the system brain: stages, defects, sizes, and every
+ * learned Excel→canonical mapping. Workbooks contribute; only this page
+ * edits or deletes the durable knowledge plane.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -24,6 +25,7 @@ import {
   integrityIssueId,
   type IntegrityIssue,
 } from "@/lib/analytics";
+import { clusterWorkbooks, fileBasename } from "@/lib/workbook-clusters";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -59,6 +61,20 @@ interface CatalogMeta {
   lastMergedFrom: string | null;
 }
 
+type MappingKind = "stage-alias" | "defect-alias" | "column-mapping" | "header-pattern";
+
+interface SchemaMapping {
+  companyId?: string;
+  kind: MappingKind;
+  key: string;
+  canonicalId: string;
+  confidence: number;
+  learnedFrom: string | null;
+  learnedAt: string;
+  useCount: number;
+  source?: "knowledge" | "mod";
+}
+
 interface WorkbookRow {
   snapshotId: string;
   fileName: string;
@@ -87,9 +103,16 @@ interface ModDetail {
   };
 }
 
-type Section = "stages" | "defects" | "sizes";
+type Section = "stages" | "defects" | "sizes" | "mappings";
 
 const CAPTURE_OPTS = ["checked", "accepted", "hold", "rejected"] as const;
+
+const MAPPING_KIND_LABEL: Record<MappingKind, string> = {
+  "stage-alias": "Stage alias",
+  "defect-alias": "Defect alias",
+  "column-mapping": "Column mapping",
+  "header-pattern": "Header pattern",
+};
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
@@ -99,20 +122,25 @@ export default function SchemaPage() {
   const { t } = useTweaks();
 
   const [catalog, setCatalog] = useState<CatalogMeta | null>(null);
+  const [mappings, setMappings] = useState<SchemaMapping[]>([]);
   const [configured, setConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [section, setSection] = useState<Section>("stages");
+  const [mappingFilter, setMappingFilter] = useState<"all" | MappingKind>("all");
+  const [mappingSearch, setMappingSearch] = useState("");
 
   // Inline edit state
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [editingDefectCode, setEditingDefectCode] = useState<string | null>(null);
   const [editingSizeId, setEditingSizeId] = useState<string | null>(null);
+  const [editingMappingKey, setEditingMappingKey] = useState<string | null>(null);
   const [stageDraft, setStageDraft] = useState<Stage | null>(null);
   const [defectDraft, setDefectDraft] = useState<Defect | null>(null);
   const [sizeDraft, setSizeDraft] = useState<Size | null>(null);
+  const [mappingDraft, setMappingDraft] = useState<SchemaMapping | null>(null);
 
   // Add-new drawers
   const [adding, setAdding] = useState(false);
@@ -131,12 +159,23 @@ export default function SchemaPage() {
     stages: [],
   });
   const [newSize, setNewSize] = useState<Size>({ sizeId: "", label: "" });
+  const [newMapping, setNewMapping] = useState<{ kind: MappingKind; key: string; canonicalId: string }>({
+    kind: "column-mapping",
+    key: "",
+    canonicalId: "",
+  });
 
-  // Secondary: file lineage (read-only mappings)
-  const [showLineage, setShowLineage] = useState(false);
+  // Uploaded workbooks — series dropdown + file dropdown (per-file interpretation)
   const [workbooks, setWorkbooks] = useState<WorkbookRow[]>([]);
+  const [wbLoading, setWbLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedClusterKey, setSelectedClusterKey] = useState<string | null>(null);
+  const [selectedSnapshot, setSelectedSnapshot] = useState<string | null>(null);
   const [selectedMod, setSelectedMod] = useState<string | null>(null);
   const [modDetail, setModDetail] = useState<ModDetail | null>(null);
+  const [showMappings, setShowMappings] = useState(false);
+  const [resetSchemaOpen, setResetSchemaOpen] = useState(false);
+  const [resetSchemaText, setResetSchemaText] = useState("");
 
   const integrity = useMemo(() => {
     if (!events || events.length === 0) {
@@ -168,6 +207,7 @@ export default function SchemaPage() {
         lastMergedFrom: null,
       };
       setCatalog(cat);
+      setMappings(body.mappings ?? []);
       setConfigured(!!body.configured);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load schema");
@@ -176,22 +216,33 @@ export default function SchemaPage() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const loadWorkbooks = useCallback(async () => {
+    setWbLoading(true);
+    try {
+      const r = await fetch("/api/workbooks");
+      const d = await r.json();
+      const list: WorkbookRow[] = d.workbooks ?? [];
+      setWorkbooks(list);
+      const clusters = clusterWorkbooks(list);
+      setSelectedClusterKey((cur) => {
+        if (cur && clusters.some((c) => c.key === cur)) return cur;
+        return clusters[0]?.key ?? null;
+      });
+      setSelectedSnapshot((cur) => {
+        if (cur && list.some((w) => w.snapshotId === cur)) return cur;
+        return clusters[0]?.files[0]?.snapshotId ?? null;
+      });
+    } catch {
+      /* keep previous */
+    } finally {
+      setWbLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!showLineage) return;
-    fetch("/api/workbooks")
-      .then((r) => r.json())
-      .then((d) => {
-        const list: WorkbookRow[] = (d.workbooks ?? []).filter((w: WorkbookRow) => w.mod);
-        setWorkbooks(list);
-        const first = list.find((w) => w.mod?.status === "verified") ?? list[0];
-        if (first?.mod) setSelectedMod(first.mod.modId);
-      })
-      .catch(() => {});
-  }, [showLineage]);
+    load();
+    loadWorkbooks();
+  }, [load, loadWorkbooks]);
 
   useEffect(() => {
     if (!selectedMod) {
@@ -203,6 +254,123 @@ export default function SchemaPage() {
       .then((d) => setModDetail(d.mod ?? null))
       .catch(() => setModDetail(null));
   }, [selectedMod]);
+
+  const workbookClusters = useMemo(() => clusterWorkbooks(workbooks), [workbooks]);
+
+  const activeCluster = useMemo(
+    () => workbookClusters.find((c) => c.key === selectedClusterKey) ?? workbookClusters[0] ?? null,
+    [workbookClusters, selectedClusterKey],
+  );
+
+  const activeWorkbook = useMemo(() => {
+    if (!activeCluster) return null;
+    return (
+      activeCluster.files.find((f) => f.snapshotId === selectedSnapshot) ??
+      activeCluster.files[0] ??
+      null
+    );
+  }, [activeCluster, selectedSnapshot]);
+
+  // Keep mod detail in sync with selected file
+  useEffect(() => {
+    if (!activeWorkbook) {
+      setSelectedMod(null);
+      setModDetail(null);
+      return;
+    }
+    setSelectedMod(activeWorkbook.mod?.modId ?? null);
+    if (!activeWorkbook.mod) {
+      setModDetail(null);
+      setShowMappings(false);
+    }
+  }, [activeWorkbook]);
+
+  const deleteWorkbook = async (wb: WorkbookRow) => {
+    const name = fileBasename(wb.fileName);
+    if (
+      !confirm(
+        `Delete file “${name}” only?\n\n` +
+          "Removes this upload and its column-mapping document.\n" +
+          "Master schema (stages / defects / sizes) is NOT deleted.\n" +
+          "Ledger facts already published stay on the dashboard.",
+      )
+    ) {
+      return;
+    }
+    setDeletingId(wb.snapshotId);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/workbooks?snapshotId=${encodeURIComponent(wb.snapshotId)}`,
+        { method: "DELETE" },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      setShowMappings(false);
+      setStatus(`Removed file “${name}”. Master schema unchanged.`);
+      await loadWorkbooks();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete file");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const deleteCluster = async (label: string, files: WorkbookRow[]) => {
+    if (
+      !confirm(
+        `Delete all ${files.length} file(s) in series “${label}”?\n\n` +
+          "Only these uploads and their mapping docs are removed.\n" +
+          "Master schema is NOT deleted.",
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      for (const wb of files) {
+        const res = await fetch(
+          `/api/workbooks?snapshotId=${encodeURIComponent(wb.snapshotId)}`,
+          { method: "DELETE" },
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error ?? `Failed on ${fileBasename(wb.fileName)}`);
+        }
+      }
+      setShowMappings(false);
+      setStatus(`Removed ${files.length} file(s) from “${label}”. Master schema kept.`);
+      await loadWorkbooks();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Series delete failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resetMasterSchema = async () => {
+    if (resetSchemaText.trim().toUpperCase() !== "RESET") return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/clear-schema", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Failed to reset master schema");
+      setResetSchemaOpen(false);
+      setResetSchemaText("");
+      setStatus(
+        "Master schema brain cleared (stages, defects, sizes, mappings). Uploaded files and ledger events were not deleted.",
+      );
+      setMappings([]);
+      await load();
+      await refreshRegistry();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to reset master schema");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const mutate = async (body: Record<string, unknown>, okMsg: string) => {
     setBusy(true);
@@ -217,15 +385,18 @@ export default function SchemaPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Update failed");
       setCatalog(data.catalog);
+      if (data.mappings) setMappings(data.mappings);
       setConfigured(!!data.configured);
       setStatus(okMsg);
       setAdding(false);
       setEditingStageId(null);
       setEditingDefectCode(null);
       setEditingSizeId(null);
+      setEditingMappingKey(null);
       setStageDraft(null);
       setDefectDraft(null);
       setSizeDraft(null);
+      setMappingDraft(null);
       await refreshRegistry();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed");
@@ -243,15 +414,121 @@ export default function SchemaPage() {
     void mutate({ action, id }, `Removed ${kind} ${id}`);
   };
 
+  const mappingRowId = (m: Pick<SchemaMapping, "kind" | "key">) => `${m.kind}|${m.key}`;
+
+  const confirmDeleteMapping = (m: SchemaMapping) => {
+    if (m.source === "mod") {
+      setError(
+        "This mapping is still sourced from a verified workbook. Edit + Save to promote it into the editable brain first, then delete — or fix it on Staging for that file.",
+      );
+      return;
+    }
+    if (
+      !confirm(
+        `Remove mapping “${m.key}” → ${m.canonicalId} (${MAPPING_KIND_LABEL[m.kind]}) from the system brain?\n\nThe resolver will no longer use this Excel→canonical rule. Ledger facts are not deleted.`,
+      )
+    ) {
+      return;
+    }
+    void mutate(
+      { action: "delete-mapping", kind: m.kind, key: m.key },
+      `Removed mapping ${m.key}`,
+    );
+  };
+
+  /** Save mapping (and optionally retire the old key when kind/label changes). */
+  const saveMappingEdit = async (original: SchemaMapping, draft: SchemaMapping) => {
+    const key = draft.key.trim();
+    const canonicalId = draft.canonicalId.trim();
+    if (!key || !canonicalId) {
+      setError("Label and canonical id are required");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const identityChanged =
+        original.source !== "mod" &&
+        (draft.kind !== original.kind || key.toLowerCase() !== original.key.toLowerCase());
+
+      if (identityChanged) {
+        const del = await fetch("/api/schema", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "delete-mapping",
+            kind: original.kind,
+            key: original.key,
+          }),
+        });
+        if (!del.ok) {
+          const data = await del.json().catch(() => ({}));
+          throw new Error(data.error ?? "Failed to replace old mapping");
+        }
+      }
+
+      const res = await fetch("/api/schema", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "upsert-mapping",
+          mapping: {
+            kind: draft.kind,
+            key,
+            canonicalId,
+            confidence: draft.confidence ?? 1,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Update failed");
+      setCatalog(data.catalog);
+      if (data.mappings) setMappings(data.mappings);
+      setConfigured(!!data.configured);
+      setStatus(
+        original.source === "mod"
+          ? `Mapping “${key}” promoted into brain`
+          : `Mapping “${key}” updated`,
+      );
+      setEditingMappingKey(null);
+      setMappingDraft(null);
+      setAdding(false);
+      await refreshRegistry();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const stages = catalog?.stages ?? [];
   const defects = catalog?.defects ?? [];
   const sizes = catalog?.sizes ?? [];
+
+  const filteredMappings = useMemo(() => {
+    const q = mappingSearch.trim().toLowerCase();
+    return mappings.filter((m) => {
+      if (mappingFilter !== "all" && m.kind !== mappingFilter) return false;
+      if (!q) return true;
+      return (
+        m.key.toLowerCase().includes(q) ||
+        m.canonicalId.toLowerCase().includes(q) ||
+        m.kind.toLowerCase().includes(q) ||
+        (m.learnedFrom ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [mappings, mappingFilter, mappingSearch]);
 
   const counts = {
     stages: stages.length,
     defects: defects.length,
     sizes: sizes.length,
+    mappings: mappings.length,
   };
+
+  const brainEmpty =
+    stages.length === 0 && defects.length === 0 && sizes.length === 0 && mappings.length === 0;
 
   return (
     <AppShell active="schema">
@@ -280,7 +557,7 @@ export default function SchemaPage() {
                 fontFamily: "var(--font-mono)",
               }}
             >
-              Master config
+              System brain
             </div>
             <h1
               className="h1"
@@ -294,11 +571,12 @@ export default function SchemaPage() {
                 lineHeight: 1.15,
               }}
             >
-              Data Schema
+              Master Schema
             </h1>
-            <p className="body" style={{ fontSize: 14, margin: 0, color: "var(--text-2)", maxWidth: 640, lineHeight: 1.55 }}>
-              Plant-wide stages, defect codes, and sizes. Owned here — not by uploaded workbooks.
-              Deleting a file never clears this catalog.
+            <p className="body" style={{ fontSize: 14, margin: 0, color: "var(--text-2)", maxWidth: 680, lineHeight: 1.55 }}>
+              The durable knowledge of the whole plant: process stages, defect codes, sizes, and every
+              Excel label→canonical mapping the resolver uses. Edit or delete any row here.
+              Deleting an uploaded file never wipes this brain.
             </p>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
@@ -324,6 +602,7 @@ export default function SchemaPage() {
                 setEditingStageId(null);
                 setEditingDefectCode(null);
                 setEditingSizeId(null);
+                setEditingMappingKey(null);
               }}
               style={{
                 fontSize: 13,
@@ -336,7 +615,14 @@ export default function SchemaPage() {
                 cursor: "pointer",
               }}
             >
-              + Add {section === "stages" ? "stage" : section === "defects" ? "defect" : "size"}
+              + Add{" "}
+              {section === "stages"
+                ? "stage"
+                : section === "defects"
+                  ? "defect"
+                  : section === "sizes"
+                    ? "size"
+                    : "mapping"}
             </button>
           </div>
         </header>
@@ -368,8 +654,9 @@ export default function SchemaPage() {
             Ownership
           </span>
           <span style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.45 }}>
-            Workbooks <strong style={{ color: "var(--text)", fontWeight: 600 }}>contribute</strong> on verify.
-            Only this page <strong style={{ color: "var(--text)", fontWeight: 600 }}>edits or deletes</strong> master schema.
+            Workbooks <strong style={{ color: "var(--text)", fontWeight: 600 }}>teach</strong> on verify.
+            This page is the <strong style={{ color: "var(--text)", fontWeight: 600 }}>source of truth</strong> —
+            every mapping the system understands, fully editable.
           </span>
           {catalog?.updatedAt && (
             <span
@@ -415,27 +702,20 @@ export default function SchemaPage() {
           </div>
         )}
 
-        {integrity.integrityIssues.length > 0 && (
-          <IntegrityIssuesPanel
-            blocked={integrity.state === "blocked"}
-            reason={integrity.reason}
-            issues={integrity.integrityIssues}
-          />
-        )}
-
-        {/* Summary strip */}
+        {/* Summary strip — full brain surface */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
             gap: 10,
           }}
         >
           {(
             [
-              { key: "stages" as const, label: "Stages", value: counts.stages },
-              { key: "defects" as const, label: "Defect codes", value: counts.defects },
-              { key: "sizes" as const, label: "Sizes", value: counts.sizes },
+              { key: "stages" as const, label: "Stages", value: counts.stages, hint: "Process flow" },
+              { key: "defects" as const, label: "Defect codes", value: counts.defects, hint: "Rejection catalog" },
+              { key: "sizes" as const, label: "Sizes", value: counts.sizes, hint: "French / product" },
+              { key: "mappings" as const, label: "All mappings", value: counts.mappings, hint: "Excel → canonical" },
             ] as const
           ).map((s) => {
             const active = section === s.key;
@@ -446,6 +726,10 @@ export default function SchemaPage() {
                 onClick={() => {
                   setSection(s.key);
                   setAdding(false);
+                  setEditingStageId(null);
+                  setEditingDefectCode(null);
+                  setEditingSizeId(null);
+                  setEditingMappingKey(null);
                 }}
                 style={{
                   textAlign: "left",
@@ -484,6 +768,7 @@ export default function SchemaPage() {
                 >
                   {loading ? "—" : s.value}
                 </div>
+                <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 6 }}>{s.hint}</div>
               </button>
             );
           })}
@@ -521,10 +806,11 @@ export default function SchemaPage() {
           <Card>
             <Empty label="Loading master schema…" />
           </Card>
-        ) : !configured && stages.length === 0 && defects.length === 0 ? (
+        ) : brainEmpty ? (
           <Card title="No master schema yet">
             <p className="muted" style={{ fontSize: 14, margin: "0 0 14px", lineHeight: 1.55 }}>
-              Verify a workbook on Staging to seed stages and defects, or add them manually here.
+              The system brain is empty. Verify a workbook on Staging to seed stages, defects, and
+              Excel→canonical mappings, or add them manually here.
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               <Link
@@ -543,7 +829,10 @@ export default function SchemaPage() {
               </Link>
               <button
                 type="button"
-                onClick={() => setAdding(true)}
+                onClick={() => {
+                  setSection("stages");
+                  setAdding(true);
+                }}
                 style={{
                   padding: "8px 14px",
                   borderRadius: 8,
@@ -556,6 +845,25 @@ export default function SchemaPage() {
                 }}
               >
                 Add first stage
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSection("mappings");
+                  setAdding(true);
+                }}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  background: "var(--surface-2)",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  color: "var(--text)",
+                }}
+              >
+                Add first mapping
               </button>
             </div>
           </Card>
@@ -575,9 +883,15 @@ export default function SchemaPage() {
                     ? "Add inspection stage"
                     : section === "defects"
                       ? "Add defect code"
-                      : "Add size"
+                      : section === "sizes"
+                        ? "Add size"
+                        : "Add Excel → canonical mapping"
                 }
-                sub="Saved to master catalog immediately"
+                sub={
+                  section === "mappings"
+                    ? "Saved to company knowledge — used by the resolver on every import"
+                    : "Saved to master catalog immediately"
+                }
               >
                 {section === "stages" && (
                   <EntityForm
@@ -764,6 +1078,71 @@ export default function SchemaPage() {
                         value={newSize.label}
                         onChange={(e) => setNewSize((s) => ({ ...s, label: e.target.value }))}
                         placeholder="16 FR"
+                        style={inputStyle}
+                      />
+                    </Field>
+                  </EntityForm>
+                )}
+                {section === "mappings" && (
+                  <EntityForm
+                    busy={busy}
+                    onCancel={() => setAdding(false)}
+                    onSave={() => {
+                      const key = newMapping.key.trim();
+                      const canonicalId = newMapping.canonicalId.trim();
+                      if (!key || !canonicalId) {
+                        setError("Excel label and canonical id are required");
+                        return;
+                      }
+                      void mutate(
+                        {
+                          action: "upsert-mapping",
+                          mapping: {
+                            kind: newMapping.kind,
+                            key,
+                            canonicalId,
+                            confidence: 1,
+                          },
+                        },
+                        `Mapping “${key}” → ${canonicalId} saved`,
+                      ).then(() =>
+                        setNewMapping({ kind: "column-mapping", key: "", canonicalId: "" }),
+                      );
+                    }}
+                  >
+                    <Field label="Kind">
+                      <select
+                        value={newMapping.kind}
+                        onChange={(e) =>
+                          setNewMapping((m) => ({
+                            ...m,
+                            kind: e.target.value as MappingKind,
+                          }))
+                        }
+                        style={inputStyle}
+                      >
+                        {(Object.keys(MAPPING_KIND_LABEL) as MappingKind[]).map((k) => (
+                          <option key={k} value={k}>
+                            {MAPPING_KIND_LABEL[k]}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Excel / raw label" mono>
+                      <input
+                        value={newMapping.key}
+                        onChange={(e) => setNewMapping((m) => ({ ...m, key: e.target.value }))}
+                        placeholder="e.g. Visual Insp. / PIN HOLE"
+                        style={inputStyle}
+                      />
+                    </Field>
+                    <Field label="Canonical id" mono>
+                      <input
+                        value={newMapping.canonicalId}
+                        onChange={(e) =>
+                          setNewMapping((m) => ({ ...m, canonicalId: e.target.value }))
+                        }
+                        placeholder="e.g. visual / PINH / checked"
                         style={inputStyle}
                       />
                     </Field>
@@ -1114,10 +1493,245 @@ export default function SchemaPage() {
                 )}
               </Card>
             )}
+
+            {/* Mappings — full system brain of Excel → canonical rules */}
+            {section === "mappings" && (
+              <Card
+                title="All Excel → canonical mappings"
+                sub="Every label the resolver understands across the plant. Edit or delete any knowledge row. MOD-sourced rows promote into the brain on save."
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 10,
+                    marginBottom: 14,
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {(
+                      [
+                        ["all", "All"],
+                        ["stage-alias", "Stage"],
+                        ["defect-alias", "Defect"],
+                        ["column-mapping", "Column"],
+                        ["header-pattern", "Header"],
+                      ] as const
+                    ).map(([k, label]) => {
+                      const active = mappingFilter === k;
+                      return (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => setMappingFilter(k)}
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            padding: "5px 10px",
+                            borderRadius: 7,
+                            border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                            background: active
+                              ? "color-mix(in srgb, var(--accent) 12%, var(--surface))"
+                              : "var(--surface-2)",
+                            color: active ? "var(--accent)" : "var(--text-2)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {label}
+                          {k === "all"
+                            ? ` · ${mappings.length}`
+                            : ` · ${mappings.filter((m) => m.kind === k).length}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    value={mappingSearch}
+                    onChange={(e) => setMappingSearch(e.target.value)}
+                    placeholder="Search label, canonical, source…"
+                    style={{
+                      ...inputStyle,
+                      flex: "1 1 200px",
+                      minWidth: 180,
+                      maxWidth: 360,
+                    }}
+                  />
+                </div>
+
+                {filteredMappings.length === 0 ? (
+                  <Empty
+                    label={
+                      mappings.length === 0
+                        ? "No mappings yet — verify a workbook or add one above"
+                        : "No mappings match this filter"
+                    }
+                  />
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr style={theadRow}>
+                          <th style={th}>Kind</th>
+                          <th style={th}>Excel / raw label</th>
+                          <th style={th}>Canonical</th>
+                          <th style={th}>Source</th>
+                          <th style={th}>Conf.</th>
+                          <th style={{ ...th, width: 130 }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredMappings.map((m) => {
+                          const rowId = mappingRowId(m);
+                          const editing = editingMappingKey === rowId;
+                          const draft = editing && mappingDraft ? mappingDraft : m;
+                          const isKnowledge = m.source !== "mod";
+                          return (
+                            <tr key={rowId} style={{ borderTop: "1px solid var(--border)" }}>
+                              <td style={{ ...td, fontSize: 12, color: "var(--text-2)" }}>
+                                {editing ? (
+                                  <select
+                                    value={draft.kind}
+                                    onChange={(e) =>
+                                      setMappingDraft((x) =>
+                                        x ? { ...x, kind: e.target.value as MappingKind } : x,
+                                      )
+                                    }
+                                    style={{ ...inputStyle, minWidth: 120 }}
+                                  >
+                                    {(Object.keys(MAPPING_KIND_LABEL) as MappingKind[]).map((k) => (
+                                      <option key={k} value={k}>
+                                        {MAPPING_KIND_LABEL[k]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  MAPPING_KIND_LABEL[m.kind]
+                                )}
+                              </td>
+                              <td style={{ ...td, fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+                                {editing && isKnowledge ? (
+                                  <input
+                                    value={draft.key}
+                                    onChange={(e) =>
+                                      setMappingDraft((x) => (x ? { ...x, key: e.target.value } : x))
+                                    }
+                                    style={inputStyle}
+                                  />
+                                ) : (
+                                  m.key
+                                )}
+                              </td>
+                              <td style={{ ...td, fontFamily: "var(--font-mono)" }}>
+                                {editing ? (
+                                  <input
+                                    value={draft.canonicalId}
+                                    onChange={(e) =>
+                                      setMappingDraft((x) =>
+                                        x ? { ...x, canonicalId: e.target.value } : x,
+                                      )
+                                    }
+                                    style={inputStyle}
+                                  />
+                                ) : (
+                                  m.canonicalId
+                                )}
+                              </td>
+                              <td style={{ ...td, fontSize: 12, color: "var(--text-2)" }}>
+                                <span
+                                  style={{
+                                    fontFamily: "var(--font-mono)",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    padding: "2px 6px",
+                                    borderRadius: 4,
+                                    background: isKnowledge
+                                      ? "color-mix(in srgb, var(--positive) 12%, transparent)"
+                                      : "color-mix(in srgb, var(--accent) 10%, transparent)",
+                                    color: isKnowledge ? "var(--positive)" : "var(--accent)",
+                                  }}
+                                >
+                                  {isKnowledge ? "brain" : "mod"}
+                                </span>
+                                {m.learnedFrom && (
+                                  <span
+                                    style={{
+                                      display: "block",
+                                      marginTop: 4,
+                                      fontFamily: "var(--font-mono)",
+                                      fontSize: 10,
+                                      color: "var(--text-3)",
+                                      maxWidth: 140,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                    title={m.learnedFrom}
+                                  >
+                                    {m.learnedFrom}
+                                  </span>
+                                )}
+                              </td>
+                              <td
+                                style={{
+                                  ...td,
+                                  fontFamily: "var(--font-mono)",
+                                  fontSize: 12,
+                                  color: "var(--text-3)",
+                                }}
+                              >
+                                {Math.round((m.confidence ?? 0) * 100)}%
+                              </td>
+                              <td style={td}>
+                                {editing ? (
+                                  <RowActions
+                                    busy={busy}
+                                    onSave={() => {
+                                      if (!mappingDraft) return;
+                                      void saveMappingEdit(m, mappingDraft);
+                                    }}
+                                    onCancel={() => {
+                                      setEditingMappingKey(null);
+                                      setMappingDraft(null);
+                                    }}
+                                  />
+                                ) : (
+                                  <RowActions
+                                    busy={busy}
+                                    onEdit={() => {
+                                      setEditingMappingKey(rowId);
+                                      setMappingDraft({ ...m });
+                                      setAdding(false);
+                                      setEditingStageId(null);
+                                      setEditingDefectCode(null);
+                                      setEditingSizeId(null);
+                                    }}
+                                    onDelete={() => confirmDeleteMapping(m)}
+                                  />
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <p
+                  className="small"
+                  style={{ margin: "12px 0 0", color: "var(--text-3)", lineHeight: 1.45 }}
+                >
+                  Showing {filteredMappings.length} of {mappings.length} mapping
+                  {mappings.length === 1 ? "" : "s"}. “brain” rows live in company knowledge and
+                  are fully deletable. “mod” rows come from verified files — Save promotes them
+                  into the editable brain.
+                </p>
+              </Card>
+            )}
           </div>
         )}
 
-        {/* Secondary: file lineage (read-only) */}
+        {/* Per-file interpretation — series + file dropdowns (continuous card) */}
         <section
           style={{
             borderTop: "1px solid var(--border)",
@@ -1125,95 +1739,339 @@ export default function SchemaPage() {
             marginTop: 4,
           }}
         >
-          <button
-            type="button"
-            onClick={() => setShowLineage((v) => !v)}
+          <Card
+            title="Per-file interpretation"
+            sub="Pick a series, then a file. Delete removes only that upload (or series) — never the master schema above."
+          >
+            {wbLoading && workbooks.length === 0 ? (
+              <Empty label="Loading uploads…" />
+            ) : workbooks.length === 0 ? (
+              <>
+                <Empty label="No Excel uploads yet — import from Staging & Review." />
+                <div style={{ marginTop: 8 }}>
+                  <Link
+                    href="/staging"
+                    style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", textDecoration: "none" }}
+                  >
+                    Open Staging →
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: 12,
+                  }}
+                >
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--text-3)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      Series
+                    </span>
+                    <select
+                      value={activeCluster?.key ?? ""}
+                      onChange={(e) => {
+                        const key = e.target.value;
+                        setSelectedClusterKey(key);
+                        const c = workbookClusters.find((x) => x.key === key);
+                        const first = c?.files[0];
+                        setSelectedSnapshot(first?.snapshotId ?? null);
+                        setShowMappings(false);
+                      }}
+                      style={selectStyle}
+                    >
+                      {workbookClusters.map((c) => (
+                        <option key={c.key} value={c.key}>
+                          {c.label} ({c.files.length})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--text-3)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      File
+                    </span>
+                    <select
+                      value={activeWorkbook?.snapshotId ?? ""}
+                      onChange={(e) => {
+                        setSelectedSnapshot(e.target.value);
+                        setShowMappings(false);
+                      }}
+                      style={selectStyle}
+                      disabled={!activeCluster}
+                    >
+                      {(activeCluster?.files ?? []).map((f) => (
+                        <option key={f.snapshotId} value={f.snapshotId}>
+                          {fileBasename(f.fileName)}
+                          {f.mod ? ` · ${f.mod.status}` : " · no mapping"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {activeWorkbook && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid var(--border)",
+                      background: "var(--surface-2)",
+                    }}
+                  >
+                    <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13.5,
+                          fontWeight: 600,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={activeWorkbook.fileName}
+                      >
+                        {fileBasename(activeWorkbook.fileName)}
+                      </div>
+                      <div
+                        className="small"
+                        style={{ color: "var(--text-3)", fontFamily: "var(--font-mono)", fontSize: 11 }}
+                      >
+                        {activeWorkbook.uploadedAt?.slice(0, 10) ?? "—"}
+                        {activeWorkbook.mod
+                          ? ` · ${activeWorkbook.mod.status} · v${activeWorkbook.mod.version}`
+                          : " · mapping not verified"}
+                        {activeCluster ? ` · series: ${activeCluster.label}` : ""}
+                      </div>
+                    </div>
+                    {activeWorkbook.mod && (
+                      <button
+                        type="button"
+                        onClick={() => setShowMappings((v) => !v)}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          padding: "6px 12px",
+                          borderRadius: 8,
+                          border: `1px solid ${showMappings ? "var(--accent)" : "var(--border)"}`,
+                          background: showMappings
+                            ? "color-mix(in srgb, var(--accent) 12%, transparent)"
+                            : "var(--surface)",
+                          color: showMappings ? "var(--accent)" : "var(--text-2)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {showMappings ? "Hide mappings" : "Show mappings"}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={deletingId === activeWorkbook.snapshotId || busy}
+                      onClick={() => void deleteWorkbook(activeWorkbook)}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        padding: "6px 12px",
+                        borderRadius: 8,
+                        border: "1px solid color-mix(in srgb, var(--critical) 30%, var(--border))",
+                        background: "var(--surface)",
+                        color: "var(--critical)",
+                        cursor: deletingId ? "wait" : "pointer",
+                      }}
+                    >
+                      {deletingId === activeWorkbook.snapshotId ? "Deleting…" : "Delete file"}
+                    </button>
+                    {activeCluster && activeCluster.files.length > 1 && (
+                      <button
+                        type="button"
+                        disabled={busy || deletingId !== null}
+                        onClick={() => void deleteCluster(activeCluster.label, activeCluster.files)}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          padding: "6px 12px",
+                          borderRadius: 8,
+                          border: "1px solid color-mix(in srgb, var(--critical) 30%, var(--border))",
+                          background: "var(--surface)",
+                          color: "var(--critical)",
+                          cursor: busy ? "wait" : "pointer",
+                        }}
+                      >
+                        Delete series ({activeCluster.files.length})
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {showMappings && selectedMod && (
+                  <div
+                    style={{
+                      border: "1px solid var(--border)",
+                      borderRadius: 10,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "8px 12px",
+                        background: "var(--surface-2)",
+                        borderBottom: "1px solid var(--border)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--text-2)",
+                      }}
+                    >
+                      Column mappings for this file only
+                    </div>
+                    {!modDetail ? (
+                      <Empty label="Loading mappings…" />
+                    ) : (
+                      <div style={{ overflowX: "auto", maxHeight: 320, overflowY: "auto" }}>
+                        <table style={tableStyle}>
+                          <thead>
+                            <tr style={theadRow}>
+                              <th style={th}>Source</th>
+                              <th style={th}>Label</th>
+                              <th style={th}>Kind</th>
+                              <th style={th}>Canonical</th>
+                              <th style={th}>OK</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {modDetail.document.entities.map((e) => (
+                              <tr key={e.entityId} style={{ borderTop: "1px solid var(--border)" }}>
+                                <td
+                                  style={{
+                                    ...td,
+                                    fontFamily: "var(--font-mono)",
+                                    color: "var(--text-3)",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {e.original.sheet}
+                                  {e.original.colLetter ? `!${e.original.colLetter}` : ""}
+                                </td>
+                                <td style={td}>{e.original.header}</td>
+                                <td style={{ ...td, color: "var(--text-2)" }}>{e.kind}</td>
+                                <td style={{ ...td, fontFamily: "var(--font-mono)" }}>
+                                  {e.canonical ?? "—"}
+                                </td>
+                                <td style={td}>
+                                  {e.verified ? (
+                                    <span style={{ color: "var(--positive)", fontWeight: 700 }}>✓</span>
+                                  ) : (
+                                    <span style={{ color: "var(--text-3)" }}>—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <p className="small" style={{ margin: 0, color: "var(--text-3)", lineHeight: 1.45 }}>
+                  {workbooks.length} upload{workbooks.length === 1 ? "" : "s"} · {workbookClusters.length}{" "}
+                  series. File delete ≠ schema delete.
+                </p>
+              </div>
+            )}
+          </Card>
+        </section>
+
+        {/* Data integrity status — placed below Per-file interpretation */}
+        {integrity.integrityIssues.length > 0 && (
+          <IntegrityIssuesPanel
+            blocked={integrity.state === "blocked"}
+            reason={integrity.reason}
+            issues={integrity.integrityIssues}
+          />
+        )}
+
+        {/* Danger zone — full brain wipe (not the primary action) */}
+        <details
+          style={{
+            marginTop: 8,
+            borderRadius: 12,
+            border: "1px solid var(--border)",
+            background: "var(--surface)",
+            boxShadow: "var(--shadow-1)",
+          }}
+          open={resetSchemaOpen}
+          onToggle={(e) => setResetSchemaOpen((e.target as HTMLDetailsElement).open)}
+        >
+          <summary
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "none",
-              border: "none",
-              padding: 0,
               cursor: "pointer",
-              color: "var(--text)",
+              padding: "12px 14px",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--text-3)",
+              listStyle: "none",
             }}
           >
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                color: "var(--text-3)",
-                width: 16,
-              }}
-            >
-              {showLineage ? "▾" : "▸"}
-            </span>
-            <span style={{ fontSize: 15, fontWeight: 600 }}>File column mappings</span>
-            <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 500 }}>
-              optional · read-only lineage from uploads
-            </span>
-          </button>
-          {showLineage && (
-            <div style={{ marginTop: 12 }}>
-              {workbooks.length === 0 ? (
-                <Empty label="No uploaded files with a mapping document." />
-              ) : (
-                <Card title="Per-file interpretation" sub="Does not own master schema — deleting a file keeps stages/defects above">
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-                    {workbooks.map((wb) => (
-                      <FilterChip
-                        key={wb.snapshotId}
-                        label={wb.fileName}
-                        active={selectedMod === wb.mod!.modId}
-                        onClick={() => setSelectedMod(wb.mod!.modId)}
-                      />
-                    ))}
-                  </div>
-                  {!modDetail ? (
-                    <Empty label="Select a file." />
-                  ) : (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={tableStyle}>
-                        <thead>
-                          <tr style={theadRow}>
-                            <th style={th}>Source</th>
-                            <th style={th}>Label</th>
-                            <th style={th}>Kind</th>
-                            <th style={th}>Canonical</th>
-                            <th style={th}>OK</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {modDetail.document.entities.map((e) => (
-                            <tr key={e.entityId} style={{ borderTop: "1px solid var(--border)" }}>
-                              <td style={{ ...td, fontFamily: "var(--font-mono)", color: "var(--text-3)", whiteSpace: "nowrap" }}>
-                                {e.original.sheet}
-                                {e.original.colLetter ? `!${e.original.colLetter}` : ""}
-                              </td>
-                              <td style={td}>{e.original.header}</td>
-                              <td style={{ ...td, color: "var(--text-2)" }}>{e.kind}</td>
-                              <td style={{ ...td, fontFamily: "var(--font-mono)" }}>
-                                {e.canonical ?? "—"}
-                              </td>
-                              <td style={td}>
-                                {e.verified ? (
-                                  <span style={{ color: "var(--positive)", fontWeight: 700 }}>✓</span>
-                                ) : (
-                                  <span style={{ color: "var(--text-3)" }}>—</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </Card>
-              )}
+            Advanced · reset entire master schema
+          </summary>
+          <div style={{ padding: "0 14px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text-2)", lineHeight: 1.5 }}>
+              Wipes all stages, defects, sizes, and knowledge mappings for this company. Does{" "}
+              <strong style={{ color: "var(--text)" }}>not</strong> delete uploaded files or ledger
+              events. Prefer editing or deleting individual rows above.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <input
+                value={resetSchemaText}
+                onChange={(e) => setResetSchemaText(e.target.value)}
+                placeholder='Type RESET to confirm'
+                style={{ ...inputStyle, maxWidth: 220 }}
+                aria-label="Type RESET to confirm full schema wipe"
+              />
+              <button
+                type="button"
+                disabled={busy || resetSchemaText.trim().toUpperCase() !== "RESET"}
+                onClick={() => void resetMasterSchema()}
+                style={{
+                  ...dangerLinkBtn,
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: "1px solid color-mix(in srgb, var(--status-bad) 50%, var(--border))",
+                  background: "color-mix(in srgb, var(--status-bad) 10%, var(--surface))",
+                  opacity: busy || resetSchemaText.trim().toUpperCase() !== "RESET" ? 0.5 : 1,
+                  cursor:
+                    busy || resetSchemaText.trim().toUpperCase() !== "RESET"
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {busy ? "Resetting…" : "Wipe master schema"}
+              </button>
             </div>
-          )}
-        </section>
+          </div>
+        </details>
       </div>
     </AppShell>
   );
@@ -1358,32 +2216,6 @@ function RowActions({
   );
 }
 
-function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        padding: "4px 10px",
-        borderRadius: 999,
-        cursor: "pointer",
-        border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-        background: active ? "color-mix(in srgb, var(--accent) 12%, transparent)" : "var(--surface)",
-        color: active ? "var(--accent)" : "var(--text-2)",
-        maxWidth: 220,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-      }}
-      title={label}
-    >
-      {label}
-    </button>
-  );
-}
-
 function IntegrityIssuesPanel({
   blocked,
   reason,
@@ -1393,94 +2225,211 @@ function IntegrityIssuesPanel({
   reason: string;
   issues: IntegrityIssue[];
 }) {
+  const [open, setOpen] = useState(false);
   const critical = issues.filter((i) => i.severity === "critical").length;
   const border = blocked ? "var(--critical)" : "var(--warning)";
   const bg = blocked
-    ? "color-mix(in srgb, var(--critical-weak) 80%, var(--surface))"
-    : "color-mix(in srgb, var(--warning-weak) 80%, var(--surface))";
+    ? "color-mix(in srgb, var(--critical-weak) 70%, var(--surface))"
+    : "color-mix(in srgb, var(--warning-weak) 70%, var(--surface))";
   const titleColor = blocked ? "var(--critical)" : "var(--warning)";
+  const title = blocked
+    ? "Data integrity blocked — ledger is not OK"
+    : "Open integrity warnings";
 
   return (
     <div
       role="region"
-      aria-label="Open data integrity issues"
+      aria-label="Data integrity issues"
       style={{
         border: `1px solid color-mix(in srgb, ${border} 40%, var(--border))`,
         background: bg,
-        borderRadius: 14,
-        padding: "14px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
+        borderRadius: 12,
         boxShadow: "var(--shadow-1)",
+        overflow: "hidden",
       }}
     >
-      <div>
-        <div style={{ fontWeight: 700, fontSize: 14, color: titleColor }}>
-          {blocked ? "Data integrity blocked — ledger is not OK" : "Open integrity warnings"}
-        </div>
-        {reason ? (
-          <div style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.5, marginTop: 4 }}>{reason}</div>
-        ) : null}
-        <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 6 }}>
-          {issues.length} open issue{issues.length === 1 ? "" : "s"}
-          {critical > 0 ? ` · ${critical} critical` : ""}
-        </div>
-      </div>
-      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-        {issues.map((issue) => {
-          const auditHref = integrityAuditHref(issue);
-          const fixHref = integrityFixHref(issue);
-          const locus = [issue.batch, issue.stageId, issue.date, issue.size].filter(Boolean).join(" · ");
-          const sevColor = issue.severity === "critical" ? "var(--critical)" : "var(--warning)";
-          return (
-            <li key={integrityIssueId(issue)}>
-              <div
-                style={{
-                  padding: "12px 14px",
-                  borderRadius: 12,
-                  background: "var(--surface)",
-                  border: "1px solid var(--border)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
-                <Link href={auditHref} style={{ textDecoration: "none", color: "inherit" }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                    <span
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: "8px 12px",
+          padding: "12px 14px",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+          color: "inherit",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 12,
+            color: titleColor,
+            width: 14,
+            flexShrink: 0,
+          }}
+        >
+          {open ? "▾" : "▸"}
+        </span>
+        <span style={{ flex: "1 1 200px", minWidth: 0 }}>
+          <span style={{ display: "block", fontWeight: 700, fontSize: 13.5, color: titleColor }}>
+            {title}
+          </span>
+          <span style={{ display: "block", fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+            {issues.length} open issue{issues.length === 1 ? "" : "s"}
+            {critical > 0 ? ` · ${critical} critical` : ""}
+            {!open ? " · click to expand" : ""}
+          </span>
+        </span>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            fontFamily: "var(--font-mono)",
+            padding: "3px 8px",
+            borderRadius: 999,
+            background: "var(--surface)",
+            border: `1px solid color-mix(in srgb, ${border} 30%, var(--border))`,
+            color: titleColor,
+            flexShrink: 0,
+          }}
+        >
+          {blocked ? "BLOCKED" : "WARN"}
+        </span>
+      </button>
+
+      {open && (
+        <div
+          style={{
+            padding: "0 14px 14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            borderTop: "1px solid color-mix(in srgb, " + border + " 20%, var(--border))",
+          }}
+        >
+          {reason ? (
+            <div style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.5, marginTop: 10 }}>
+              {reason}
+            </div>
+          ) : (
+            <div style={{ height: 8 }} />
+          )}
+          <ul
+            style={{
+              margin: 0,
+              padding: 0,
+              listStyle: "none",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              maxHeight: 360,
+              overflowY: "auto",
+            }}
+          >
+            {issues.map((issue) => {
+              const auditHref = integrityAuditHref(issue);
+              const fixHref = integrityFixHref(issue);
+              const locus = [issue.batch, issue.stageId, issue.date, issue.size]
+                .filter(Boolean)
+                .join(" · ");
+              const sevColor =
+                issue.severity === "critical" ? "var(--critical)" : "var(--warning)";
+              return (
+                <li key={integrityIssueId(issue)}>
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      background: "var(--surface)",
+                      border: "1px solid var(--border)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    <Link href={auditHref} style={{ textDecoration: "none", color: "inherit" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 8,
+                          alignItems: "center",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: sevColor,
+                          }}
+                        >
+                          {issue.code}
+                        </span>
+                        {locus ? (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color: "var(--text-3)",
+                              fontFamily: "var(--font-mono)",
+                            }}
+                          >
+                            {locus}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div style={{ fontSize: 13.5, marginTop: 6, fontWeight: 500 }}>
+                        {issue.message}
+                      </div>
+                    </Link>
+                    <div
                       style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: sevColor,
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 10,
+                        borderTop: "1px solid var(--border)",
+                        paddingTop: 8,
                       }}
                     >
-                      {issue.code}
-                    </span>
-                    {locus ? (
-                      <span style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
-                        {locus}
-                      </span>
-                    ) : null}
+                      <Link
+                        href={auditHref}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "var(--accent)",
+                          textDecoration: "none",
+                        }}
+                      >
+                        See evidence
+                      </Link>
+                      {fixHref && (
+                        <Link
+                          href={fixHref}
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "var(--text-2)",
+                            textDecoration: "none",
+                          }}
+                        >
+                          Fix in Data Entry
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 13.5, marginTop: 6, fontWeight: 500 }}>{issue.message}</div>
-                </Link>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
-                  <Link href={auditHref} style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}>
-                    See evidence
-                  </Link>
-                  {fixHref && (
-                    <Link href={fixHref} style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", textDecoration: "none" }}>
-                      Fix in Data Entry
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -1512,6 +2461,21 @@ const inputStyle: React.CSSProperties = {
   background: "var(--surface-2)",
   color: "var(--text)",
   fontSize: 13,
+  fontFamily: "inherit",
+};
+
+const selectStyle: React.CSSProperties = {
+  width: "100%",
+  minWidth: 0,
+  padding: "8px 30px 8px 12px",
+  borderRadius: 8,
+  border: "1px solid var(--border-strong)",
+  background: "var(--surface)",
+  color: "var(--text)",
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: "pointer",
+  outline: "none",
   fontFamily: "inherit",
 };
 

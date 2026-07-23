@@ -33,6 +33,10 @@ export interface KnowledgeStore {
   /** Record that a lookup hit was actually used in a verified MOD. */
   recordUse(companyId: string, kind: KnowledgeKind, key: string): Promise<void>;
   list(companyId: string): Promise<KnowledgeEntry[]>;
+  /** Remove one mapping (Master Schema brain editor). */
+  remove(companyId: string, kind: KnowledgeKind, key: string): Promise<void>;
+  /** Wipe all knowledge for a company (admin reset of the system brain). */
+  clear(companyId: string): Promise<void>;
   concepts(): Promise<OntologyConcept[]>;
 }
 
@@ -57,6 +61,14 @@ class MemoryKnowledgeStore implements KnowledgeStore {
   }
   async list(companyId: string) {
     return [...this.entries.values()].filter((e) => e.companyId === companyId);
+  }
+  async remove(companyId: string, kind: KnowledgeKind, key: string) {
+    this.entries.delete(entryKey(companyId, kind, normalizeKey(key)));
+  }
+  async clear(companyId: string) {
+    for (const k of [...this.entries.keys()]) {
+      if (k.startsWith(`${companyId}|`)) this.entries.delete(k);
+    }
   }
   async concepts() {
     return GLOBAL_ONTOLOGY_SEED;
@@ -106,6 +118,20 @@ class SupabaseKnowledgeStore implements KnowledgeStore {
       confidence: Number(d.confidence), learnedFrom: d.learned_from,
       learnedAt: d.learned_at, useCount: d.use_count,
     }));
+  }
+  async remove(companyId: string, kind: KnowledgeKind, key: string) {
+    const { error } = await this.db().from("company_knowledge")
+      .delete()
+      .eq("company_id", companyId)
+      .eq("kind", kind)
+      .eq("key", normalizeKey(key));
+    if (error) throw error;
+  }
+  async clear(companyId: string) {
+    const { error } = await this.db().from("company_knowledge")
+      .delete()
+      .eq("company_id", companyId);
+    if (error) throw error;
   }
   async concepts() {
     const { data, error } = await this.db().from("global_ontology").select("*");
