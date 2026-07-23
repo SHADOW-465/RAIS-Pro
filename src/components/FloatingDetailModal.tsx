@@ -6,17 +6,14 @@ import type { RawSheet } from "@/types/dashboard";
 import {
   type SourceRow,
   type SourceMetricKind,
-  type SourceGroupMode,
   type SourcePeriodGrain,
   type SourceTraceFilters,
   type SourceKind,
-  type SourceEntryRow,
   normalizeSourceRows,
   consolidateEntries,
   filterSourceRows,
   groupSourceRows,
   summarizeSource,
-  defaultGroupMode,
   defaultSourceFilters,
   stageOptionsFromRows,
   sizeOptionsFromRows,
@@ -82,16 +79,6 @@ function rawSheetMatches(raw: { name: string; fileName: string }, bareSheet: str
   return bare.trim().toLowerCase() === bareSheet.trim().toLowerCase();
 }
 
-const GROUP_MODES: { id: SourceGroupMode; label: string }[] = [
-  { id: "stage", label: "By stage" },
-  { id: "period", label: "By period" },
-  { id: "file", label: "By file" },
-  { id: "type", label: "By type" },
-  { id: "size", label: "By size" },
-  { id: "defect", label: "By defect" },
-  { id: "flat", label: "Flat" },
-];
-
 export default function FloatingDetailModal({
   isOpen,
   onClose,
@@ -103,8 +90,9 @@ export default function FloatingDetailModal({
   rawSheets,
   originRect,
   metricKind = "generic",
-  periodGrain = "month",
+  periodGrain: _periodGrain = "month",
 }: FloatingDetailModalProps) {
+  void _periodGrain; // retained on the public prop surface; grouping modes removed
   const [showSource, setShowSource] = useState(false);
   const [isInsightExpanded, setIsInsightExpanded] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -117,9 +105,7 @@ export default function FloatingDetailModal({
   // The single highlighted entry row the beam points at (follows hover; defaults to top).
   const [beamRowIndex, setBeamRowIndex] = useState(0);
 
-  const [groupMode, setGroupMode] = useState<SourceGroupMode>(() => defaultGroupMode(metricKind));
   const [filters, setFilters] = useState<SourceTraceFilters>(defaultSourceFilters);
-  const [openGroupKey, setOpenGroupKey] = useState<string | null>(null);
   const [detailPage, setDetailPage] = useState(0);
   const [sourceSurface, setSourceSurface] = useState<"classified" | "spreadsheet">("classified");
 
@@ -170,9 +156,10 @@ export default function FloatingDetailModal({
     [filteredRows, metricKind],
   );
 
+  // Always flat — no By stage / period / file / type grouping chrome.
   const groups = useMemo(
-    () => groupSourceRows(filteredRows, groupMode, { grain: periodGrain, metricKind }),
-    [filteredRows, groupMode, periodGrain, metricKind],
+    () => groupSourceRows(filteredRows, "flat", { metricKind }),
+    [filteredRows, metricKind],
   );
 
   const stageOpts = useMemo(() => stageOptionsFromRows(normalizedAll), [normalizedAll]);
@@ -187,32 +174,11 @@ export default function FloatingDetailModal({
       setDetailPage(0);
       return;
     }
-    const mode = defaultGroupMode(metricKind);
-    setGroupMode(mode);
     setFilters(defaultSourceFilters());
     setDetailPage(0);
   }, [isOpen, metricKind, title]);
 
-  // Auto-open top contributor group when source opens or mode/filters change
-  useEffect(() => {
-    if (!showSource) return;
-    if (groups.length === 0) {
-      setOpenGroupKey(null);
-      return;
-    }
-    setOpenGroupKey((cur) => {
-      if (cur && groups.some((g) => g.key === cur)) return cur;
-      return groups[0].key;
-    });
-    setDetailPage(0);
-  }, [showSource, groups, groupMode]);
-
-  const openGroup = useMemo(
-    () => groups.find((g) => g.key === openGroupKey) ?? null,
-    [groups, openGroupKey],
-  );
-
-  const detailRows = openGroup?.rows ?? [];
+  const detailRows = groups[0]?.rows ?? [];
   // Fold the kind-split rows into one entry per date·batch·size·stage·file (audit style).
   const entryRows = useMemo(() => consolidateEntries(detailRows), [detailRows]);
   const detailTotalPages = Math.max(1, Math.ceil(entryRows.length / DETAIL_PAGE_SIZE));
@@ -224,7 +190,7 @@ export default function FloatingDetailModal({
   // Keep the highlighted (beam) row valid + reset to the top entry on any change.
   useEffect(() => {
     setBeamRowIndex(0);
-  }, [openGroupKey, detailPage, groupMode]);
+  }, [detailPage, filters, showSource, sourceSurface]);
 
   const contributingSheets = useMemo(() => {
     const sheets = new Set<string>();
@@ -311,7 +277,7 @@ export default function FloatingDetailModal({
     if (!isOpen) return;
     const id = requestAnimationFrame(computeBeams);
     return () => cancelAnimationFrame(id);
-  }, [isOpen, showSource, computeBeams, activeTab, sourceSurface, entrySlice.length, openGroupKey, beamRowIndex]);
+  }, [isOpen, showSource, computeBeams, activeTab, sourceSurface, entrySlice.length, beamRowIndex]);
 
   useEffect(() => {
     if (!showSource) return;
@@ -328,7 +294,7 @@ export default function FloatingDetailModal({
       scroller?.removeEventListener("scroll", handler);
       window.removeEventListener("resize", handler);
     };
-  }, [showSource, computeBeams, activeTab, sourceSurface, openGroupKey]);
+  }, [showSource, computeBeams, activeTab, sourceSurface]);
 
   useEffect(() => {
     cellRefs.current.clear();
@@ -643,14 +609,13 @@ export default function FloatingDetailModal({
 
                 {summary.stageBreakdown.length > 1 && (
                   <div>
-                    <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>By stage</div>
+                    <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>Stages</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                       {summary.stageBreakdown.slice(0, 6).map((s) => (
                         <button
                           key={s.key}
                           type="button"
                           onClick={() => {
-                            setGroupMode("stage");
                             setFilter("stageId", filters.stageId === s.key ? "all" : s.key);
                           }}
                           style={{
@@ -678,38 +643,21 @@ export default function FloatingDetailModal({
                 )}
               </div>
 
-              {/* Right: classification workbench */}
+              {/* Right: source records */}
               <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-                {/* Mode + surface */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                  {GROUP_MODES.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => {
-                        setGroupMode(m.id);
-                        setDetailPage(0);
-                      }}
-                      style={modeChip(groupMode === m.id)}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                  {activeRawSheets.length > 0 && (
+                {activeRawSheets.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
                     <button
                       type="button"
                       onClick={() =>
                         setSourceSurface((s) => (s === "spreadsheet" ? "classified" : "spreadsheet"))
                       }
-                      style={{
-                        ...modeChip(sourceSurface === "spreadsheet"),
-                        marginLeft: "auto",
-                      }}
+                      style={modeChip(sourceSurface === "spreadsheet")}
                     >
                       {sourceSurface === "spreadsheet" ? "← Classified view" : "Spreadsheet cells"}
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Filters */}
                 <div
@@ -807,7 +755,7 @@ export default function FloatingDetailModal({
                     tableScrollRef={tableScrollRef}
                     cellRefs={cellRefs}
                   />
-                ) : groups.length === 0 ? (
+                ) : entryRows.length === 0 ? (
                   <div
                     className="muted"
                     style={{
@@ -820,252 +768,161 @@ export default function FloatingDetailModal({
                     No source records match these filters.
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {groups.map((g) => {
-                      const open = openGroupKey === g.key;
-                      return (
-                        <div
-                          key={g.key}
+                  <div
+                    style={{
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      background: "var(--surface)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div ref={tableScrollRef} style={{ maxHeight: "56vh", overflow: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                        <thead
                           style={{
-                            border: `1px solid ${open ? "var(--accent)" : "var(--border)"}`,
-                            borderRadius: 12,
-                            background: "var(--surface)",
-                            overflow: "hidden",
-                            boxShadow: open ? "var(--shadow-1)" : "none",
+                            position: "sticky",
+                            top: 0,
+                            background: "var(--surface-2)",
+                            zIndex: 1,
                           }}
                         >
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenGroupKey((cur) => (cur === g.key ? null : g.key));
-                              setDetailPage(0);
-                            }}
+                          <tr
                             style={{
-                              width: "100%",
-                              display: "grid",
-                              gridTemplateColumns: "auto 1fr auto",
-                              gap: 12,
-                              alignItems: "center",
-                              padding: "12px 14px",
-                              border: "none",
-                              background: open
-                                ? "color-mix(in srgb, var(--accent) 6%, var(--surface))"
-                                : "transparent",
-                              cursor: "pointer",
+                              color: "var(--text-3)",
                               textAlign: "left",
+                              fontSize: 10,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.04em",
                             }}
                           >
-                            <span
-                              style={{
-                                fontFamily: "var(--font-mono)",
-                                fontSize: 12,
-                                color: "var(--text-3)",
-                                width: 14,
-                              }}
-                            >
-                              {open ? "▾" : "▸"}
-                            </span>
-                            <div style={{ minWidth: 0 }}>
-                              <div
+                            <th style={th}>Date</th>
+                            <th style={th}>Batch</th>
+                            <th style={th}>Size</th>
+                            <th style={{ ...th, textAlign: "right" }}>Checked</th>
+                            <th style={{ ...th, textAlign: "right" }}>Accepted</th>
+                            <th style={{ ...th, textAlign: "right" }}>Rejected</th>
+                            <th style={th}>Defects</th>
+                            <th style={th}>File</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {entrySlice.map((e, i) => {
+                            const highlighted = i === beamRowIndex;
+                            return (
+                              <tr
+                                key={e.key}
+                                ref={(el) => {
+                                  if (el) rowRefs.current.set(i, el);
+                                  else rowRefs.current.delete(i);
+                                }}
+                                onMouseEnter={() => setBeamRowIndex(i)}
                                 style={{
-                                  fontSize: 14,
-                                  fontWeight: 700,
-                                  color: "var(--text)",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
+                                  borderTop: "1px solid var(--border)",
+                                  background: highlighted
+                                    ? "color-mix(in srgb, var(--accent) 10%, transparent)"
+                                    : "transparent",
+                                  boxShadow: highlighted
+                                    ? "inset 2px 0 0 var(--accent)"
+                                    : undefined,
                                 }}
                               >
-                                {g.label}
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: 11.5,
-                                  color: "var(--text-3)",
-                                  marginTop: 2,
-                                  display: "flex",
-                                  flexWrap: "wrap",
-                                  gap: "4px 10px",
-                                }}
-                              >
-                                <span>{g.recordCount.toLocaleString()} records</span>
-                                {g.checkedQty > 0 && <span>Chk {fmtQty(g.checkedQty)}</span>}
-                                {g.rejectedQty + g.defectQty > 0 && (
-                                  <span>Rej {fmtQty(g.rejectedQty + g.defectQty)}</span>
-                                )}
-                                <span style={{ textTransform: "capitalize" }}>{g.source}</span>
-                                {g.fileCount > 0 && <span>{g.fileCount} file{g.fileCount === 1 ? "" : "s"}</span>}
-                              </div>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                              <div
-                                style={{
-                                  fontFamily: "var(--font-mono)",
-                                  fontSize: 16,
-                                  fontWeight: 800,
-                                  color: "var(--accent)",
-                                }}
-                              >
-                                {g.contributionPct.toFixed(0)}%
-                              </div>
-                              <div style={{ fontSize: 10, color: "var(--text-3)" }}>of metric</div>
-                            </div>
-                          </button>
-
-                          {open && (
-                            <div style={{ borderTop: "1px solid var(--border)" }}>
-                              <div ref={tableScrollRef} style={{ maxHeight: "48vh", overflow: "auto" }}>
-                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-                                  <thead
-                                    style={{
-                                      position: "sticky",
-                                      top: 0,
-                                      background: "var(--surface-2)",
-                                      zIndex: 1,
-                                    }}
-                                  >
-                                    <tr
-                                      style={{
-                                        color: "var(--text-3)",
-                                        textAlign: "left",
-                                        fontSize: 10,
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.04em",
-                                      }}
-                                    >
-                                      <th style={th}>Date</th>
-                                      <th style={th}>Batch</th>
-                                      <th style={th}>Size</th>
-                                      <th style={{ ...th, textAlign: "right" }}>Checked</th>
-                                      <th style={{ ...th, textAlign: "right" }}>Accepted</th>
-                                      <th style={{ ...th, textAlign: "right" }}>Rejected</th>
-                                      <th style={th}>Defects</th>
-                                      <th style={th}>File</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {entrySlice.map((e, i) => {
-                                      const highlighted = i === beamRowIndex;
-                                      return (
-                                      <tr
-                                        key={e.key}
-                                        ref={(el) => {
-                                          if (el) rowRefs.current.set(i, el);
-                                          else rowRefs.current.delete(i);
-                                        }}
-                                        onMouseEnter={() => setBeamRowIndex(i)}
-                                        style={{
-                                          borderTop: "1px solid var(--border)",
-                                          background: highlighted
-                                            ? "color-mix(in srgb, var(--accent) 10%, transparent)"
-                                            : "transparent",
-                                          boxShadow: highlighted
-                                            ? "inset 2px 0 0 var(--accent)"
-                                            : undefined,
-                                        }}
-                                      >
-                                        <td style={{ ...td, fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
-                                          <DateCell value={e.date} />
-                                        </td>
-                                        <td
-                                          style={{
-                                            ...td,
-                                            fontFamily: "var(--font-mono)",
-                                            fontSize: 11.5,
-                                            color: "var(--text-2)",
-                                          }}
-                                        >
-                                          {e.batch || "—"}
-                                        </td>
-                                        <td style={td}>{e.size || "—"}</td>
-                                        <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
-                                          {e.checkedQty > 0 ? e.checkedQty.toLocaleString() : "—"}
-                                        </td>
-                                        <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color: e.acceptedQty > 0 ? "var(--positive)" : "var(--text)" }}>
-                                          {e.acceptedQty > 0 ? e.acceptedQty.toLocaleString() : "—"}
-                                        </td>
-                                        <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: e.rejectedQty > 0 ? "var(--critical)" : "var(--text)" }}>
-                                          {e.rejectedQty > 0 ? e.rejectedQty.toLocaleString() : "—"}
-                                        </td>
-                                        <td style={{ ...td, fontSize: 11.5, lineHeight: 1.45 }}>
-                                          {e.defects.length === 0 ? (
-                                            <span style={{ color: "var(--text-3)" }}>—</span>
-                                          ) : (
-                                            e.defects.map((d, di) => (
-                                              <span key={d.code}>
-                                                {di > 0 ? ", " : null}
-                                                <strong style={{ fontWeight: 600 }}>{d.code}</strong>
-                                                <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-3)" }}> {d.qty.toLocaleString()}</span>
-                                              </span>
-                                            ))
-                                          )}
-                                        </td>
-                                        <td
-                                          style={{
-                                            ...td,
-                                            maxWidth: 140,
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                          }}
-                                          title={e.file}
-                                        >
-                                          {fileBasename(e.file)}
-                                        </td>
-                                      </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
-                              </div>
-                              {entryRows.length > DETAIL_PAGE_SIZE && (
-                                <div
+                                <td style={{ ...td, fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
+                                  <DateCell value={e.date} />
+                                </td>
+                                <td
                                   style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    padding: "8px 12px",
-                                    borderTop: "1px solid var(--border)",
-                                    background: "var(--surface-2)",
-                                    fontSize: 12,
+                                    ...td,
+                                    fontFamily: "var(--font-mono)",
+                                    fontSize: 11.5,
                                     color: "var(--text-2)",
                                   }}
                                 >
-                                  <span>
-                                    {detailPage * DETAIL_PAGE_SIZE + 1}–
-                                    {Math.min((detailPage + 1) * DETAIL_PAGE_SIZE, entryRows.length)} of{" "}
-                                    {entryRows.length.toLocaleString()} entries
-                                  </span>
-                                  <div style={{ display: "flex", gap: 8 }}>
-                                    <button
-                                      type="button"
-                                      disabled={detailPage === 0}
-                                      onClick={() => setDetailPage((p) => Math.max(0, p - 1))}
-                                      style={pageBtn}
-                                    >
-                                      Prev
-                                    </button>
-                                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
-                                      {detailPage + 1}/{detailTotalPages}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      disabled={detailPage >= detailTotalPages - 1}
-                                      onClick={() =>
-                                        setDetailPage((p) => Math.min(detailTotalPages - 1, p + 1))
-                                      }
-                                      style={pageBtn}
-                                    >
-                                      Next
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                  {e.batch || "—"}
+                                </td>
+                                <td style={td}>{e.size || "—"}</td>
+                                <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+                                  {e.checkedQty > 0 ? e.checkedQty.toLocaleString() : "—"}
+                                </td>
+                                <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color: e.acceptedQty > 0 ? "var(--positive)" : "var(--text)" }}>
+                                  {e.acceptedQty > 0 ? e.acceptedQty.toLocaleString() : "—"}
+                                </td>
+                                <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: e.rejectedQty > 0 ? "var(--critical)" : "var(--text)" }}>
+                                  {e.rejectedQty > 0 ? e.rejectedQty.toLocaleString() : "—"}
+                                </td>
+                                <td style={{ ...td, fontSize: 11.5, lineHeight: 1.45 }}>
+                                  {e.defects.length === 0 ? (
+                                    <span style={{ color: "var(--text-3)" }}>—</span>
+                                  ) : (
+                                    e.defects.map((d, di) => (
+                                      <span key={d.code}>
+                                        {di > 0 ? ", " : null}
+                                        <strong style={{ fontWeight: 600 }}>{d.code}</strong>
+                                        <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-3)" }}> {d.qty.toLocaleString()}</span>
+                                      </span>
+                                    ))
+                                  )}
+                                </td>
+                                <td
+                                  style={{
+                                    ...td,
+                                    maxWidth: 140,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  title={e.file}
+                                >
+                                  {fileBasename(e.file)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {entryRows.length > DETAIL_PAGE_SIZE && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "8px 12px",
+                          borderTop: "1px solid var(--border)",
+                          background: "var(--surface-2)",
+                          fontSize: 12,
+                          color: "var(--text-2)",
+                        }}
+                      >
+                        <span>
+                          {detailPage * DETAIL_PAGE_SIZE + 1}–
+                          {Math.min((detailPage + 1) * DETAIL_PAGE_SIZE, entryRows.length)} of{" "}
+                          {entryRows.length.toLocaleString()} entries
+                        </span>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            type="button"
+                            disabled={detailPage === 0}
+                            onClick={() => setDetailPage((p) => Math.max(0, p - 1))}
+                            style={pageBtn}
+                          >
+                            Prev
+                          </button>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
+                            {detailPage + 1}/{detailTotalPages}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={detailPage >= detailTotalPages - 1}
+                            onClick={() =>
+                              setDetailPage((p) => Math.min(detailTotalPages - 1, p + 1))
+                            }
+                            style={pageBtn}
+                          >
+                            Next
+                          </button>
                         </div>
-                      );
-                    })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
