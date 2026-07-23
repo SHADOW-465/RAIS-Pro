@@ -106,24 +106,23 @@ export default function AuditPage() {
     return map;
   }, [events]);
 
-  const stats = useMemo(() => {
-    let productions = 0,
-      inspections = 0,
-      accepted = 0,
-      rejections = 0,
-      annotations = 0;
-    const files = new Set<string>();
+  /** Summary strip: batches + data-entry count + distinct Excel uploads only. */
+  const sourceStats = useMemo(() => {
+    let dataEntries = 0;
+    const excelFiles = new Set<string>();
     for (const e of events) {
-      if (e.eventType === "production") productions++;
-      else if (e.eventType === "inspection") {
-        inspections++;
-        if (e.disposition === "accepted" || e.disposition === "good") accepted++;
+      if (e.eventType === "annotation") continue;
+      if (isDirectEntry(e)) {
+        dataEntries += 1;
+        continue;
       }
-      else if (e.eventType === "rejection") rejections++;
-      else if (e.eventType === "annotation") annotations++;
-      if (e.provenance?.fileHash) files.add(e.provenance.fileHash);
+      const key =
+        (e.provenance?.fileHash as string | undefined) ||
+        (e.provenance?.file as string | undefined) ||
+        null;
+      if (key) excelFiles.add(key);
     }
-    return { productions, inspections, accepted, rejections, annotations, files: files.size };
+    return { dataEntries, excelFiles: excelFiles.size };
   }, [events]);
 
   const stageOptions = useMemo(() => {
@@ -299,11 +298,11 @@ export default function AuditPage() {
           </p>
         </header>
 
-        {/* —— Colored pillbox summary —— */}
+        {/* —— Summary: batches + source mix only —— */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
             gap: 10,
             marginBottom: 16,
           }}
@@ -315,46 +314,16 @@ export default function AuditPage() {
             tone="neutral"
           />
           <StatPill
-            label="Sheet rows"
-            value={String(entryRows.length)}
-            hint="Checked / rejected lines"
-            tone="neutral"
-          />
-          <StatPill
-            label="Production"
-            value={stats.productions}
-            hint="Checked input entries"
-            tone="neutral"
-          />
-          <StatPill
-            label="Inspections"
-            value={stats.inspections}
-            hint="Quality / reject logs"
+            label="Data entries"
+            value={sourceStats.dataEntries}
+            hint="Manual / Data Entry ledger facts"
             tone="accent"
           />
           <StatPill
-            label="Accepted"
-            value={stats.accepted}
-            hint="Good / passed units"
-            tone="positive"
-          />
-          <StatPill
-            label="Defect splits"
-            value={stats.rejections}
-            hint="Reason-specific points"
-            tone="warning"
-          />
-          <StatPill
-            label="Files"
-            value={stats.files}
-            hint="Source workbooks"
+            label="Excel files"
+            value={sourceStats.excelFiles}
+            hint="Distinct uploaded workbooks"
             tone="neutral"
-          />
-          <StatPill
-            label="Comments"
-            value={stats.annotations}
-            hint="Operator notes"
-            tone="accent"
           />
         </div>
 
