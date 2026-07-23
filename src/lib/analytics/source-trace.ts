@@ -128,6 +128,70 @@ export function stageSortKey(stageId: string | undefined, stageLabel: string): n
   return 99;
 }
 
+/** One consolidated ledger entry — the checked / accepted / rejected / defect
+ *  kind-rows of a single (date · batch · size · stage · file) collapsed into one
+ *  line, the way the Audit Trail shows it. */
+export interface SourceEntryRow {
+  key: string;
+  date: string;
+  stage: string;
+  stageId?: string;
+  size?: string | null;
+  batch?: string | null;
+  file: string;
+  isDirect?: boolean;
+  checkedQty: number;
+  acceptedQty: number;
+  rejectedQty: number;
+  defects: { code: string; qty: number }[];
+  /** Source cell refs that folded into this entry (for provenance). */
+  cells: string[];
+  /** Number of raw kind-rows that folded in. */
+  rowCount: number;
+}
+
+/** Collapse kind-split SourceRows into one entry per date·batch·size·stage·file.
+ *  Insertion order is preserved so the first entry stays the top contributor. */
+export function consolidateEntries(rows: SourceRow[]): SourceEntryRow[] {
+  const map = new Map<string, SourceEntryRow>();
+  for (const r of rows) {
+    const key = [r.date, r.batch ?? "", r.size ?? "", r.stageId ?? r.stage, r.file].join("|");
+    let e = map.get(key);
+    if (!e) {
+      e = {
+        key,
+        date: r.date,
+        stage: r.stage,
+        stageId: r.stageId,
+        size: r.size,
+        batch: r.batch,
+        file: r.file,
+        isDirect: r.isDirect,
+        checkedQty: 0,
+        acceptedQty: 0,
+        rejectedQty: 0,
+        defects: [],
+        cells: [],
+        rowCount: 0,
+      };
+      map.set(key, e);
+    }
+    const q = qtyNumber(r.qty);
+    if (r.kind === "checked") e.checkedQty += q;
+    else if (r.kind === "accepted") e.acceptedQty += q;
+    else if (r.kind === "rejected") e.rejectedQty += q;
+    else if (r.kind === "defect") {
+      const code = r.defectCode || "DEFECT";
+      const d = e.defects.find((x) => x.code === code);
+      if (d) d.qty += q;
+      else e.defects.push({ code, qty: q });
+    }
+    if (r.cell) e.cells.push(r.cell);
+    e.rowCount++;
+  }
+  return [...map.values()];
+}
+
 /** Infer kind from event fields or legacy type string. */
 export function inferSourceKind(input: {
   eventType?: string;

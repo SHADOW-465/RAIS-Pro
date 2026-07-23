@@ -10,7 +10,9 @@ import {
   type SourcePeriodGrain,
   type SourceTraceFilters,
   type SourceKind,
+  type SourceEntryRow,
   normalizeSourceRows,
+  consolidateEntries,
   filterSourceRows,
   groupSourceRows,
   summarizeSource,
@@ -19,7 +21,6 @@ import {
   stageOptionsFromRows,
   sizeOptionsFromRows,
   fileBasename,
-  kindLabel,
   DETAIL_PAGE_SIZE,
 } from "@/lib/analytics/source-trace";
 
@@ -41,13 +42,8 @@ interface FloatingDetailModalProps {
   periodGrain?: SourcePeriodGrain;
 }
 
-interface BeamTree {
-  fromX: number;
-  fromY: number;
-  nodeX: number;
-  nodeY: number;
-  branches: { x2: number; y2: number; key: string }[];
-}
+/** A single bezier beam from the computed-value anchor to one highlighted target. */
+interface Beam { x1: number; y1: number; x2: number; y2: number }
 
 const ISO_DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])(?:$|[T ])/;
 
@@ -117,7 +113,9 @@ export default function FloatingDetailModal({
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
   const cellRefs = useRef<Map<string, HTMLTableCellElement>>(new Map());
   const tableScrollRef = useRef<HTMLDivElement>(null);
-  const [beamTree, setBeamTree] = useState<BeamTree | null>(null);
+  const [beam, setBeam] = useState<Beam | null>(null);
+  // The single highlighted entry row the beam points at (follows hover; defaults to top).
+  const [beamRowIndex, setBeamRowIndex] = useState(0);
 
   const [groupMode, setGroupMode] = useState<SourceGroupMode>(() => defaultGroupMode(metricKind));
   const [filters, setFilters] = useState<SourceTraceFilters>(defaultSourceFilters);
@@ -215,11 +213,18 @@ export default function FloatingDetailModal({
   );
 
   const detailRows = openGroup?.rows ?? [];
-  const detailTotalPages = Math.max(1, Math.ceil(detailRows.length / DETAIL_PAGE_SIZE));
-  const detailSlice = detailRows.slice(
+  // Fold the kind-split rows into one entry per date·batch·size·stage·file (audit style).
+  const entryRows = useMemo(() => consolidateEntries(detailRows), [detailRows]);
+  const detailTotalPages = Math.max(1, Math.ceil(entryRows.length / DETAIL_PAGE_SIZE));
+  const entrySlice = entryRows.slice(
     detailPage * DETAIL_PAGE_SIZE,
     (detailPage + 1) * DETAIL_PAGE_SIZE,
   );
+
+  // Keep the highlighted (beam) row valid + reset to the top entry on any change.
+  useEffect(() => {
+    setBeamRowIndex(0);
+  }, [openGroupKey, detailPage, groupMode]);
 
   const contributingSheets = useMemo(() => {
     const sheets = new Set<string>();
@@ -267,48 +272,49 @@ export default function FloatingDetailModal({
   const excelCount = useMemo(() => normalizedAll.filter((r) => !r.isDirect).length, [normalizedAll]);
   const manualCount = useMemo(() => normalizedAll.filter((r) => r.isDirect).length, [normalizedAll]);
 
-  // Beams only in spreadsheet surface (focused, ≤5 targets)
+  // A single bezier from the computed-value anchor to the one highlighted target:
+  // the highlighted entry row (classified) or the first matched cell (spreadsheet).
+  // The arrow lands a little INSIDE the row, never on the table border.
   const computeBeams = useCallback(() => {
-    if (!showSource || sourceSurface !== "spreadsheet" || !containerRef.current || !anchorRef.current) {
-      setBeamTree(null);
+    if (!showSource || !containerRef.current || !anchorRef.current) {
+      setBeam(null);
+      return;
+    }
+    const target: Element | undefined =
+      sourceSurface === "spreadsheet"
+        ? cellRefs.current.values().next().value
+        : rowRefs.current.get(beamRowIndex) ?? rowRefs.current.values().next().value;
+    if (!target) {
+      setBeam(null);
       return;
     }
     const base = containerRef.current.getBoundingClientRect();
     const a = anchorRef.current.getBoundingClientRect();
-    const fromX = a.right - base.left;
-    const fromY = a.top + a.height / 2 - base.top;
     const scroll = tableScrollRef.current?.getBoundingClientRect();
-    const targets: { x2: number; y2: number; key: string }[] = [];
-    const push = (el: Element, key: string) => {
-      if (targets.length >= 5) return;
-      const r = el.getBoundingClientRect();
-      const midY = r.top + r.height / 2;
-      if (scroll && (midY < scroll.top || midY > scroll.bottom)) return;
-      targets.push({ key: `b-${key}`, x2: r.left - base.left, y2: midY - base.top });
-    };
-    if (activeRawSheets.length > 0) {
-      cellRefs.current.forEach((el, key) => push(el, key));
-    } else {
-      rowRefs.current.forEach((el, i) => push(el, String(i)));
-    }
-    if (targets.length === 0) {
-      setBeamTree(null);
+    const r = target.getBoundingClientRect();
+    const midY = r.top + r.height / 2;
+    // Clip when the highlighted target is scrolled out of the table viewport.
+    if (scroll && (midY < scroll.top || midY > scroll.bottom)) {
+      setBeam(null);
       return;
     }
-    const minX2 = Math.min(...targets.map((t) => t.x2));
-    const nodeX = fromX + (minX2 - fromX) * 0.5;
-    const nodeY = targets.reduce((s, t) => s + t.y2, 0) / targets.length;
-    setBeamTree({ fromX, fromY, nodeX, nodeY, branches: targets });
-  }, [showSource, sourceSurface, activeRawSheets, activeTab]);
+    const inset = Math.min(16, r.width * 0.12); // land on the row, not its edge
+    setBeam({
+      x1: a.right - base.left,
+      y1: a.top + a.height / 2 - base.top,
+      x2: r.left - base.left + inset,
+      y2: midY - base.top,
+    });
+  }, [showSource, sourceSurface, beamRowIndex, activeTab]);
 
   useLayoutEffect(() => {
     if (!isOpen) return;
     const id = requestAnimationFrame(computeBeams);
     return () => cancelAnimationFrame(id);
-  }, [isOpen, showSource, computeBeams, activeTab, sourceSurface, detailSlice.length]);
+  }, [isOpen, showSource, computeBeams, activeTab, sourceSurface, entrySlice.length, openGroupKey, beamRowIndex]);
 
   useEffect(() => {
-    if (!showSource || sourceSurface !== "spreadsheet") return;
+    if (!showSource) return;
     let raf = 0;
     const handler = () => {
       cancelAnimationFrame(raf);
@@ -322,7 +328,7 @@ export default function FloatingDetailModal({
       scroller?.removeEventListener("scroll", handler);
       window.removeEventListener("resize", handler);
     };
-  }, [showSource, computeBeams, activeTab, sourceSurface]);
+  }, [showSource, computeBeams, activeTab, sourceSurface, openGroupKey]);
 
   useEffect(() => {
     cellRefs.current.clear();
@@ -930,24 +936,36 @@ export default function FloatingDetailModal({
                                       <th style={th}>Date</th>
                                       <th style={th}>Batch</th>
                                       <th style={th}>Size</th>
-                                      <th style={th}>Kind</th>
-                                      <th style={{ ...th, textAlign: "right" }}>Qty</th>
+                                      <th style={{ ...th, textAlign: "right" }}>Checked</th>
+                                      <th style={{ ...th, textAlign: "right" }}>Accepted</th>
+                                      <th style={{ ...th, textAlign: "right" }}>Rejected</th>
+                                      <th style={th}>Defects</th>
                                       <th style={th}>File</th>
-                                      <th style={th}>Cell</th>
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {detailSlice.map((r, i) => (
+                                    {entrySlice.map((e, i) => {
+                                      const highlighted = i === beamRowIndex;
+                                      return (
                                       <tr
-                                        key={`${r.date}-${r.cell}-${i}`}
+                                        key={e.key}
                                         ref={(el) => {
                                           if (el) rowRefs.current.set(i, el);
                                           else rowRefs.current.delete(i);
                                         }}
-                                        style={{ borderTop: "1px solid var(--border)" }}
+                                        onMouseEnter={() => setBeamRowIndex(i)}
+                                        style={{
+                                          borderTop: "1px solid var(--border)",
+                                          background: highlighted
+                                            ? "color-mix(in srgb, var(--accent) 10%, transparent)"
+                                            : "transparent",
+                                          boxShadow: highlighted
+                                            ? "inset 2px 0 0 var(--accent)"
+                                            : undefined,
+                                        }}
                                       >
                                         <td style={{ ...td, fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
-                                          <DateCell value={r.date} />
+                                          <DateCell value={e.date} />
                                         </td>
                                         <td
                                           style={{
@@ -957,21 +975,30 @@ export default function FloatingDetailModal({
                                             color: "var(--text-2)",
                                           }}
                                         >
-                                          {r.batch || "—"}
+                                          {e.batch || "—"}
                                         </td>
-                                        <td style={td}>{r.size || "—"}</td>
-                                        <td style={td}>
-                                          <KindPill kind={r.kind} defectCode={r.defectCode} />
+                                        <td style={td}>{e.size || "—"}</td>
+                                        <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+                                          {e.checkedQty > 0 ? e.checkedQty.toLocaleString() : "—"}
                                         </td>
-                                        <td
-                                          style={{
-                                            ...td,
-                                            textAlign: "right",
-                                            fontFamily: "var(--font-mono)",
-                                            fontWeight: 700,
-                                          }}
-                                        >
-                                          {typeof r.qty === "number" ? r.qty.toLocaleString() : r.qty}
+                                        <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color: e.acceptedQty > 0 ? "var(--positive)" : "var(--text)" }}>
+                                          {e.acceptedQty > 0 ? e.acceptedQty.toLocaleString() : "—"}
+                                        </td>
+                                        <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: e.rejectedQty > 0 ? "var(--critical)" : "var(--text)" }}>
+                                          {e.rejectedQty > 0 ? e.rejectedQty.toLocaleString() : "—"}
+                                        </td>
+                                        <td style={{ ...td, fontSize: 11.5, lineHeight: 1.45 }}>
+                                          {e.defects.length === 0 ? (
+                                            <span style={{ color: "var(--text-3)" }}>—</span>
+                                          ) : (
+                                            e.defects.map((d, di) => (
+                                              <span key={d.code}>
+                                                {di > 0 ? ", " : null}
+                                                <strong style={{ fontWeight: 600 }}>{d.code}</strong>
+                                                <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-3)" }}> {d.qty.toLocaleString()}</span>
+                                              </span>
+                                            ))
+                                          )}
                                         </td>
                                         <td
                                           style={{
@@ -981,26 +1008,17 @@ export default function FloatingDetailModal({
                                             textOverflow: "ellipsis",
                                             whiteSpace: "nowrap",
                                           }}
-                                          title={r.file}
+                                          title={e.file}
                                         >
-                                          {fileBasename(r.file)}
-                                        </td>
-                                        <td
-                                          style={{
-                                            ...td,
-                                            fontFamily: "var(--font-mono)",
-                                            color: "var(--accent)",
-                                            fontSize: 11.5,
-                                          }}
-                                        >
-                                          {r.cell}
+                                          {fileBasename(e.file)}
                                         </td>
                                       </tr>
-                                    ))}
+                                      );
+                                    })}
                                   </tbody>
                                 </table>
                               </div>
-                              {detailRows.length > DETAIL_PAGE_SIZE && (
+                              {entryRows.length > DETAIL_PAGE_SIZE && (
                                 <div
                                   style={{
                                     display: "flex",
@@ -1015,8 +1033,8 @@ export default function FloatingDetailModal({
                                 >
                                   <span>
                                     {detailPage * DETAIL_PAGE_SIZE + 1}–
-                                    {Math.min((detailPage + 1) * DETAIL_PAGE_SIZE, detailRows.length)} of{" "}
-                                    {detailRows.length.toLocaleString()}
+                                    {Math.min((detailPage + 1) * DETAIL_PAGE_SIZE, entryRows.length)} of{" "}
+                                    {entryRows.length.toLocaleString()} entries
                                   </span>
                                   <div style={{ display: "flex", gap: 8 }}>
                                     <button
@@ -1052,70 +1070,54 @@ export default function FloatingDetailModal({
                 )}
               </div>
 
-              {/* Optional beams for spreadsheet surface */}
-              {sourceSurface === "spreadsheet" && (
-                <svg
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    pointerEvents: "none",
-                    zIndex: 5,
-                    overflow: "visible",
-                  }}
-                >
-                  <defs>
-                    <marker
-                      id="modal-beam-arrow"
-                      viewBox="0 0 10 10"
-                      refX="9"
-                      refY="5"
-                      markerWidth="6"
-                      markerHeight="6"
-                      orient="auto"
-                    >
-                      <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)" />
-                    </marker>
-                  </defs>
-                  {beamTree &&
-                    (() => {
-                      const { fromX, fromY, nodeX, nodeY, branches } = beamTree;
-                      const tdx = nodeX - fromX;
-                      const trunk = `M ${fromX} ${fromY} C ${fromX + tdx * 0.5} ${fromY}, ${nodeX - tdx * 0.5} ${nodeY}, ${nodeX} ${nodeY}`;
-                      return (
-                        <>
-                          <path
-                            d={trunk}
-                            fill="none"
-                            stroke="var(--accent)"
-                            strokeWidth="1.6"
-                            opacity="0.55"
-                            className="beam-flow"
-                          />
-                          {branches.map((b) => {
-                            const dx = b.x2 - nodeX;
-                            const d = `M ${nodeX} ${nodeY} C ${nodeX + dx * 0.4} ${nodeY}, ${b.x2 - dx * 0.4} ${b.y2}, ${b.x2 - 3} ${b.y2}`;
-                            return (
-                              <path
-                                key={b.key}
-                                d={d}
-                                fill="none"
-                                stroke="var(--accent)"
-                                strokeWidth="1.3"
-                                opacity="0.45"
-                                markerEnd="url(#modal-beam-arrow)"
-                                className="beam-flow"
-                              />
-                            );
-                          })}
-                          <circle cx={nodeX} cy={nodeY} r="4" fill="var(--accent)" />
-                          <circle cx={fromX} cy={fromY} r="3.5" fill="var(--accent)" />
-                        </>
-                      );
-                    })()}
-                </svg>
-              )}
+              {/* Single bezier beam → the highlighted target */}
+              <svg
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  pointerEvents: "none",
+                  zIndex: 5,
+                  overflow: "visible",
+                }}
+              >
+                <defs>
+                  <marker
+                    id="modal-beam-arrow"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto"
+                  >
+                    <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)" />
+                  </marker>
+                </defs>
+                {beam &&
+                  (() => {
+                    const dx = beam.x2 - beam.x1;
+                    const c1x = beam.x1 + Math.max(40, dx * 0.4);
+                    const c2x = beam.x2 - Math.max(40, dx * 0.4);
+                    return (
+                      <>
+                        <path
+                          d={`M ${beam.x1} ${beam.y1} C ${c1x} ${beam.y1}, ${c2x} ${beam.y2}, ${beam.x2 - 3} ${beam.y2}`}
+                          fill="none"
+                          stroke="var(--accent)"
+                          strokeWidth="1.6"
+                          opacity="0.6"
+                          markerEnd="url(#modal-beam-arrow)"
+                          pathLength="1"
+                          className="draw-line"
+                          style={{ animationDuration: "0.6s" }}
+                        />
+                        <circle cx={beam.x1} cy={beam.y1} r="4" fill="var(--accent)" />
+                      </>
+                    );
+                  })()}
+              </svg>
             </div>
           )}
         </div>
@@ -1177,32 +1179,6 @@ function Pill({
     >
       {label}
     </button>
-  );
-}
-
-function KindPill({ kind, defectCode }: { kind: SourceKind; defectCode?: string | null }) {
-  const color =
-    kind === "rejected" || kind === "defect"
-      ? "var(--critical)"
-      : kind === "accepted"
-        ? "var(--positive)"
-        : kind === "checked"
-          ? "var(--text-2)"
-          : "var(--text-3)";
-  return (
-    <span
-      style={{
-        fontSize: 10.5,
-        fontWeight: 700,
-        color,
-        background: `color-mix(in srgb, ${color} 12%, transparent)`,
-        padding: "2px 7px",
-        borderRadius: 6,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {kindLabel(kind, defectCode)}
-    </span>
   );
 }
 
