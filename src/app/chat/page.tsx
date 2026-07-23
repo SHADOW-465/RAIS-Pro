@@ -10,6 +10,7 @@ import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import InsightSlide from "@/components/InsightSlide";
 import type { DashboardConfig, InsightSlide as InsightSlideType } from "@/types/dashboard";
 import type { Event } from "@/lib/store/types";
+import { BRAND_NAME } from "@/lib/brand";
 import {
   rejectionRate,
   totalRejected,
@@ -352,7 +353,7 @@ function ChatContent() {
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Ask RAIS to diagnose quality anomalies..."
+                placeholder={`Ask ${BRAND_NAME} to diagnose quality anomalies...`}
                 disabled={loading}
                 style={inpStyle}
               />
@@ -496,7 +497,7 @@ export default function ChatPage() {
     <Suspense fallback={
       <AppShell active="ask">
         <div style={{ padding: 48, textAlign: "center", color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
-          Initializing Ask RAIS workspace...
+          Initializing Ask {BRAND_NAME} workspace...
         </div>
       </AppShell>
     }>

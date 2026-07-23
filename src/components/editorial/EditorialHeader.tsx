@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTweaks } from "./TweaksContext";
 import Icon from "./Icon";
+import { BRAND_NAME } from "@/lib/brand";
 
 interface EditorialHeaderProps {
   initials?: string;
@@ -87,7 +88,7 @@ export default function EditorialHeader({
               whiteSpace: "nowrap",
             }}
           >
-            RAIS <span style={{ fontWeight: 500, color: "var(--accent)" }}>Pro</span>
+            {BRAND_NAME}
           </div>
           <div
             className="muted"

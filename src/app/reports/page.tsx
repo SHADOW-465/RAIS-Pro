@@ -16,6 +16,7 @@ import {
   trustScore,
 } from "@/lib/analytics";
 import type { Event } from "@/lib/store/types";
+import { BRAND_NAME } from "@/lib/brand";
 
 // The 8 stages specified by the user instruction
 const STAGES = [
@@ -1299,7 +1300,7 @@ export default function ReportsPage() {
                 <div className="border border-gray-300 p-4 bg-gray-50 text-[11px] leading-relaxed">
                   <h4 className="font-bold text-gray-800 uppercase mb-1">Adjudication Audit Policy Statement:</h4>
                   <p>
-                    All modifications to canonical values in the RAIS PRO database must be initiated via an authorized correction event.
+                    All modifications to canonical values in the {BRAND_NAME} database must be initiated via an authorized correction event.
                     Direct database corrections without signed regulatory justifications are blocked to prevent compliance breaches.
                   </p>
                 </div>
@@ -1441,7 +1442,7 @@ export default function ReportsPage() {
                     {verificationToken}
                   </span>
                   <span className="text-[8px] text-gray-400 block mt-1">
-                    VERIFIED DETECT-TO-CORRECT INGESTION LEDGER SIGNATURE &bull; RAIS PRO SECURE ARCHIVE
+                    VERIFIED DETECT-TO-CORRECT INGESTION LEDGER SIGNATURE &bull; {BRAND_NAME} SECURE ARCHIVE
                   </span>
                 </div>
 

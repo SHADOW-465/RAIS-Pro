@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import Icon from "@/components/editorial/Icon";
+import { BRAND_NAME } from "@/lib/brand";
 
 interface UploadZoneProps {
   onUpload: (files: File[]) => void;
@@ -262,7 +263,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
             style={{ alignItems: "center", flexWrap: "wrap" }}
           >
             <button className="btn accent" onClick={analyze}>
-              <Icon name="spark" size={14} /> Analyze with RAIS
+              <Icon name="spark" size={14} /> Analyze with {BRAND_NAME}
             </button>
             <div className="muted num" style={{ fontSize: 12 }}>
               Estimated 12–25 sec

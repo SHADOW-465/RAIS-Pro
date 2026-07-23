@@ -13,6 +13,7 @@ import {
 } from "@/components/editorial/EditorialCharts";
 import type { InsightSlide as InsightSlideType, InsightChart } from "@/types/dashboard";
 import { safeBolden } from "@/components/app/widgets";
+import { BRAND_NAME } from "@/lib/brand";
 
 interface InsightSlideProps {
   slide: InsightSlideType;
@@ -214,7 +215,7 @@ export default function InsightSlide({ slide, onRemove }: InsightSlideProps) {
           color: "var(--text-3)",
         }}
       >
-        <span>RAIS · Insight slide{slide.id ? ` #${slide.id.slice(0, 6)}` : ""}</span>
+        <span>{BRAND_NAME} · Insight slide{slide.id ? ` #${slide.id.slice(0, 6)}` : ""}</span>
         <span>generated {formatTime(slide.createdAt)}</span>
       </div>
     </article>

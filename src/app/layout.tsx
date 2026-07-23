@@ -6,9 +6,10 @@ import "./globals.css";
 import { TweaksProvider } from "@/components/editorial/TweaksContext";
 import { EventsProvider } from "@/components/app/EventsContext";
 import { RegistryProvider } from "@/components/app/RegistryContext";
+import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "RAIS Pro — Rejection Diagnostic",
+  title: `${BRAND_NAME} — ${BRAND_TAGLINE}`,
   description: "Soft modern diagnostic briefing for plant operations.",
 };
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useLayoutEffect, useCallback, useEffect, useMemo } from "react";
 import Icon from "@/components/editorial/Icon";
+import { BRAND_NAME } from "@/lib/brand";
 import type { RawSheet } from "@/types/dashboard";
 import {
   type SourceRow,
@@ -374,13 +375,13 @@ export default function FloatingDetailModal({
                 fontWeight: 800,
                 background: "var(--accent)",
                 color: "var(--text-invert)",
-                padding: "2px 6px",
-                borderRadius: 4,
+                padding: "2px 8px",
+                borderRadius: 999,
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
               }}
             >
-              RAIS
+              {BRAND_NAME}
             </span>
             <span
               style={{
