@@ -8,6 +8,8 @@ import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import Icon from "@/components/editorial/Icon";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
+import CapaComposerModal from "@/components/CapaComposerModal";
+import { draftFromRecommendation, blankDraft, titleFromText, type CapaRecord } from "@/lib/capa-store";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
   Card, 
@@ -476,6 +478,43 @@ export default function Dashboard() {
     lines.push(`Recommended action: ${action}`);
 
     return lines;
+  };
+
+  // CAPA composer — opened from a "Create CAPA →" recommendation. The advisor is
+  // grounded in these verified figures; the model never originates numbers.
+  const [capaOpen, setCapaOpen] = useState(false);
+  const [capaDraft, setCapaDraft] = useState<CapaRecord | null>(null);
+  const [capaRecText, setCapaRecText] = useState<string | undefined>(undefined);
+  const [capaEvidence, setCapaEvidence] = useState<string | null>(null);
+
+  const capaContext = useMemo(() => {
+    if (!m) return "";
+    const lines = [
+      `Overall rejection rate: ${pct(m.rate)} (target ${pct(targetRej)}).`,
+      `First-pass yield: ${pct(m.fpy)}.`,
+      `Cost of poor quality (period): ${rupee(m.copq)}.`,
+      `Annual savings opportunity: ${rupee(m.savings)}.`,
+    ];
+    if (worstStageRow) {
+      lines.push(`Worst stage: ${worstStageRow.label} — ${pct(worstStageRow.rejRate)} rejection rate, ${worstStageRow.contributionPct.toFixed(1)}% of total rejections.`);
+    }
+    if (m.defects.length > 0) {
+      lines.push(`Top defect driver: ${m.defects[0].label} (${m.defects[0].pct.toFixed(1)}% of rejections).`);
+    }
+    return lines.join("\n");
+  }, [m, targetRej, worstStageRow]);
+
+  const openCapa = (i: number, cardText: string, evidence: string | null) => {
+    const rec = engineRecs[i];
+    if (rec) {
+      setCapaDraft(draftFromRecommendation(rec));
+      setCapaRecText(rec.text);
+    } else {
+      setCapaDraft({ ...blankDraft(), problem: cardText, title: titleFromText(cardText) });
+      setCapaRecText(cardText);
+    }
+    setCapaEvidence(evidence);
+    setCapaOpen(true);
   };
 
   return (
@@ -1076,12 +1115,13 @@ export default function Dashboard() {
                             >
                               {chipText}
                             </span>
-                            <a
-                              href="/capa"
-                              style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}
+                            <button
+                              type="button"
+                              onClick={() => openCapa(i, rec.text, rec.evidence)}
+                              style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }}
                             >
                               Create CAPA →
-                            </a>
+                            </button>
                           </div>
                           <div style={{ fontSize: "var(--text-md)", lineHeight: 1.5, color: "var(--text)", fontWeight: 500 }}>{safeBolden(rec.text)}</div>
                           {rec.evidence && (
@@ -1117,6 +1157,15 @@ export default function Dashboard() {
       >
         {modalContent}
       </FloatingDetailModal>
+
+      <CapaComposerModal
+        isOpen={capaOpen}
+        onClose={() => setCapaOpen(false)}
+        draft={capaDraft}
+        recommendationText={capaRecText}
+        context={capaContext}
+        evidence={capaEvidence}
+      />
     </AppShell>
   );
 }
