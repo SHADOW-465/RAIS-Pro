@@ -228,10 +228,12 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
       }}
     >
       {title && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "var(--space-3)", gap: 12 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", marginBottom: "var(--space-3)", gap: "4px 12px" }}>
           <span
             className="h3"
             style={{
+              flex: "1 1 auto",
+              minWidth: 0,
               fontSize: "var(--text-md)",
               fontWeight: 600,
               letterSpacing: "-0.01em",
