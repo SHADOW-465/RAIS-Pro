@@ -8,7 +8,8 @@ import {
   useContainerWidth,
   getBaseSpacing,
   hoverIndexFromPixels,
-  shouldShowLabel
+  shouldShowLabel,
+  niceAxisMax
 } from "@/lib/chart-utils";
 
 /** Shared hover tooltip card used by every time-series chart. Positioned over the
@@ -514,7 +515,7 @@ export function LineChart({
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
   const v = points.map((p) => p.value);
-  const maxVal = Math.max(...v, target ?? 0);
+  const dataMax = Math.max(...v, 0);
   let defaultMax = 0.05;
   try {
     const testStr = fmt(1000);
@@ -522,7 +523,17 @@ export function LineChart({
       defaultMax = 100000;
     }
   } catch (e) { }
-  const max = maxVal === 0 ? defaultMax : maxVal;
+  // Fit the axis to the data itself rather than to a policy target that can sit
+  // orders of magnitude above a healthy station's actual rate — otherwise a 10%
+  // target flattens a 0.1% trend into an unreadable sliver at the bottom of the
+  // chart. A target within a sane multiple of the data still pulls the axis up,
+  // since seeing the margin to target is useful when the two are comparable.
+  const targetInRange = target != null && (dataMax === 0 || target <= dataMax * 4);
+  const max = dataMax === 0
+    ? (target != null ? niceAxisMax(target * 1.08) : defaultMax)
+    : niceAxisMax(Math.max(dataMax, targetInRange ? target! : 0) * 1.08);
+  const targetValue = target != null && target <= max ? target : null;
+  const yTicks = [0, 0.25, 0.5, 0.75, 1];
   const avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
 
   const numPoints = points.length;
@@ -612,18 +623,18 @@ export function LineChart({
           onMouseMove={handleMouseMove}
         >
           {/* Horizontal gridlines */}
-          {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
+          {yTicks.map((p, i) => (
             <line key={i} x1={padX} y1={padTop + plotH * p} x2={canvasWidth - padX} y2={padTop + plotH * p} stroke="var(--border)" strokeWidth={0.5} />
           ))}
-          {[0, 0.5, 1].map((p, i) => (
-            <text key={`yl${i}`} x={padX - 8} y={padTop + plotH * p + 4} fontSize={11} fontWeight={600} textAnchor="end" fill="var(--text-2)" fontFamily="var(--font-mono)">{fmt(max * (1 - p))}</text>
+          {yTicks.map((p, i) => (
+            <text key={`yl${i}`} x={padX - 8} y={padTop + plotH * p + 4} fontSize={10.5} fontWeight={600} textAnchor="end" fill="var(--text-2)" fontFamily="var(--font-mono)">{fmt(max * (1 - p))}</text>
           ))}
           <line x1={padX} y1={axisY} x2={canvasWidth - padX} y2={axisY} stroke="var(--border-strong)" strokeWidth={1} />
 
-          {target != null && (
+          {targetValue != null && (
             <g>
-              <line x1={padX} y1={y(target)} x2={canvasWidth - padX} y2={y(target)} stroke="var(--critical)" strokeDasharray="5,4" strokeWidth={1.2} />
-              <text x={canvasWidth - padX - 4} y={y(target) - 6} fontSize={11} fill="var(--critical)" fontWeight={800} textAnchor="end">TARGET {fmt(target)}</text>
+              <line x1={padX} y1={y(targetValue)} x2={canvasWidth - padX} y2={y(targetValue)} stroke="var(--critical)" strokeDasharray="5,4" strokeWidth={1.2} />
+              <text x={canvasWidth - padX - 4} y={y(targetValue) - 6} fontSize={11} fill="var(--critical)" fontWeight={800} textAnchor="end">TARGET {fmt(targetValue)}</text>
             </g>
           )}
           {mean && (
@@ -748,7 +759,8 @@ export function MultiLine({
       defaultMax = 10;
     }
   } catch (e) { }
-  const max = maxVal === 0 ? defaultMax : maxVal;
+  const max = maxVal === 0 ? defaultMax : niceAxisMax(maxVal * 1.08);
+  const yTicks = [0, 0.25, 0.5, 0.75, 1];
 
   const numPoints = data.length;
   const baseSpacing = getBaseSpacing(numPoints);
@@ -830,11 +842,11 @@ export function MultiLine({
           style={{ width: canvasWidth, height: H, display: "block" }}
           onMouseMove={handleMouseMove}
         >
-          {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
+          {yTicks.map((p, i) => (
             <line key={i} x1={padX} y1={padTop + plotH * p} x2={canvasWidth - padX} y2={padTop + plotH * p} stroke="var(--border)" strokeWidth={0.5} />
           ))}
-          {[0, 0.5, 1].map((p, i) => (
-            <text key={`yl${i}`} x={padX - 8} y={padTop + plotH * p + 4} fontSize={11} fontWeight={600} textAnchor="end" fill="var(--text-2)" fontFamily="var(--font-mono)">{fmtVal(max * (1 - p))}</text>
+          {yTicks.map((p, i) => (
+            <text key={`yl${i}`} x={padX - 8} y={padTop + plotH * p + 4} fontSize={10.5} fontWeight={600} textAnchor="end" fill="var(--text-2)" fontFamily="var(--font-mono)">{fmtVal(max * (1 - p))}</text>
           ))}
           <line x1={padX} y1={axisY} x2={canvasWidth - padX} y2={axisY} stroke="var(--border-strong)" strokeWidth={1} />
 
