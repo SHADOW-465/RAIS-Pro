@@ -196,6 +196,8 @@ export default function BatchMatrixEntry({
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Batch id currently being manually pushed to the ledger via the "Push to ledger" retry. */
+  const [syncingId, setSyncingId] = useState<string | null>(null);
   const [prefillNote, setPrefillNote] = useState<string | null>(null);
   /** Row expanded for preview in the shift list (click the row to toggle). */
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -1105,10 +1107,34 @@ export default function BatchMatrixEntry({
       setEditing(null);
       clearFormKeepContext();
       setErr(
-        `Saved on this device only — could not reach the ledger (${e?.message ?? "unknown error"}). Will retry when the shift ends.`,
+        `Saved on this device only — could not reach the ledger (${e?.message ?? "unknown error"}). Use "Push to ledger" on the row below, or it will retry automatically when the shift ends.`,
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  /**
+   * Manually push one still-local row to the ledger, for when an operator or
+   * GM doesn't want to wait for the automatic shift-end flush.
+   */
+  async function retrySyncRow(rec: ShiftBatchRecord) {
+    if (syncingId) return;
+    setSyncingId(rec.id);
+    setErr(null);
+    try {
+      const issues = await commitRecord(rec);
+      setLastIssues(issues.length ? { batchId: rec.batchId, stage: rec.processName, issues } : null);
+      const next = saved.map((b) => (b.id === rec.id ? { ...b, synced: true } : b));
+      setSaved(next);
+      persistShift(next);
+      refreshEvents().catch(console.error);
+      onSynced?.();
+      setMsg(`On the ledger · ${rec.batchId} · ${rec.processName}`);
+    } catch (e: any) {
+      setErr(`Still could not reach the ledger for ${rec.batchId} (${e?.message ?? "unknown error"}).`);
+    } finally {
+      setSyncingId(null);
     }
   }
 
@@ -2673,14 +2699,27 @@ export default function BatchMatrixEntry({
                             Saved · locked
                           </span>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); deleteLocal(rec.id); }}
-                            style={btnDanger}
-                            title={rec.synced ? "Erase from the ledger too" : "Remove from this shift list"}
-                          >
-                            {rec.synced ? "Erase" : "Remove"}
-                          </button>
+                          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                            {!rec.synced && canWrite && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); retrySyncRow(rec); }}
+                                disabled={syncingId === rec.id}
+                                style={btnSyncNow}
+                                title="Push this batch to the ledger now instead of waiting for the shift to end"
+                              >
+                                {syncingId === rec.id ? "Pushing…" : "Push to ledger"}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); deleteLocal(rec.id); }}
+                              style={btnDanger}
+                              title={rec.synced ? "Erase from the ledger too" : "Remove from this shift list"}
+                            >
+                              {rec.synced ? "Erase" : "Remove"}
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -2966,6 +3005,17 @@ const btnDanger: React.CSSProperties = {
   background: "transparent",
   color: "var(--status-bad)",
   border: "1px solid color-mix(in srgb, var(--status-bad) 45%, transparent)",
+  borderRadius: 9999,
+  padding: "4px 12px",
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const btnSyncNow: React.CSSProperties = {
+  background: "transparent",
+  color: "var(--accent)",
+  border: "1px solid color-mix(in srgb, var(--accent) 45%, transparent)",
   borderRadius: 9999,
   padding: "4px 12px",
   fontSize: 12,
