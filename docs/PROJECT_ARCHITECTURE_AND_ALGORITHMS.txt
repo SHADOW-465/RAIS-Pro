@@ -1,0 +1,410 @@
+================================================================================
+MOID (RAIS-Pro) — SYSTEM ARCHITECTURE, LOGIC & ALGORITHM SPECIFICATION
+Technical Blueprint, ASCII Flowcharts, Data Structures & Mathematical Formulations
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1. High-Level Multi-Tier Architecture Diagram
+2. Ingestion & Lossless Workbook Profiler Flowchart
+3. 5-Tier Ontology Resolver Ladder Algorithm Diagram
+4. MOD (Mapping Ontology Document) Lifecycle & Catalog Learning Flow
+5. Immutable Event Ledger & SHA-256 Content-Addressed Hashing Pipeline
+6. Deterministic Mass-Balance & Discrepancy Reconciliation Engine
+7. Analytics, Pareto (80/20), SPC (Shewhart/Nelson), & COPQ Mathematical Flow
+8. Multi-Tier AI Cascade & Failover Sequence
+9. Dynamic Data Entry Schema Synthesis Flow
+10. Subsystem Codebase Directory & File Map
+
+
+================================================================================
+1. HIGH-LEVEL MULTI-TIER ARCHITECTURE DIAGRAM
+================================================================================
+
++-------------------------------------------------------------------------------+
+|                        1. INGESTION & ONTOLOGY TIER                           |
+|                                                                               |
+|  [ Excel File ] ---> [ Lossless Reader ] ---> [ Column Profiler ]             |
+|                             |                        |                        |
+|                             v                        v                        |
+|                     [ Header Detection ]   [ 5-Tier Resolver Ladder ]         |
+|                                                      |                        |
+|                                                      v                        |
+|                                            [ Draft MOD Document ]             |
++------------------------------------------------------+------------------------+
+                                                       |
+                                                       v
++-------------------------------------------------------------------------------+
+|                      2. HUMAN-IN-THE-LOOP VERIFICATION                        |
+|                                                                               |
+|                   [ Verification Panel (Quality Manager) ]                    |
+|                        |                                 |                    |
+|                        v (Publish)                       v (Learn)            |
+|              [ Verified Active MOD ] ---------> [ Company Catalog ]           |
++------------------------+---------------------------------+--------------------+
+                         |                                 |
+                         v                                 v
++--------------------------------------------------+ +--------------------------+
+|          3. IMMUTABLE EVENT LEDGER TIER          | | 4. DYNAMIC DATA ENTRY    |
+|                                                  | |                          |
+|  [ extract-from-mod ]                            | | [ GET /api/entry-template|
+|           |                                      | |           |              |
+|           v                                      | |           v              |
+|  [ Mass Balance Recompute (Delta = 0) ]          | | [ BatchMatrixEntry UI ]  |
+|           |                                      | |           |              |
+|           v                                      | |           v              |
+|  [ SHA-256 Content-Addressed Hashing ]           | | [ In-Browser Validation] |
+|           |                                      | |           |              |
+|           v                                      | |           v              |
+|  [( Immutable Event Store: Supabase / Memory )] <+-----------+              |
++------------------------+------------------------------------------------------+
+                         |
+                         v
++-------------------------------------------------------------------------------+
+|                     5. DETERMINISTIC ANALYTICS ENGINE                         |
+|                                                                               |
+|            +-------------------+-------------------+---------------+          |
+|            |                   |                   |               |          |
+|            v                   v                   v               v          |
+|     [ Pareto 80/20 ]     [ Shewhart SPC ]      [ COPQ Model ]  [ Audit Trail] |
+|            |                   |                   |               |          |
+|            +-------------------+-------------------+---------------+          |
+|                                |                                              |
+|                                v                                              |
+|            [ Executive Dashboard & Drilldown Reporting UI ]                   |
++-------------------------------------------------------------------------------+
+
+
+================================================================================
+2. INGESTION & LOSSLESS WORKBOOK PROFILER FLOWCHART
+================================================================================
+
+  [ Plant Uploads .xlsx / .xls File ]
+                 |
+                 v
+  +-------------------------------------------------------------+
+  | src/core/workbook/reader.ts (SheetJS AST Parser)            |
+  | - Converts workbook to lossless cell coordinate matrix      |
+  | - Extracts raw values, formatted text, and sheet coordinates|
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | src/core/workbook/header-detection.ts                       |
+  | - Evaluates candidate rows r = 1..N                         |
+  | - Computes Header Likelihood Score:                         |
+  |   Score(r) = w1*StringRatio(r) + w2*Distinctness(r)         |
+  |              + w3*NonEmptyRatio(r) - w4*NumericRatio(r)     |
+  | - Locates boundary header row where Score(r) > 0.75         |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | src/core/profiler/index.ts (Statistical Column Profiler)    |
+  | - Type Discrimination: Date, Integer, Decimal, Text, Code   |
+  | - Distribution Metrics: Null %, Cardinality, Min/Max/Mean   |
+  | - Pattern Sampling: Gathers value distribution samples      |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+                     [ Passes to Resolver Ladder ]
+
+
+================================================================================
+3. 5-TIER ONTOLOGY RESOLVER LADDER ALGORITHM DIAGRAM
+================================================================================
+
+                      [ Raw Source Column Header ]
+                                   |
+                                   v
+                   +-------------------------------+
+                   | Normalize(header): lower, trim|
+                   +---------------+---------------+
+                                   |
+                                   v
+                   +-------------------------------+
+                   |  TIER 1: Exact Global Index   |
+                   |  Does header match canon key? |
+                   +---------------+---------------+
+                                   |
+                     +-------------+-------------+
+                     | MATCH                     | NO MATCH
+                     v                           v
+              [ Return Role ]     +-------------------------------+
+              [ Conf = 1.00 ]     |  TIER 2: Plant Catalog Memory |
+                                  |  Known alias from prior MODs? |
+                                  +---------------+---------------+
+                                                  |
+                                    +-------------+-------------+
+                                    | MATCH                     | NO MATCH
+                                    v                           v
+                             [ Return Role ]     +-------------------------------+
+                             [ Conf = 0.95 ]     | TIER 3: Domain Regex Rules    |
+                                                 | Matches date/lot/qty patterns?|
+                                                 +---------------+---------------+
+                                                                 |
+                                                   +-------------+-------------+
+                                                   | MATCH                     | NO MATCH
+                                                   v                           v
+                                            [ Return Role ]     +-------------------------------+
+                                            [ Conf = 0.88 ]     | TIER 4: Fuzzy String Distance |
+                                                                | Jaro-Winkler score >= 0.82?   |
+                                                                +---------------+---------------+
+                                                                                |
+                                                                  +-------------+-------------+
+                                                                  | MATCH                     | NO MATCH
+                                                                  v                           v
+                                                           [ Return Role ]     +-------------------------------+
+                                                           [ Conf = 0.80 ]     | TIER 5: AI Semantic Model     |
+                                                                               | MiniCPM / Groq (Strict Zod)   |
+                                                                               +---------------+---------------+
+                                                                                               |
+                                                                                 +-------------+-------------+
+                                                                                 | CONFIDENT                 | UNCERTAIN
+                                                                                 v                           v
+                                                                          [ Return Role ]             [ Flag for Human ]
+                                                                          [ Conf = 0.70 ]             [ Review Panel   ]
+
+
+================================================================================
+4. MOD LIFECYCLE & CATALOG LEARNING FLOW
+================================================================================
+
+  +-------------------------------------------------------------+
+  | 1. DRAFT GENERATION (src/core/ontology/builder/build-mod.ts)|
+  |    Aggregates column resolutions into a draft JSON MOD      |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | 2. HUMAN DECISION PANEL (POST /api/mods/verify)             |
+  |    Quality Manager reviews and overrides column mappings    |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | 3. PUBLISH & ATOMIC CATALOG PROMOTION (POST /api/mods)      |
+  |    Simultaneously executes three actions:                   |
+  |    (A) Promotes new defects/sizes/stages to Company Catalog |
+  |    (B) Learns raw column strings as persistent aliases      |
+  |    (C) Marks MOD as verified, unlocking extraction          |
+  +-------------------------------------------------------------+
+
+
+================================================================================
+5. IMMUTABLE EVENT LEDGER & SHA-256 CONTENT HASHING PIPELINE
+================================================================================
+
+                 [ Verified MOD + Day-Records ]
+                               |
+                               v
+  +-------------------------------------------------------------+
+  | extract-from-mod (src/core/ingest/extract-from-mod.ts)      |
+  | Extracts atomic batch inspection observations               |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | Canonical Event Payload Assembly (src/lib/contract/d1.ts)   |
+  | {                                                           |
+  |   streamId: "stream_disposafe_cannula",                     |
+  |   eventType: "InspectionRecordEvent",                       |
+  |   timestamp: "2026-08-24T00:00:00Z",                        |
+  |   payload: { batchId, checkedQty, rejectedQty, defects },   |
+  |   metadata: { sourceFile: "Aug2026.xlsx", cell: "Sheet1!C4"}|
+  | }                                                           |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | Cryptographic Content Hasher (src/lib/contract/hash.ts)     |
+  | Hash = SHA256( JSON.stringify( CanonicalSort(EventObject) ))|
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | Append-Only Event Store (Supabase PostgreSQL / Memory)      |
+  | - If Hash exists: DEDUPLICATE (No-op, prevents double-count)|
+  | - If Hash is new: INSERT INTO event_ledger                  |
+  | - If record corrected: INSERT CorrectionEvent (supersedes)  |
+  +-------------------------------------------------------------+
+
+
+================================================================================
+6. DETERMINISTIC MASS-BALANCE & DISCREPANCY RECONCILIATION
+================================================================================
+
+              [ Day-Record Extracted from Excel ]
+                               |
+                               v
++---------------------------------------------------------------+
+| STEP 1: Recompute Total Defects from Raw Atomic Cells         |
+|         Total_Defects_Recomputed = Sum(D_1 + D_2 + ... + D_m) |
++------------------------------+--------------------------------+
+                               |
+                               v
++---------------------------------------------------------------+
+| STEP 2: Calculate Defect Balance Delta                        |
+|         Delta_Defect = Rejected_Qty - Total_Defects_Recomputed|
++------------------------------+--------------------------------+
+                               |
+                               v
++---------------------------------------------------------------+
+| STEP 3: Calculate Yield Mass Balance Delta                    |
+|         Delta_Yield = Checked_Qty - (Accepted_Qty + Rej_Qty)  |
++------------------------------+--------------------------------+
+                               |
+                 +-------------+-------------+
+                 |                           |
+                 v (Delta_Defect == 0 AND    v (Delta != 0)
+                    Delta_Yield  == 0)       |
+  +--------------------------------+  +-------------------------------+
+  | STATUS: BALANCED & VERIFIED    |  | STATUS: DISCREPANCY DETECTED  |
+  | - Direct commit ready          |  | - Flagged in Review UI        |
+  | - Rejection Rate = Rej / Chk   |  | - Displays exact source cell  |
+  | - Yield Rate = Acc / Chk       |  |   coordinates (e.g. Sheet1!F8)|
+  +--------------------------------+  | - Operator resolves in UI     |
+                                      +-------------------------------+
+
+
+================================================================================
+7. ANALYTICS, PARETO, SPC & COPQ MATHEMATICAL FLOW
+================================================================================
+
++-------------------------------------------------------------------------------+
+|                      IMMUTABLE EVENT LEDGER (TRUTH SOURCE)                    |
++---------------------------------------+---------------------------------------+
+                                        |
+      +-------------------+-------------+-------------+-------------------+
+      |                   |                           |                   |
+      v                   v                           v                   v
++---------------+   +---------------------------+   +---------------+   +---------------+
+| PARETO 80/20  |   | STATISTICAL PROCESS (SPC) |   | COPQ FINANCIAL|   | AUDIT TRAIL   |
+| ENGINE        |   | Shewhart p-Chart Engine   |   | ENGINE        |   | TRACEABILITY  |
++-------+-------+   +-------------+-------------+   +-------+-------+   +-------+-------+
+        |                         |                         |                   |
+        v                         v                         v                   v
++---------------+   +---------------------------+   +---------------+   +---------------+
+| 1. Sort       |   | 1. p_bar = Sum(Rej)/Sum(Ck|   | COPQ =        |   | Every metric  |
+|    Defects:   |   | 2. n_bar = Sum(Ck) / N    |   | Sum_{stages}[ |   | links to:     |
+|    c1>=c2>=.. |   | 3. CL  = p_bar            |   |   Sum_{def}[  |   | - File name   |
+| 2. P_i =      |   | 4. UCL = p_bar + 3*Sigma  |   |     Count *   |   | - Sheet name  |
+|    (c_i/Tot)% |   | 5. LCL = max(0, p - 3*Sig)|   |     (MatCost+ |   | - Cell range  |
+| 3. Cumulate:  |   | 6. Nelson Out-of-Control  |   |      LaborCost|   | - Ingest ID   |
+|    S_k = Sum P|   |    Rule Evaluation:       |   |     +Energy)] |   | - SHA-256     |
+| 4. Isolate    |   |    * Rule 1: Point > UCL  |   | ] + ScrapCost |   |   event hash  |
+|    vital few  |   |    * Rule 2: 9 pts on side|   +---------------+   +---------------+
+|    where      |   |    * Rule 3: 6 pt trend   |
+|    S_k <= 80% |   +---------------------------+
++---------------+
+
+
+================================================================================
+8. MULTI-TIER AI CASCADE & FAILOVER SEQUENCE
+================================================================================
+
+  [ Client / Feature requests AI assistance (CAPA, Resolver, Chat) ]
+                                |
+                                v
+  +-------------------------------------------------------------+
+  | tryModels(fn, opts) in src/lib/ai.ts                        |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | TIER 1: MiniCPM (Self-Hosted on Premise)                    |
+  | Target: MINICPM_BASE_URL (openbmb/MiniCPM5-1B)              |
+  | Standard: OpenAI-Compatible Protocol                        |
+  +------------------------------+------------------------------+
+                                 |
+                +----------------+----------------+
+                | SUCCESS                         | TIMEOUT / ERROR
+                v                                 v
+  +----------------------------+    +---------------------------+
+  | Validate Output Schema via |    | TIER 2: Groq Fallback     |
+  | Zod generateObject         |    | Target: GROQ_API_KEY      |
+  | Return structured payload  |    | (llama-3.3-70b-versatile) |
+  +----------------------------+    +-------------+-------------+
+                                                  |
+                                                  v
+                                    +---------------------------+
+                                    | Validate Output Schema via|
+                                    | Zod generateObject        |
+                                    | Return structured payload |
+                                    +---------------------------+
+
+
+================================================================================
+9. DYNAMIC DATA ENTRY SCHEMA SYNTHESIS FLOW
+================================================================================
+
+  +-------------------------------------------------------------+
+  | 1. Plant Catalog + Verified MODs                            |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | 2. GET /api/entry-template                                  |
+  |    - Unions active MOD structures across plant lines        |
+  |    - Applies manual schema overrides from /schema           |
+  |    - Preserves source Excel column ordering                 |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | 3. Dynamic UI Synthesis (src/components/BatchMatrixEntry.tsx|
+  |    - Generates multi-size batch entry matrix                |
+  |    - Generates monthly calendar data entry grid             |
+  |    - Fast keyboard navigation (Arrow keys / Enter / Tab)    |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | 4. Client-Side Mass Balance Validation                      |
+  |    - Instantly sums entered defects across sizes & stages   |
+  |    - Alerts operator if row totals do not equal rejection   |
+  +------------------------------+------------------------------+
+                                 |
+                                 v
+  +-------------------------------------------------------------+
+  | 5. Direct Ledger Commit (POST /api/ingest)                  |
+  |    - extractedBy: "direct-entry"                            |
+  |    - Hashed with SHA-256 and appended to immutable ledger   |
+  +-------------------------------------------------------------+
+
+
+================================================================================
+10. SUBSYSTEM CODEBASE DIRECTORY & FILE MAP
+================================================================================
+
+Core Ingestion & Profiling:
+- src/core/workbook/reader.ts           Lossless SheetJS AST parser
+- src/core/workbook/header-detection.ts Statistical table boundary detection
+- src/core/profiler/index.ts            Column type, cardinality & distribution profiler
+
+Ontology & MOD Engine:
+- src/core/ontology/resolver/index.ts   5-tier resolver ladder algorithm
+- src/core/ontology/plant-catalog.ts    Catalog storage & learned alias memory
+- src/core/ontology/builder/build-mod.ts MOD JSON document generator
+- src/core/ingest/extract-from-mod.ts   Record extractor over verified MODs
+
+Event Ledger & Integrity:
+- src/lib/contract/d1.ts                Zod event schema definitions
+- src/lib/contract/hash.ts              Deterministic SHA-256 content hasher
+- src/lib/ingest/mass-balance.ts        Mathematical mass-balance validator
+- src/lib/ingest/review.ts              Recomputation & discrepancy detection
+- src/lib/store/                        Supabase & In-Memory storage adapters
+
+Deterministic Analytics Engine:
+- src/lib/analytics/rejection.ts        Yield, scrap, and rejection metrics
+- src/lib/analytics/pareto.ts           80/20 Pareto defect concentration
+- src/lib/analytics/cost.ts             COPQ financial modeling engine
+- src/lib/analytics/source-trace.ts     Cell-level audit traceability engine
+
+Presentation & Interaction:
+- src/app/page.tsx                      Executive factory dashboard
+- src/components/BatchMatrixEntry.tsx   Dynamic multi-size data entry grid
+- src/components/MonthlyEntryGrid.tsx   Dynamic calendar monthly entry grid
+- src/components/editorial/             Pure SVG charts & design tokens
+- src/lib/ai.ts                         Resilient MiniCPM -> Groq failover chain
+================================================================================

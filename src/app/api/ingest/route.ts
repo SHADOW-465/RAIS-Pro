@@ -51,10 +51,9 @@ export async function POST(req: NextRequest) {
     //     and value-conflict reconciliation are both day-scoped, so they get
     //     the window.
     //   `allEffective`   — every effective event, whatever day it carries.
-    //     Supersede runs off IDENTITY (lot · station · pass), which is
-    //     deliberately date-free, so bounding it by the incoming dates meant a
-    //     revision filed on another day never found the row it was revising.
-    //     It was appended alongside instead, and the lot's counts doubled.
+    //     Identity is (lot · station · date · pass). Mass balance still has
+    //     to see the previous gate on an earlier day of the same lot, so
+    //     priors are built from this unwindowed set.
     //
     // One fetch, windowed in memory: both store adapters already load the full
     // table and apply from/to in JS, so the window never saved a round trip.
@@ -69,14 +68,15 @@ export async function POST(req: NextRequest) {
       (e) => e.occurredOn.start >= from && e.occurredOn.end <= to,
     );
 
-    // What each gate already passed forward, per lot. Direct entry submits ONE
-    // station at a time, so without this the cross-stage check has nothing to
-    // compare against and every manual entry sails through it.
+    // What each gate already passed forward, per lot — across EVERY day.
+    // Direct entry submits ONE station per save, and that station often runs
+    // on a later day than the one before it, so a date-windowed prior set
+    // made Balloon on the 4th blind to Visual on the 1st.
     const priorAgg = new Map<
       string,
       { stageId: string; date: string; size: string | null; batch: string; accepted: number; checked: number; rejected: number }
     >();
-    for (const e of existingEvents as any[]) {
+    for (const e of allEffective as any[]) {
       const stageId = e.stageId;
       if (!stageId) continue;
       const date = e.occurredOn?.start;
@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
       batch: p.batch,
       // Same rule as `available()`: accepted when stated, else checked − rejected.
       available: p.accepted > 0 ? p.accepted : Math.max(0, p.checked - p.rejected),
+      checked: p.checked,
     }));
 
     // 1. Live clarification checks (point-in-time) — surfaced, never blocking.
@@ -242,16 +243,10 @@ export async function POST(req: NextRequest) {
     // append-only guarantee, ran only when Supabase was configured, and pruned
     // just records[0]'s date, leaving the rest of a month-long save behind.
     //
-    // Both keys below now derive from ONE identity — (lot · station · pass) —
-    // so they can no longer disagree. They used to: `sk` omitted the shift while
-    // `sliceOf` included it, which is why a night-shift entry silently replaced
-    // the day-shift entry for the same lot and station.
-    //
-    // The DATE is deliberately not part of either key. A lot passes a station
-    // once; the day it happened is a fact about that pass, not part of its name.
-    // With the date in the key, the same lot re-entered at the same station on
-    // another day looked brand new and was filed without complaint — the exact
-    // failure the plant reported. A genuine repeat is an explicit `pass`.
+    // Both keys below now derive from ONE identity —
+    // (lot · station · date · pass) — so they can no longer disagree.
+    // Same day restates (supersedes); a different recorded-on date is a
+    // split-day continuation of the same lot at that station.
     const PRIMARY = new Set(["production", "inspection", "rejection"]);
     //
     // Not every row has a lot code: workbook imports and rows written before
@@ -276,7 +271,7 @@ export async function POST(req: NextRequest) {
           const cf = r.customFields ?? {};
           const batch = String(cf.batch ?? cf.batchId ?? cf.batchNo ?? "").trim();
           const pass = typeof cf.pass === "number" ? cf.pass : 1;
-          const id = entryIdentity(batch, r.stageId, pass);
+          const id = entryIdentity(batch, r.stageId, r.occurredOn.start, pass);
           if (id) return identityKey(id);
           return `nolot|${r.occurredOn.start}|${r.stageId}|${r.size ?? ""}|${r.source.sheet}`;
         }),

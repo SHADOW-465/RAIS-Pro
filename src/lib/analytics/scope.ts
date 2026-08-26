@@ -6,7 +6,7 @@
 // would otherwise lose to a same-day direct entry under full-scope rules.
 
 import type { Event } from "@/lib/store/types";
-import { canonicalBatchId } from "@/lib/entry/batch-id";
+import { canonicalBatchId, parseBatchId } from "@/lib/entry/batch-id";
 import { canonicalizeEvents } from "./canonical";
 import { DEFAULT_POLICY, type CalculationPolicyT } from "@/core/policy/policy";
 import {
@@ -133,13 +133,39 @@ export function eventBatchId(e: Event): string | null {
  */
 const BATCH_LIST_TYPES = new Set(["production", "inspection", "rejection"]);
 
-/** Distinct batch IDs in a raw event list (for the Sources picker), newest-looking first. */
-export function listBatchIds(events: Event[]): string[] {
+/**
+ * Calendar day a lot belongs to for the Sources picker and date range.
+ * Prefer the date encoded in the batch ID (H = August); fall back to
+ * occurredOn when the code cannot be parsed.
+ */
+export function eventLotDate(e: Event): string | null {
+  const batch = eventBatchId(e);
+  if (batch) {
+    const parsed = parseBatchId(batch);
+    if (parsed?.date) return parsed.date;
+  }
+  return e.occurredOn?.start ?? null;
+}
+
+/** Distinct batch IDs in a raw event list (for the Sources picker), newest-looking first.
+ *  Pass `{ from, to }` (ISO yyyy-mm-dd, inclusive) to keep only lots whose lot-date
+ *  falls in that custom range. Omit / empty = every batch. */
+export function listBatchIds(events: Event[], range?: { from?: string; to?: string }): string[] {
+  const from = range?.from || undefined;
+  const to = range?.to || undefined;
+  const bounded = !!(from || to);
   const set = new Set<string>();
   for (const e of events) {
     if (!BATCH_LIST_TYPES.has(e.eventType)) continue;
     const b = eventBatchId(e);
-    if (b) set.add(b);
+    if (!b) continue;
+    if (bounded) {
+      const day = eventLotDate(e);
+      if (!day) continue;
+      if (from && day < from) continue;
+      if (to && day > to) continue;
+    }
+    set.add(b);
   }
   // Lexicographic desc tends to put newer plant batch codes (yy letter day-size) near top
   return [...set].sort((a, b) => b.localeCompare(a));
@@ -365,8 +391,16 @@ export function scopeEvents(events: Event[], scope: Scope): Event[] {
     : null;
 
   const filtered = events.filter((e) => {
-    if (scope.dateFrom && e.occurredOn.end < scope.dateFrom) return false;
-    if (scope.dateTo && e.occurredOn.start > scope.dateTo) return false;
+    // Custom range is the lot calendar encoded in the batch ID (H = August),
+    // not the day the row was recorded. View Source and every KPI share this
+    // filter, so the drill-down cannot show 26G lots inside an August window.
+    // Rows with no parseable lot code still use occurredOn.
+    if (scope.dateFrom || scope.dateTo) {
+      const day = eventLotDate(e);
+      if (!day) return false;
+      if (scope.dateFrom && day < scope.dateFrom) return false;
+      if (scope.dateTo && day > scope.dateTo) return false;
+    }
     // Same rule as channels: `undefined` = no restriction, `[]` = the user
     // deselected every section, so nothing qualifies.
     if (scope.stageIds) {
@@ -445,7 +479,8 @@ export function bucketByPeriod(events: Event[], grain: Grain): Map<string, Event
 
   const buckets = new Map<string, Event[]>();
   for (const e of events) {
-    const key = periodKey(e.occurredOn.start, grain);
+    const day = eventLotDate(e) ?? e.occurredOn.start;
+    const key = periodKey(day, grain);
     const list = buckets.get(key);
     if (list) list.push(e);
     else buckets.set(key, [e]);

@@ -25,7 +25,10 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
-      <body className={GeistSans.className}>
+      {/* Grammarly and similar extensions inject data-gr-* on <body> before
+          React hydrates. suppressHydrationWarning is one level deep, so html
+          above does not cover this tag. */}
+      <body className={GeistSans.className} suppressHydrationWarning>
         <Script
           id="theme-initializer"
           strategy="beforeInteractive"

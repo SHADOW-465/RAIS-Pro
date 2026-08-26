@@ -155,24 +155,9 @@ export function checkEntry(
     });
   }
 
-  const identity = entryIdentity(lot, draft.station, draft.pass ?? 1);
-  if (!identity) {
-    return { blocks, warnings, notes, canSave: false, identity: null };
-  }
-
-  // The lot code carries the size, so a mismatch means one of the two is wrong
-  // and only the operator knows which.
-  const sizeClash = sizeDisagreement(lot, draft.size);
-  if (sizeClash) {
-    blocks.push({
-      code: "size-disagrees-with-lot",
-      severity: "block",
-      message: `Lot ${lot} is a ${sizeClash.fromLot} lot, but ${sizeClash.selected} is selected.`,
-      action: `Change the size to ${sizeClash.fromLot}, or use the lot code for the ${sizeClash.selected} lot.`,
-    });
-  }
-
   // ── The day ─────────────────────────────────────────────────────────────
+  // Date is part of identity, so judge it before the identity early-return
+  // or an invalid recorded-on date would fail silently with no message.
   if (!ISO_DAY.test(draft.date)) {
     blocks.push({
       code: "date-invalid",
@@ -191,6 +176,23 @@ export function checkEntry(
       code: "date-backdated",
       severity: "note",
       message: `This will be recorded against ${draft.date}, not today.`,
+    });
+  }
+
+  const identity = entryIdentity(lot, draft.station, draft.date, draft.pass ?? 1);
+  if (!identity) {
+    return { blocks, warnings, notes, canSave: false, identity: null };
+  }
+
+  // The lot code carries the size, so a mismatch means one of the two is wrong
+  // and only the operator knows which.
+  const sizeClash = sizeDisagreement(lot, draft.size);
+  if (sizeClash) {
+    blocks.push({
+      code: "size-disagrees-with-lot",
+      severity: "block",
+      message: `Lot ${lot} is a ${sizeClash.fromLot} lot, but ${sizeClash.selected} is selected.`,
+      action: `Change the size to ${sizeClash.fromLot}, or use the lot code for the ${sizeClash.selected} lot.`,
     });
   }
 
@@ -253,8 +255,9 @@ export function checkEntry(
 
   // ── The lot already being at this station ───────────────────────────────
   //
-  // A lot goes through a station once. A second entry is therefore a
-  // correction, unless the operator has declared another pass and said why.
+  // Same lot + station + recorded-on date is a rewrite of that day's row.
+  // A different date is a split-day continuation — Visual on the 1st and
+  // Visual on the 3rd both stand. Re-saving the same day still warns.
   const prior = ledger.get(identityKey(identity));
   if (prior && !draft.editing) {
     const when = prior.date ? ` on ${prior.date}` : "";
@@ -262,7 +265,30 @@ export function checkEntry(
       code: "station-already-recorded",
       severity: "warn",
       message: `${station} already has lot ${lot}${when} — ${prior.checked} checked, ${prior.rejected} rejected.`,
-      action: "Saving replaces it. Wrong lot? Change the lot code.",
+      action: "Saving replaces this day's entry. To record another day, change Recorded on.",
+    });
+  }
+
+  const otherDays = [...ledger.values()]
+    .filter(
+      (p) =>
+        p.identity.lot === identity.lot &&
+        p.identity.station === identity.station &&
+        p.identity.pass === identity.pass &&
+        p.identity.date !== identity.date,
+    )
+    .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+  if (otherDays.length > 0 && !draft.editing) {
+    const list = otherDays
+      .map((p) => `${p.date ?? "an earlier day"} (${p.checked} checked)`)
+      .join(", ");
+    notes.push({
+      code: "split-day-entry",
+      severity: "note",
+      message:
+        otherDays.length === 1
+          ? `${station} already has lot ${lot} on ${list}. This records a new day.`
+          : `${station} already has ${otherDays.length} other days on lot ${lot} — ${list}. This records a new day.`,
     });
   }
 

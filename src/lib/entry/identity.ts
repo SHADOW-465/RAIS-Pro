@@ -1,27 +1,19 @@
 // What makes one Data Entry row *that* row, and nothing else.
 //
-// Ten places used to answer this question and no two agreed. `sk()` in the
-// ingest route keyed on date+stage+size+batch; `sliceOf()` right beside it
-// added the shift; edit grants threw in productType; the drill-down added the
-// file name. Every new guard picked whichever key felt right that day, which is
-// why bugs kept landing in this exact spot.
-//
-// The identity is (lot · station · pass):
+// The identity is (lot · station · date · pass):
 //
 //   lot      the canonical lot code. It already encodes the size, so size is
 //            DERIVED here rather than stored beside it where the two can drift.
 //   station  the ledger stageId.
-//   pass     1 for the normal case. A lot goes through a station once, so a
-//            second entry for the same (lot, station) is a CORRECTION unless
-//            the operator explicitly declares another pass and says why.
+//   date     the recorded-on day this station ran the lot. A lot can sit at
+//            Visual (or Balloon, Valve, Final) across several days, so each
+//            day is its own row — Visual on the 1st and Visual on the 3rd are
+//            two inspections, not a rewrite of one.
+//   pass     1 for the normal case. A second pass on the SAME day is a
+//            re-inspection; a different day does not need a new pass.
 //
-// Everything else — the day it happened, the shift, who typed it, the product
-// type, the source file — is an ATTRIBUTE OF the entry, never part of its name.
-//
-// That single move fixes the failure the plant reported: with the date in the
-// key, the same lot re-entered at the same station on a different day looked
-// like a brand-new record and was filed without complaint. Now it collides, and
-// a collision is something we can show the operator.
+// Shift, operator, product type, and source file remain attributes, never
+// part of the name. Re-saving the same (lot, station, date) still supersedes.
 
 import { canonicalBatchId, frDigitsFromSize } from "@/lib/entry/batch-id";
 
@@ -30,14 +22,14 @@ export interface EntryIdentity {
   lot: string;
   /** Ledger stageId, e.g. "visual". */
   station: string;
-  /** 1 unless a second pass was explicitly declared. */
+  /** ISO day this station ran the lot, e.g. "2026-08-21". */
+  date: string;
+  /** 1 unless a second pass was explicitly declared for the same day. */
   pass: number;
 }
 
 /** The row's facts. None of these change which row it is. */
 export interface EntryAttributes {
-  /** Business day this station ran the lot. */
-  date?: string | null;
   shift?: string | null;
   operator?: string | null;
   productType?: string | null;
@@ -58,22 +50,27 @@ export function sizeFromLot(lot: string | null | undefined): string | null {
   return digits ? `Fr${digits}` : null;
 }
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
 /** Build an identity, normalising the lot code and clamping the pass. */
 export function entryIdentity(
   lot: string | null | undefined,
   station: string,
+  date: string | null | undefined,
   pass: number = 1,
 ): EntryIdentity | null {
   const canon = canonicalBatchId(lot ?? null);
-  if (!canon || !station.trim()) return null;
+  const day = (date ?? "").trim();
+  if (!canon || !station.trim() || !ISO_DAY.test(day)) return null;
   const p = Number.isInteger(pass) && pass >= 1 ? pass : 1;
-  return { lot: canon, station: station.trim(), pass: p };
+  return { lot: canon, station: station.trim(), date: day, pass: p };
 }
 
 /** Stable string form, for Map keys and equality. */
 export function identityKey(id: EntryIdentity): string {
   // Pass 1 omits its suffix so keys written before passes existed still match.
-  return id.pass === 1 ? `${id.lot}|${id.station}` : `${id.lot}|${id.station}|${id.pass}`;
+  const base = `${id.lot}|${id.station}|${id.date}`;
+  return id.pass === 1 ? base : `${base}|${id.pass}`;
 }
 
 export function sameIdentity(a: EntryIdentity | null, b: EntryIdentity | null): boolean {
@@ -88,6 +85,7 @@ export interface IdentifiableEvent {
   customFields?: Record<string, unknown> | null;
   extractedBy?: string;
   isDirectEntry?: boolean;
+  occurredOn?: { start?: string } | null;
   provenance?: { sheet?: string; is_direct_entry?: boolean } | null;
 }
 
@@ -101,7 +99,8 @@ export function identityOfEvent(e: IdentifiableEvent): EntryIdentity | null {
   if (!lot || !e.stageId) return null;
   const rawPass = cf.pass;
   const pass = typeof rawPass === "number" ? rawPass : 1;
-  return entryIdentity(lot, e.stageId, pass);
+  const date = e.occurredOn?.start ?? null;
+  return entryIdentity(lot, e.stageId, date, pass);
 }
 
 export function isDirectEntryEvent(e: IdentifiableEvent): boolean {

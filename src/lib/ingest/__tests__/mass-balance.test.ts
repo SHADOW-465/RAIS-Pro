@@ -80,6 +80,25 @@ describe("massBalanceIssues", () => {
     ]);
     expect(issues).toEqual([]);
   });
+
+  it("compares gates of the same lot even when they ran on different days", () => {
+    // Balloon on the 4th must still be bounded by Visual accepted on the 1st.
+    const issues = massBalanceIssues([
+      rec("visual", { checked: 1000, accepted: 900, rejected: 100, date: "2026-08-01", size: "Fr18", batch: "26H01-18" }),
+      rec("balloon", { checked: 960, date: "2026-08-04", size: "Fr18", batch: "26H01-18" }),
+    ]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "V-014", stageId: "balloon", stated: 960, computed: 900 });
+  });
+
+  it("sums split days at the upstream gate before comparing", () => {
+    const issues = massBalanceIssues([
+      rec("visual", { checked: 500, accepted: 450, date: "2026-08-01", size: "Fr18", batch: "26H01-18" }),
+      rec("visual", { checked: 500, accepted: 450, date: "2026-08-02", size: "Fr18", batch: "26H01-18" }),
+      rec("balloon", { checked: 900, date: "2026-08-03", size: "Fr18", batch: "26H01-18" }),
+    ]);
+    expect(issues).toEqual([]);
+  });
 });
 
 // Direct entry submits ONE station per save, so the hop can only be checked
@@ -136,6 +155,44 @@ describe("mass balance against stored gates", () => {
       [rec("visual", 2000, 2000), rec("balloon", 1400, 1400)],
       undefined,
       [{ stageId: "visual", date: "2026-08-08", size: "Fr18", batch: "26H25-18", available: 10 }],
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it("uses an upstream gate recorded on a different day as the prior", () => {
+    const issues = massBalanceIssues(
+      [rec("balloon", 1400, 1400)],
+      undefined,
+      [{ stageId: "visual", date: "2026-08-01", size: "Fr18", batch: "26H25-18", available: 1163 }],
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0].computed).toBe(1163);
+  });
+
+  it("sums earlier days of the same receiving gate with the payload day", () => {
+    // Visual passed 1000 forward. Balloon already checked 500 on day 1;
+    // day 2 checking 600 would take 1100 through the gate.
+    const issues = massBalanceIssues(
+      [{ ...rec("balloon", 600, 600), occurredOn: { kind: "day", start: "2026-08-09", end: "2026-08-09" } }],
+      undefined,
+      [
+        { stageId: "visual", date: "2026-08-08", size: "Fr18", batch: "26H25-18", available: 1000, checked: 1000 },
+        { stageId: "balloon", date: "2026-08-08", size: "Fr18", batch: "26H25-18", available: 500, checked: 500 },
+      ],
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0].stated).toBe(1100);
+    expect(issues[0].computed).toBe(1000);
+  });
+
+  it("a restatement of one day does not double-count that day from the ledger", () => {
+    const issues = massBalanceIssues(
+      [rec("balloon", 400, 400)],
+      undefined,
+      [
+        { stageId: "visual", date: "2026-08-08", size: "Fr18", batch: "26H25-18", available: 1000 },
+        { stageId: "balloon", date: "2026-08-08", size: "Fr18", batch: "26H25-18", available: 900 },
+      ],
     );
     expect(issues).toEqual([]);
   });

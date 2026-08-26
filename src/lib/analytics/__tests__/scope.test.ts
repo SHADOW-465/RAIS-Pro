@@ -13,6 +13,7 @@ import {
   isPlantDefaultTweaks,
   type Scope,
 } from "../scope";
+import { buildBatchId, parseBatchId } from "@/lib/entry/batch-id";
 import { byStage } from "../rejection";
 import type { Event } from "@/lib/store/types";
 
@@ -327,6 +328,118 @@ describe("batch filter (batch-wise dashboard)", () => {
       batchIds: [],
     });
     expect(scope.batchIds).toBeUndefined();
+  });
+});
+
+describe("custom range vs batch-ID month letter (H = August)", () => {
+  const augLot = buildBatchId("2026-08-05", "18Fr")!; // 26H05-18
+  const mayLot = buildBatchId("2026-05-20", "8Fr")!; // 26E20-8
+  const hRecordedInAug = makeEv({
+    eventId: "h-aug",
+    batchNo: augLot,
+    day: "2026-08-05",
+    extractedBy: "direct-entry",
+    file: "Manual Entry",
+  });
+  const eRecordedInAug = makeEv({
+    eventId: "e-aug",
+    batchNo: mayLot,
+    day: "2026-08-10",
+    extractedBy: "direct-entry",
+    file: "Manual Entry",
+  });
+  const hRecordedInSep = makeEv({
+    eventId: "h-sep",
+    batchNo: augLot,
+    day: "2026-09-02",
+    extractedBy: "direct-entry",
+    file: "Manual Entry",
+  });
+
+  it("encodes August as month letter H", () => {
+    expect(augLot).toBe("26H05-18");
+    expect(parseBatchId(augLot)?.monthName).toBe("August");
+    expect(parseBatchId(mayLot)?.monthCode).toBe("E");
+  });
+
+  it("custom range keeps lots by batch-ID date, so a May (E) lot recorded in August is OUT", () => {
+    const kept = scopeEvents([hRecordedInAug, eRecordedInAug, hRecordedInSep], {
+      grain: "day",
+      dateFrom: "2026-08-01",
+      dateTo: "2026-08-20",
+    });
+    expect(kept.map((e) => e.eventId).sort()).toEqual(["h-aug", "h-sep"]);
+  });
+
+  it("a row with no parseable batch ID still uses occurredOn for the range", () => {
+    const unbatched = makeEv({
+      eventId: "nb",
+      batchNo: null,
+      day: "2026-08-10",
+      file: "YEARLY.xlsx",
+    });
+    const kept = scopeEvents([unbatched, eRecordedInAug], {
+      grain: "day",
+      dateFrom: "2026-08-01",
+      dateTo: "2026-08-20",
+    });
+    expect(kept.map((e) => e.eventId)).toEqual(["nb"]);
+  });
+
+  it("with no range, the Sources picker still lists every lot", () => {
+    expect(listBatchIds([hRecordedInAug, eRecordedInAug, hRecordedInSep])).toEqual([
+      "26H05-18",
+      "26E20-8",
+    ]);
+  });
+
+  it("a custom range counts lots by batch-ID date (H = August), not recorded-on", () => {
+    expect(
+      listBatchIds([hRecordedInAug, eRecordedInAug, hRecordedInSep], {
+        from: "2026-08-01",
+        to: "2026-08-20",
+      }),
+    ).toEqual(["26H05-18"]);
+  });
+
+  it("the Sources count matches View Source: assembly-only drops H lots that never reached a gate", () => {
+    const primaryOnly = makeEv({
+      eventId: "h-primary",
+      batchNo: buildBatchId("2026-08-06", "12Fr")!,
+      day: "2026-08-06",
+      stageId: "production",
+      extractedBy: "direct-entry",
+      file: "Manual Entry",
+    });
+    const all = [hRecordedInAug, primaryOnly];
+    expect(listBatchIds(all, { from: "2026-08-01", to: "2026-08-20" }).sort()).toEqual([
+      "26H05-18",
+      "26H06-12",
+    ]);
+    const scoped = scopeEvents(
+      all,
+      resolveScope(all, {
+        grain: "day",
+        datePreset: "custom",
+        dateFrom: "2026-08-01",
+        dateTo: "2026-08-20",
+      }),
+    );
+    expect(listBatchIds(scoped)).toEqual(["26H05-18"]);
+  });
+
+  it("widening the range to May includes the E lot and changes the count", () => {
+    const may = listBatchIds([hRecordedInAug, eRecordedInAug, hRecordedInSep], {
+      from: "2026-05-01",
+      to: "2026-05-31",
+    });
+    const aug = listBatchIds([hRecordedInAug, eRecordedInAug, hRecordedInSep], {
+      from: "2026-08-01",
+      to: "2026-08-22",
+    });
+    expect(may).toEqual(["26E20-8"]);
+    expect(aug).toEqual(["26H05-18"]);
+    expect(may).not.toEqual(aug);
   });
 });
 

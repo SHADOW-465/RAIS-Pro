@@ -54,6 +54,8 @@ import {
   toDisplaySize,
 } from "@/lib/entry/batch-id";
 import { checkEntry, summariseLedger } from "@/lib/entry/check-entry";
+import { entryIdentity, identityKey } from "@/lib/entry/identity";
+import { upstreamRemainder } from "@/lib/entry/upstream-remainder";
 import { nextDefectColumns } from "@/lib/entry/defect-columns";
 import {
   describeShiftWindow,
@@ -73,7 +75,7 @@ import QtyInput from "@/components/entry/QtyInput";
 import { loadDraft, saveDraft } from "@/lib/entry/draft";
 import BatchIdField from "@/components/entry/BatchIdField";
 import { buildBatchProgress, progressFor } from "@/lib/analytics/batch-progress";
-import type { AuditEventLike } from "@/lib/analytics/audit-sessions";
+import { buildEntryRows, type AuditEventLike } from "@/lib/analytics/audit-sessions";
 import LotProgress from "@/components/LotProgress";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -483,41 +485,40 @@ export default function BatchMatrixEntry({
     () => progressFor(buildBatchProgress((events ?? []) as AuditEventLike[]), batchId),
     [events, batchId],
   );
-  const stageAlreadyDone = lotProgress?.steps.find((s) => s.stageId === stageId && s.done) ?? null;
-
-  // Assembly chain: one-shot assist prefill of Checked from the previous
-  // station's Accepted qty for the same batch + size. Never re-runs after
-  // the operator has touched any quantity field, and never after the first
-  // successful apply for this context key — those two guards stop the old
-  // bug where events-refresh overwrote values mid-entry.
+  // Assembly chain: one-shot assist prefill of Checked from what the previous
+  // station accepted for this lot — summed across every day it ran — minus
+  // what this station has already checked on other days. Date is in the
+  // context key so moving Recorded on re-evaluates the remainder.
   useEffect(() => {
     setPrefillNote(null);
     if (!isAssembly || !prevStageId) return;
     if (userTouchedQty.current) return;
     if (!events || events.length === 0) return;
-    const batchKey = batchId.trim().toUpperCase();
+    const batchKey = canonicalBatchId(batchId) ?? batchId.trim().toUpperCase();
     if (!batchKey || !sizeCanon) return;
-    const ctxKey = `${prevStageId}|${batchKey}|${sizeCanon}`;
+    const ctxKey = `${prevStageId}|${stageId}|${batchKey}|${sizeCanon}|${date}`;
     if (prefillAppliedKey.current === ctxKey) return;
-    const matches = (events as any[]).filter(
-      (e) =>
-        e.eventType === "inspection" &&
-        e.disposition === "accepted" &&
-        e.stageId === prevStageId &&
-        e.size === sizeCanon &&
-        String(e.batchNo ?? "").toUpperCase() === batchKey,
+    const r = upstreamRemainder({
+      events: events as AuditEventLike[],
+      lot: batchKey,
+      previousStation: prevStageId,
+      currentStation: stageId,
+      size: sizeCanon,
+      excludeDate: date,
+    });
+    if (r.remaining <= 0) return;
+    setChecked(r.remaining);
+    prefillAppliedKey.current = ctxKey;
+    const prevLabel =
+      (schema && stationById(schema, prevStageId)?.label) || prevStageId;
+    const already =
+      r.alreadyChecked > 0
+        ? ` Remaining after ${r.alreadyChecked.toLocaleString()} already checked at this station.`
+        : "";
+    setPrefillNote(
+      `Auto-filled from ${prevLabel} accepted (${r.previousAccepted.toLocaleString()}) for batch ${batchKey}.${already} Clear or edit freely — it will not overwrite again.`,
     );
-    if (matches.length === 0) return;
-    matches.sort((a, b) => (a.recordedAt < b.recordedAt ? 1 : -1));
-    const qty = matches[0].quantity ?? 0;
-    if (qty > 0) {
-      setChecked(qty);
-      prefillAppliedKey.current = ctxKey;
-      const prevLabel =
-        (schema && stationById(schema, prevStageId)?.label) || prevStageId;
-      setPrefillNote(`Auto-filled from ${prevLabel} accepted (${qty}) for batch ${batchKey}. Clear or edit freely — it will not overwrite again.`);
-    }
-  }, [isAssembly, prevStageId, batchId, sizeCanon, events, schema]);
+  }, [isAssembly, prevStageId, stageId, batchId, sizeCanon, date, events, schema]);
   const defectSum = useMemo(
     () => Object.values(defects).reduce((a, b) => a + (Number(b) || 0), 0),
     [defects],
@@ -607,6 +608,26 @@ export default function BatchMatrixEntry({
     () => summariseLedger((events ?? []) as AuditEventLike[]),
     [events],
   );
+
+  const sameDayPrior = useMemo(() => {
+    const id = entryIdentity(batchId, stageId, date, pass);
+    if (!id) return null;
+    return ledgerSummary.get(identityKey(id)) ?? null;
+  }, [batchId, stageId, date, pass, ledgerSummary]);
+
+  const otherDaysAtStation = useMemo(() => {
+    const id = entryIdentity(batchId, stageId, date, pass);
+    if (!id) return [];
+    return [...ledgerSummary.values()]
+      .filter(
+        (s) =>
+          s.identity.lot === id.lot &&
+          s.identity.station === id.station &&
+          s.identity.pass === id.pass &&
+          s.identity.date !== id.date,
+      )
+      .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+  }, [batchId, stageId, date, pass, ledgerSummary]);
 
   const verdict = useMemo(
     () =>
@@ -910,6 +931,50 @@ export default function BatchMatrixEntry({
       setErr(null);
     },
     [applyProductType, setEditing],
+  );
+
+  /**
+   * Recorded-on is part of the row's name. Moving it to a day that already
+   * has this lot at this station loads that day's entry; moving it to a
+   * blank day starts a new split-day row without copying yesterday's counts
+   * (those belong to yesterday).
+   */
+  const changeRecordedOn = useCallback(
+    (next: string) => {
+      if (!next || next === date) return;
+      const lot = canonicalBatchId(batchId) ?? batchId.trim().toUpperCase();
+      const existing = buildEntryRows((events ?? []) as AuditEventLike[]).find(
+        (r) => r.batch === lot && r.stageId === stageId && r.date === next,
+      );
+      if (existing) {
+        loadRecordIntoForm({
+          batchId: existing.batch,
+          date: existing.date,
+          stageId: existing.stageId,
+          size: existing.size,
+          productType: existing.productType,
+          shift: existing.shifts[0] ?? null,
+          checked: existing.checked,
+          accept: existing.accepted,
+          hold: existing.rework,
+          reject: existing.rejected,
+          defects: Object.fromEntries(
+            existing.defects.filter((d) => d.qty > 0).map((d) => [d.code, d.qty]),
+          ),
+          editingId: `ledger:${existing.id}`,
+        });
+        setMsg(
+          `Loaded ${processName} for ${lot} on ${shortEntryDate(next)}. Save replaces this day's entry.`,
+        );
+        return;
+      }
+      if (editingId) {
+        setEditing(null);
+        resetQtys();
+      }
+      setDate(next);
+    },
+    [date, batchId, stageId, events, editingId, loadRecordIntoForm, processName, setEditing, resetQtys],
   );
 
   // History → Edit: put the recorded row on the form. Must run after the
@@ -1734,7 +1799,7 @@ export default function BatchMatrixEntry({
                       <div style={{ width: 140 }}>
                         <DatePicker
                           value={date}
-                          onChange={(d) => d && setDate(d)}
+                          onChange={(d) => d && changeRecordedOn(d)}
                           ariaLabel="Change recorded-on date (GM)"
                           size="sm"
                         />
@@ -1756,7 +1821,7 @@ export default function BatchMatrixEntry({
                     <span style={{ fontWeight: 600 }}>{shortEntryDate(date)}</span>
                     <button
                       type="button"
-                      onClick={() => setDate(today())}
+                      onClick={() => changeRecordedOn(today())}
                       style={{
                         marginLeft: "auto",
                         fontSize: 11,
@@ -1855,12 +1920,7 @@ export default function BatchMatrixEntry({
                   }}
                 >
                   <LotProgress progress={lotProgress} activeStageId={stageId} />
-                  {stageAlreadyDone && !editingId && (
-                    // Said before they type: THIS station already has an entry
-                    // for THIS lot, so either they are correcting it or the
-                    // carried-over lot code was never changed. Keyed on the
-                    // station actually selected — keying it on "all gates done"
-                    // locked finished lots out of every remaining station.
+                  {sameDayPrior && !editingId && (
                     <div
                       style={{
                         margin: "8px 0 0",
@@ -1873,27 +1933,34 @@ export default function BatchMatrixEntry({
                         lineHeight: 1.5,
                       }}
                     >
-                      <strong>{processName} is already recorded for {batchId}</strong> on{" "}
-                      {shortEntryDate(stageAlreadyDone.date)}. Saving here replaces it. If this is
-                      the next lot, give it its own code first.
-                      <button
-                        type="button"
-                        onClick={() => setBatchDate(today())}
-                        style={{
-                          display: "block",
-                          marginTop: 6,
-                          padding: "3px 9px",
-                          borderRadius: 6,
-                          border: "1px solid var(--critical)",
-                          background: "var(--surface)",
-                          color: "var(--critical)",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Start a new lot dated today
-                      </button>
+                      <strong>{processName} already has this lot on {shortEntryDate(sameDayPrior.date)}</strong>
+                      {" "}— {sameDayPrior.checked.toLocaleString()} checked. Saving replaces this
+                      day&apos;s entry. Change Recorded on to add another day.
+                    </div>
+                  )}
+                  {otherDaysAtStation.length > 0 && !editingId && (
+                    <div
+                      style={{
+                        margin: "8px 0 0",
+                        padding: "8px 10px",
+                        borderRadius: "var(--radius-sm)",
+                        border: "1px solid var(--border)",
+                        background: "var(--surface)",
+                        color: "var(--text-2)",
+                        fontSize: "var(--text-2xs)",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {processName} already has{" "}
+                      {otherDaysAtStation.length === 1
+                        ? "another day"
+                        : `${otherDaysAtStation.length} other days`}{" "}
+                      on this lot
+                      {" — "}
+                      {otherDaysAtStation
+                        .map((d) => `${shortEntryDate(d.date)} (${d.checked.toLocaleString()})`)
+                        .join(", ")}
+                      . This records a new day.
                     </div>
                   )}
                 </div>

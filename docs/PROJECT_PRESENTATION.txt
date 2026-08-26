@@ -1,0 +1,214 @@
+================================================================================
+MOID (RAIS-Pro) — COMPREHENSIVE PROJECT PRESENTATION & SYSTEM EXPLANATION
+Manufacturing Intelligence Operating System for Regulated Medical Device Production
+================================================================================
+
+EXECUTIVE OVERVIEW
+------------------
+MOID (internal repository name: RAIS-Pro) is an Enterprise Manufacturing Intelligence 
+Operating System specifically engineered for General Managers (GMs), Quality Managers (QMs), 
+and production engineers at medical-device manufacturing plants (such as Disposafe in Delhi, 
+operating under ISO 13485 and EU MDR 2017 standards).
+
+Plant Excel workbooks enter the system once through Staging. The system automatically profiles 
+the sheet structure, resolves plant-specific column names into a verified Mapping Ontology 
+Document (MOD), learns plant aliases, and extracts production day-records into an immutable, 
+content-addressed event ledger. Every screen—dashboard, SPC, defect drilldowns, COPQ, 
+audit trail—is a pure deterministic read over that ledger. Dynamic Data Entry grids are 
+automatically generated using the plant's authentic vocabulary.
+
+
+================================================================================
+SLIDE 1: THE SHOP-FLOOR PROBLEM IN REGULATED MANUFACTURING
+================================================================================
+
+The Reality:
+- Medical device plants produce thousands of daily inspection records across multiple 
+  lines, shifts, needle gauges (e.g., 18G, 20G, 22G, 24G, 26G), and assembly stages.
+- Plants rely on disparate Excel workbooks created by different shift supervisors.
+
+The Pain Points:
+1. Formula Corruption & Math Inconsistencies: Operators accidentally overwrite formulas; 
+   sum of defects does not match reported total rejections; yield math breaks silently.
+2. Terminology & Schema Drift: One shift writes "BLUNT", another writes "BLUNT TIP", 
+   another writes "B.T.", making centralized automated aggregation impossible.
+3. The "Black Box AI" Risk: Regulators (ISO 13485 / US FDA / EU MDR) reject non-deterministic 
+   or hallucinated metrics. AI cannot be trusted to perform numerical calculations.
+4. Double Data Entry: Operators record data on paper/Excel, requiring tedious manual re-entry 
+   into rigid ERP software.
+
+
+================================================================================
+SLIDE 2: THE 4 HARD ARCHITECTURAL INVARIANTS
+================================================================================
+
+Invariant 1: THE MODEL NEVER DOES MATHS
+- AI is strictly constrained to classification (mapping raw column names to canonical entities) 
+  and natural language synthesis (drafting CAPA recommendations and chat answers).
+- Every number, yield rate, defect count, scrap cost, and SPC threshold is computed by 
+  deterministic TypeScript functions in src/lib/analytics/. Zero hallucinations.
+
+Invariant 2: THE LEDGER IS APPEND-ONLY AND CONTENT-ADDRESSED
+- Records are never updated in-place or deleted.
+- Every event is hashed with SHA-256 over its canonical payload. Re-uploading identical 
+  data deduplicates cleanly. Corrections generate audit-tracked CorrectionEvents.
+
+Invariant 3: THE MOD IS THE ONLY INGESTION PATH
+- All data enters the ledger through extract-from-mod (for workbooks) or generated direct 
+  entry (extractedBy: "direct-entry"). No unverified raw data bypasses ontology validation.
+
+Invariant 4: DATA ENTRY IS GENERATED, NEVER HARDCODED
+- The UI conforms to the plant, not the other way around. The entry grid is synthesized 
+  from the verified ontology and master catalog, preserving the plant's authentic column names.
+
+
+================================================================================
+SLIDE 3: END-TO-END SYSTEM PIPELINE (THE REAL FLOW)
+================================================================================
+
++-----------------------------------------------------------------------------------+
+| 1. STAGING: Plant Excel Workbook                                                  |
+|    - Parsed by lossless reader (src/core/workbook/reader.ts)                      |
+|    - Header detection algorithm locates boundary row                              |
+|    - Statistical column profiler analyzes data distributions                      |
++-----------------------------------------+-----------------------------------------+
+                                          |
+                                          v
++-----------------------------------------------------------------------------------+
+| 2. ONTOLOGY RESOLUTION: Resolver Ladder                                           |
+|    - Exact Index -> Plant Catalog/Aliases -> Heuristics/Regex -> Levenshtein -> AI|
+|    - Produces draft Mapping Ontology Document (MOD)                               |
++-----------------------------------------+-----------------------------------------+
+                                          |
+                                          v
++-----------------------------------------------------------------------------------+
+| 3. HUMAN VERIFICATION & CATALOG PROMOTION                                         |
+|    - Quality Manager verifies/corrects mappings on /staging                       |
+|    - Publishing merges new entities into Company Catalog and learns aliases       |
++-----------------------------------------+-----------------------------------------+
+                                          |
+                                          v
++-----------------------------------------------------------------------------------+
+| 4. RECOMPUTATION & MASS-BALANCE REVIEW                                            |
+|    - Extracts day-records via extract-from-mod                                    |
+|    - Deterministic math recomputes all sums from scratch                          |
+|    - Flags any mass balance discrepancies with exact cell coordinates             |
++-----------------------------------------+-----------------------------------------+
+                                          |
+                                          v
++-----------------------------------------------------------------------------------+
+| 5. APPEND-ONLY EVENT LEDGER (SHA-256)                                             |
+|    - Content-hashed canonical events committed to Supabase / In-Memory store      |
++-----------------------------------------+-----------------------------------------+
+                                          |
+                     +--------------------+--------------------+
+                     |                                         |
+                     v                                         v
++---------------------------------------+   +---------------------------------------+
+| 6A. DETERMINISTIC ANALYTICS           |   | 6B. GENERATED DATA ENTRY MATRIX       |
+|     - Real-Time Executive Dashboard   |   |     - Multi-size batch matrix entry   |
+|     - Pareto 80/20 Defect Analysis    |   |     - Monthly calendar grid view      |
+|     - Statistical Process Control     |   |     - Keyboard navigation             |
+|     - Cost of Poor Quality (COPQ)     |   |     - Instant client-side balancing   |
+|     - ISO 13485 Audit Package Export  |   |     - Direct commit to event ledger   |
++---------------------------------------+   +---------------------------------------+
+
+
+================================================================================
+SLIDE 4: ONTOLOGY RESOLVER LADDER ALGORITHM
+================================================================================
+
+When a column header is analyzed, it passes down an algorithmic ladder:
+
+Stage 1: Exact Index Match (Confidence = 1.00)
+- Normalized string lookup against canonical ontology dictionary.
+
+Stage 2: Plant Catalog & Learned Aliases (Confidence = 0.95)
+- Matches historical column names verified in previous uploads by the plant team.
+
+Stage 3: Deterministic Regex & Domain Heuristics (Confidence = 0.85 - 0.90)
+- Pattern matching for standard manufacturing terms (e.g. /qty\s*checked|insp/i).
+
+Stage 4: Semantic String Distance (Confidence = 0.75 - 0.85)
+- Jaro-Winkler & Levenshtein distance against known plant defect lists.
+
+Stage 5: Multi-Model AI Semantic Classifier (Confidence = Variable)
+- Contextual LLM classification using MiniCPM / Groq with rigid Zod output schemas.
+
+
+================================================================================
+SLIDE 5: DETERMINISTIC MASS BALANCE & RECOMPUTATION
+================================================================================
+
+In medical manufacturing:
+Checked Units = Accepted Units + Rejected Units (Sum of all defects)
+
+Spreadsheets frequently contain hidden formula errors. MOID enforces mathematical rigor:
+1. Never trusts workbook formulas.
+2. Recomputes total defects = Sum(D_1, D_2, ..., D_n) directly from raw atomic cells.
+3. Computes Mass Balance Delta:
+   Delta = Checked_Qty - (Accepted_Qty + Total_Rejections)
+4. Displays exact cell provenance (e.g., "Sheet1!G14") so operators can reconcile 
+   discrepancies before committing to the immutable ledger.
+
+
+================================================================================
+SLIDE 6: ANALYTICS, SPC & COPQ ENGINES
+================================================================================
+
+Pareto Analysis (80/20 Rule):
+- Sorts defect categories in descending order of frequency.
+- Computes cumulative contribution percentage.
+- Identifies the "vital few" defects responsible for 80% of total scrap.
+
+Statistical Process Control (SPC):
+- Computes Centerline (p-bar), Upper Control Limit (UCL), and Lower Control Limit (LCL).
+- Evaluates Western Electric and Nelson Rules for out-of-control signals:
+  * Rule 1: Point beyond 3-sigma limits (special cause variation).
+  * Rule 2: 9 consecutive points on the same side of the centerline.
+  * Rule 3: 6 consecutive points steadily increasing or decreasing.
+
+Cost of Poor Quality (COPQ):
+- Multiplies physical defect volumes by material cost, labor cost per stage, and 
+  disposal overhead to compute direct financial leakage.
+
+
+================================================================================
+SLIDE 7: RESILIENT MULTI-TIER AI ARCHITECTURE
+================================================================================
+
+All AI calls go through src/lib/ai.ts using a fail-safe execution cascade:
+
+Priority 1: MiniCPM (Self-hosted, on-premises OpenAI-compatible endpoint)
+Priority 2: Groq (Llama-3.3-70B-versatile cloud fallback)
+
+Rules:
+- Addressed via standard @ai-sdk/openai-compatible. No proprietary SDK sprawl.
+- All outputs use structured Zod object schemas.
+- If no AI backend is configured, all core deterministic ingestion, analytics, 
+  data entry, and reporting features continue working seamlessly.
+
+
+================================================================================
+SLIDE 8: MEDICAL REGULATORY COMPLIANCE & AUDIT TRAIL
+================================================================================
+
+- ISO 13485:2016 Cl. 4.2.5 / Cl. 8.5.2 (Control of Records & CAPA):
+  Every metric traces back to original file name, sheet name, cell coordinates, 
+  and ingestion ID. AI assists in drafting CAPA root-cause actions.
+- 21 CFR Part 11 / EU Annex 11 (Data Integrity & ALCOA+):
+  Append-only ledger with cryptographic SHA-256 hashes prevents silent data tampering.
+- One-Click Audit Package:
+  Generates complete regulatory audit dossiers with full provenance for FDA/MDR audits.
+
+
+================================================================================
+SLIDE 9: TECHNOLOGY STACK & DEPLOYMENT
+================================================================================
+
+Frontend: Next.js 16 (App Router), React 19, TypeScript 5, Tailwind 4 (CSS tokens).
+Typography: Self-hosted Geist & Geist Mono (no external Google Fonts dependencies).
+Charts: Inline pure SVG widgets (no heavy Chart.js/framer-motion dependencies).
+Database: Dual-mode adapter (Supabase PostgreSQL or zero-config In-Memory store).
+Deployment: Single-node on-premise Docker Compose appliance for factory air-gapped 
+            deployments, or scalable cloud deployment.

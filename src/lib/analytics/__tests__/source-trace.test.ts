@@ -35,6 +35,22 @@ describe("source-trace", () => {
     expect(inferSourceKind({ eventType: "rejection", defectCode: "PINH" })).toBe("defect");
   });
 
+  it("toSourceRows uses the batch-ID lot date, not the recorded-on day", () => {
+    const rows = toSourceRows([
+      {
+        eventType: "production",
+        stageId: "visual",
+        batchNo: "26G29-14",
+        occurredOn: { start: "2026-08-11" },
+        quantity: 10,
+        provenance: { file: "Manual Entry", cells: ["ENTRY"] },
+        extractedBy: "direct-entry",
+      },
+    ]);
+    expect(rows[0].date).toBe("2026-07-29");
+    expect(rows[0].batch).toBe("26G29-14");
+  });
+
   it("toSourceRows maps events and sorts by date desc", () => {
     const events = [
       {
@@ -107,6 +123,19 @@ describe("source-trace", () => {
     const groups = groupSourceRows(rows, "defect", { metricKind: "pareto" });
     expect(groups[0].key).toBe("PINH");
     expect(groups.some((g) => g.key === "(non-defect)")).toBe(true);
+  });
+
+  it("summarizeSource counts distinct lots (same id at two stages is one batch)", () => {
+    const s = summarizeSource(
+      [
+        row({ date: "2026-08-05", stage: "Visual Inspection", stageId: "visual", type: "production", kind: "checked", qty: 100, file: "Manual Entry", cell: "ENTRY", batch: "26H05-18" }),
+        row({ date: "2026-08-05", stage: "Balloon Inspection", stageId: "balloon", type: "production", kind: "checked", qty: 90, file: "Manual Entry", cell: "ENTRY", batch: "26h05-18" }),
+        row({ date: "2026-08-08", stage: "Visual Inspection", stageId: "visual", type: "production", kind: "checked", qty: 50, file: "Manual Entry", cell: "ENTRY", batch: "26H08-14" }),
+        row({ date: "2026-08-10", stage: "Visual Inspection", stageId: "visual", type: "production", kind: "checked", qty: 20, file: "a.xlsx", cell: "A1", batch: null }),
+      ],
+      "rejection_rate",
+    );
+    expect(s.batchCount).toBe(2);
   });
 
   it("summarizeSource reports top driver and date span", () => {

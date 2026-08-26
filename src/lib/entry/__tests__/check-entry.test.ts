@@ -54,13 +54,23 @@ describe("identity", () => {
   });
 
   it("keys pass 1 without a suffix so pre-pass rows still match", () => {
-    expect(identityKey(entryIdentity("26H25-18", "visual")!)).toBe("26H25-18|visual");
-    expect(identityKey(entryIdentity("26H25-18", "visual", 2)!)).toBe("26H25-18|visual|2");
+    expect(identityKey(entryIdentity("26H25-18", "visual", "2026-08-15")!)).toBe(
+      "26H25-18|visual|2026-08-15",
+    );
+    expect(identityKey(entryIdentity("26H25-18", "visual", "2026-08-15", 2)!)).toBe(
+      "26H25-18|visual|2026-08-15|2",
+    );
   });
 
   it("folds lot-code spellings onto one identity", () => {
-    expect(identityKey(entryIdentity("26H2518", "visual")!)).toBe(
-      identityKey(entryIdentity("26H25-18", "visual")!),
+    expect(identityKey(entryIdentity("26H2518", "visual", "2026-08-15")!)).toBe(
+      identityKey(entryIdentity("26H25-18", "visual", "2026-08-15")!),
+    );
+  });
+
+  it("different recorded-on dates are different identities", () => {
+    expect(identityKey(entryIdentity("26H25-18", "visual", "2026-08-01")!)).not.toBe(
+      identityKey(entryIdentity("26H25-18", "visual", "2026-08-02")!),
     );
   });
 });
@@ -102,6 +112,12 @@ describe("checkEntry — blocks", () => {
     expect(back.notes.map((n) => n.code)).toContain("date-backdated");
   });
 
+  it("names an invalid recorded-on date instead of failing with no message", () => {
+    const v = checkEntry(draft({ date: "25 Aug" }), EMPTY, TODAY);
+    expect(v.canSave).toBe(false);
+    expect(v.blocks.map((b) => b.code)).toContain("date-invalid");
+  });
+
   it("refuses an empty entry", () => {
     expect(checkEntry(draft({ checked: 0, accepted: 0, hold: 0, rejected: 0, defectSum: 0 }), EMPTY, TODAY)
       .blocks.map((b) => b.code)).toContain("nothing-checked");
@@ -117,11 +133,14 @@ describe("checkEntry — the lot already being at this station", () => {
     expect(v.warnings.map((w) => w.code)).toContain("station-already-recorded");
   });
 
-  it("catches it even when the date differs — this is the bug the plant hit", () => {
-    // With the date in the identity, the SAME lot re-entered at the SAME
-    // station on another day looked brand new and was filed in silence.
+  it("a different recorded-on date is another day of the same station, not a rewrite", () => {
+    // Visual on the 1st and Visual on the 3rd are two physical inspections of
+    // the same lot. Saving the second must ADD a day, not replace the first.
     const v = checkEntry(draft({ date: "2026-08-14" }), ledger, TODAY);
-    expect(v.warnings.map((w) => w.code)).toContain("station-already-recorded");
+    expect(v.warnings.map((w) => w.code)).not.toContain("station-already-recorded");
+    expect(v.canSave).toBe(true);
+    expect(v.notes.map((n) => n.code)).toContain("split-day-entry");
+    expect(v.notes.find((n) => n.code === "split-day-entry")!.message).toContain("2026-08-15");
   });
 
   it("says nothing about a DIFFERENT station on the same lot", () => {

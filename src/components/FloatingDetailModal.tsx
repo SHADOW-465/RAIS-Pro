@@ -702,6 +702,13 @@ export default function FloatingDetailModal({
                   Traced to{" "}
                   <strong style={{ color: "var(--text)" }}>{summary.recordCount.toLocaleString()}</strong>{" "}
                   record{summary.recordCount === 1 ? "" : "s"}
+                  {summary.batchCount > 0 && (
+                    <>
+                      {" "}across{" "}
+                      <strong style={{ color: "var(--text)" }}>{summary.batchCount.toLocaleString()}</strong>{" "}
+                      batch{summary.batchCount === 1 ? "" : "es"}
+                    </>
+                  )}
                   {filters.source !== "all" ||
                   filters.stageId !== "all" ||
                   filters.kind !== "all" ||
@@ -759,6 +766,10 @@ export default function FloatingDetailModal({
                   {summary.reworkQty > 0 && (
                     <MiniStat label="Held / rework" value={fmtQty(summary.reworkQty)} />
                   )}
+                  <MiniStat
+                    label="Batches"
+                    value={String(summary.batchCount)}
+                  />
                   <MiniStat label="Files" value={String(summary.fileCount)} />
                   <MiniStat
                     label="Span"

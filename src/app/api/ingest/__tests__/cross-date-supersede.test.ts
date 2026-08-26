@@ -1,18 +1,7 @@
-// A revision made on a DIFFERENT day must still supersede, not duplicate.
-//
-// The identity of a Data Entry row is (lot · station · pass) — deliberately not
-// the date, because a lot spans several days on the floor and "Recorded on" is
-// the day a station ran it, an attribute rather than part of the row's name.
-// The supersede key in /api/ingest honours that and is date-free.
-//
-// The candidate set it searches was not. `existingEvents` came from
-// `store.effective({ from, to })`, bounded by the dates of the INCOMING
-// records, so a prior entry for the same identity filed under another date was
-// never in the list, never matched, and never superseded. Two effective event
-// sets for one physical inspection, and the lot's counts double.
-//
-// This is the same class of bug the identity rework was meant to end; it
-// survived because it lives in the fetch rather than the key.
+// Split-day operations: the same lot at the same station on TWO recorded-on
+// dates is two physical inspections (Visual 1st–3rd of the month = three
+// Visual rows). Identity is (lot · station · date · pass). Re-saving the SAME
+// date still supersedes; a different date appends.
 process.env.MOID_STORE = "memory";
 
 import { POST } from "../route";
@@ -65,17 +54,21 @@ beforeEach(async () => {
   if (all.length) await events.purge(all.map((e) => e.eventId));
 });
 
-describe("a revision filed under a different date", () => {
-  it("supersedes the original instead of creating a second effective row", async () => {
+describe("split days at the same station", () => {
+  it("keeps a second recorded-on date as its own effective row", async () => {
     await post([rec("2026-08-01", 10)], "day-1");
     await post([rec("2026-08-04", 25)], "day-2");
 
     const rejected = await effectiveRejections();
-    expect(rejected).toHaveLength(1);
-    expect((rejected[0] as never as { quantity: number }).quantity).toBe(25);
+    expect(rejected).toHaveLength(2);
+    const byDay = new Map(
+      rejected.map((e) => [e.occurredOn.start, (e as never as { quantity: number }).quantity]),
+    );
+    expect(byDay.get("2026-08-01")).toBe(10);
+    expect(byDay.get("2026-08-04")).toBe(25);
   });
 
-  it("does not double the lot's rejected total", async () => {
+  it("sums the lot's rejected total across split days", async () => {
     await post([rec("2026-08-01", 10)], "d1");
     await post([rec("2026-08-09", 40)], "d2");
 
@@ -83,17 +76,21 @@ describe("a revision filed under a different date", () => {
       (sum, e) => sum + (e as never as { quantity: number }).quantity,
       0,
     );
-    expect(total).toBe(40); // not 50
+    expect(total).toBe(50);
   });
 
-  it("still supersedes when the revision is filed EARLIER than the original", async () => {
-    // Backdating a correction is a GM workflow, so the window can move either way.
-    await post([rec("2026-08-20", 10)], "late");
-    await post([rec("2026-08-02", 33)], "backdated");
+  it("a re-save of the SAME recorded-on date still supersedes that day only", async () => {
+    await post([rec("2026-08-01", 10)], "first");
+    await post([rec("2026-08-01", 33)], "rewrite");
+    await post([rec("2026-08-04", 7)], "other-day");
 
     const rejected = await effectiveRejections();
-    expect(rejected).toHaveLength(1);
-    expect((rejected[0] as never as { quantity: number }).quantity).toBe(33);
+    expect(rejected).toHaveLength(2);
+    const byDay = new Map(
+      rejected.map((e) => [e.occurredOn.start, (e as never as { quantity: number }).quantity]),
+    );
+    expect(byDay.get("2026-08-01")).toBe(33);
+    expect(byDay.get("2026-08-04")).toBe(7);
   });
 
   it("leaves a DIFFERENT lot at the same station alone", async () => {
@@ -122,7 +119,7 @@ describe("a revision filed under a different date", () => {
     expect(await effectiveRejections()).toHaveLength(2);
   });
 
-  it("a typed revision supersedes a workbook row for the same identity, and says so", async () => {
+  it("a typed revision on the SAME day supersedes a workbook row for that day, and says so", async () => {
     // Two branches, two rules, and it is worth keeping them straight:
     //
     //   UPDATE  — same identity, restated. Direct entry wins: `precedenceOf`
@@ -141,7 +138,7 @@ describe("a revision filed under a different date", () => {
       [rec("2026-08-01", 10, { extractedBy: "heuristic", source: { file: "BOOK.xlsx", fileHash: "h1", sheet: "S", tableId: "t1" } })],
       "excel",
     );
-    await post([rec("2026-08-06", 25)], "typed");
+    await post([rec("2026-08-01", 25)], "typed");
 
     const rejected = await effectiveRejections();
     expect(rejected).toHaveLength(1);

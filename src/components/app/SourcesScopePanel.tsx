@@ -21,6 +21,8 @@ import {
   isPlantDefaultTweaks,
   listBatchIds,
   listExcelSourceFiles,
+  resolveScope,
+  scopeEvents,
   STAGE_CATEGORIES,
   DEFAULT_STAGE_CATEGORIES,
 } from "@/lib/analytics/scope";
@@ -69,7 +71,36 @@ export default function SourcesScopePanel({
   }, [onlyExcel, onlyEntry]);
 
   const excelFiles = useMemo(() => listExcelSourceFiles(events), [events]);
-  const batchOptions = useMemo(() => listBatchIds(events), [events]);
+  const batchOptions = useMemo(() => {
+    // Same lot set as dashboard / View Source: lot-date range + selected
+    // sections + channels. "All data" stays unscoped so the picker still
+    // lists every lot in the plant.
+    if (t.datePreset === "all") return listBatchIds(events);
+    const scope = resolveScope(events, {
+      grain: t.grain,
+      datePreset: t.datePreset,
+      dateFrom: t.dateFrom,
+      dateTo: t.dateTo,
+      includeExcel: t.includeExcel,
+      includeDirectEntry: t.includeDirectEntry,
+      excelFiles: t.excelFiles,
+      batchIds: [],
+      stageCategories: t.stageCategories,
+      stageView: t.stageView,
+    });
+    return listBatchIds(scopeEvents(events, scope));
+  }, [
+    events,
+    t.grain,
+    t.datePreset,
+    t.dateFrom,
+    t.dateTo,
+    t.includeExcel,
+    t.includeDirectEntry,
+    t.excelFiles,
+    t.stageCategories,
+    t.stageView,
+  ]);
   const sourceCounts = useMemo(() => countBySourceChannel(events), [events]);
   const sectionCounts = useMemo(() => {
     const n: Record<string, number> = {};
@@ -86,6 +117,13 @@ export default function SourcesScopePanel({
     if (!q) return batchOptions;
     return batchOptions.filter((b) => b.includes(q));
   }, [batchOptions, batchSearch]);
+
+  useEffect(() => {
+    if (t.batchIds.length === 0) return;
+    const allowed = new Set(batchOptions);
+    const next = t.batchIds.filter((b) => allowed.has(b));
+    if (next.length !== t.batchIds.length) setTweak("batchIds", next);
+  }, [batchOptions, t.batchIds, setTweak]);
 
   const filteredFiles = useMemo(() => {
     const q = fileSearch.trim().toLowerCase();
@@ -304,7 +342,7 @@ export default function SourcesScopePanel({
             </div>
 
             <div style={{ marginLeft: "auto", flexShrink: 0 }}>
-              <CustomRangePill />
+              <CustomRangePill batchCount={batchOptions.length} />
             </div>
           </div>
         </header>
@@ -1193,7 +1231,7 @@ const scopePanelCss = `
 }
 `;
 
-function CustomRangePill() {
+function CustomRangePill({ batchCount }: { batchCount: number }) {
   const { t, setTweak } = useTweaks();
   const [open, setOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -1233,6 +1271,7 @@ function CustomRangePill() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-label={`${label}, ${batchCount} batch${batchCount === 1 ? "" : "es"}`}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -1256,6 +1295,33 @@ function CustomRangePill() {
           <line x1="3" y1="10" x2="21" y2="10" />
         </svg>
         <span>{label}</span>
+        <span
+          aria-label={`${batchCount} batch${batchCount === 1 ? "" : "es"}`}
+          title={`${batchCount} batch${batchCount === 1 ? "" : "es"} in this range`}
+          style={{
+            display: "inline-flex",
+            alignItems: "baseline",
+            gap: 4,
+            marginLeft: 2,
+            padding: "1px 7px",
+            borderRadius: 999,
+            background: hasRange
+              ? "color-mix(in srgb, var(--accent) 18%, transparent)"
+              : "var(--surface)",
+            border: "1px solid color-mix(in srgb, var(--accent) 28%, var(--border))",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "-0.01em",
+            fontVariantNumeric: "tabular-nums",
+            lineHeight: 1.4,
+          }}
+        >
+          {batchCount}
+          <span style={{ fontFamily: "inherit", fontSize: 9.5, fontWeight: 600, opacity: 0.78, letterSpacing: "0.02em" }}>
+            {batchCount === 1 ? "batch" : "batches"}
+          </span>
+        </span>
         <span style={{ fontSize: 9, opacity: 0.7, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }}>▾</span>
       </button>
 

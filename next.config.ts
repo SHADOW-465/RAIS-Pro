@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Tree-shake large packages that ship multi-entry barrels (faster cold parse).
   experimental: {
-    optimizePackageImports: ["geist", "zod", "ai"],
+    optimizePackageImports: ["zod", "ai"],
   },
   // Compress responses when not behind a CDN that already does gzip.
   compress: true,

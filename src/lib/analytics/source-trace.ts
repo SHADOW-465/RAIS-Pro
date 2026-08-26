@@ -20,6 +20,7 @@ import {
   resolveStageId,
   stageSortKey,
 } from "@/core/ontology/plant-catalog";
+import { canonicalBatchId, parseBatchId } from "@/lib/entry/batch-id";
 
 export type SourceKind = "checked" | "accepted" | "rejected" | "rework" | "defect" | "other";
 
@@ -88,6 +89,8 @@ export interface SourceSummary {
   excelCount: number;
   manualCount: number;
   fileCount: number;
+  /** Distinct lot codes in these rows (canonical spelling). */
+  batchCount: number;
   dateFrom: string | null;
   dateTo: string | null;
   /** Units that ENTERED, measured once at the most upstream stage present. */
@@ -356,8 +359,10 @@ export function toSourceRows(
       raw.customFields?.batch ??
       raw.customFields?.batchId ??
       null;
+    const lotDate =
+      typeof batch === "string" && batch.trim() ? parseBatchId(batch)?.date ?? null : null;
     out.push({
-      date: raw.occurredOn?.start ?? "—",
+      date: lotDate ?? raw.occurredOn?.start ?? "—",
       stage: STAGE_LABELS[stageId ?? ""] ?? stageId ?? "—",
       stageId,
       size: raw.size ?? null,
@@ -743,11 +748,15 @@ export function summarizeSource(
   const r = rollup(normalized);
   let dateFrom: string | null = null;
   let dateTo: string | null = null;
+  const batches = new Set<string>();
   for (const row of normalized) {
     const d = row.date?.slice(0, 10);
-    if (!d || d === "—") continue;
-    if (!dateFrom || d < dateFrom) dateFrom = d;
-    if (!dateTo || d > dateTo) dateTo = d;
+    if (d && d !== "—") {
+      if (!dateFrom || d < dateFrom) dateFrom = d;
+      if (!dateTo || d > dateTo) dateTo = d;
+    }
+    const lot = canonicalBatchId(row.batch);
+    if (lot) batches.add(lot);
   }
 
   const mode = defaultGroupMode(metricKind);
@@ -810,6 +819,7 @@ export function summarizeSource(
     excelCount: r.excel,
     manualCount: r.manual,
     fileCount: r.fileCount,
+    batchCount: batches.size,
     dateFrom,
     dateTo,
     checkedQty: r.checkedQty,

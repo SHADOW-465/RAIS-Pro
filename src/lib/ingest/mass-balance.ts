@@ -31,10 +31,12 @@ function available(rec: StageDayRecord): number | null {
 }
 
 /**
- * Compare consecutive gates within each date · size · batch group and flag
- * every hop where checked(N+1) > available(N). Records for stages outside
- * `stageOrder`, or groups missing either side of a hop, are skipped — we only
- * ever compare numbers that were actually stated.
+ * Compare consecutive gates within each size · batch (lot) group and flag
+ * every hop where checked(N+1) > available(N). A lot can sit at one gate
+ * across several days, so the group is date-free: Visual on the 1st still
+ * bounds Balloon on the 4th. Records for stages outside `stageOrder`, or
+ * groups missing either side of a hop, are skipped — we only ever compare
+ * numbers that were actually stated.
  */
 /**
  * What a stage already passed forward, read back from the ledger.
@@ -44,6 +46,10 @@ function available(rec: StageDayRecord): number | null {
  * every manual entry — precisely the path where a mis-keyed count is most
  * likely. Callers supply the previous gate's stored numbers through this so the
  * hop can be checked against what is actually on the ledger.
+ *
+ * Each prior is one (stage, date) fact. Split days of the same gate are
+ * summed; a payload row for the same stage+date replaces that day's prior
+ * rather than adding to it.
  */
 export interface PriorGateQty {
   stageId: string;
@@ -52,6 +58,21 @@ export interface PriorGateQty {
   batch: string;
   /** Units this gate made available downstream (accepted, else checked − rejected). */
   available: number;
+  /** Units this gate checked. Used when summing split days of a receiving gate. */
+  checked?: number;
+}
+
+type StageDayQty = {
+  avail: number;
+  checked: number;
+  hasAvail: boolean;
+  hasChecked: boolean;
+};
+
+function lotKey(size: string | null | undefined, batch: string, date: string): string {
+  // A named lot flows across days. Rows with no lot code have nothing else
+  // to group by, so they stay day-scoped the way they always were.
+  return batch ? `${size ?? ""}|${batch}` : `${date}|${size ?? ""}|`;
 }
 
 export function massBalanceIssues(
@@ -60,48 +81,67 @@ export function massBalanceIssues(
   priors: PriorGateQty[] = [],
 ): MassBalanceIssue[] {
   const rank = new Map(stageOrder.map((s, i) => [s, i]));
-  // Group by the physical flow identity: same day, same size, same batch/lot.
+  // Group by the physical lot: same size, same batch. Date is a split of
+  // that lot at a gate, not a different flow.
   const groups = new Map<string, StageDayRecord[]>();
   for (const r of records) {
     if (!rank.has(r.stageId)) continue;
     const batch = String(r.customFields?.batch ?? r.customFields?.batchId ?? "").trim();
-    const key = `${r.occurredOn.start}|${r.size ?? ""}|${batch}`;
+    const key = lotKey(r.size, batch, r.occurredOn.start);
     const arr = groups.get(key);
     if (arr) arr.push(r); else groups.set(key, [r]);
   }
 
-  // Index what the ledger already holds, by the same flow identity.
+  // Index what the ledger already holds, by the same lot.
   const priorsByGroup = new Map<string, PriorGateQty[]>();
   for (const p of priors) {
     if (!rank.has(p.stageId)) continue;
-    const key = `${p.date}|${p.size ?? ""}|${p.batch}`;
+    const key = lotKey(p.size, p.batch, p.date);
     const arr = priorsByGroup.get(key);
     if (arr) arr.push(p); else priorsByGroup.set(key, [p]);
   }
 
   const issues: MassBalanceIssue[] = [];
   for (const [groupKey, group] of groups) {
-    // One aggregate per stage in this group (a stage can appear as several
-    // rows, e.g. multiple sheets covering the same day·size·batch).
-    const byStage = new Map<string, { avail: number; checked: number; hasAvail: boolean; hasChecked: boolean }>();
+    // Per (stage, date) so a payload restatement of Tuesday does not drop
+    // Monday's numbers of the same gate, and does not double-count Tuesday.
+    const byStageDate = new Map<string, StageDayQty>();
+    const stageDateKey = (stageId: string, date: string) => `${stageId}|${date}`;
+
+    for (const p of priorsByGroup.get(groupKey) ?? []) {
+      byStageDate.set(stageDateKey(p.stageId, p.date), {
+        avail: p.available,
+        checked: p.checked ?? 0,
+        hasAvail: true,
+        hasChecked: (p.checked ?? 0) > 0,
+      });
+    }
+
+    const payloadDays = new Set<string>();
     for (const r of group) {
-      const s = byStage.get(r.stageId) ?? { avail: 0, checked: 0, hasAvail: false, hasChecked: false };
+      const key = stageDateKey(r.stageId, r.occurredOn.start);
+      // First payload row for this stage+date replaces the ledger fact for
+      // that day (a restatement). Further payload rows of the same day sum,
+      // the way two sheets covering one inspection always have.
+      const s: StageDayQty = payloadDays.has(key)
+        ? (byStageDate.get(key) ?? { avail: 0, checked: 0, hasAvail: false, hasChecked: false })
+        : { avail: 0, checked: 0, hasAvail: false, hasChecked: false };
+      payloadDays.add(key);
       const a = available(r);
       if (a != null) { s.avail += a; s.hasAvail = true; }
       if (r.checked?.value != null) { s.checked += r.checked.value; s.hasChecked = true; }
-      byStage.set(r.stageId, s);
+      byStageDate.set(key, s);
     }
 
-    // Fold in gates already on the ledger for this lot. A stage in the payload
-    // always wins — it is the newer statement of the same fact.
-    for (const p of priorsByGroup.get(groupKey) ?? []) {
-      if (byStage.has(p.stageId)) continue;
-      byStage.set(p.stageId, {
-        avail: p.available,
-        checked: 0,
-        hasAvail: true,
-        hasChecked: false,
-      });
+    const byStage = new Map<string, StageDayQty>();
+    for (const [k, day] of byStageDate) {
+      const stageId = k.slice(0, k.lastIndexOf("|"));
+      const s = byStage.get(stageId) ?? { avail: 0, checked: 0, hasAvail: false, hasChecked: false };
+      s.avail += day.avail;
+      s.checked += day.checked;
+      if (day.hasAvail) s.hasAvail = true;
+      if (day.hasChecked) s.hasChecked = true;
+      byStage.set(stageId, s);
     }
 
     const present = [...byStage.keys()].sort((a, b) => rank.get(a)! - rank.get(b)!);
