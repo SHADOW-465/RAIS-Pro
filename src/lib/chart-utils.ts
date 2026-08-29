@@ -58,6 +58,24 @@ export function hoverIndexFromPixels(
 }
 
 /**
+ * Rounds up to a "nice" 1/2/5 × 10^n number so axis gridlines land on
+ * human-friendly increments regardless of the data's magnitude — tiny
+ * percentages, rupee lakhs, and raw counts all get a sensibly-stepped axis.
+ */
+export function niceAxisMax(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  const exponent = Math.floor(Math.log10(value));
+  const magnitude = Math.pow(10, exponent);
+  const fraction = value / magnitude;
+  let niceFraction: number;
+  if (fraction <= 1) niceFraction = 1;
+  else if (fraction <= 2) niceFraction = 2;
+  else if (fraction <= 5) niceFraction = 5;
+  else niceFraction = 10;
+  return niceFraction * magnitude;
+}
+
+/**
  * Determines if a label at a given index should be displayed on the X-axis,
  * implementing adaptive date thinning based on spacing and active grain.
  */
