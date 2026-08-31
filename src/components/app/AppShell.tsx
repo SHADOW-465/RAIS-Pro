@@ -219,6 +219,9 @@ export default function AppShell({
   const { notify } = useConfirm();
   const [mounted, setMounted] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  /** Draft From/To while the Custom range form is open. Live tweaks (and KPIs)
+   *  stay on the previous preset until Apply with both dates. */
+  const [customDraft, setCustomDraft] = useState<{ from: string; to: string } | null>(null);
   const [showPersonaMenu, setShowPersonaMenu] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [banner, setBanner] = useState<NavBanner | null>(null);
@@ -992,7 +995,10 @@ export default function AppShell({
   }
 
   useEffect(() => {
-    if (!showPicker) return;
+    if (!showPicker) {
+      setCustomDraft(null);
+      return;
+    }
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest(".date-picker-container")) {
@@ -1622,7 +1628,11 @@ export default function AppShell({
             <div
               onClick={(e) => {
                 e.stopPropagation();
-                setShowPicker(!showPicker);
+                const next = !showPicker;
+                setShowPicker(next);
+                if (next && t.datePreset === "custom") {
+                  setCustomDraft({ from: t.dateFrom, to: t.dateTo });
+                }
                 setShowViewMenu(false);
                 setShowSourcesPanel(false);
               }}
@@ -1671,20 +1681,36 @@ export default function AppShell({
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)" }}>
                   Date range
                 </div>
-                {(["all", "last-90-days", "last-12-months", "this-fy", "custom"] as const).map((preset) => (
+                {(["all", "last-90-days", "last-12-months", "this-fy", "custom"] as const).map((preset) => {
+                  const customActive = customDraft !== null || t.datePreset === "custom";
+                  const selected =
+                    preset === "custom"
+                      ? customActive
+                      : customDraft === null && t.datePreset === preset;
+                  return (
                   <button
                     key={preset}
                     type="button"
                     onClick={() => {
+                      if (preset === "custom") {
+                        setCustomDraft((prev) =>
+                          prev ?? {
+                            from: t.datePreset === "custom" ? t.dateFrom : "",
+                            to: t.datePreset === "custom" ? t.dateTo : "",
+                          },
+                        );
+                        return;
+                      }
+                      setCustomDraft(null);
                       setTweak("datePreset", preset);
-                      if (preset !== "custom") setShowPicker(false);
+                      setShowPicker(false);
                     }}
                     style={{
                       padding: "6px 8px",
                       fontSize: 12,
-                      fontWeight: t.datePreset === preset ? 700 : 500,
-                      background: t.datePreset === preset ? "var(--accent-weak)" : "transparent",
-                      color: t.datePreset === preset ? "var(--accent)" : "var(--text)",
+                      fontWeight: selected ? 700 : 500,
+                      background: selected ? "var(--accent-weak)" : "transparent",
+                      color: selected ? "var(--accent)" : "var(--text)",
                       border: "none",
                       borderRadius: "var(--radius-sm)",
                       textAlign: "left",
@@ -1699,15 +1725,16 @@ export default function AppShell({
                     {preset === "this-fy" && "This FY"}
                     {preset === "custom" && "Custom range…"}
                   </button>
-                ))}
+                  );
+                })}
 
-                {t.datePreset === "custom" && (
+                {customDraft !== null && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <span style={{ fontSize: 10, color: "var(--text-3)", width: 30 }}>From</span>
                       <DatePicker
-                        value={t.dateFrom}
-                        onChange={(d) => setTweak("dateFrom", d)}
+                        value={customDraft.from}
+                        onChange={(d) => setCustomDraft((prev) => ({ from: d, to: prev?.to ?? "" }))}
                         ariaLabel="Topbar from date"
                         size="sm"
                       />
@@ -1715,15 +1742,23 @@ export default function AppShell({
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <span style={{ fontSize: 10, color: "var(--text-3)", width: 30 }}>To</span>
                       <DatePicker
-                        value={t.dateTo}
-                        onChange={(d) => setTweak("dateTo", d)}
+                        value={customDraft.to}
+                        onChange={(d) => setCustomDraft((prev) => ({ from: prev?.from ?? "", to: d }))}
                         ariaLabel="Topbar to date"
                         size="sm"
                       />
                     </div>
                     <button
                       type="button"
-                      onClick={() => setShowPicker(false)}
+                      disabled={!customDraft.from || !customDraft.to}
+                      onClick={() => {
+                        if (!customDraft.from || !customDraft.to) return;
+                        setTweak("dateFrom", customDraft.from);
+                        setTweak("dateTo", customDraft.to);
+                        setTweak("datePreset", "custom");
+                        setCustomDraft(null);
+                        setShowPicker(false);
+                      }}
                       style={{
                         marginTop: 4,
                         padding: "6px 8px",
@@ -1733,7 +1768,8 @@ export default function AppShell({
                         color: "var(--text-invert)",
                         border: "none",
                         borderRadius: "var(--radius-sm)",
-                        cursor: "pointer",
+                        cursor: customDraft.from && customDraft.to ? "pointer" : "default",
+                        opacity: customDraft.from && customDraft.to ? 1 : 0.45,
                         fontFamily: "inherit",
                       }}
                     >
