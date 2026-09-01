@@ -65,7 +65,7 @@ function formatDisplayDate(iso: string) {
 export default function DatePicker({
   value,
   onChange,
-  placeholder = "Select dateâ€¦",
+  placeholder = "Select date...",
   disabled = false,
   min,
   max,
@@ -267,7 +267,9 @@ export default function DatePicker({
                   padding: 0,
                 }}
               >
-                â€¹
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M10 12L6 8l4-4" />
+                </svg>
               </button>
 
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text, #E2EBF5)" }}>
@@ -292,7 +294,9 @@ export default function DatePicker({
                   padding: 0,
                 }}
               >
-                â€º
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 4l4 4-4 4" />
+                </svg>
               </button>
             </div>
 
