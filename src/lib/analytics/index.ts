@@ -14,4 +14,6 @@ export * from "./search-index";
 export * from "./audit-sessions";
 export * from "./batch-progress";
 export * from "./source-trace";
+export * from "./accepted";
+export * from "./report-coverage";
 

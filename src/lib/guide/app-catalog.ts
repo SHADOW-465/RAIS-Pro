@@ -176,15 +176,14 @@ const FEATURE_PROSE: Omit<AppFeature, "label" | "href">[] = [
     navKey: "reports",
     keywords: [
       "report", "reports", "print", "pdf", "monthly pack", "weekly report",
-      "forensic", "gm report", "summary pack",
+      "financial year", "fy audit", "date of entry", "gm report", "summary pack",
     ],
-    summary: "Named report presets over live ledger data — preview, then print / PDF.",
+    summary: "Financial-year and custom Date of Entry reports over the ledger — preview, then print / PDF.",
     howTo: [
       "Open Management → Reports.",
-      "Set Range (and Sources) in the top bar to the period you want on the report.",
-      "Choose a preset (e.g. GM monthly or Full forensic package).",
-      "Fine-tune sections if the preset is block-based.",
-      "Preview with live data, then Print / Save as PDF from the browser dialog.",
+      "Choose a report type (Financial Year Audit Pack, Fundamentals, Stage, Defect, or Size).",
+      "Select a financial year or a custom Date of Entry range.",
+      "Check the coverage strip, then Print / Save as PDF from the browser dialog.",
     ],
     tips: [
       "Ask MOID: “summarize July first week report” — it scopes the week, summarizes verified KPIs, and can open Reports for you.",

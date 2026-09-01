@@ -14,7 +14,6 @@ import {
   moveBlock,
   BLOCK_LABEL,
   cloneSpec,
-  isForensicSpec,
   type ReportSpec,
   type ReportBlock,
 } from "@/lib/report/blocks";
@@ -225,7 +224,6 @@ export default function ReportPanel({
   }, [printing]);
 
   const shelf = useMemo(() => availableBlocks(page), [page]);
-  const forensic = spec ? isForensicSpec(spec) : false;
   const excelFiles = useMemo(() => listExcelSourceFiles(events), [events]);
   const batchIds = useMemo(() => listBatchIds(events), [events]);
   const sourcesSummary = useMemo(() => describeSourceFilter(scope), [scope]);
@@ -421,6 +419,8 @@ export default function ReportPanel({
           <button
             type="button"
             onClick={() => setSourcesOpen((o) => !o)}
+            aria-expanded={sourcesOpen}
+            aria-controls="rp-sources-panel"
             style={{
               width: "100%",
               display: "flex",
@@ -445,7 +445,7 @@ export default function ReportPanel({
             </div>
           </button>
           {sourcesOpen && (
-            <div style={{ padding: "0 16px 12px", maxHeight: 160, overflowY: "auto" }}>
+            <div id="rp-sources-panel" style={{ padding: "0 16px 12px", maxHeight: 160, overflowY: "auto" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 6, cursor: "pointer" }}>
                 <input
                   type="checkbox"
@@ -550,26 +550,8 @@ export default function ReportPanel({
 
         {/* Sections — primary scroll area of this column */}
         <div style={{ ...colScroll, padding: "12px 16px", flex: 1 }}>
-          {forensic ? (
-            <div
-              style={{
-                padding: 12,
-                borderRadius: 8,
-                border: "1px solid var(--border)",
-                background: "var(--surface)",
-                fontSize: 12.5,
-                lineHeight: 1.45,
-                color: "var(--text-2)",
-              }}
-            >
-              <strong style={{ color: "var(--text)" }}>Full forensic package</strong>
-              <p style={{ margin: "8px 0 0" }}>
-                Complete audit book. Use Print / Save as PDF for the multi-page layout.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="muted" style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, marginBottom: 8 }}>
+          <>
+              <div className="muted" style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
                 Sections ({spec.blocks.length})
               </div>
               {spec.blocks.map((b, i) => (
@@ -587,14 +569,14 @@ export default function ReportPanel({
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {b.title}
                     </div>
-                    <div className="muted" style={{ fontSize: 10.5 }}>{BLOCK_LABEL[b.kind]}</div>
+                    <div className="muted" style={{ fontSize: 13 }}>{BLOCK_LABEL[b.kind]}</div>
                   </div>
-                  <button type="button" onClick={() => setBlocks(moveBlock(spec.blocks, i, -1))} disabled={i === 0} title="Move up" style={iconBtn(i === 0)}>↑</button>
-                  <button type="button" onClick={() => setBlocks(moveBlock(spec.blocks, i, 1))} disabled={i === spec.blocks.length - 1} title="Move down" style={iconBtn(i === spec.blocks.length - 1)}>↓</button>
-                  <button type="button" onClick={() => remove(b.id)} title="Remove" style={{ ...iconBtn(false), color: "var(--status-bad)" }}>×</button>
+                  <button type="button" onClick={() => setBlocks(moveBlock(spec.blocks, i, -1))} disabled={i === 0} aria-label={`Move ${b.title} up`} style={iconBtn(i === 0)}>↑</button>
+                  <button type="button" onClick={() => setBlocks(moveBlock(spec.blocks, i, 1))} disabled={i === spec.blocks.length - 1} aria-label={`Move ${b.title} down`} style={iconBtn(i === spec.blocks.length - 1)}>↓</button>
+                  <button type="button" onClick={() => remove(b.id)} aria-label={`Remove ${b.title}`} style={{ ...iconBtn(false), color: "var(--status-bad)" }}>×</button>
                 </div>
               ))}
 
@@ -623,10 +605,9 @@ export default function ReportPanel({
                 ))}
               </div>
             </>
-          )}
 
           {msg && (
-            <div style={{ marginTop: 12, fontSize: 12, color: "var(--positive)", fontWeight: 600 }}>{msg}</div>
+            <div role="status" style={{ marginTop: 12, fontSize: 14, color: msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("nothing") ? "var(--critical)" : "var(--positive)", fontWeight: 600 }}>{msg}</div>
           )}
         </div>
 
@@ -672,7 +653,7 @@ export default function ReportPanel({
             {printing ? "Preparing print…" : "Print / Save as PDF"}
           </button>
           <button type="button" onClick={() => void handleZipPresets()} disabled={zipping} style={ghostBtn}>
-            {zipping ? "Building ZIP…" : "Download all presets (ZIP)"}
+            {zipping ? "Building ZIP…" : "Download layout-preset HTML stubs (charts omitted)"}
           </button>
           {onClose && !embedded && (
             <button type="button" onClick={onClose} style={{ ...ghostBtn, border: "none" }}>
@@ -794,10 +775,10 @@ const iconBtn = (disabled: boolean): React.CSSProperties => ({
   background: "transparent",
   border: "1px solid var(--border)",
   borderRadius: 6,
-  width: 22,
-  height: 22,
+  width: 44,
+  height: 44,
   lineHeight: 1,
-  fontSize: 12,
+  fontSize: 16,
   color: "var(--text-2)",
   cursor: disabled ? "not-allowed" : "pointer",
   opacity: disabled ? 0.35 : 1,
