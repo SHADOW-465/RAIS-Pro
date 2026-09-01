@@ -31,6 +31,7 @@ import {
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
+import { sortStageIds } from "@/core/ontology/plant-catalog";
 import PageLoader from "@/components/app/PageLoader";
 import { safeBolden } from "@/components/app/widgets";
 import { calculatePareto } from "@/lib/analytics/pareto";
@@ -190,9 +191,10 @@ export default function Dashboard() {
     const stages = byStage(events, scope, activeRegistry);
     const defects = byDefect(events, scope, activeRegistry);
 
-    // Ensure all 5 stages from mockup are mapped correctly (Visual, Eye Punching, Balloon, Valve, Final)
-    const order = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
-    const orderedStages = [...stages].sort((a, b) => order.indexOf(a.stageId) - order.indexOf(b.stageId));
+    const stageRank = new Map(sortStageIds(stages.map((s) => s.stageId)).map((id, i) => [id, i]));
+    const orderedStages = [...stages].sort(
+      (a, b) => (stageRank.get(a.stageId) ?? 99) - (stageRank.get(b.stageId) ?? 99),
+    );
 
     const tr = trend(events, trendScope, "rejectionRate", activeRegistry);
     const st = stageTrend(events, trendScope, activeRegistry);
@@ -202,8 +204,11 @@ export default function Dashboard() {
     const totalTrend = cumTrend.map((p) => ({ period: p.period, label: p.label, value: p.perStage[CUM_TOTAL_KEY] ?? 0 }));
     // Every stage that has data anywhere — keeps the station tabs stable/discoverable
     // even when the selected date range is sparse for some stations.
-    const order2 = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
-    const stagesAll = [...byStage(events, { grain: t.grain }, activeRegistry)].sort((a, b) => order2.indexOf(a.stageId) - order2.indexOf(b.stageId));
+    const stagesAllRaw = byStage(events, { grain: t.grain }, activeRegistry);
+    const stageRankAll = new Map(sortStageIds(stagesAllRaw.map((s) => s.stageId)).map((id, i) => [id, i]));
+    const stagesAll = [...stagesAllRaw].sort(
+      (a, b) => (stageRankAll.get(a.stageId) ?? 99) - (stageRankAll.get(b.stageId) ?? 99),
+    );
     const dt = defectTrend(events, trendScope, 5, activeRegistry);
     const sizes = bySize(events, scope);
 

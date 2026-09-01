@@ -11,6 +11,7 @@ import {
   describeActiveScope,
   describeSourceFilter,
   isPlantDefaultTweaks,
+  sourcesNarrowMode,
   type Scope,
 } from "../scope";
 import { buildBatchId, parseBatchId } from "@/lib/entry/batch-id";
@@ -440,6 +441,157 @@ describe("custom range vs batch-ID month letter (H = August)", () => {
     expect(may).toEqual(["26E20-8"]);
     expect(aug).toEqual(["26H05-18"]);
     expect(may).not.toEqual(aug);
+  });
+
+  it("opening Custom with empty From/To must not change the scoped set vs All data", () => {
+    const events = [hRecordedInAug, eRecordedInAug, hRecordedInSep];
+    const all = resolveScope(events, {
+      grain: "day",
+      datePreset: "all",
+      dateFrom: "",
+      dateTo: "",
+    });
+    const incomplete = resolveScope(events, {
+      grain: "day",
+      datePreset: "custom",
+      dateFrom: "",
+      dateTo: "",
+    });
+    expect(incomplete.dateFrom).toBe(all.dateFrom);
+    expect(incomplete.dateTo).toBe(all.dateTo);
+    expect(scopeEvents(events, incomplete).map((e) => e.eventId).sort()).toEqual(
+      scopeEvents(events, all).map((e) => e.eventId).sort(),
+    );
+  });
+
+  it("a one-sided custom range is still incomplete and matches All data", () => {
+    const events = [hRecordedInAug, eRecordedInAug, hRecordedInSep];
+    const all = resolveScope(events, {
+      grain: "day",
+      datePreset: "all",
+      dateFrom: "",
+      dateTo: "",
+    });
+    const fromOnly = resolveScope(events, {
+      grain: "day",
+      datePreset: "custom",
+      dateFrom: "2026-08-08",
+      dateTo: "",
+    });
+    expect(fromOnly.dateFrom).toBe(all.dateFrom);
+    expect(fromOnly.dateTo).toBe(all.dateTo);
+    expect(scopeEvents(events, fromOnly).map((e) => e.eventId).sort()).toEqual(
+      scopeEvents(events, all).map((e) => e.eventId).sort(),
+    );
+  });
+
+  it("All data keeps a lot whose batch date is before the first recorded-on day", () => {
+    // 26H01-14 started 1 Aug, keyed in on 11 Aug. occurredOn-min is 11 Aug, so
+    // clipping All data to that window dropped the lot from every KPI even
+    // though the Sources picker listed it.
+    const lot = buildBatchId("2026-08-01", "14Fr")!;
+    const earlyLot = makeEv({
+      eventId: "h01",
+      batchNo: lot,
+      day: "2026-08-11",
+      stageId: "visual",
+      eventType: "production",
+      qty: 100,
+      extractedBy: "direct-entry",
+      file: "Manual Entry",
+    });
+    const laterLot = makeEv({
+      eventId: "h11",
+      batchNo: buildBatchId("2026-08-11", "14Fr")!,
+      day: "2026-08-11",
+      stageId: "visual",
+      eventType: "production",
+      qty: 50,
+      extractedBy: "direct-entry",
+      file: "Manual Entry",
+    });
+    const scope = resolveScope([earlyLot, laterLot], {
+      grain: "day",
+      datePreset: "all",
+      dateFrom: "",
+      dateTo: "",
+      includeExcel: true,
+      includeDirectEntry: true,
+      stageCategories: ["assembly"],
+    });
+    const kept = scopeEvents([earlyLot, laterLot], scope).map((e) => e.eventId).sort();
+    expect(kept).toEqual(["h01", "h11"]);
+  });
+
+  it("selecting a batch keeps it even when its lot-date is outside the custom window", () => {
+    const lot = buildBatchId("2026-08-01", "14Fr")!;
+    const ev = makeEv({
+      eventId: "h01",
+      batchNo: lot,
+      day: "2026-08-11",
+      stageId: "visual",
+      eventType: "production",
+      qty: 100,
+      extractedBy: "direct-entry",
+      file: "Manual Entry",
+    });
+    const scope = resolveScope([ev], {
+      grain: "day",
+      datePreset: "custom",
+      dateFrom: "2026-08-11",
+      dateTo: "2026-08-18",
+      batchIds: [lot],
+      includeExcel: true,
+      includeDirectEntry: true,
+      stageCategories: ["assembly"],
+    });
+    expect(scopeEvents([ev], scope).map((e) => e.eventId)).toEqual(["h01"]);
+  });
+
+  it("batch-wise plant default still lists Visual, Balloon, Valve and Final for a split-stage lot", () => {
+    const lot = buildBatchId("2026-08-01", "14Fr")!;
+    const rec = (id: string, stageId: string, qty: number): Event =>
+      makeEv({
+        eventId: id,
+        batchNo: lot,
+        day: "2026-08-11",
+        stageId,
+        eventType: "production",
+        qty,
+        extractedBy: "direct-entry",
+        file: "Manual Entry",
+      });
+    const events = [
+      rec("v", "visual", 100),
+      rec("b", "balloon", 90),
+      rec("vi", "valve-integrity", 88),
+      rec("f", "final", 80),
+    ];
+    const scope = resolveScope(events, {
+      grain: "day",
+      datePreset: "all",
+      dateFrom: "",
+      dateTo: "",
+      batchIds: [lot],
+      includeExcel: true,
+      includeDirectEntry: true,
+      stageCategories: ["assembly"],
+    });
+    expect(byStage(events, scope).map((s) => s.stageId)).toEqual([
+      "visual",
+      "balloon",
+      "valve-integrity",
+      "final",
+    ]);
+  });
+});
+
+describe("sourcesNarrowMode", () => {
+  it("offers batches in every live channel, including Excel-only", () => {
+    expect(sourcesNarrowMode(false, false)).toBe("empty");
+    expect(sourcesNarrowMode(false, true)).toBe("batches");
+    expect(sourcesNarrowMode(true, false)).toBe("tabs");
+    expect(sourcesNarrowMode(true, true)).toBe("tabs");
   });
 });
 

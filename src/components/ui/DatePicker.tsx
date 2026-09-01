@@ -25,6 +25,13 @@ export interface DatePickerProps {
   style?: React.CSSProperties;
   className?: string;
   id?: string;
+  /**
+   * Render the calendar in-flow instead of a portaled popover.
+   * Required inside another overlay (e.g. the lot-date Change panel): a
+   * portaled calendar sits outside that panel, so picking a day is treated as
+   * an outside click and the parent closes before onChange fires.
+   */
+  inline?: boolean;
 }
 
 const MONTH_NAMES = [
@@ -58,7 +65,7 @@ function formatDisplayDate(iso: string) {
 export default function DatePicker({
   value,
   onChange,
-  placeholder = "Select date…",
+  placeholder = "Select dateâ€¦",
   disabled = false,
   min,
   max,
@@ -68,6 +75,7 @@ export default function DatePicker({
   style,
   className,
   id,
+  inline = false,
 }: DatePickerProps) {
   const reactId = useId();
   const pickerId = id ?? reactId;
@@ -174,8 +182,10 @@ export default function DatePicker({
     if (min && iso < min) return;
     if (max && iso > max) return;
     onChange(iso);
-    setOpen(false);
-    triggerRef.current?.focus();
+    if (!inline) {
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
   };
 
   // Build calendar matrix (42 cells: 6 weeks x 7 days)
@@ -228,87 +238,8 @@ export default function DatePicker({
 
   const isSmall = size === "sm";
 
-  return (
-    <div
-      style={{
-        position: "relative",
-        display: block ? "flex" : "inline-flex",
-        width: block ? "100%" : "auto",
-        ...style,
-      }}
-      className={className}
-    >
-      <button
-        ref={triggerRef}
-        id={pickerId}
-        type="button"
-        disabled={disabled}
-        aria-label={ariaLabel}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => {
-          if (!disabled) setOpen((o) => !o);
-        }}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          width: "100%",
-          padding: isSmall ? "4px 8px" : "6px 10px",
-          borderRadius: "var(--radius-sm, 6px)",
-          border: "1px solid var(--border, rgba(255, 255, 255, 0.12))",
-          background: "var(--surface, #141D2B)",
-          color: value ? "var(--text, #E2EBF5)" : "var(--text-3, #5A6980)",
-          fontSize: isSmall ? 12 : 13,
-          fontFamily: "inherit",
-          cursor: disabled ? "not-allowed" : "pointer",
-          opacity: disabled ? 0.6 : 1,
-          textAlign: "left",
-          transition: "border-color var(--duration-fast, 120ms), background var(--duration-fast, 120ms)",
-        }}
-      >
-        <span style={{ fontVariantNumeric: "tabular-nums", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {value ? formatDisplayDate(value) : placeholder}
-        </span>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 16 16"
-          fill="none"
-          aria-hidden
-          style={{ flexShrink: 0, color: "var(--text-3, #5A6980)" }}
-        >
-          <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
-          <line x1="2" y1="7" x2="14" y2="7" stroke="currentColor" strokeWidth="1.5" />
-          <line x1="5" y1="1.5" x2="5" y2="3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="11" y1="1.5" x2="11" y2="3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </button>
-
-      {open &&
-        rect &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            role="dialog"
-            aria-label="Calendar date picker"
-            style={{
-              position: "fixed",
-              left: rect.left,
-              top: rect.top,
-              width: 274,
-              zIndex: 99999,
-              background: "var(--surface, #141D2B)",
-              border: "1px solid var(--border, rgba(255, 255, 255, 0.12))",
-              borderRadius: "var(--radius-md, 8px)",
-              boxShadow: "var(--shadow-lg, 0 12px 30px rgba(0, 0, 0, 0.45))",
-              padding: 12,
-              backdropFilter: "blur(12px)",
-              userSelect: "none",
-            }}
-          >
+  const calendar = (
+            <>
             {/* Header: Prev / Month Year / Next */}
             <div
               style={{
@@ -336,7 +267,7 @@ export default function DatePicker({
                   padding: 0,
                 }}
               >
-                ‹
+                â€¹
               </button>
 
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text, #E2EBF5)" }}>
@@ -361,7 +292,7 @@ export default function DatePicker({
                   padding: 0,
                 }}
               >
-                ›
+                â€º
               </button>
             </div>
 
@@ -493,9 +424,108 @@ export default function DatePicker({
                 );
               })}
             </div>
+            </>
+  );
+
+  if (inline) {
+    return (
+      <div
+        data-moid-datepicker=""
+        className={className}
+        style={{ width: "100%", ...style }}
+      >
+        {calendar}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        display: block ? "flex" : "inline-flex",
+        width: block ? "100%" : "auto",
+        ...style,
+      }}
+      className={className}
+    >
+      <button
+        ref={triggerRef}
+        id={pickerId}
+        type="button"
+        disabled={disabled}
+        aria-label={ariaLabel}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => {
+          if (!disabled) setOpen((o) => !o);
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          width: "100%",
+          padding: isSmall ? "4px 8px" : "6px 10px",
+          borderRadius: "var(--radius-sm, 6px)",
+          border: "1px solid var(--border, rgba(255, 255, 255, 0.12))",
+          background: "var(--surface, #141D2B)",
+          color: value ? "var(--text, #E2EBF5)" : "var(--text-3, #5A6980)",
+          fontSize: isSmall ? 12 : 13,
+          fontFamily: "inherit",
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.6 : 1,
+          textAlign: "left",
+          transition: "border-color var(--duration-fast, 120ms), background var(--duration-fast, 120ms)",
+        }}
+      >
+        <span style={{ fontVariantNumeric: "tabular-nums", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {value ? formatDisplayDate(value) : placeholder}
+        </span>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 16 16"
+          fill="none"
+          aria-hidden
+          style={{ flexShrink: 0, color: "var(--text-3, #5A6980)" }}
+        >
+          <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
+          <line x1="2" y1="7" x2="14" y2="7" stroke="currentColor" strokeWidth="1.5" />
+          <line x1="5" y1="1.5" x2="5" y2="3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="11" y1="1.5" x2="11" y2="3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {open &&
+        rect &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            data-moid-datepicker=""
+            role="dialog"
+            aria-label="Calendar date picker"
+            style={{
+              position: "fixed",
+              left: rect.left,
+              top: rect.top,
+              width: 274,
+              zIndex: 99999,
+              background: "var(--surface, #141D2B)",
+              border: "1px solid var(--border, rgba(255, 255, 255, 0.12))",
+              borderRadius: "var(--radius-md, 8px)",
+              boxShadow: "var(--shadow-lg, 0 12px 30px rgba(0, 0, 0, 0.45))",
+              padding: 12,
+              backdropFilter: "blur(12px)",
+              userSelect: "none",
+            }}
+          >
+            {calendar}
           </div>,
           document.body,
         )}
     </div>
   );
 }
+

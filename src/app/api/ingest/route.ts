@@ -10,6 +10,7 @@ import { checkRecord } from "@/lib/entry/validate-entry";
 import { massBalanceIssues } from "@/lib/ingest/mass-balance";
 import { getStores } from "@/lib/store";
 import { entryIdentity, identityKey, identityOfEvent } from "@/lib/entry/identity";
+import { formatIngestError } from "@/lib/entry/format-ingest-error";
 
 interface IngestBody {
   ingestionId: string;
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireCapability(req, "write");
   if (!auth.ok) return auth.response;
 
+  let issues: { code: string; message: string }[] = [];
   try {
     const body = (await req.json()) as IngestBody;
     const records = body.records ?? [];
@@ -103,7 +105,7 @@ export async function POST(req: NextRequest) {
     }));
 
     // 1. Live clarification checks (point-in-time) — surfaced, never blocking.
-    const issues = [
+    issues = [
       ...recordsWithComments.flatMap((r) =>
         checkRecord(r).map((i) => ({ ...i, stageId: r.stageId, date: r.occurredOn.start }))
       ),
@@ -318,67 +320,77 @@ export async function POST(req: NextRequest) {
     // an impossible count or an unexplained rejection left no trace for a QM
     // to work through later. Now every issue lands in the findings store,
     // keyed by content so re-saving the same bad row does not pile up copies.
+    //
+    // Isolated from the append: a finding schema miss (e.g. a new V-0xx code)
+    // must not 500 after the events are already on the ledger. The issues
+    // array still goes back to the client either way.
     if (issues.length > 0) {
-      const { hashFinding } = require("@/lib/contract/hash");
-      const { Finding } = require("@/lib/contract/d3");
-      const SEV: Record<string, "critical" | "warning" | "info"> = {
-        critical: "critical",
-        warning: "warning",
-        info: "info",
-      };
-      const firstRecord = recordsWithComments[0];
-      const issueFindings = issues.map((i: any) => {
-        const day = i.date ?? firstRecord?.occurredOn.start ?? new Date().toISOString().slice(0, 10);
-        const stageId = i.stageId ?? firstRecord?.stageId ?? "unknown";
-        const source = recordsWithComments.find(
-          (r) => r.stageId === stageId && r.occurredOn.start === day,
-        ) ?? firstRecord;
-        const cell = source?.checked?.cell || `${stageId}!${day}`;
-        return Finding.parse({
-          findingId: hashFinding({
+      try {
+        const { hashFinding } = require("@/lib/contract/hash");
+        const { Finding } = require("@/lib/contract/d3");
+        const SEV: Record<string, "critical" | "warning" | "info"> = {
+          critical: "critical",
+          warning: "warning",
+          info: "info",
+        };
+        const firstRecord = recordsWithComments[0];
+        const issueFindings = issues.flatMap((i: any) => {
+          const day = i.date ?? firstRecord?.occurredOn.start ?? new Date().toISOString().slice(0, 10);
+          const stageId = i.stageId ?? firstRecord?.stageId ?? "unknown";
+          const source = recordsWithComments.find(
+            (r) => r.stageId === stageId && r.occurredOn.start === day,
+          ) ?? firstRecord;
+          const cell = source?.checked?.cell || `${stageId}!${day}`;
+          const eventIds = events.map((e) => e.eventId);
+          const parsed = Finding.safeParse({
+            findingId: hashFinding({
+              ruleId: i.code,
+              subtype: i.field,
+              evidenceEventIds: [`${stageId}-${day}-${i.field}-${i.stated ?? ""}`],
+            }),
+            schemaVersion: "1.0.0",
+            ingestionId: body.ingestionId,
             ruleId: i.code,
             subtype: i.field,
-            evidenceEventIds: [`${stageId}-${day}-${i.field}-${i.stated ?? ""}`],
-          }),
-          schemaVersion: "1.0.0",
-          ingestionId: body.ingestionId,
-          ruleId: i.code,
-          subtype: i.field,
-          severity: SEV[i.severity] ?? "warning",
-          question: i.message,
-          detail: i.message,
-          evidence: {
-            eventIds: events.map((e) => e.eventId),
-            cells: [cell],
-            provenance: {
-              file: source?.source.file ?? body.fileName,
-              fileHash: source?.source.fileHash ?? "local",
-              sheet: source?.source.sheet ?? "",
-              tableId: source?.source.tableId ?? "t1",
+            severity: SEV[i.severity] ?? "warning",
+            question: i.message,
+            detail: i.message,
+            evidence: {
+              eventIds: eventIds.length > 0 ? eventIds : [`${stageId}-${day}-${i.field}`],
               cells: [cell],
-              headerPath: [i.field],
-              rowLabel: null,
-              formulaText: null,
-              cachedValue: null,
-              externalRef: null,
+              provenance: {
+                file: source?.source.file ?? body.fileName,
+                fileHash: source?.source.fileHash ?? "local",
+                sheet: source?.source.sheet ?? "",
+                tableId: source?.source.tableId ?? "t1",
+                cells: [cell],
+                headerPath: [i.field],
+                rowLabel: null,
+                formulaText: null,
+                cachedValue: null,
+                externalRef: null,
+              },
+              statedValue: i.stated,
+              computedValue: i.computed,
+              magnitude:
+                typeof i.stated === "number" && typeof i.computed === "number"
+                  ? Math.abs(i.stated - i.computed)
+                  : null,
             },
-            statedValue: i.stated,
-            computedValue: i.computed,
-            magnitude:
-              typeof i.stated === "number" && typeof i.computed === "number"
-                ? Math.abs(i.stated - i.computed)
-                : null,
-          },
-          hypotheses: [
-            { kind: "mistake", text: "Mis-keyed count, or a column read from the wrong row." },
-            { kind: "intentional-practice", text: "Real process event the sheet does not model yet." },
-          ],
-          requiresGmAuthority: false,
-          occurredOn: { kind: "day", start: day, end: day },
-          recordedAt: new Date().toISOString(),
+            hypotheses: [
+              { kind: "mistake", text: "Mis-keyed count, or a column read from the wrong row." },
+              { kind: "intentional-practice", text: "Real process event the sheet does not model yet." },
+            ],
+            requiresGmAuthority: false,
+            occurredOn: { kind: "day", start: day, end: day },
+            recordedAt: new Date().toISOString(),
+          });
+          return parsed.success ? [parsed.data] : [];
         });
-      });
-      await findingsStore.upsert(issueFindings);
+        if (issueFindings.length > 0) await findingsStore.upsert(issueFindings);
+      } catch {
+        // Events already appended. Issues still return in the JSON body.
+      }
     }
 
     // 3. Per-stage rollup for the success summary (deterministic, from events).
@@ -401,6 +413,12 @@ export async function POST(req: NextRequest) {
       commentCount: body.comments ? Object.values(body.comments).filter((c) => c.trim()).length : 0,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? "Ingestion failed" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: formatIngestError(err?.message ?? "Ingestion failed"),
+        issues,
+      },
+      { status: 500 },
+    );
   }
 }

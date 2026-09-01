@@ -3,7 +3,7 @@
 // stage-specific target sets that caused the Excel's false "OK" verdicts stay
 // distinguishable from "no target".
 
-import { STAGES, STAGE_CATEGORIES, DEFECTS, SIZES, DEFECT_TARGETS, plantCatalog, mergePlantCatalog, canonicalDefectCode } from "../plant-catalog";
+import { STAGES, STAGE_CATEGORIES, DEFECTS, SIZES, DEFECT_TARGETS, plantCatalog, mergePlantCatalog, canonicalDefectCode, resolveStageId, sortStageIds, stageSortKey } from "../plant-catalog";
 import { StageDef, DefectDef, SizeDef } from "@/lib/contract/d1";
 import type { CompanyCatalog } from "@/core/ontology/store/catalog-store";
 
@@ -182,4 +182,17 @@ test("canonicalDefectCode resolves the spellings seen in the workbooks", () => {
   expect(canonicalDefectCode("THIN SPOD")).toBe("THSP");
   expect(canonicalDefectCode("BALLOOM BRUST")).toBe("BLBR");
   expect(canonicalDefectCode("nonsense")).toBeNull();
+});
+
+test("production-dipping is production on the plant line, and sorts before Visual", () => {
+  expect(resolveStageId("production-dipping")).toBe("production");
+  expect(resolveStageId("PRODUCTION DIPPING")).toBe("production");
+  expect(stageSortKey("production-dipping")).toBeLessThan(stageSortKey("visual"));
+  expect(sortStageIds(["visual", "balloon", "hanging", "production-dipping", "eye-punching"])).toEqual([
+    "production-dipping",
+    "eye-punching",
+    "hanging",
+    "visual",
+    "balloon",
+  ]);
 });

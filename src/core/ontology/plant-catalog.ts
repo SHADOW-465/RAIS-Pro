@@ -115,24 +115,51 @@ const STAGE_ID_BY_LABEL = new Map(
   Object.entries(STAGE_LABELS).map(([id, label]) => [label.toLowerCase(), id]),
 );
 
-/** A stageId from either an id or a display label; undefined when neither
- *  names an authored stage. */
+/** Sequential line (excludes parallel Balloon Production). Primary →
+ *  secondary → assembly, in authored process order. */
+export const FLOW_CHAIN: string[] = STAGE_ORDER.filter((id) => id !== "balloon-production");
+
+function compactStageToken(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+/** A stageId from either an id, a display label, or a catalog alias
+ *  ("production-dipping" → production). Undefined when neither names an
+ *  authored stage. */
 export function resolveStageId(idOrLabel?: string | null): string | undefined {
-  const s = (idOrLabel || "").toLowerCase();
-  if (!s) return undefined;
+  const raw = (idOrLabel || "").trim();
+  if (!raw) return undefined;
+  const s = raw.toLowerCase();
   if (STAGE_ORDER.includes(s)) return s;
-  return STAGE_ID_BY_LABEL.get(s);
+  const byLabel = STAGE_ID_BY_LABEL.get(s);
+  if (byLabel) return byLabel;
+  for (const id of STAGE_ORDER) {
+    if (s.startsWith(`${id}-`) || s.startsWith(`${id} `)) return id;
+  }
+  const compact = compactStageToken(s);
+  for (const [id, aliases] of Object.entries(STAGE_ALIASES)) {
+    if (compactStageToken(id) === compact) return id;
+    if (aliases.some((a) => compactStageToken(a) === compact)) return id;
+  }
+  return undefined;
 }
 
 /** Position on the line. Stages the catalog never authored sort last (99) — they
  *  become their own section anyway, so they never displace a real entry gate. */
 export function stageSortKey(stageId?: string | null, stageLabel?: string | null): number {
-  const id = (stageId || stageLabel || "").toLowerCase();
-  const idx = STAGE_ORDER.indexOf(id);
-  if (idx >= 0) return idx;
-  // may be a pretty label ("Visual Inspection") rather than an id
-  const byLabel = STAGE_ID_BY_LABEL.get((stageLabel || "").toLowerCase());
-  return byLabel ? STAGE_ORDER.indexOf(byLabel) : 99;
+  const resolved = resolveStageId(stageId) ?? resolveStageId(stageLabel);
+  if (resolved) return STAGE_ORDER.indexOf(resolved);
+  return 99;
+}
+
+/** Plant-schema order: production-dipping before Visual, not the other way. */
+export function sortStageIds(ids: readonly string[]): string[] {
+  return [...ids].sort((a, b) => {
+    const ka = stageSortKey(a);
+    const kb = stageSortKey(b);
+    if (ka !== kb) return ka - kb;
+    return a.localeCompare(b);
+  });
 }
 
 /**
@@ -196,7 +223,15 @@ export const DEFAULT_STAGE_CATEGORIES: StageCategory[] = ["assembly"];
 /** Sheet/column header spellings observed in the workbooks, per stage. The
  *  misspellings are stable and diagnostic — they identify the form. */
 export const STAGE_ALIASES: Record<string, string[]> = {
-  production: ["PRODUCTION", "DIPPING", "DIPPING QTY", "SHOP FLOOR", "UNIT-01 (DEPARTMENT-DIPPING)"],
+  production: [
+    "PRODUCTION",
+    "DIPPING",
+    "DIPPING QTY",
+    "PRODUCTION DIPPING",
+    "PRODUCTION-DIPPING",
+    "SHOP FLOOR",
+    "UNIT-01 (DEPARTMENT-DIPPING)",
+  ],
   "eye-punching": ["EYE PUNCHING", "EYE PUNCHING QTY", "EP"],
   leaching: ["LEACHING"],
   chlorination: ["CHLORINATION"],

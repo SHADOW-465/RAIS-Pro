@@ -17,6 +17,7 @@ import {
   pct
 } from "@/components/app/widgets";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
+import { sortStageIds } from "@/core/ontology/plant-catalog";
 import {
   rejectionRate,
   byStage,
@@ -105,8 +106,10 @@ export default function StageAnalysisPage() {
 
     const rate = rejectionRate(events, scope, activeRegistry).value;
     const stages = byStage(events, scope, activeRegistry);
-    const order = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
-    const orderedStages = [...stages].sort((a, b) => order.indexOf(a.stageId) - order.indexOf(b.stageId));
+    const stageRank = new Map(sortStageIds(stages.map((s) => s.stageId)).map((id, i) => [id, i]));
+    const orderedStages = [...stages].sort(
+      (a, b) => (stageRank.get(a.stageId) ?? 99) - (stageRank.get(b.stageId) ?? 99),
+    );
     const tr = trend(events, scope, "rejectionRate", activeRegistry);
     const st = stageTrend(events, scope, activeRegistry);
 

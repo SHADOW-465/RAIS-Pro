@@ -61,6 +61,27 @@ test("a stage stored with no capture columns is repaired, so Data Entry can rend
   expect(stage!.columns.length).toBeGreaterThan(0);
 });
 
+test("Hold added on balloon in Data Schema is still on the entry template after reload", async () => {
+  const store = getCatalogStore();
+  const authored = plantCatalog();
+  await store.put("acme", {
+    ...authored,
+    stages: authored.stages.map((s) =>
+      s.stageId === "balloon"
+        ? { ...s, captures: ["checked", "accepted", "hold", "rejected"] }
+        : s,
+    ),
+    lastMergedFrom: "plant-catalog@dipping-label-and-sections",
+    sections: authored.sections,
+  });
+  const loaded = await loadCatalog("acme");
+  expect(loaded.stages.find((s) => s.stageId === "balloon")!.captures).toContain("hold");
+  const template = templateFrom(loaded);
+  expect(template.stages.find((s) => s.stageId === "balloon")!.columns.map((c) => c.key)).toContain(
+    "rework",
+  );
+});
+
 test("the backfill runs once — a stage deleted on Data Schema afterwards stays deleted", async () => {
   const store = getCatalogStore();
   const authored = plantCatalog();
