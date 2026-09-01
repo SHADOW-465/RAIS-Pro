@@ -18,6 +18,11 @@ describe("batch-id bi-directional binding", () => {
     expect(buildBatchId("2026-08-23", "16Fr")).toBe("26H23-16");
   });
 
+  test("form → ID: September 1 2026 + 20Fr → 26I01-20 (lot-date calendar)", () => {
+    expect(buildBatchId("2026-09-01", "20Fr")).toBe("26I01-20");
+    expect(parseBatchId("26I01-20")?.date).toBe("2026-09-01");
+  });
+
   test("ID → form: 26H23-16", () => {
     const p = parseBatchId("26H23-16");
     expect(p).not.toBeNull();

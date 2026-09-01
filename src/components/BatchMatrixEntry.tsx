@@ -50,6 +50,7 @@ import {
 import { entryKey, hasValidGrant } from "@/lib/entry/edit-grants";
 import { toStageDayRecord } from "@/lib/entry/to-stage-day-record";
 import { collectEntryReasons, remarksFromReasons } from "@/lib/entry/exception-reasons";
+import { formatLedgerBlockReason } from "@/lib/entry/format-ingest-error";
 import { readPrefill, clearPrefill } from "@/lib/agent/prefill";
 import type { EntryHydrate } from "@/lib/entry/hydrate-entry";
 import { useEvents } from "@/components/app/EventsContext";
@@ -144,8 +145,8 @@ export default function BatchMatrixEntry({
   const passCtxRef = useRef<string | null>(null);
   const { confirm: confirmModal, notify } = useConfirm();
 
-  const [macro, setMacro] = useState<MacroId>("assembly");
-  const [stageId, setStageId] = useState("visual");
+  const [macro, setMacro] = useState<MacroId>("primary");
+  const [stageId, setStageId] = useState("production");
   const [date, setDate] = useState(today);
   const [size, setSize] = useState("14Fr");
   const [productType, setProductType] = useState<ProductType | string>("2 way");
@@ -227,7 +228,7 @@ export default function BatchMatrixEntry({
     if (hydrate?.mode === "edit") {
       // Applied in hydrate effect below
     } else if (d) {
-      setMacro((d.macro as MacroId) || "assembly");
+      setMacro((d.macro as MacroId) || "primary");
       setStageId(migrateToStageId(d));
       setDate(d.date);
       setSize(d.size);
@@ -413,7 +414,7 @@ export default function BatchMatrixEntry({
     const first = stationsIn(schema, macro)[0] ?? schema.stations[0];
     if (first) {
       setStageId(first.stageId);
-      setMacro((first.category as MacroId) || "assembly");
+      setMacro((first.category as MacroId) || "primary");
     }
   }, [schema, stageId, macro]);
 
@@ -425,7 +426,7 @@ export default function BatchMatrixEntry({
   // Upstream carry-forward assist
   useEffect(() => {
     setPrefillNote(null);
-    if (!isAssembly || !prevStageId) return;
+    if (!prevStageId) return;
     if (userTouchedQty.current) return;
     if (!events || events.length === 0) return;
     const batchKey = canonicalBatchId(batchId) ?? batchId.trim().toUpperCase();
@@ -452,7 +453,7 @@ export default function BatchMatrixEntry({
     setPrefillNote(
       `Auto-filled ${r.remaining} from ${prevLabel} accepted (${r.previousAccepted.toLocaleString()}) for batch ${batchKey}.${already}`,
     );
-  }, [isAssembly, prevStageId, stageId, batchId, sizeCanon, date, events, schema]);
+  }, [prevStageId, stageId, batchId, sizeCanon, date, events, schema]);
 
   const defectSum = useMemo(
     () => Object.values(defects).reduce((a, b) => a + (Number(b) || 0), 0),
@@ -791,8 +792,13 @@ export default function BatchMatrixEntry({
       }),
     });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error ?? "Ingest failed");
-    return Array.isArray(body.issues) ? (body.issues as EntryIssue[]) : [];
+    const issues = Array.isArray(body.issues) ? (body.issues as EntryIssue[]) : [];
+    if (!res.ok) {
+      const err = new Error(formatLedgerBlockReason(body.error, issues));
+      (err as Error & { issues?: EntryIssue[] }).issues = issues;
+      throw err;
+    }
+    return issues;
   }
 
   function buildPendingRecord(): ShiftBatchRecord {
@@ -902,12 +908,15 @@ export default function BatchMatrixEntry({
       refreshEvents().catch(console.error);
       onSynced?.();
     } catch (e: any) {
-      // Offline fallback: save locally
+      // Offline / ledger-reject fallback: keep the row on this workstation.
       const next = saved.some((b) => b.id === rec.id)
         ? saved.map((b) => (b.id === rec.id ? rec : b))
         : [rec, ...saved];
       setSaved(next);
       persistShift(next);
+
+      const issues = Array.isArray(e?.issues) ? (e.issues as EntryIssue[]) : [];
+      setLastIssues(issues.length ? { batchId: rec.batchId, stage: rec.processName, issues } : null);
 
       setReceipt({
         batchId: rec.batchId,
@@ -918,7 +927,7 @@ export default function BatchMatrixEntry({
         reject: rec.reject,
         savedAt: rec.savedAt,
         synced: false,
-        error: String(e?.message ?? "Could not reach ledger server"),
+        error: formatLedgerBlockReason(e?.message ?? "Could not reach ledger server", issues),
       });
 
       setEditing(null);

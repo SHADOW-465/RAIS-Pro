@@ -7,7 +7,9 @@
 
 import type { Event } from "@/lib/store/types";
 import { type Scope, scopeEvents } from "./scope";
-import { GATE_CHAIN } from "@/lib/ingest/mass-balance";
+import { GATE_CHAIN, FLOW_CHAIN } from "@/lib/ingest/mass-balance";
+import { resolveStageId } from "@/core/ontology/plant-catalog";
+import { passedForward } from "@/lib/entry/passed-forward";
 
 export type IntegrityCode = "V-004" | "V-014" | "V-010" | string;
 
@@ -184,7 +186,7 @@ export function scopeIntegrityIssues(
   const issues: IntegrityIssue[] = [];
 
   issues.push(...defectSumMismatches(ev));
-  issues.push(...massBalanceFromEvents(ev, opts.stageOrder ?? GATE_CHAIN));
+  issues.push(...massBalanceFromEvents(ev, opts.stageOrder ?? FLOW_CHAIN));
 
   for (const f of opts.openFindings ?? []) {
     if (f.state && f.state !== "open") continue;
@@ -261,14 +263,17 @@ function massBalanceFromEvents(
   ev: Event[],
   stageOrder: readonly string[]
 ): IntegrityIssue[] {
-  const rank = new Map(stageOrder.map((s, i) => [s, i]));
+  const inboundRank = new Map(stageOrder.map((s, i) => [s, i]));
+  const canon = (id: string) => resolveStageId(id) ?? id;
   // group by day|size|batch → per-stage checked / available
-  type StageQty = { checked: number; rejected: number; hasChecked: boolean };
+  type StageQty = { checked: number; rejected: number; accepted: number; hold: number; hasChecked: boolean };
   const groups = new Map<string, Map<string, StageQty>>();
 
   for (const e of ev) {
-    const stageId = stageOf(e);
-    if (!stageId || !rank.has(stageId)) continue;
+    const raw = stageOf(e);
+    if (!raw) continue;
+    const stageId = canon(raw);
+    if (!inboundRank.has(stageId)) continue;
     const day = e.occurredOn.start;
     const size = sizeOf(e) ?? "";
     const batch = batchOf(e);
@@ -278,14 +283,17 @@ function massBalanceFromEvents(
       byStage = new Map();
       groups.set(gKey, byStage);
     }
-    const s = byStage.get(stageId) ?? { checked: 0, rejected: 0, hasChecked: false };
+    const s = byStage.get(stageId) ?? { checked: 0, rejected: 0, accepted: 0, hold: 0, hasChecked: false };
+    const disp = (e as { disposition?: string }).disposition;
     if (e.eventType === "production") {
       s.checked += qty(e);
       s.hasChecked = true;
-    } else if (e.eventType === "inspection" && (e as { disposition?: string }).disposition === "rejected") {
+    } else if (e.eventType === "inspection" && disp === "rejected") {
       s.rejected += qty(e);
-    } else if (e.eventType === "inspection" && (e as { disposition?: string }).disposition === "accepted") {
-      // accepted counts improve available when present; tracked via checked−rejected otherwise
+    } else if (e.eventType === "inspection" && (disp === "accepted" || disp === "good")) {
+      s.accepted += qty(e);
+    } else if (e.eventType === "inspection" && disp === "rework") {
+      s.hold += qty(e);
     }
     byStage.set(stageId, s);
   }
@@ -293,14 +301,21 @@ function massBalanceFromEvents(
   const out: IntegrityIssue[] = [];
   for (const [gKey, byStage] of groups) {
     const [date, size, batch] = gKey.split("|");
-    const present = [...byStage.keys()].sort((a, b) => rank.get(a)! - rank.get(b)!);
+    const order = batch ? stageOrder : GATE_CHAIN;
+    const rank = new Map(order.map((s, i) => [s, i]));
+    const present = [...byStage.keys()].filter((id) => rank.has(id)).sort((a, b) => rank.get(a)! - rank.get(b)!);
     for (let i = 1; i < present.length; i++) {
       const prevId = present[i - 1];
       const curId = present[i];
       const prev = byStage.get(prevId)!;
       const cur = byStage.get(curId)!;
       if (!prev.hasChecked || !cur.hasChecked) continue;
-      const avail = prev.checked - prev.rejected;
+      const avail = passedForward({
+        checked: prev.checked,
+        accepted: prev.accepted,
+        rejected: prev.rejected,
+        hold: prev.hold,
+      });
       if (cur.checked > avail) {
         out.push({
           code: "V-014",

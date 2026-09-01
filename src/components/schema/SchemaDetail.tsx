@@ -31,6 +31,8 @@ export interface SchemaDetailProps {
   onSelectId?: (id: string | null) => void;
   onExpand?: (id: string) => void;
   onCanSaveChange?: (canSave: boolean) => void;
+  /** Locked inspector: clicking a capture should open the password gate. */
+  onRequestUnlock?: () => void;
   mutate: (body: Record<string, unknown>, okMsg: string) => void | Promise<void>;
 }
 
@@ -46,6 +48,7 @@ const SchemaDetail = forwardRef<SchemaDetailHandle, SchemaDetailProps>(function 
     onSelectId,
     onExpand,
     onCanSaveChange,
+    onRequestUnlock,
     mutate,
   },
   ref,
@@ -413,26 +416,23 @@ const SchemaDetail = forwardRef<SchemaDetailHandle, SchemaDetailProps>(function 
           />
         </Row>
         <Row label="Captures">
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {CAPTURE_OPTS.map((c) => (
-              <label key={c} style={checkLabel}>
-                <input
-                  type="checkbox"
-                  disabled={!editable}
-                  checked={captures.includes(c)}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      captures: e.target.checked
-                        ? [...captures, c]
-                        : captures.filter((x) => x !== c),
-                    })
-                  }
-                />
-                {c}
-              </label>
-            ))}
-          </div>
+          <CaptureChecks
+            value={captures}
+            editable={editable}
+            busy={busy}
+            onRequestUnlock={onRequestUnlock}
+            onChange={(next) => {
+              setDraft({ ...draft, captures: next });
+              if (!editable || !stage) return;
+              const turnedHoldOn = next.includes("hold") && !captures.includes("hold");
+              void mutate(
+                { action: "upsert-stage", stage: { ...stage, ...draft, captures: next } },
+                turnedHoldOn
+                  ? `Hold is on for ${stage.label} — Data Entry will show a Hold column`
+                  : `Saved captures for ${stage.label}`,
+              );
+            }}
+          />
         </Row>
         <Row label="Quality gate">
           <label style={checkLabel}>
@@ -446,8 +446,9 @@ const SchemaDetail = forwardRef<SchemaDetailHandle, SchemaDetailProps>(function 
           </label>
         </Row>
         <p className="small" style={note}>
-          A stage with no capture columns cannot be typed into and is hidden from
-          Data Entry.
+          {editable
+            ? "Tick Hold to put a Hold qty on Data Entry for this station. A stage with no captures is hidden from Data Entry."
+            : "Unlock edit to change columns — Hold is off until you turn it on and it saves."}
         </p>
         {editable && creating === "defect" ? (
           <NewDefectForm
@@ -569,28 +570,22 @@ const SchemaDetail = forwardRef<SchemaDetailHandle, SchemaDetailProps>(function 
     body = (
       <>
         <p className="small" style={{ ...note, marginTop: 0 }}>
-          Quantity columns this stage records. A stage with none is hidden from Data Entry.
+          Quantity columns this stage records. Tick Hold to show a Hold qty on Data Entry.
         </p>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {CAPTURE_OPTS.map((c) => (
-            <label key={c} style={checkLabel}>
-              <input
-                type="checkbox"
-                disabled={!editable}
-                checked={captures.includes(c)}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    captures: e.target.checked
-                      ? [...captures, c]
-                      : captures.filter((x) => x !== c),
-                  })
-                }
-              />
-              {c}
-            </label>
-          ))}
-        </div>
+        <CaptureChecks
+          value={captures}
+          editable={editable}
+          busy={busy}
+          onRequestUnlock={onRequestUnlock}
+          onChange={(next) => {
+            setDraft({ captures: next });
+            if (!editable) return;
+            void mutate(
+              { action: "upsert-stage", stage: { ...stage, captures: next } },
+              `Saved captures for ${stage.label}`,
+            );
+          }}
+        />
       </>
     );
   } else if (node.kind === "capture" && stage) {
@@ -742,6 +737,67 @@ const note: React.CSSProperties = {
   marginTop: 4,
 };
 
+function CaptureChecks({
+  value,
+  editable,
+  busy,
+  onChange,
+  onRequestUnlock,
+}: {
+  value: string[];
+  editable: boolean;
+  busy?: boolean;
+  onChange: (next: string[]) => void;
+  onRequestUnlock?: () => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {CAPTURE_OPTS.map((c) => {
+        const on = value.includes(c);
+        return (
+          <button
+            key={c}
+            type="button"
+            aria-pressed={on}
+            disabled={busy}
+            title={
+              editable
+                ? on
+                  ? `Turn ${c} off`
+                  : `Turn ${c} on — Data Entry will show this column`
+                : "Unlock edit to change columns"
+            }
+            onClick={() => {
+              if (!editable) {
+                onRequestUnlock?.();
+                return;
+              }
+              onChange(on ? value.filter((x) => x !== c) : [...value, c]);
+            }}
+            style={{
+              fontSize: 12,
+              fontWeight: 650,
+              fontFamily: "var(--font-mono)",
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
+              background: on
+                ? "color-mix(in srgb, var(--accent) 12%, var(--surface))"
+                : "var(--surface-2)",
+              color: on ? "var(--accent)" : "var(--text-2)",
+              cursor: editable ? "pointer" : "pointer",
+              opacity: editable ? 1 : 0.72,
+            }}
+          >
+            {on ? "✓ " : ""}
+            {c}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 interface NewStageDraft {
   stageId: string;
   label: string;
@@ -791,25 +847,11 @@ function NewStageForm({
         />
       </Row>
       <Row label="Captures">
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {CAPTURE_OPTS.map((c) => (
-            <label key={c} style={checkLabel}>
-              <input
-                type="checkbox"
-                checked={draft.captures.includes(c)}
-                onChange={(e) =>
-                  onChange({
-                    ...draft,
-                    captures: e.target.checked
-                      ? [...draft.captures, c]
-                      : draft.captures.filter((x) => x !== c),
-                  })
-                }
-              />
-              {c}
-            </label>
-          ))}
-        </div>
+        <CaptureChecks
+          value={draft.captures}
+          editable
+          onChange={(captures) => onChange({ ...draft, captures })}
+        />
       </Row>
       <FormButtons busy={busy} onCancel={onCancel} />
     </div>

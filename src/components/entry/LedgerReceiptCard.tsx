@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { EntryIssue } from "@/components/BatchMatrixEntry";
+import { formatLedgerBlockReason } from "@/lib/entry/format-ingest-error";
 
 interface LedgerReceiptCardProps {
   receipt: {
@@ -35,6 +35,12 @@ export default function LedgerReceiptCard({
   isRetryingSync,
 }: LedgerReceiptCardProps) {
   if (!receipt && (!lastIssues || lastIssues.issues.length === 0)) return null;
+
+  const blockReason =
+    receipt && (!receipt.synced || receipt.error)
+      ? formatLedgerBlockReason(receipt.error, lastIssues?.issues)
+      : null;
+  const countMismatch = !!blockReason && /passed forward|mass balance|checked \d+ units/i.test(blockReason);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
@@ -172,26 +178,35 @@ export default function LedgerReceiptCard({
             </div>
           </div>
 
-          {receipt.error && (
+          {blockReason && (
             <div
+              role="alert"
               style={{
                 marginTop: 10,
-                padding: "8px 12px",
+                padding: "10px 12px",
                 borderRadius: 6,
                 background: "var(--surface)",
-                fontSize: 12,
+                fontSize: 12.5,
                 color: "var(--critical)",
                 border: "1px solid color-mix(in srgb, var(--critical) 30%, transparent)",
+                lineHeight: 1.45,
               }}
             >
-              <strong>Sync Error:</strong> {receipt.error}. The record is preserved locally and will retry automatically.
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Not on the plant ledger</div>
+              <div>{blockReason}</div>
+              <div style={{ marginTop: 6, color: "var(--text-2)", fontWeight: 400 }}>
+                {countMismatch
+                  ? "Saved on this workstation only. Fix the counts, then retry ledger sync."
+                  : "Saved on this workstation only until retry succeeds."}
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* 2. Server Findings & Clarifications */}
-      {lastIssues && lastIssues.issues.length > 0 && (
+      {/* 2. Server Findings & Clarifications — success path. Unsynced
+          receipts already print these sentences in the banner above. */}
+      {lastIssues && lastIssues.issues.length > 0 && (!receipt || receipt.synced) && (
         <div
           role="status"
           style={{
@@ -214,7 +229,9 @@ export default function LedgerReceiptCard({
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "var(--warning)" }}>
-                Auditor & Ledger Clarifications ({lastIssues.issues.length})
+                {lastIssues.issues.some((i) => i.severity === "critical")
+                  ? `Counts do not add up (${lastIssues.issues.length})`
+                  : `Auditor & Ledger Clarifications (${lastIssues.issues.length})`}
               </span>
               <span style={{ fontSize: 12, color: "var(--text-3)" }}>
                 {lastIssues.batchId} · {lastIssues.stage}

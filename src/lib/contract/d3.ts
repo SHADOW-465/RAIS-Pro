@@ -19,6 +19,7 @@ export const D3_SCHEMA_VERSION = "1.0.0";
 export const RuleId = z.enum([
   "V-001", "V-002", "V-003", "V-004", "V-005", "V-006", "V-007",
   "V-008", "V-009", "V-010", "V-011", "V-012", "V-013",
+  "V-014", // mass-balance: checked(N+1) > available(N)
 ]);
 
 export const Severity = z.enum(["critical", "warning", "info"]);

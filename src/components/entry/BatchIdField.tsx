@@ -71,7 +71,7 @@ export default function BatchIdField({
   const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const dateRef = useRef<HTMLInputElement>(null);
+
 
   const parsed = parseBatchId(batchId);
   // Non-null only when what the operator typed differs from what gets stored.
@@ -109,6 +109,9 @@ export default function BatchIdField({
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
       if (triggerRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      // Portaled DatePicker calendars live on document.body. Treat them as
+      // inside this panel so picking a day can write the lot code.
+      if (t instanceof Element && t.closest("[data-moid-datepicker]")) return;
       setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
@@ -119,7 +122,7 @@ export default function BatchIdField({
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
-    requestAnimationFrame(() => dateRef.current?.focus());
+
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
@@ -305,7 +308,13 @@ export default function BatchIdField({
 
           <DatePicker
             value={batchDate}
-            onChange={(d) => d && onBatchDateChange(d)}
+            inline
+            onChange={(d) => {
+              if (!d) return;
+              onBatchDateChange(d);
+              const id = buildBatchId(d, size);
+              if (id) onBatchIdChange(id);
+            }}
             ariaLabel="Lot date"
           />
 
@@ -345,7 +354,12 @@ export default function BatchIdField({
           <div style={{ display: "flex", gap: 6 }}>
             <button
               type="button"
-              onClick={() => onBatchDateChange(today())}
+              onClick={() => {
+                const d = today();
+                onBatchDateChange(d);
+                const id = buildBatchId(d, size);
+                if (id) onBatchIdChange(id);
+              }}
               style={{ ...btnStyle, flex: 1 }}
             >
               Today

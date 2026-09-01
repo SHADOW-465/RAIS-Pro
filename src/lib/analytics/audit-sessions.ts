@@ -3,6 +3,8 @@
 
 export type AuditDatePreset = "7d" | "30d" | "90d" | "all";
 import { canonicalBatchId } from "@/lib/entry/batch-id";
+import { passedForward } from "@/lib/entry/passed-forward";
+import { sortStageIds } from "@/core/ontology/plant-catalog";
 import { periodKey, periodLabel, type Grain } from "./scope";
 
 export interface AuditEventLike {
@@ -523,8 +525,9 @@ export function buildEntryRows(
     const explicitAccepted = a.atoms.get("inspection:accepted")?.qty ?? 0;
     const rejected = a.atoms.get("inspection:rejected")?.qty ?? 0;
     const rework = a.atoms.get("inspection:rework")?.qty ?? 0;
+    // accept = checked − (rejected + hold) when accepted was not stated.
     const accepted =
-      explicitAccepted > 0 ? explicitAccepted : Math.max(0, checked - rejected);
+      explicitAccepted > 0 ? explicitAccepted : passedForward({ checked, rejected, hold: rework });
 
     const defects: { code: string; qty: number }[] = [];
     for (const [k, atom] of a.atoms) {
@@ -633,74 +636,30 @@ export function groupByBatchThenStage(rows: AuditEntryRow[]): AuditBatchGroup[] 
       else byStage.set(r.stageId, [r]);
     }
 
-    // Prefer quality-gate order when known
-    const STAGE_ORDER = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
-    const stageIds = [...byStage.keys()].sort((a, b) => {
-      const ia = STAGE_ORDER.indexOf(a);
-      const ib = STAGE_ORDER.indexOf(b);
-      if (ia >= 0 || ib >= 0) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-      return a.localeCompare(b);
-    });
+    // Plant schema order: Primary dipping → secondary → assembly.
+    // The old visual-first list made lot CHECKED read Visual (1,000) while
+    // production-dipping had already recorded the units that entered the line.
+    const stageIds = sortStageIds([...byStage.keys()]);
 
     const stages: AuditStageBucket[] = [];
-    let initialBatchLotChecked = 0;
     let rejectedQty = 0;
     let eventCount = 0;
     let dateFrom = "9999-99-99";
     let dateTo = "";
     const sources = new Set<"manual" | "excel" | "mixed">();
 
-    let prevStageAccepted: number | null = null;
-
-    for (let idx = 0; idx < stageIds.length; idx++) {
-      const stageId = stageIds[idx];
-      const srowsRaw = (byStage.get(stageId) ?? []).sort((a, b) => b.date.localeCompare(a.date));
+    for (const stageId of stageIds) {
+      const srows = (byStage.get(stageId) ?? []).sort((a, b) => b.date.localeCompare(a.date));
       let sc = 0;
       let sa = 0;
       let sr = 0;
+      let sh = 0;
 
-      // Calculate initial stage sum
-      for (const r of srowsRaw) {
+      for (const r of srows) {
         sc += r.checked;
         sa += r.accepted;
         sr += r.rejected;
-      }
-
-      if (idx === 0) {
-        initialBatchLotChecked = sc;
-      }
-
-      // If this is a subsequent stage (idx > 0) and the previous stage passed forward units,
-      // check if this stage's recorded checked was set to the batch initial lot size or missing.
-      let cascadedChecked = sc;
-      let cascadedAccepted = sa;
-      if (idx > 0 && prevStageAccepted != null && prevStageAccepted > 0) {
-        // If current stage raw checked equals initial batch lot size (e.g. 400),
-        // or if it was 0/missing, cascade the previous stage's accepted qty (e.g. 120).
-        if (sc === initialBatchLotChecked || sc === 0) {
-          cascadedChecked = prevStageAccepted;
-          cascadedAccepted = Math.max(0, cascadedChecked - sr);
-        }
-      }
-
-      // Clone rows with updated cascaded checked / accepted if adjusted
-      const srows: AuditEntryRow[] = srowsRaw.map((r) => {
-        let rowChecked = r.checked;
-        let rowAccepted = r.accepted;
-        if (idx > 0 && prevStageAccepted != null && prevStageAccepted > 0) {
-          if (r.checked === initialBatchLotChecked || r.checked === 0) {
-            rowChecked = prevStageAccepted;
-            rowAccepted = Math.max(0, rowChecked - r.rejected);
-          }
-        }
-        return {
-          ...r,
-          checked: rowChecked,
-          accepted: rowAccepted,
-        };
-      });
-
-      for (const r of srows) {
+        sh += r.rework;
         eventCount += r.eventIds.length;
         sources.add(r.source);
         if (r.date && r.date < dateFrom) dateFrom = r.date;
@@ -708,13 +667,12 @@ export function groupByBatchThenStage(rows: AuditEntryRow[]): AuditBatchGroup[] 
       }
 
       rejectedQty += sr;
-      prevStageAccepted = cascadedAccepted;
 
       stages.push({
         stageId,
         rows: srows,
-        checkedQty: cascadedChecked,
-        acceptedQty: cascadedAccepted,
+        checkedQty: sc,
+        acceptedQty: passedForward({ checked: sc, accepted: sa, rejected: sr, hold: sh }),
         rejectedQty: sr,
         rowCount: srows.length,
       });
@@ -723,13 +681,16 @@ export function groupByBatchThenStage(rows: AuditEntryRow[]): AuditBatchGroup[] 
     if (dateFrom === "9999-99-99") dateFrom = "—";
     if (!dateTo) dateTo = dateFrom;
 
-    const finalStageAccepted = stages.length > 0 ? stages[stages.length - 1].acceptedQty : 0;
+    // Lot going in = first plant-schema stage that recorded a check.
+    // Lot coming out = last stage's passed-forward (accept = checked − reject − hold).
+    const firstIn = stages.find((s) => s.checkedQty > 0);
+    const lastOut = [...stages].reverse().find((s) => s.acceptedQty > 0 || s.checkedQty > 0);
 
     groups.push({
       batch,
       stages,
-      checkedQty: initialBatchLotChecked,
-      acceptedQty: finalStageAccepted,
+      checkedQty: firstIn?.checkedQty ?? 0,
+      acceptedQty: lastOut?.acceptedQty ?? 0,
       rejectedQty,
       rowCount: batchRows.length,
       eventCount,

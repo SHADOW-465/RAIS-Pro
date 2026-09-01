@@ -12,22 +12,34 @@
 
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import type { ClarificationIssue } from "@/lib/entry/validate-entry";
+import { FLOW_CHAIN, resolveStageId } from "@/core/ontology/plant-catalog";
+import { passedForward } from "@/lib/entry/passed-forward";
 
-/** Canonical assembly gate chain (Grain Contract A16). */
+export { FLOW_CHAIN };
+
+/** Canonical assembly gate chain (Grain Contract A16). Used when a row has
+ *  no lot code — Primary and Assembly are then separate populations. */
 export const GATE_CHAIN = ["visual", "balloon", "valve-integrity", "final"] as const;
+
+function chainId(stageId: string): string {
+  return resolveStageId(stageId) ?? stageId;
+}
 
 export interface MassBalanceIssue extends ClarificationIssue {
   stageId: string;   // the receiving stage (where the impossible Checked was entered)
   date: string;
 }
 
-/** Units the stage made available to the next gate. Null when not derivable. */
+/** Units the stage made available to the next gate. Null when not derivable.
+ *  accept = checked − (rejected + hold) when accepted was not stated. */
 function available(rec: StageDayRecord): number | null {
   if (rec.acceptedGood?.value != null) return rec.acceptedGood.value;
-  const checked = rec.checked?.value ?? null;
-  const rejected = rec.rejected?.value ?? null;
-  if (checked == null) return null;
-  return checked - (rejected ?? 0);
+  if (rec.checked?.value == null) return null;
+  return passedForward({
+    checked: rec.checked.value,
+    rejected: rec.rejected?.value ?? 0,
+    hold: rec.rework?.value ?? 0,
+  });
 }
 
 /**
@@ -77,15 +89,15 @@ function lotKey(size: string | null | undefined, batch: string, date: string): s
 
 export function massBalanceIssues(
   records: StageDayRecord[],
-  stageOrder: readonly string[] = GATE_CHAIN,
+  stageOrder: readonly string[] = FLOW_CHAIN,
   priors: PriorGateQty[] = [],
 ): MassBalanceIssue[] {
-  const rank = new Map(stageOrder.map((s, i) => [s, i]));
+  const inboundRank = new Map(stageOrder.map((s, i) => [s, i]));
   // Group by the physical lot: same size, same batch. Date is a split of
   // that lot at a gate, not a different flow.
   const groups = new Map<string, StageDayRecord[]>();
   for (const r of records) {
-    if (!rank.has(r.stageId)) continue;
+    if (!inboundRank.has(chainId(r.stageId))) continue;
     const batch = String(r.customFields?.batch ?? r.customFields?.batchId ?? "").trim();
     const key = lotKey(r.size, batch, r.occurredOn.start);
     const arr = groups.get(key);
@@ -95,7 +107,7 @@ export function massBalanceIssues(
   // Index what the ledger already holds, by the same lot.
   const priorsByGroup = new Map<string, PriorGateQty[]>();
   for (const p of priors) {
-    if (!rank.has(p.stageId)) continue;
+    if (!inboundRank.has(chainId(p.stageId))) continue;
     const key = lotKey(p.size, p.batch, p.date);
     const arr = priorsByGroup.get(key);
     if (arr) arr.push(p); else priorsByGroup.set(key, [p]);
@@ -103,13 +115,20 @@ export function massBalanceIssues(
 
   const issues: MassBalanceIssue[] = [];
   for (const [groupKey, group] of groups) {
+    const batch = String(group[0]?.customFields?.batch ?? group[0]?.customFields?.batchId ?? "").trim();
+    // Unnamed Excel rows are section-separate populations. A named lot is
+    // one physical flow: dipping → secondary → assembly.
+    const order = batch ? stageOrder : GATE_CHAIN;
+    const rank = new Map(order.map((s, i) => [s, i]));
     // Per (stage, date) so a payload restatement of Tuesday does not drop
     // Monday's numbers of the same gate, and does not double-count Tuesday.
     const byStageDate = new Map<string, StageDayQty>();
     const stageDateKey = (stageId: string, date: string) => `${stageId}|${date}`;
 
     for (const p of priorsByGroup.get(groupKey) ?? []) {
-      byStageDate.set(stageDateKey(p.stageId, p.date), {
+      const sid = chainId(p.stageId);
+      if (!rank.has(sid)) continue;
+      byStageDate.set(stageDateKey(sid, p.date), {
         avail: p.available,
         checked: p.checked ?? 0,
         hasAvail: true,
@@ -119,7 +138,9 @@ export function massBalanceIssues(
 
     const payloadDays = new Set<string>();
     for (const r of group) {
-      const key = stageDateKey(r.stageId, r.occurredOn.start);
+      const sid = chainId(r.stageId);
+      if (!rank.has(sid)) continue;
+      const key = stageDateKey(sid, r.occurredOn.start);
       // First payload row for this stage+date replaces the ledger fact for
       // that day (a restatement). Further payload rows of the same day sum,
       // the way two sheets covering one inspection always have.
@@ -144,7 +165,7 @@ export function massBalanceIssues(
       byStage.set(stageId, s);
     }
 
-    const present = [...byStage.keys()].sort((a, b) => rank.get(a)! - rank.get(b)!);
+    const present = [...byStage.keys()].filter((id) => rank.has(id)).sort((a, b) => rank.get(a)! - rank.get(b)!);
     for (let i = 1; i < present.length; i++) {
       // Compare against the nearest UPSTREAM gate present in the data — a
       // missing middle gate (data gap) must not suppress the check entirely.
@@ -152,13 +173,13 @@ export function massBalanceIssues(
       const cur = byStage.get(present[i])!;
       if (!prev.hasAvail || !cur.hasChecked) continue;
       if (cur.checked > prev.avail) {
-        const rec = group.find((r) => r.stageId === present[i])!;
+        const rec = group.find((r) => chainId(r.stageId) === present[i]);
         issues.push({
           code: "V-014",
           severity: "critical",
           field: "checked",
-          stageId: present[i],
-          date: rec.occurredOn.start,
+          stageId: rec?.stageId ?? present[i],
+          date: rec?.occurredOn.start ?? group[0]!.occurredOn.start,
           message:
             `Mass balance: ${present[i]} checked ${cur.checked} units, but ${present[i - 1]} ` +
             `only passed forward ${prev.avail}. Where did the extra ${cur.checked - prev.avail} come from?`,

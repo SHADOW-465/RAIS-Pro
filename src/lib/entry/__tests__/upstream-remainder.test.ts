@@ -73,6 +73,23 @@ describe("upstreamRemainder", () => {
     expect(r.remaining).toBe(600);
   });
 
+  it("Visual remaining is production accepted on a named lot", () => {
+    const r = upstreamRemainder({
+      events: [
+        ev({ stageId: "production-dipping", eventType: "production", quantity: 2000, date: "2026-08-31" }),
+        ev({ stageId: "production-dipping", eventType: "inspection", disposition: "accepted", quantity: 1500, date: "2026-08-31" }),
+        ev({ stageId: "production-dipping", eventType: "inspection", disposition: "rejected", quantity: 500, date: "2026-08-31" }),
+      ],
+      lot: "26H01-18",
+      previousStation: "production",
+      currentStation: "visual",
+      size: "Fr18",
+      excludeDate: "2026-08-31",
+    });
+    expect(r.previousAccepted).toBe(1500);
+    expect(r.remaining).toBe(1500);
+  });
+
   it("does not mix lots or sizes", () => {
     const r = upstreamRemainder({
       events: [

@@ -200,6 +200,31 @@ describe("buildEntryRows + groupByBatchThenStage", () => {
     expect(tree[0].stages.map((s) => s.stageId)).toEqual(["visual", "balloon"]);
   });
 
+  it("lot CHECKED is production-dipping, not Assembly Visual", () => {
+    const events: AuditEventLike[] = [
+      ev({ eventId: "d1", eventType: "production", stageId: "production-dipping", quantity: 2000, customFields: { batch: "27A01-20" }, occurredOn: { start: "2026-08-31", end: "2026-08-31" } } as any),
+      ev({ eventId: "d1a", eventType: "inspection", stageId: "production-dipping", disposition: "accepted", quantity: 1500, customFields: { batch: "27A01-20" }, occurredOn: { start: "2026-08-31", end: "2026-08-31" } } as any),
+      ev({ eventId: "d1r", eventType: "inspection", stageId: "production-dipping", disposition: "rejected", quantity: 500, customFields: { batch: "27A01-20" }, occurredOn: { start: "2026-08-31", end: "2026-08-31" } } as any),
+      ev({ eventId: "d2", eventType: "production", stageId: "production-dipping", quantity: 1650, customFields: { batch: "27A01-20" }, occurredOn: { start: "2026-09-01", end: "2026-09-01" } } as any),
+      ev({ eventId: "d2a", eventType: "inspection", stageId: "production-dipping", disposition: "accepted", quantity: 1450, customFields: { batch: "27A01-20" }, occurredOn: { start: "2026-09-01", end: "2026-09-01" } } as any),
+      ev({ eventId: "d2r", eventType: "inspection", stageId: "production-dipping", disposition: "rejected", quantity: 200, customFields: { batch: "27A01-20" }, occurredOn: { start: "2026-09-01", end: "2026-09-01" } } as any),
+      ev({ eventId: "v1", eventType: "production", stageId: "visual", quantity: 1000, customFields: { batch: "27A01-20" }, occurredOn: { start: "2026-08-31", end: "2026-08-31" } } as any),
+      ev({ eventId: "v1a", eventType: "inspection", stageId: "visual", disposition: "accepted", quantity: 800, customFields: { batch: "27A01-20" }, occurredOn: { start: "2026-08-31", end: "2026-08-31" } } as any),
+      ev({ eventId: "v1h", eventType: "inspection", stageId: "visual", disposition: "rework", quantity: 100, customFields: { batch: "27A01-20" }, occurredOn: { start: "2026-08-31", end: "2026-08-31" } } as any),
+      ev({ eventId: "v1r", eventType: "inspection", stageId: "visual", disposition: "rejected", quantity: 100, customFields: { batch: "27A01-20" }, occurredOn: { start: "2026-08-31", end: "2026-08-31" } } as any),
+    ];
+    const rows = buildEntryRows(events);
+    const visual = rows.find((r) => r.stageId === "visual")!;
+    expect(visual.checked).toBe(visual.accepted + visual.rework + visual.rejected);
+
+    const tree = groupByBatchThenStage(rows);
+    expect(tree).toHaveLength(1);
+    expect(tree[0].stages.map((s) => s.stageId)).toEqual(["production-dipping", "visual"]);
+    expect(tree[0].checkedQty).toBe(3650);
+    expect(tree[0].checkedQty).not.toBe(1000);
+    expect(tree[0].rejectedQty).toBe(800);
+  });
+
   it("last-write-wins: re-save does not double checked qty", () => {
     const events: AuditEventLike[] = [
       ev({
