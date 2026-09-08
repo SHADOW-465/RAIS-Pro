@@ -19,6 +19,7 @@ import {
   pickEntryGate,
   resolveStageId,
   stageSortKey,
+  stageCategoryOf,
 } from "@/core/ontology/plant-catalog";
 import { canonicalBatchId, parseBatchId } from "@/lib/entry/batch-id";
 
@@ -554,7 +555,7 @@ function entryStageChecked(rows: SourceRow[]): {
     stageLabel.set(stage, STAGE_LABELS[stage] ?? r.stage ?? stage);
 
     // Unclassified stages become their own section rather than borrowing one.
-    const section = STAGE_CATEGORY[stage] ?? stage;
+    const section = stageCategoryOf(stage) ?? stage;
     let set = sectionStages.get(section);
     if (!set) sectionStages.set(section, (set = new Set()));
     set.add(stage);
@@ -795,7 +796,7 @@ export function summarizeSource(
   const sectionGates = new Map<string, { key: string; label: string; rejectedQty: number }[]>();
   for (const g of stageBreakdown) {
     if (g.rejectedQty <= 0) continue;
-    const section = STAGE_CATEGORY[g.key] ?? g.key;
+    const section = stageCategoryOf(g.key) ?? g.key;
     const list = sectionGates.get(section) ?? [];
     list.push({ key: g.key, label: g.label, rejectedQty: g.rejectedQty });
     sectionGates.set(section, list);

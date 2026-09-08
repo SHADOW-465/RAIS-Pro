@@ -3,7 +3,7 @@
 // stage-specific target sets that caused the Excel's false "OK" verdicts stay
 // distinguishable from "no target".
 
-import { STAGES, STAGE_CATEGORIES, DEFECTS, SIZES, DEFECT_TARGETS, plantCatalog, mergePlantCatalog, canonicalDefectCode, resolveStageId, sortStageIds, stageSortKey } from "../plant-catalog";
+import { STAGES, STAGE_CATEGORIES, DEFECTS, SIZES, DEFECT_TARGETS, plantCatalog, mergePlantCatalog, canonicalDefectCode, resolveStageId, sortStageIds, stageSortKey, stageCategoryOf } from "../plant-catalog";
 import { StageDef, DefectDef, SizeDef } from "@/lib/contract/d1";
 import type { CompanyCatalog } from "@/core/ontology/store/catalog-store";
 
@@ -195,4 +195,6 @@ test("production-dipping is production on the plant line, and sorts before Visua
     "visual",
     "balloon",
   ]);
+  expect(stageCategoryOf("production-dipping")).toBe("primary");
+  expect(stageCategoryOf("production")).toBe("primary");
 });

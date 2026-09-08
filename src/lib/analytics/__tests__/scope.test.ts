@@ -665,6 +665,41 @@ describe("describeActiveScope / plant default", () => {
     expect(s).toMatch(/26F27-14/);
   });
 
+  it("production-dipping Data Entry rows count in the Production Dipping section", () => {
+    const dip = makeEv({
+      eventId: "dip-1",
+      eventType: "production",
+      stageId: "production-dipping",
+      qty: 1650,
+      extractedBy: "direct-entry",
+      file: "Manual Entry",
+      batchNo: "27A01-20",
+      day: "2026-08-31",
+    });
+    const visual = makeEv({
+      eventId: "vis-1",
+      eventType: "production",
+      stageId: "visual",
+      qty: 1000,
+      extractedBy: "direct-entry",
+      file: "Manual Entry",
+      batchNo: "27A01-20",
+      day: "2026-08-31",
+    });
+    const primary = resolveScope([dip, visual], {
+      grain: "day",
+      datePreset: "all",
+      dateFrom: "",
+      dateTo: "",
+      includeExcel: true,
+      includeDirectEntry: true,
+      stageCategories: ["primary"],
+    });
+    const kept = scopeEvents([dip, visual], primary);
+    expect(kept.map((e) => e.eventId)).toEqual(["dip-1"]);
+    expect(listBatchIds(kept)).toEqual(["27A01-20"]);
+  });
+
   it("describeSourceFilter includes full plant when no batch filter", () => {
     const scope = resolveScope([], {
       grain: "month",

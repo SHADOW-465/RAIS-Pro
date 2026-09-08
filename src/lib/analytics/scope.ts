@@ -13,11 +13,13 @@ import {
   STAGE_CATEGORY,
   STAGE_CATEGORIES,
   DEFAULT_STAGE_CATEGORIES,
+  resolveStageId,
+  stageCategoryOf,
   type StageCategory,
 } from "@/core/ontology/plant-catalog";
 
 export type { StageCategory };
-export { STAGE_CATEGORIES, DEFAULT_STAGE_CATEGORIES, STAGE_CATEGORY };
+export { STAGE_CATEGORIES, DEFAULT_STAGE_CATEGORIES, STAGE_CATEGORY, stageCategoryOf };
 
 export type Grain = "day" | "week" | "month" | "fy";
 
@@ -71,6 +73,23 @@ export function policyOf(scope: Scope): CalculationPolicyT {
 
 function stageOf(e: Event): string | null {
   return "stageId" in e ? (e.stageId as string) : null;
+}
+
+/** `production-dipping` matches a primary-section allow-list of `production`. */
+function stageIdAllowed(stageId: string, allowed: Set<string>): boolean {
+  if (allowed.has(stageId)) return true;
+  const canon = resolveStageId(stageId);
+  return !!canon && allowed.has(canon);
+}
+
+function stageAllowSet(ids: string[]): Set<string> {
+  const allowed = new Set<string>();
+  for (const id of ids) {
+    allowed.add(id);
+    const canon = resolveStageId(id);
+    if (canon) allowed.add(canon);
+  }
+  return allowed;
 }
 function sizeOf(e: Event): string | null {
   return "size" in e ? ((e.size as string | null) ?? null) : null;
@@ -187,7 +206,7 @@ export function describeSectionsFromStageIds(stageIds?: string[]): string | null
   if (stageIds.length === 0) return "No sections";
   const cats = new Set<StageCategory>();
   for (const id of stageIds) {
-    const c = STAGE_CATEGORY[id];
+    const c = stageCategoryOf(id);
     if (c) cats.add(c);
   }
   if (cats.size === 0) return null;
@@ -404,6 +423,7 @@ export function scopeEvents(events: Event[], scope: Scope): Event[] {
   const batches = scope.batchIds?.length
     ? new Set(scope.batchIds.map((b) => b.toUpperCase()))
     : null;
+  const allowedStageIds = scope.stageIds ? stageAllowSet(scope.stageIds) : null;
 
   const filtered = events.filter((e) => {
     // Custom range is the lot calendar encoded in the batch ID (H = August),
@@ -426,9 +446,9 @@ export function scopeEvents(events: Event[], scope: Scope): Event[] {
     }
     // Same rule as channels: `undefined` = no restriction, `[]` = the user
     // deselected every section, so nothing qualifies.
-    if (scope.stageIds) {
+    if (allowedStageIds) {
       const s = stageOf(e);
-      if (s != null && !scope.stageIds.includes(s)) return false;
+      if (s != null && !stageIdAllowed(s, allowedStageIds)) return false;
     }
     if (scope.sizes?.length) {
       const s = sizeOf(e);

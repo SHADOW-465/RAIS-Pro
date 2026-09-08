@@ -197,9 +197,19 @@ function isMissingTable(err: unknown): boolean {
  *  migration that fixes the actual permission-denied cause) shipped as a
  *  follow-up precisely because this check didn't catch it. */
 function isReadUnavailable(err: unknown): boolean {
+  if (!err) return false;
   if (isMissingTable(err)) return true;
   const code = (err as { code?: string } | null)?.code;
-  return code === "42501"; // Postgres: insufficient_privilege
+  if (code === "42501") return true; // Postgres: insufficient_privilege
+
+  const msg =
+    String((err as { message?: string } | null)?.message ?? "") +
+    " " +
+    String((err as { details?: string } | null)?.details ?? "");
+
+  return /fetch failed|timeout|connect|econnrefused|enotfound|etimedout|ehostunreach|network|und_err/i.test(
+    msg,
+  );
 }
 
 class SupabaseUserStore implements UserStore {
@@ -207,41 +217,59 @@ class SupabaseUserStore implements UserStore {
     return createServerClient();
   }
   async list(companyId: string) {
-    const { data, error } = await this.client
-      .from("plant_users")
-      .select("*")
-      .eq("company_id", companyId)
-      .order("username");
-    if (error) {
-      if (isReadUnavailable(error)) {
+    try {
+      const { data, error } = await this.client
+        .from("plant_users")
+        .select("*")
+        .eq("company_id", companyId)
+        .order("username");
+      if (error) {
+        if (isReadUnavailable(error)) {
+          // eslint-disable-next-line no-console
+          console.error("[auth] plant_users unreadable, treating as empty:", error);
+          return [];
+        }
+        throw error;
+      }
+      return (data ?? []).map(rowToUser).map(strip);
+    } catch (err) {
+      if (isReadUnavailable(err)) {
         // eslint-disable-next-line no-console
-        console.error("[auth] plant_users unreadable, treating as empty:", error);
+        console.error("[auth] plant_users unreadable, treating as empty:", err);
         return [];
       }
-      throw error;
+      throw err;
     }
-    return (data ?? []).map(rowToUser).map(strip);
   }
   async find(companyId: string, username: string) {
-    const { data, error } = await this.client
-      .from("plant_users")
-      .select("*")
-      .eq("company_id", companyId)
-      .eq("username", normalizeUsername(username))
-      .maybeSingle();
-    if (error) {
-      if (isReadUnavailable(error)) {
-        // The login path reaches this. A DB-side misconfiguration must not
-        // block sign-in — it should just mean "no named user by this name",
-        // so the preset role login (which never touches this table) still
-        // works while someone fixes the underlying grant.
+    try {
+      const { data, error } = await this.client
+        .from("plant_users")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("username", normalizeUsername(username))
+        .maybeSingle();
+      if (error) {
+        if (isReadUnavailable(error)) {
+          // The login path reaches this. A DB-side misconfiguration must not
+          // block sign-in — it should just mean "no named user by this name",
+          // so the preset role login (which never touches this table) still
+          // works while someone fixes the underlying grant.
+          // eslint-disable-next-line no-console
+          console.error("[auth] plant_users unreadable, treating as no match:", error);
+          return null;
+        }
+        throw error;
+      }
+      return data ? rowToUser(data) : null;
+    } catch (err) {
+      if (isReadUnavailable(err)) {
         // eslint-disable-next-line no-console
-        console.error("[auth] plant_users unreadable, treating as no match:", error);
+        console.error("[auth] plant_users unreadable, treating as no match:", err);
         return null;
       }
-      throw error;
+      throw err;
     }
-    return data ? rowToUser(data) : null;
   }
   async upsert(companyId: string, user: StoredUser) {
     const { error } = await this.client.from("plant_users").upsert(

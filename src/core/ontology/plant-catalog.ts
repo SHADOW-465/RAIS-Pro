@@ -144,6 +144,14 @@ export function resolveStageId(idOrLabel?: string | null): string | undefined {
   return undefined;
 }
 
+/** Shop-floor section for a stage id or catalog alias (`production-dipping` → primary). */
+export function stageCategoryOf(stageId?: string | null): StageCategory | undefined {
+  if (!stageId) return undefined;
+  if (STAGE_CATEGORY[stageId]) return STAGE_CATEGORY[stageId];
+  const canon = resolveStageId(stageId);
+  return canon ? STAGE_CATEGORY[canon] : undefined;
+}
+
 /** Position on the line. Stages the catalog never authored sort last (99) — they
  *  become their own section anyway, so they never displace a real entry gate. */
 export function stageSortKey(stageId?: string | null, stageLabel?: string | null): number {

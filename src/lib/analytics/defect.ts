@@ -44,6 +44,17 @@ export function byDefect(events: Event[], scope: Scope, registry: Registry = DER
     });
 }
 
+/** Catalog / plant-schema order for charts — COAG before SD, not volume order. */
+export function orderDefectsByCatalog(rows: DefectRow[], registry: Registry = DERIVED_REGISTRY): DefectRow[] {
+  const rank = new Map(registry.defects.map((d, i) => [d.defectCode, i]));
+  return [...rows].sort((a, b) => {
+    const ia = a.defectCode != null ? (rank.get(a.defectCode) ?? 1000) : 1001;
+    const ib = b.defectCode != null ? (rank.get(b.defectCode) ?? 1000) : 1001;
+    if (ia !== ib) return ia - ib;
+    return a.label.localeCompare(b.label);
+  });
+}
+
 export interface DefectTrendPoint { period: string; label: string; perDefect: Record<string, number> }
 
 /** Top-N defects' qty over time. */

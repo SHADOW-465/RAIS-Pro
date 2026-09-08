@@ -11,7 +11,7 @@ import {
   policyOf,
 } from "./scope";
 import { DEFAULT_POLICY, type CalculationPolicyT } from "@/core/policy/policy";
-import { STAGE_CATEGORY, pickEntryGate, stageSortKey } from "@/core/ontology/plant-catalog";
+import { pickEntryGate, stageSortKey, stageCategoryOf } from "@/core/ontology/plant-catalog";
 
 /** Structural catalog type — the caller's MOD catalog (or a test fixture). */
 export type Registry = { stages: any[]; defects: any[]; sizes: any[]; fiscalYearStartMonth: number };
@@ -277,7 +277,7 @@ export function bySection(
   for (const s of stages) {
     // A stage the catalog doesn't classify is its own section — never silently
     // folded into someone else's denominator.
-    const section = STAGE_CATEGORY[s.stageId] ?? s.stageId;
+    const section = stageCategoryOf(s.stageId) ?? s.stageId;
     let cur = acc.get(section);
     if (!cur) {
       cur = { section, entryStageId: null, checked: 0, rejected: 0, rate: 0 };
