@@ -72,53 +72,60 @@ const WORKSPACE_CSS = `
 .rw { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .rw-grid {
   display: grid;
-  grid-template-columns: minmax(200px, 240px) minmax(280px, 360px) minmax(0, 1fr);
-  gap: 0;
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+/* Setup rail: sticks while the preview scrolls with the page. One scrollbar, not four. */
+.rw-setup {
+  position: sticky;
+  top: 0;
+  display: flex; flex-direction: column; min-width: 0;
+  max-height: calc(100vh - var(--header-h, 56px) - 48px);
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   background: var(--surface);
-  height: min(78vh, 880px);
-  min-height: 0;
   overflow: hidden;
 }
-.rw-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
-.rw-col-types, .rw-scope, .rw-preview {
-  display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden;
-  border-right: 1px solid var(--border);
-}
-.rw-preview { border-right: none; }
-.rw-lock {
-  font-size: 14px;
-  color: var(--text-2);
-  margin-top: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
+.rw-preview {
+  display: flex; flex-direction: column; min-width: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-2);
+  overflow: hidden;
 }
 .rw-hd { padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .rw-scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
+.rw-preview .rw-scroll { overflow: visible; padding: 16px; }
+.rw-sec {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-3, var(--text-2)); margin: 4px 0 8px;
+}
+.rw-sec + .rw-sec, .rw-field + .rw-sec { margin-top: 18px; }
 .rw-type {
-  width: 100%; text-align: left; padding: 12px 12px; margin-bottom: 8px;
-  min-height: 44px; border-radius: 10px; border: 1px solid var(--border);
+  width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 6px;
+  min-height: 40px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--surface); color: var(--text); cursor: pointer; font: inherit; font-size: 14px;
 }
 .rw-type[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-weak); }
+.rw-type[aria-pressed="true"] .rw-chip { color: var(--text-2); }
 .rw-seg { display: flex; gap: 6px; }
 .rw-seg button {
-  flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid var(--border-strong);
+  flex: 1; min-height: 40px; border-radius: 10px; border: 1px solid var(--border-strong);
   background: var(--surface); color: var(--text); font: inherit; font-size: 14px; cursor: pointer;
 }
 .rw-seg button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-weak); font-weight: 600; }
 .rw-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .rw-field label, .rw-check { font-size: 14px; color: var(--text); }
 .rw-select, .rw-input, .rw-area {
-  min-height: 44px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-strong);
+  min-height: 40px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-strong);
   background: var(--surface); color: var(--text); font: inherit; font-size: 14px; width: 100%; box-sizing: border-box;
 }
 .rw-area { min-height: 72px; }
-.rw-check { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+.rw-check { display: flex; align-items: center; gap: 8px; min-height: 36px; cursor: pointer; }
 .rw-primary, .rw-ghost {
-  min-height: 44px; padding: 10px 16px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  min-height: 40px; padding: 10px 16px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
 }
 .rw-primary { border: none; background: var(--accent); color: var(--text-invert, #fff); }
 .rw-primary:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -129,47 +136,39 @@ const WORKSPACE_CSS = `
   background: var(--surface); font: inherit; font-size: 14px; cursor: pointer;
 }
 .rw-tabs button[aria-selected="true"] { border-color: var(--accent); background: var(--accent-weak); font-weight: 600; }
-.rw-actions { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
-.rw-preview-paper { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+/* Export actions ride the top of the preview so they are reachable without scrolling to the end. */
+.rw-actions {
+  position: sticky; top: 0; z-index: 4;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.rw-actions .rw-primary { flex: 0 0 auto; }
+.rw-actions .rw-msg { flex: 1 1 220px; min-width: 0; }
+.rw-preview-paper {
+  background: #fff; color: #14181f;
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 32px; margin: 0 auto; max-width: 900px;
+}
 .rw-chip { font-size: 13px; color: var(--text-2); }
 .rw-status { font-size: 14px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); }
 .rw-status.ok { background: var(--positive-weak); }
 .rw-status.block { background: var(--critical-weak); }
 .rw-status.warn { background: var(--warning-weak); }
-.rw-type-rail { display: none; }
-.rw-sticky-print { display: none; }
-@media (max-width: 1279px) {
-  .rw-grid { grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
-  .rw-col-types { display: none; }
-}
-@media (max-width: 767px) {
-  .rw-grid { grid-template-columns: 1fr; height: auto; min-height: 50vh; }
-  .rw-col { border-right: none; border-bottom: 1px solid var(--border); }
+.rw-save { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+@media (max-width: 900px) {
+  .rw-grid { grid-template-columns: 1fr; }
+  .rw-setup { position: static; max-height: none; }
   .rw-tabs { display: flex; }
-  .rw-col-types, .rw-scope, .rw-preview { display: none; }
-  .rw-col-types.rw-show, .rw-scope.rw-show, .rw-preview.rw-show { display: flex; flex-direction: column; min-height: 60vh; }
-  .rw-sticky-print {
-    display: flex;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    padding: 8px 0 10px;
-    background: var(--bg);
-  }
-  .rw-desktop-print { display: none; }
-}
-@media (min-width: 768px) and (max-width: 1279px) {
-  .rw-type-rail { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-}
-@media (min-width: 1280px) {
-  .rw-type-rail { display: none; }
+  .rw-setup, .rw-preview { display: none; }
+  .rw-setup.rw-show, .rw-preview.rw-show { display: flex; }
+  .rw-preview-paper { padding: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .rw-type, .rw-seg button, .rw-primary, .rw-ghost { transition: none; }
 }
 `;
 
-type MobileTab = "report" | "scope" | "preview";
+type MobileTab = "setup" | "preview";
 
 function stateKey(s: {
   reportType: ReportType;
@@ -207,7 +206,7 @@ export default function ReportsWorkspace({
   const [excelFiles, setExcelFiles] = useState<string[]>([]);
   const [batchIds, setBatchIds] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
-  const [mobileTab, setMobileTab] = useState<MobileTab>("report");
+  const [mobileTab, setMobileTab] = useState<MobileTab>("setup");
   const [printing, setPrinting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [msg, setMsg] = useState<{ text: string; tone: "ok" | "err" } | null>(null);
@@ -424,13 +423,14 @@ export default function ReportsWorkspace({
   const blockReason = !built.ok ? built.error : model && !model.validation.canExport ? model.validation.blockers[0] : null;
   const canPrint = built.ok && !!model?.validation.canExport;
 
-  const typesPane = (
-    <div className="rw-col">
+  const setupPane = (
+    <>
       <div className="rw-hd">
-        <div style={{ fontWeight: 700, fontSize: 15 }}>Report</div>
-        <div className="rw-chip">One type per export</div>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>Report setup</div>
+        <div className="rw-chip">One type per export · does not change Dashboard filters</div>
       </div>
       <div className="rw-scroll">
+        <div className="rw-sec">Report type</div>
         {REPORT_TYPES.map((t) => (
           <button
             key={t.id}
@@ -440,38 +440,31 @@ export default function ReportsWorkspace({
             onClick={() => void selectType(t.id)}
           >
             <div style={{ fontWeight: 600 }}>{t.title}</div>
-            <div className="rw-chip" style={{ marginTop: 4 }}>{t.description}</div>
+            {reportType === t.id && (
+              <div className="rw-chip" style={{ marginTop: 4 }}>{t.description}</div>
+            )}
           </button>
         ))}
-        <div style={{ marginTop: 16, fontSize: 13, color: "var(--text-2)" }}>
-          Layout presets (this browser only)
-        </div>
-        {presets.filter((p) => !p.builtIn).map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className="rw-type"
-            aria-pressed={activePresetId === p.id}
-            onClick={() => void loadPreset(p)}
-          >
-            {p.name}
-            <div className="rw-chip">Layout preset</div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+        {presets.filter((p) => !p.builtIn).length > 0 && (
+          <>
+            <div className="rw-sec">Layout presets (this browser only)</div>
+            {presets.filter((p) => !p.builtIn).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="rw-type"
+                aria-pressed={activePresetId === p.id}
+                onClick={() => void loadPreset(p)}
+              >
+                {p.name}
+              </button>
+            ))}
+          </>
+        )}
 
-  const scopePane = (
-    <div className="rw-col">
-      <div className="rw-hd">
-        <div style={{ fontWeight: 700, fontSize: 15 }}>Scope</div>
-        <div className="rw-chip">Does not change Dashboard filters</div>
-      </div>
-      <div className="rw-scroll">
+        <div className="rw-sec">Period</div>
         <div className="rw-field">
-          <span id="rw-period-label">Period</span>
-          <div className="rw-seg" role="group" aria-labelledby="rw-period-label">
+          <div className="rw-seg" role="group" aria-label="Period mode">
             <button type="button" aria-pressed={periodMode === "financial-year"} onClick={() => setPeriodMode("financial-year")}>
               Financial year
             </button>
@@ -513,17 +506,14 @@ export default function ReportsWorkspace({
             </div>
           </>
         )}
-
         <div className="rw-field">
-          <div style={{ fontWeight: 600 }}>Date basis</div>
-          <div>{REPORT_DATE_BASIS_LABEL}</div>
           <div className="rw-chip">
-            Ledger recordedAt. Not the lot calendar in the batch ID.
+            {REPORT_DATE_BASIS_LABEL} · ledger recordedAt. Not the lot calendar in the batch ID.
           </div>
         </div>
 
+        <div className="rw-sec">Sources</div>
         <div className="rw-field">
-          <div style={{ fontWeight: 600 }}>Sources</div>
           <label className="rw-check">
             <input type="checkbox" checked={includeExcel} onChange={(e) => setIncludeExcel(e.target.checked)} />
             Excel uploads
@@ -540,9 +530,11 @@ export default function ReportsWorkspace({
         </div>
 
         {includeExcel && excelList.length > 0 && (
-          <div className="rw-field">
-            <span>Excel files {excelFiles.length === 0 ? "(all)" : `(${excelFiles.length})`}</span>
-            <button type="button" className="rw-ghost" onClick={() => setExcelFiles([])}>All Excel files</button>
+          <details className="rw-field">
+            <summary style={{ cursor: "pointer", fontSize: 14 }}>
+              Excel files {excelFiles.length === 0 ? "(all)" : `(${excelFiles.length})`}
+            </summary>
+            <button type="button" className="rw-ghost" style={{ marginTop: 8 }} onClick={() => setExcelFiles([])}>All Excel files</button>
             {excelList.map((f) => {
               const on = excelFiles.length === 0 || excelFiles.includes(f);
               return (
@@ -563,16 +555,16 @@ export default function ReportsWorkspace({
                 </label>
               );
             })}
-          </div>
+          </details>
         )}
 
         {batchList.length > 0 && (
-          <div className="rw-field">
-            <span>Batches {batchIds.length === 0 ? "(all)" : `(${batchIds.length})`}</span>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <button type="button" className="rw-ghost" onClick={() => setBatchIds([])}>All batches</button>
-            </div>
-            <div style={{ maxHeight: 180, overflow: "auto" }}>
+          <details className="rw-field">
+            <summary style={{ cursor: "pointer", fontSize: 14 }}>
+              Batches {batchIds.length === 0 ? "(all)" : `(${batchIds.length})`}
+            </summary>
+            <button type="button" className="rw-ghost" style={{ marginTop: 8 }} onClick={() => setBatchIds([])}>All batches</button>
+            <div style={{ maxHeight: 180, overflow: "auto", marginTop: 6 }}>
               {batchList.map((b) => {
                 const on = batchIds.includes(b);
                 return (
@@ -596,71 +588,25 @@ export default function ReportsWorkspace({
                 );
               })}
             </div>
-          </div>
+          </details>
         )}
 
+        <div className="rw-sec">Notes</div>
         <div className="rw-field">
-          <label htmlFor="rw-notes">Notes (printed as authored)</label>
-          <textarea id="rw-notes" className="rw-area" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <textarea
+            id="rw-notes"
+            className="rw-area"
+            aria-label="Notes (printed as authored)"
+            placeholder="Printed on the report as authored"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
         </div>
       </div>
-    </div>
-  );
 
-  const previewPane = (
-    <div className="rw-col" style={{ background: "var(--surface-2)" }}>
-      <div className="rw-hd">
-        <div style={{ fontWeight: 700, fontSize: 15 }}>Preview</div>
-        <div className="rw-chip">
-          {model
-            ? `${model.identity.periodCaption} · ${model.identity.dateFrom} → ${model.identity.dateTo} · ${REPORT_DATE_BASIS_LABEL}`
-            : "Resolve scope to preview"}
-          {dirty ? " · Unsaved" : ""}
-        </div>
-      </div>
-      <div className="rw-scroll">
-        {model && (
-          <div
-            className={`rw-status ${blockReason ? "block" : model.validation.warnings.length ? "warn" : "ok"}`}
-            role={blockReason ? "alert" : "status"}
-          >
-            {blockReason ? (
-              blockReason
-            ) : (
-              <>
-                {model.validation.qualifyingEventCount.toLocaleString("en-IN")} qualifying events.
-                {model.validation.warnings.length ? ` ${model.validation.warnings[0]}` : " Safe to generate."}
-              </>
-            )}
-          </div>
-        )}
-        {!built.ok && (
-          <div className="rw-status block" role="alert">{built.error}</div>
-        )}
-        <div className="rw-preview-paper" style={{ marginTop: 12 }}>
-          {model ? (
-            <AuditReportDocument model={model} />
-          ) : (
-            <p className="body" style={{ color: "var(--text-2)" }}>
-              Choose a financial year or a valid custom range to preview. Empty reports cannot be exported as audit evidence.
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="rw-actions rw-desktop-print">
-        {msg && (
-          <div role={msg.tone === "err" ? "alert" : "status"} className={`rw-status ${msg.tone === "err" ? "block" : "ok"}`}>
-            {msg.text}
-          </div>
-        )}
-        <button type="button" className="rw-primary" onClick={handlePrint} disabled={!canPrint || printing}>
-          {printing ? "Preparing print…" : "Print / Save as PDF"}
-        </button>
-        <button type="button" className="rw-ghost" onClick={handleManifest} disabled={!built.ok}>
-          Download evidence manifest
-        </button>
+      <div className="rw-save">
         {saveOpen ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <>
             <label htmlFor="rw-save-name">Layout preset name</label>
             <input id="rw-save-name" className="rw-input" value={saveName} onChange={(e) => setSaveName(e.target.value)} />
             <label className="rw-check">
@@ -673,24 +619,81 @@ export default function ReportsWorkspace({
             </button>
             <button type="button" className="rw-ghost" onClick={() => handleSave(true)}>Save as copy</button>
             <button type="button" className="rw-ghost" onClick={() => setSaveOpen(false)}>Cancel</button>
-          </div>
+          </>
         ) : (
-          <button
-            type="button"
-            className="rw-ghost"
-            onClick={() => {
-              setSaveName(REPORT_TYPES.find((t) => t.id === reportType)?.title ?? "Layout preset");
-              setSaveOpen(true);
-            }}
-          >
-            Save layout preset
-          </button>
-        )}
-        {activePresetId && !activePresetId.startsWith("builtin:") && (
-          <button type="button" className="rw-ghost" onClick={() => void handleDelete()}>Delete layout preset</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="rw-ghost"
+              style={{ flex: 1 }}
+              onClick={() => {
+                setSaveName(REPORT_TYPES.find((t) => t.id === reportType)?.title ?? "Layout preset");
+                setSaveOpen(true);
+              }}
+            >
+              Save layout preset
+            </button>
+            {activePresetId && !activePresetId.startsWith("builtin:") && (
+              <button type="button" className="rw-ghost" onClick={() => void handleDelete()}>Delete</button>
+            )}
+          </div>
         )}
       </div>
-    </div>
+    </>
+  );
+
+  const previewPane = (
+    <>
+      <div className="rw-actions no-print">
+        <button type="button" className="rw-primary" onClick={handlePrint} disabled={!canPrint || printing}>
+          {printing ? "Preparing print…" : "Print / Save as PDF"}
+        </button>
+        <button type="button" className="rw-ghost" onClick={handleManifest} disabled={!built.ok}>
+          Evidence manifest
+        </button>
+        <div className="rw-msg rw-chip" style={{ textAlign: "right" }}>
+          {msg ? (
+            <span role={msg.tone === "err" ? "alert" : "status"} style={{ color: msg.tone === "err" ? "var(--critical)" : undefined }}>
+              {msg.text}
+            </span>
+          ) : model ? (
+            `${model.identity.periodCaption} · ${model.identity.dateFrom} → ${model.identity.dateTo}${dirty ? " · Unsaved" : ""}`
+          ) : (
+            "Resolve scope to preview"
+          )}
+        </div>
+      </div>
+      <div className="rw-scroll">
+        {model && (
+          <div
+            className={`rw-status ${blockReason ? "block" : model.validation.warnings.length ? "warn" : "ok"}`}
+            role={blockReason ? "alert" : "status"}
+            style={{ marginBottom: 16 }}
+          >
+            {blockReason ? (
+              blockReason
+            ) : (
+              <>
+                {model.validation.qualifyingEventCount.toLocaleString("en-IN")} qualifying events.
+                {model.validation.warnings.length ? ` ${model.validation.warnings[0]}` : " Safe to generate."}
+              </>
+            )}
+          </div>
+        )}
+        {!built.ok && (
+          <div className="rw-status block" role="alert" style={{ marginBottom: 16 }}>{built.error}</div>
+        )}
+        <div className="rw-preview-paper">
+          {model ? (
+            <AuditReportDocument model={model} />
+          ) : (
+            <p className="body" style={{ color: "var(--text-2)" }}>
+              Choose a financial year or a valid custom range to preview. Empty reports cannot be exported as audit evidence.
+            </p>
+          )}
+        </div>
+      </div>
+    </>
   );
 
   const printPortal =
@@ -712,27 +715,10 @@ export default function ReportsWorkspace({
         <p className="body" style={{ color: "var(--text-2)", marginTop: 6, maxWidth: 640 }}>
           Generate a ledger extract for a financial year or custom Date of Entry range. Every figure is computed from stored events; nothing here is a compliance certificate.
         </p>
-        <div className="rw-lock">
-          <span>
-            <strong style={{ color: "var(--text)", fontWeight: 600 }}>{REPORT_DATE_BASIS_LABEL}</strong>
-            {" · "}
-            <span className="mono">
-              {periodMode === "financial-year" ? `${fy.from} → ${fy.to}` : dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : "Set a custom range"}
-            </span>
-            {" (inclusive)"}
-          </span>
-          <span>
-            {model
-              ? `${model.validation.qualifyingEventCount.toLocaleString("en-IN")} qualifying events`
-              : built.ok
-                ? "Resolving…"
-                : built.error}
-          </span>
-        </div>
       </header>
 
       <div className="rw-tabs no-print" role="tablist" aria-label="Report workspace">
-        {(["report", "scope", "preview"] as MobileTab[]).map((tab) => (
+        {(["setup", "preview"] as MobileTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -740,42 +726,18 @@ export default function ReportsWorkspace({
             aria-selected={mobileTab === tab}
             onClick={() => setMobileTab(tab)}
           >
-            {tab === "report" ? "Report" : tab === "scope" ? "Scope" : "Preview"}
-          </button>
-        ))}
-      </div>
-
-      <div className="rw-sticky-print no-print">
-        <button type="button" className="rw-primary" style={{ width: "100%" }} onClick={handlePrint} disabled={!canPrint || printing}>
-          {printing ? "Preparing print…" : "Print / Save as PDF"}
-        </button>
-      </div>
-
-      <div className="rw-type-rail no-print">
-        {REPORT_TYPES.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className="rw-ghost"
-            aria-pressed={reportType === t.id}
-            onClick={() => void selectType(t.id)}
-            style={{ background: reportType === t.id ? "var(--accent-weak)" : undefined }}
-          >
-            {t.title}
+            {tab === "setup" ? "Setup" : "Preview"}
           </button>
         ))}
       </div>
 
       <div className="rw-grid">
-        <div className={`rw-col-types ${mobileTab === "report" ? "rw-show" : ""}`}>
-          {typesPane}
-        </div>
-        <div className={`rw-scope ${mobileTab === "scope" ? "rw-show" : ""}`}>
-          {scopePane}
-        </div>
-        <div className={`rw-preview ${mobileTab === "preview" ? "rw-show" : ""}`}>
+        <aside className={`rw-setup no-print ${mobileTab === "setup" ? "rw-show" : ""}`}>
+          {setupPane}
+        </aside>
+        <section className={`rw-preview ${mobileTab === "preview" ? "rw-show" : ""}`}>
           {previewPane}
-        </div>
+        </section>
       </div>
 
       {printPortal}
