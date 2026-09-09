@@ -1483,14 +1483,17 @@ export default function AppShell({
       <header className="app-topbar" style={{ 
         gridArea: "top", 
         background: "var(--bg)", 
-        margin: "var(--space-4) var(--space-4) 0 var(--space-4)", 
+        margin: "0 var(--space-4) 0 var(--space-4)", 
+        padding: "var(--space-4) 0 0 0",
         display: "flex", 
         alignItems: "center", 
         justifyContent: "space-between", 
         position: "sticky", 
-        top: "var(--space-4)", 
+        top: 0, 
         zIndex: 50,
-        height: "var(--header-h)"
+        height: "calc(var(--header-h) + var(--space-4))",
+        boxSizing: "border-box",
+        transition: "background-color var(--duration-medium, 300ms) var(--ease-out)"
       }}>
         {/* Scope selectors — only the ones this screen actually reads. */}
         <div style={{ 

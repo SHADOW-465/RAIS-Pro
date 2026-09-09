@@ -7,6 +7,11 @@ import type { SizeAnalysisRow } from "@/lib/analytics/size";
 
 const PRINT_CSS = `
 .ar-doc { color: var(--text); font-size: 14px; line-height: 1.45; }
+.ar-doc, .ar-doc h1, .ar-doc h2, .ar-doc h3, .ar-doc .ar-kpi, .ar-doc table td, .ar-doc table th {
+  transition: color var(--duration-medium, 300ms) var(--ease-out),
+              background-color var(--duration-medium, 300ms) var(--ease-out),
+              border-color var(--duration-medium, 300ms) var(--ease-out);
+}
 .ar-doc h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; color: var(--text); }
 .ar-doc h2 { font-size: 18px; font-weight: 600; margin: 28px 0 10px; color: var(--text); }
 .ar-doc h3 { font-size: 15px; font-weight: 600; margin: 0 0 8px; color: var(--text); }

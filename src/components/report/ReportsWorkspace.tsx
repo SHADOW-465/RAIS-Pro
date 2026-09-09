@@ -45,6 +45,15 @@ const PRINT_CSS = `
   z-index: -1 !important;
   background: #fff !important;
   color: #14181f !important;
+  --text: #14181f;
+  --text-2: #3a4450;
+  --text-3: #5a6570;
+  --border: #c8ced6;
+  --border-strong: #9aa3ad;
+  --surface: #ffffff;
+  --surface-2: #eef1f4;
+  --bg: #ffffff;
+  --accent: #C8421C;
 }
 @media print {
   @page { size: A4 portrait; margin: 12mm; }
@@ -145,9 +154,18 @@ const WORKSPACE_CSS = `
 .rw-actions .rw-primary { flex: 0 0 auto; }
 .rw-actions .rw-msg { flex: 1 1 220px; min-width: 0; }
 .rw-preview-paper {
-  background: #fff; color: #14181f;
+  background: var(--surface); color: var(--text);
   border: 1px solid var(--border); border-radius: 8px;
   padding: 32px; margin: 0 auto; max-width: 900px;
+  box-shadow: var(--shadow-1);
+  transition: background-color var(--duration-medium, 300ms) var(--ease-out),
+              border-color var(--duration-medium, 300ms) var(--ease-out),
+              color var(--duration-medium, 300ms) var(--ease-out);
+}
+.rw-setup, .rw-preview, .rw-actions, .rw-type, .rw-seg button, .rw-select, .rw-input, .rw-status {
+  transition: background-color var(--duration-medium, 300ms) var(--ease-out),
+              border-color var(--duration-medium, 300ms) var(--ease-out),
+              color var(--duration-medium, 300ms) var(--ease-out);
 }
 .rw-chip { font-size: 13px; color: var(--text-2); }
 .rw-status { font-size: 14px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); }
