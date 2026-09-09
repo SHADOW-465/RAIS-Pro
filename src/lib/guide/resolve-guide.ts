@@ -4,7 +4,7 @@
 // verified figures — never for routing truth.
 
 import type { Event } from "@/lib/store/types";
-import type { PersonaId } from "@/lib/persona";
+import type { RoleId } from "@/lib/persona";
 import { personaAllowsNav } from "@/lib/persona";
 import type { NavKey } from "@/lib/nav-keys";
 import type { InvestigationState } from "@/lib/analytics/investigation-state";
@@ -53,7 +53,7 @@ export interface GuideResult {
 
 export interface GuideCtx {
   events: Event[];
-  persona: PersonaId;
+  persona: RoleId;
   dataMaxIso: string;
   /** Current path for context-aware tips (optional). */
   currentPath?: string;
@@ -77,7 +77,7 @@ function periodLabel(state: InvestigationState): string {
   return "current scope";
 }
 
-function featureAllowed(f: AppFeature, persona: PersonaId): boolean {
+function featureAllowed(f: AppFeature, persona: RoleId): boolean {
   return personaAllowsNav(persona, f.navKey);
 }
 
@@ -100,7 +100,7 @@ function formatHowTo(f: AppFeature): GuideResult {
   };
 }
 
-function formatWorkflow(w: AppWorkflow, persona: PersonaId): GuideResult {
+function formatWorkflow(w: AppWorkflow, persona: RoleId): GuideResult {
   const steps = w.steps.map((s) => s.text);
   const actions: GuideAction[] = [];
   for (const s of w.steps) {

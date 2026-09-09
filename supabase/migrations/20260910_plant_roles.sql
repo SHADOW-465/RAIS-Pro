@@ -29,6 +29,13 @@ CREATE TABLE IF NOT EXISTS plant_roles (
   nav_allow    jsonb       NOT NULL DEFAULT '[]'::jsonb,
   -- { write, approve, configure, eraseLedger } — all booleans, absent = false.
   capabilities jsonb       NOT NULL DEFAULT '{}'::jsonb,
+  -- Every granted leaf id (lib/access/catalog.ts), nav_allow and capabilities
+  -- included. Redundant with those two by construction — all three are written
+  -- from one picker state — but it is the only home for grants that are neither
+  -- a screen nor a capability bit, dashboard cards today. nav_allow and
+  -- capabilities stay the columns the guard reads, so a role whose grants
+  -- column is empty still authorizes exactly as it did.
+  grants       jsonb       NOT NULL DEFAULT '[]'::jsonb,
   builtin      boolean     NOT NULL DEFAULT false,
   active       boolean     NOT NULL DEFAULT true,
   sort_order   int         NOT NULL DEFAULT 100,
@@ -53,18 +60,24 @@ GRANT ALL ON plant_roles TO service_role;
 
 -- Seed the built-ins, mirroring src/lib/persona.ts. ON CONFLICT DO NOTHING so
 -- re-running the migration never overwrites a GM's edits to these rows.
+-- `grants` is seeded as nav_allow + the capability leaves + every dashboard
+-- card, which is the state these roles are in today: nobody's cards are
+-- withheld, because until now there was no way to withhold one.
 INSERT INTO plant_roles
-  (company_id, role_id, label, title, initial, home_href, nav_allow, capabilities, builtin, sort_order)
+  (company_id, role_id, label, title, initial, home_href, nav_allow, capabilities, grants, builtin, sort_order)
 VALUES
   ('default', 'gm', 'General Manager (GM)', 'Full access', 'G', '/',
    '["dashboard","workbooks","data-entry","staging","stage","size","defect","hold","open-lots","spc","process-flow","copq","reports","capa","remedies","alerts","ask","audit","schema","settings"]'::jsonb,
-   '{"write":true,"approve":true,"configure":true,"eraseLedger":true}'::jsonb, true, 0),
+   '{"write":true,"approve":true,"configure":true,"eraseLedger":true}'::jsonb,
+   '["screen.dashboard","screen.workbooks","screen.data-entry","screen.staging","screen.stage","screen.size","screen.defect","screen.hold","screen.open-lots","screen.spc","screen.process-flow","screen.copq","screen.reports","screen.capa","screen.remedies","screen.alerts","screen.ask","screen.audit","screen.schema","screen.settings","permission.write","permission.approve","permission.configure","permission.eraseLedger","card.kpis","card.wip","card.trend","card.by-stage","card.pareto","card.stage-trend","card.heatmap","card.size-ytd","card.size-trend","card.copq","card.audit","card.quality","card.funnel","card.attention","card.ai-brief"]'::jsonb, true, 0),
   ('default', 'owner', 'Owner', 'View only', 'O', '/',
    '["dashboard","stage","size","defect","hold","open-lots","spc","process-flow","copq","reports","capa","remedies","alerts","ask"]'::jsonb,
-   '{"write":false,"approve":false,"configure":false,"eraseLedger":false}'::jsonb, true, 10),
+   '{"write":false,"approve":false,"configure":false,"eraseLedger":false}'::jsonb,
+   '["screen.dashboard","screen.stage","screen.size","screen.defect","screen.hold","screen.open-lots","screen.spc","screen.process-flow","screen.copq","screen.reports","screen.capa","screen.remedies","screen.alerts","screen.ask","card.kpis","card.wip","card.trend","card.by-stage","card.pareto","card.stage-trend","card.heatmap","card.size-ytd","card.size-trend","card.copq","card.audit","card.quality","card.funnel","card.attention","card.ai-brief"]'::jsonb, true, 10),
   ('default', 'operator', 'Data Entry Operator', 'Entry & review', 'D', '/data-entry',
    '["data-entry","staging","workbooks","dashboard","stage","size","defect","hold","open-lots","spc","process-flow","copq","reports","capa","remedies","alerts","ask","audit"]'::jsonb,
-   '{"write":true,"approve":false,"configure":false,"eraseLedger":false}'::jsonb, true, 20)
+   '{"write":true,"approve":false,"configure":false,"eraseLedger":false}'::jsonb,
+   '["screen.data-entry","screen.staging","screen.workbooks","screen.dashboard","screen.stage","screen.size","screen.defect","screen.hold","screen.open-lots","screen.spc","screen.process-flow","screen.copq","screen.reports","screen.capa","screen.remedies","screen.alerts","screen.ask","screen.audit","permission.write","card.kpis","card.wip","card.trend","card.by-stage","card.pareto","card.stage-trend","card.heatmap","card.size-ytd","card.size-trend","card.copq","card.audit","card.quality","card.funnel","card.attention","card.ai-brief"]'::jsonb, true, 20)
 ON CONFLICT (company_id, role_id) DO NOTHING;
 
 -- plant_users.role may now name any role in the table above, so the closed

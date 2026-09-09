@@ -15,7 +15,8 @@ import {
   validatePassword,
   hashPassword,
 } from "@/lib/auth/users";
-import { isPersonaId, PERSONA_ORDER, type PersonaId } from "@/lib/persona";
+import { PERSONA_ORDER, type RoleId } from "@/lib/persona";
+import { listRoles, resolveRole } from "@/lib/auth/roles";
 
 export async function GET(req: NextRequest) {
   const auth = await requireCapability(req, "configure");
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
   const users = await getUserStore().list(companyId());
   // Which roles still answer to their shared password, so the UI can say so
   // rather than leaving the GM to guess whether `moid-gm` still works.
-  const sharedLoginsActive: PersonaId[] = [];
+  const sharedLoginsActive: RoleId[] = [];
   for (const role of PERSONA_ORDER) {
     if (await presetLoginAllowed(role)) sharedLoginsActive.push(role);
   }
@@ -42,8 +43,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
+  // Any role in plant_roles, not just the three built-ins — that is the point
+  // of the Roles & access screen. `createUser` re-checks, so this is only here
+  // to answer with something better than "Unknown role.".
   const role = String(body.role ?? "");
-  if (!isPersonaId(role)) return NextResponse.json({ error: "Unknown role." }, { status: 400 });
+  if (!(await resolveRole(role))) {
+    return NextResponse.json({ error: "Unknown role." }, { status: 400 });
+  }
 
   try {
     const error = await createUser({
@@ -96,13 +102,24 @@ export async function PATCH(req: NextRequest) {
     if (!active) {
       const users = await store.list(companyId());
       const target = users.find((u) => u.username === username);
-      if (target?.role === "gm") {
-        const otherActiveGms = users.filter(
-          (u) => u.role === "gm" && u.active && u.username !== username,
+      // "The last GM" used to mean literally role === "gm". Once a plant can
+      // create its own roles that is the wrong question twice over: a custom
+      // Plant Admin role holding `configure` should count, and a GM role a
+      // plant has stripped of `configure` should not. Ask about the capability
+      // that actually administers the plant.
+      const adminRoles = new Set(
+        (await listRoles()).filter((r) => r.active && r.capabilities.configure).map((r) => r.roleId),
+      );
+      if (target && adminRoles.has(target.role)) {
+        const otherAdmins = users.filter(
+          (u) => u.active && u.username !== username && adminRoles.has(u.role),
         );
-        if (otherActiveGms.length === 0) {
+        if (otherAdmins.length === 0) {
           return NextResponse.json(
-            { error: "This is the last active GM. Create another GM before deactivating this one." },
+            {
+              error:
+                "This is the last active login that can administer the plant. Create another one before deactivating this.",
+            },
             { status: 409 },
           );
         }

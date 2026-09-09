@@ -2,7 +2,7 @@
 // navigation target. The LLM fallback is added in Task 4 (resolveIntent).
 import type { Event } from "@/lib/store/types";
 import { navHref, type NavKey } from "@/lib/nav-keys";
-import { type PersonaId, personaAllowsNav, personaDef } from "@/lib/persona";
+import { type NavKey as NavKeyType, type RoleId, personaDef } from "@/lib/persona";
 import type { InvestigationState } from "./investigation-state";
 import { type SearchHit, searchJumpTargets } from "./search-index";
 import { parseDatePhrase } from "./date-phrase";
@@ -18,7 +18,11 @@ export const CONFIDENT = 0.5;
 export interface IntentCtx {
   events: Event[];
   currentScope: InvestigationState;
-  persona: PersonaId;
+  persona: RoleId;
+  /** The signed-in role's real destinations. Falls back to the built-in
+   *  definition when absent — a plant-created role is in neither, and guessing
+   *  would offer to navigate somewhere the sidebar does not show. */
+  allowedNavKeys?: readonly NavKeyType[];
   dataMaxIso: string;
 }
 
@@ -89,17 +93,19 @@ export function resolveIntentDeterministic(text: string, ctx: IntentCtx): Intent
 
   // Persona gate: if the natural target is denied, drop confidence and fall to
   // the persona's home so we never auto-open a forbidden screen.
-  if (navKey && !personaAllowsNav(ctx.persona, navKey)) {
+  const allowed = ctx.allowedNavKeys ?? personaDef(ctx.persona).navAllow;
+  const allows = (k: NavKeyType) => allowed.includes(k);
+  if (navKey && !allows(navKey)) {
     navKey = null;
     score = Math.min(score, CONFIDENT - 0.01);
   }
   if (!navKey) {
-    navKey = personaAllowsNav(ctx.persona, "dashboard") ? "dashboard" : "data-entry";
+    navKey = allows("dashboard") ? "dashboard" : "data-entry";
     score = Math.min(score, CONFIDENT - 0.01);
   }
 
   const confident = score >= CONFIDENT;
-  const searchOpts = { events: ctx.events, allowedNavKeys: personaDef(ctx.persona).navAllow };
+  const searchOpts = { events: ctx.events, allowedNavKeys: allowed };
   let alternatives: SearchHit[] = [];
   if (!confident) {
     alternatives = searchJumpTargets(text, searchOpts);

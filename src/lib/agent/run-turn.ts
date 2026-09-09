@@ -4,7 +4,7 @@
 import { resolveGuide, isGuideFallback } from "@/lib/guide/resolve-guide";
 import { parseDatePhrase } from "@/lib/analytics/date-phrase";
 import type { Event } from "@/lib/store/types";
-import type { PersonaId } from "@/lib/persona";
+import type { RoleId } from "@/lib/persona";
 import {
   classifyTaskKind,
   isCancelMessage,
@@ -641,7 +641,7 @@ function handleHowto(
   text: string,
   ctx: AgentCtx,
   events: Event[],
-  persona: PersonaId,
+  persona: RoleId,
 ): TurnResult {
   // If execute language slipped through, don't only show links
   if (hasExecuteLanguage(text)) {
@@ -732,7 +732,7 @@ export function runTurn(
   message: string,
   ctx: AgentCtx,
   events: Event[] = [],
-  persona: PersonaId = "gm",
+  persona: RoleId = "gm",
 ): TurnResult {
   const text = message.trim();
   if (!text) {

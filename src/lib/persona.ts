@@ -189,7 +189,7 @@ export function personaDef(id: RoleId): PersonaDef {
   };
 }
 
-export function readStoredPersona(): PersonaId {
+export function readStoredPersona(): RoleId {
   if (typeof window === "undefined") return DEFAULT_PERSONA;
   try {
     const v = localStorage.getItem(PERSONA_STORAGE_KEY);
@@ -199,7 +199,7 @@ export function readStoredPersona(): PersonaId {
   }
 }
 
-export function writeStoredPersona(id: PersonaId): void {
+export function writeStoredPersona(id: RoleId): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(PERSONA_STORAGE_KEY, id);

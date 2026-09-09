@@ -26,7 +26,8 @@
 
 import { shouldUseSupabase } from "@/lib/store";
 import { createServerClient } from "@/lib/supabase";
-import { companyId } from "./users";
+import { companyId } from "./config";
+import { grantsFromRole, roleAccessFromGrants } from "@/lib/access/catalog";
 import {
   PERSONAS,
   PERSONA_ORDER,
@@ -44,6 +45,10 @@ export interface RoleRecord {
   /** Sidebar destinations this role may see. Deny by omission. */
   navAllow: NavKey[];
   capabilities: PersonaCapabilities;
+  /** Every granted leaf id — see lib/access/catalog.ts. Redundant with
+   *  navAllow + capabilities by construction; the only home for grants that
+   *  are neither, dashboard cards today. */
+  grants: string[];
   /** Seeded with the app; may be edited, never deleted. */
   builtin: boolean;
   active: boolean;
@@ -64,6 +69,7 @@ export const BUILTIN_ROLES: Record<string, RoleRecord> = Object.fromEntries(
         homeHref: p.homeHref,
         navAllow: [...p.navAllow],
         capabilities: { ...p.capabilities },
+        grants: [...grantsFromRole(p)],
         builtin: true,
         active: true,
         sortOrder: i * 10,
@@ -75,6 +81,8 @@ export const BUILTIN_ROLES: Record<string, RoleRecord> = Object.fromEntries(
 export interface RoleStore {
   list(companyId: string): Promise<RoleRecord[]>;
   find(companyId: string, roleId: RoleId): Promise<RoleRecord | null>;
+  upsert(companyId: string, role: RoleRecord): Promise<void>;
+  remove(companyId: string, roleId: RoleId): Promise<boolean>;
 }
 
 const builtinList = (): RoleRecord[] =>
@@ -97,7 +105,13 @@ class MemoryRoleStore implements RoleStore {
   async find(company: string, roleId: RoleId) {
     return this.of(company).get(roleId) ?? BUILTIN_ROLES[roleId] ?? null;
   }
-  /** Tests and local seeding only — the write API arrives with the roles UI. */
+  async upsert(company: string, role: RoleRecord) {
+    this.of(company).set(role.roleId, role);
+  }
+  async remove(company: string, roleId: RoleId) {
+    return this.of(company).delete(roleId);
+  }
+  /** Tests and local seeding. */
   __put(company: string, role: RoleRecord) {
     this.of(company).set(role.roleId, role);
   }
@@ -115,6 +129,7 @@ const rowToRole = (r: Record<string, unknown>): RoleRecord => {
     initial: String(r.initial ?? String(r.role_id).charAt(0).toUpperCase()),
     homeHref: String(r.home_href ?? "/"),
     navAllow: asStringArray(r.nav_allow) as NavKey[],
+    grants: asStringArray(r.grants),
     capabilities: {
       write: caps.write === true,
       approve: caps.approve === true,
@@ -126,6 +141,11 @@ const rowToRole = (r: Record<string, unknown>): RoleRecord => {
     sortOrder: typeof r.sort_order === "number" ? r.sort_order : 100,
   };
 };
+
+/** Writes must not fail silently: a GM told nothing would believe the role was
+ *  saved. Reads degrade instead — see the header. */
+export const MISSING_ROLES_TABLE =
+  "The plant_roles table does not exist yet. Apply supabase/migrations/20260910_plant_roles.sql, then try again.";
 
 /** Same degrade-on-read posture as plant_users: a table that is absent or
  *  unreadable means "no custom roles", never a 500 on a guarded route. */
@@ -187,6 +207,36 @@ class SupabaseRoleStore implements RoleStore {
       throw error;
     }
     return data ? rowToRole(data) : (BUILTIN_ROLES[roleId] ?? null);
+  }
+  async upsert(company: string, role: RoleRecord) {
+    const { error } = await this.client.from("plant_roles").upsert(
+      {
+        company_id: company,
+        role_id: role.roleId,
+        label: role.label,
+        title: role.title,
+        initial: role.initial,
+        home_href: role.homeHref,
+        nav_allow: role.navAllow,
+        capabilities: role.capabilities,
+        grants: role.grants,
+        builtin: role.builtin,
+        active: role.active,
+        sort_order: role.sortOrder,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "company_id,role_id" },
+    );
+    if (error) throw new Error(isReadUnavailable(error) ? MISSING_ROLES_TABLE : error.message);
+  }
+  async remove(company: string, roleId: RoleId) {
+    const { error, count } = await this.client
+      .from("plant_roles")
+      .delete({ count: "exact" })
+      .eq("company_id", company)
+      .eq("role_id", roleId);
+    if (error) throw new Error(isReadUnavailable(error) ? MISSING_ROLES_TABLE : error.message);
+    return (count ?? 0) > 0;
   }
 }
 
@@ -266,4 +316,51 @@ export async function listRoles(): Promise<RoleRecord[]> {
 export async function isAssignableRole(roleId: RoleId): Promise<boolean> {
   const role = await resolveRole(roleId);
   return !!role && role.active;
+}
+
+// ── Mutation ────────────────────────────────────────────────────────────────
+// Validation and persistence only. Rules that need to know about USERS — may
+// this role be deleted while people hold it, is the caller about to remove
+// their own administration rights — live in /api/roles, because users.ts
+// already imports this module and the reverse edge would be a cycle.
+
+/** Role ids get typed into URLs, config and SQL. Same shape as a username. */
+export function normalizeRoleId(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/g, ".");
+}
+
+export function validateRoleId(raw: string): string | null {
+  const id = normalizeRoleId(raw);
+  if (id.length < 2) return "Role id must be at least 2 characters.";
+  if (id.length > 40) return "Role id must be 40 characters or fewer.";
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(id)) {
+    return "Use letters, numbers, dot, dash or underscore; start with a letter or number.";
+  }
+  return null;
+}
+
+/** Build a stored role from a set of ticked grants. The three access columns
+ *  are always written together, from one source, so they cannot disagree. */
+export function roleFromGrants(
+  base: Omit<RoleRecord, "navAllow" | "capabilities" | "grants">,
+  granted: ReadonlySet<string>,
+): RoleRecord {
+  return { ...base, ...roleAccessFromGrants(granted) };
+}
+
+export async function saveRole(role: RoleRecord): Promise<void> {
+  await getRoleStore().upsert(companyId(), role);
+  invalidateRoleCache();
+}
+
+export async function deleteRole(roleId: RoleId): Promise<boolean> {
+  const ok = await getRoleStore().remove(companyId(), normalizeRoleId(roleId));
+  invalidateRoleCache();
+  return ok;
+}
+
+/** Roles that can still administer the plant. Deleting or deactivating the
+ *  last one leaves nobody able to create users, edit the schema, or undo it. */
+export async function rolesWithConfigure(): Promise<RoleRecord[]> {
+  return (await listRoles()).filter((r) => r.active && r.capabilities.configure);
 }

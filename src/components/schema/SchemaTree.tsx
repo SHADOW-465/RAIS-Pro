@@ -267,7 +267,12 @@ export default function SchemaTree({
             role="treeitem"
             aria-level={depth + 1}
             aria-selected={selected}
-            aria-checked={check ? check === "on" : undefined}
+            aria-checked={
+              // Tri-state, so "mixed" is its own ARIA value — reporting a
+              // partly-granted folder as `false` tells a screen reader the
+              // opposite of what the dash on screen says.
+              check === undefined ? undefined : check === "mixed" ? "mixed" : check === "on"
+            }
             aria-expanded={hasKids ? open : undefined}
             tabIndex={i === 0 ? 0 : -1}
             onKeyDown={(e) => onKeyDown(e, node, i)}

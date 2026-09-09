@@ -6,6 +6,7 @@ import {
   sessionCookieOptions,
 } from "@/lib/auth/session";
 import { personaDef } from "@/lib/persona";
+import { resolveRole } from "@/lib/auth/roles";
 
 export async function POST(req: NextRequest) {
   let body: { username?: string; role?: string; password?: string };
@@ -42,7 +43,11 @@ export async function POST(req: NextRequest) {
     }
 
     const token = await createSessionToken(user);
-    const persona = personaDef(user.role);
+    // The stored role wins over the built-in definition: a plant that renamed
+    // its Operator role, or created a Supervisor one, should see that name on
+    // the way in and land where that role says it lands.
+    const role = await resolveRole(user.role);
+    const persona = role ?? personaDef(user.role);
     const res = NextResponse.json({
       ok: true,
       user: {

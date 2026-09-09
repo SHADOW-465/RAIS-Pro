@@ -12,8 +12,8 @@ import { llmSlotExtractor } from "@/lib/analytics/intent-llm";
 import { emitNavBanner } from "@/lib/analytics/nav-banner";
 import { classifyTaskKind } from "@/lib/agent/classify";
 import type { Event } from "@/lib/store/types";
-import type { PersonaId } from "@/lib/persona";
-import { personaDef } from "@/lib/persona";
+import type { RoleId } from "@/lib/persona";
+import { usePersona } from "@/components/app/PersonaContext";
 
 export default function CommandPalette({
   open,
@@ -24,14 +24,17 @@ export default function CommandPalette({
   open: boolean;
   onClose: () => void;
   events: Event[] | null;
-  persona: PersonaId;
+  persona: RoleId;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
 
-  const allowedNavKeys = personaDef(persona).navAllow;
+  // The signed-in role's own destinations — a plant-created role has none in
+  // the built-in bundle, and Jump must not offer what the sidebar denies.
+  const { def: personaDefinition } = usePersona();
+  const allowedNavKeys = personaDefinition.navAllow;
 
   const hits: SearchHit[] = useMemo(() => {
     return searchJumpTargets(query, {
@@ -87,7 +90,7 @@ export default function CommandPalette({
 
     const result = await resolveIntent(
       q,
-      { events: evs, currentScope: { grain: "month" }, persona, dataMaxIso },
+      { events: evs, currentScope: { grain: "month" }, persona, allowedNavKeys, dataMaxIso },
       llmSlotExtractor,
     );
 
@@ -103,7 +106,7 @@ export default function CommandPalette({
       return;
     }
     // ambiguous → leave the existing hit list visible (no-op)
-  }, [query, events, persona, onClose, router]);
+  }, [query, events, persona, allowedNavKeys, onClose, router]);
 
   useEffect(() => {
     if (!open) return;
@@ -303,7 +306,7 @@ export default function CommandPalette({
             color: "var(--text-3)",
           }}
         >
-          Role: {personaDef(persona).label} · ↑↓ navigate · Enter open
+          Role: {personaDefinition.label} · ↑↓ navigate · Enter open
         </div>
       </div>
     </div>

@@ -4,18 +4,42 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import {
   DEFAULT_PERSONA,
   personaDef,
-  isPersonaId,
   readStoredPersona,
   writeStoredPersona,
+  type NavKey,
   type PersonaCapabilities,
-  type PersonaId,
+  type PersonaDef,
+  type RoleId,
 } from "@/lib/persona";
 
-type AuthUser = { username: string; role: PersonaId } | null;
+type AuthUser = { username: string; role: RoleId } | null;
+
+/** What /api/auth/me sends back about the signed-in role. */
+type ServerRole = {
+  roleId: RoleId;
+  label: string;
+  title: string;
+  initial: string;
+  homeHref: string;
+  navAllow: NavKey[];
+  capabilities: PersonaCapabilities;
+};
 
 type PersonaCtx = {
-  persona: PersonaId;
-  setPersona: (id: PersonaId) => void;
+  persona: RoleId;
+  setPersona: (id: RoleId) => void;
+  /**
+   * The signed-in role's definition — the server's copy when there is a
+   * session, the built-in one otherwise.
+   *
+   * Chrome reads THIS rather than indexing `PERSONAS`, because a role the
+   * plant created is in neither the union nor this bundle. Looking it up there
+   * used to miss and fall back to the default persona, which is a full-access
+   * GM: a supervisor was shown every screen including Settings.
+   */
+  def: PersonaDef;
+  /** Convenience: may this role open that sidebar destination? */
+  allowsNav: (key: NavKey) => boolean;
   capabilities: PersonaCapabilities;
   canWrite: boolean;
   canApprove: boolean;
@@ -38,7 +62,8 @@ type PersonaCtx = {
 const Ctx = createContext<PersonaCtx | null>(null);
 
 export function PersonaProvider({ children }: { children: React.ReactNode }) {
-  const [persona, setPersonaState] = useState<PersonaId>(DEFAULT_PERSONA);
+  const [persona, setPersonaState] = useState<RoleId>(DEFAULT_PERSONA);
+  const [serverRole, setServerRole] = useState<ServerRole | null>(null);
   const [authEnabled, setAuthEnabled] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -49,16 +74,22 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json().catch(() => ({}));
       if (data.authEnabled) {
         setAuthEnabled(true);
-        if (data.user?.username && isPersonaId(data.user.role)) {
+        // Any role id, not just the three built-in ones. Gating this on a
+        // closed union is what made a plant-created role fall through to the
+        // default GM persona and see the whole sidebar.
+        if (data.user?.username && typeof data.user.role === "string" && data.user.role) {
           setAuthUser({ username: data.user.username, role: data.user.role });
           setPersonaState(data.user.role);
+          setServerRole(data.role ?? null);
           writeStoredPersona(data.user.role);
         } else {
           setAuthUser(null);
+          setServerRole(null);
         }
       } else {
         setAuthEnabled(false);
         setAuthUser(null);
+        setServerRole(null);
         setPersonaState(readStoredPersona());
       }
     } catch {
@@ -73,7 +104,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   }, [refreshAuth]);
 
   const setPersona = useCallback(
-    (id: PersonaId) => {
+    (id: RoleId) => {
       // Role comes from the session when auth is enabled — chrome switcher is locked.
       if (authEnabled) return;
       setPersonaState(id);
@@ -94,10 +125,18 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<PersonaCtx>(() => {
-    const capabilities = personaDef(persona).capabilities;
+    // Server first; the built-in definition is the fallback for the signed-out
+    // moment before /api/auth/me answers, and for tests.
+    const def: PersonaDef =
+      serverRole && serverRole.roleId === persona
+        ? { ...personaDef(persona), ...serverRole, id: serverRole.roleId as PersonaDef["id"] }
+        : personaDef(persona);
+    const capabilities = def.capabilities;
     return {
       persona,
       setPersona,
+      def,
+      allowsNav: (key: NavKey) => def.navAllow.includes(key),
       capabilities,
       canWrite: capabilities.write,
       canApprove: capabilities.approve,
@@ -110,7 +149,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       refreshAuth,
       signOut,
     };
-  }, [persona, setPersona, authEnabled, authUser, authReady, refreshAuth, signOut]);
+  }, [persona, serverRole, setPersona, authEnabled, authUser, authReady, refreshAuth, signOut]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -119,10 +158,13 @@ export function usePersona(): PersonaCtx {
   const v = useContext(Ctx);
   if (!v) {
     // Safe fallback when a page is rendered outside the provider (tests).
-    const capabilities = personaDef(DEFAULT_PERSONA).capabilities;
+    const def = personaDef(DEFAULT_PERSONA);
+    const capabilities = def.capabilities;
     return {
       persona: DEFAULT_PERSONA,
       setPersona: () => {},
+      def,
+      allowsNav: (key: NavKey) => def.navAllow.includes(key),
       capabilities,
       canWrite: capabilities.write,
       canApprove: capabilities.approve,

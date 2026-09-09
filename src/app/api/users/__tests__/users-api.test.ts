@@ -96,11 +96,14 @@ describe("shared-login status", () => {
 });
 
 describe("deactivation guards", () => {
-  it("will not strand the plant without an active GM", async () => {
+  // The guard asks about the `configure` capability, not about the literal
+  // role id "gm" — see the note in the route. A plant that renames its admin
+  // role, or grants administration to a second one, is still protected.
+  it("will not strand the plant without an active login that can administer it", async () => {
     await call(POST, "POST", "gm", newUser({ username: "a.singh", role: "gm", displayName: "A. Singh" }));
     const res = await call(PATCH, "PATCH", "gm", { username: "a.singh", action: "deactivate" });
     expect(res.status).toBe(409);
-    expect((await res.json()).error).toMatch(/last active GM/);
+    expect((await res.json()).error).toMatch(/last active login that can administer/);
   });
 
   it("allows it once a second GM exists", async () => {

@@ -32,7 +32,6 @@ export type { NavKey };
 import {
   PERSONAS,
   PERSONA_ORDER,
-  personaAllowsNav,
   personaDef,
   type PersonaId,
 } from "@/lib/persona";
@@ -227,6 +226,8 @@ export default function AppShell({
     authUser,
     personaLocked,
     signOut,
+    def: personaDefinition,
+    allowsNav,
   } = usePersona();
   const { notify } = useConfirm();
   const [mounted, setMounted] = useState(false);
@@ -355,14 +356,18 @@ export default function AppShell({
     router.push(personaDef(id).homeHref);
   };
 
+  // Filtered by the signed-in role's OWN destinations, which the server sends
+  // with /api/auth/me. Indexing the built-in bundle here meant a role the plant
+  // created matched nothing and fell through to the default persona — a
+  // full-access GM — so a supervisor saw every screen, Settings included.
   const visibleNavSections = useMemo(() => {
     return NAV_SECTIONS.map((section) => ({
       ...section,
-      items: section.items.filter((n) => personaAllowsNav(persona, n.key)),
+      items: section.items.filter((n) => allowsNav(n.key)),
     })).filter((section) => section.items.length > 0);
-  }, [persona]);
+  }, [allowsNav]);
 
-  const activePersona = personaDef(persona);
+  const activePersona = personaDefinition;
   const navRef = useRef<HTMLDivElement>(null);
   const lastPos = typeof window !== "undefined" ? (window as any).__last_nav_pos : null;
   const [activeOffsetTop, setActiveOffsetTop] = useState(lastPos ? lastPos.top : -1000);

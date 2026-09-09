@@ -14,29 +14,36 @@
 import { useCallback, useEffect, useState } from "react";
 import Icon from "@/components/editorial/Icon";
 import Select from "@/components/ui/Select";
-import { PERSONAS, PERSONA_ORDER, type PersonaId, personaDef } from "@/lib/persona";
+import { personaDef, type RoleId } from "@/lib/persona";
 
 interface PlantUser {
   username: string;
   displayName: string;
-  role: PersonaId;
+  role: RoleId;
   active: boolean;
   createdBy: string;
   createdAt: string;
 }
 
-const ROLE_OPTIONS = PERSONA_ORDER.map((id) => ({ value: id, label: PERSONAS[id].label }));
+/** Roles come from the server now — the plant's own included, so a login can
+ *  be created for a Supervisor role that did not exist when this shipped. */
+interface RoleOption {
+  value: string;
+  label: string;
+}
 
 export default function PlantUsers() {
   const [users, setUsers] = useState<PlantUser[]>([]);
-  const [sharedActive, setSharedActive] = useState<PersonaId[]>([]);
+  const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
+  const [roleLabels, setRoleLabels] = useState<Record<string, string>>({});
+  const [sharedActive, setSharedActive] = useState<RoleId[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState<PersonaId>("operator");
+  const [role, setRole] = useState<RoleId>("operator");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -52,6 +59,16 @@ export default function PlantUsers() {
       const data = await res.json();
       setUsers(data.users ?? []);
       setSharedActive(data.sharedLoginsActive ?? []);
+
+      // Active roles only: offering a disabled role would create a login that
+      // cannot sign in, and the guard would report it as no session at all.
+      const rolesRes = await fetch("/api/roles", { credentials: "same-origin", cache: "no-store" });
+      if (rolesRes.ok) {
+        const rolesData = await rolesRes.json();
+        const rows: { roleId: string; label: string; active: boolean }[] = rolesData.roles ?? [];
+        setRoleOptions(rows.filter((r) => r.active).map((r) => ({ value: r.roleId, label: r.label })));
+        setRoleLabels(Object.fromEntries(rows.map((r) => [r.roleId, r.label])));
+      }
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load users.");
@@ -120,7 +137,7 @@ export default function PlantUsers() {
       {sharedActive.length > 0 && (
         <p className="settings-admin-warn">
           <Icon name="alert" />{" "}
-          {sharedActive.map((r) => personaDef(r).label).join(", ")}{" "}
+          {sharedActive.map((r) => roleLabels[r] ?? personaDef(r).label).join(", ")}{" "}
           {sharedActive.length === 1 ? "still signs in" : "still sign in"} with a shared password, so
           entries record the role rather than the person. Creating an account for that role turns the
           shared login off automatically.
@@ -158,7 +175,7 @@ export default function PlantUsers() {
           </label>
           <label style={{ display: "grid", gap: 4 }}>
             <span className="small">Role</span>
-            <Select value={role} onChange={(v) => setRole(v as PersonaId)} options={ROLE_OPTIONS} />
+            <Select value={role} onChange={(v) => setRole(v)} options={roleOptions} />
           </label>
           <label style={{ display: "grid", gap: 4 }}>
             <span className="small">Initial password</span>
@@ -203,7 +220,7 @@ export default function PlantUsers() {
                   <tr key={u.username} style={{ borderTop: "1px solid var(--border)", opacity: u.active ? 1 : 0.55 }}>
                     <td style={{ padding: "8px" }}>{u.displayName}</td>
                     <td style={{ padding: "8px", fontFamily: "var(--font-mono)" }}>{u.username}</td>
-                    <td style={{ padding: "8px" }}>{personaDef(u.role).label}</td>
+                    <td style={{ padding: "8px" }}>{roleLabels[u.role] ?? personaDef(u.role).label}</td>
                     <td style={{ padding: "8px" }}>{u.active ? "Active" : "Disabled"}</td>
                     <td style={{ padding: "8px", textAlign: "right", whiteSpace: "nowrap" }}>
                       <button className="settings-btn settings-btn--ghost" onClick={() => onResetPassword(u)} disabled={busy}>

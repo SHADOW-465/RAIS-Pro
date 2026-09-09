@@ -28,6 +28,7 @@ const SUPERVISOR: RoleRecord = {
   homeHref: "/data-entry",
   navAllow: ["dashboard", "data-entry", "hold", "open-lots", "defect"],
   capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
+  grants: ["screen.dashboard", "screen.data-entry", "permission.write"],
   builtin: false,
   active: true,
   sortOrder: 30,
