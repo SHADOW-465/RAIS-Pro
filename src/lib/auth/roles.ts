@@ -28,6 +28,7 @@ import { shouldUseSupabase } from "@/lib/store";
 import { createServerClient } from "@/lib/supabase";
 import { companyId } from "./config";
 import { grantsFromRole, roleAccessFromGrants } from "@/lib/access/catalog";
+import { EMPTY_SCOPE, parseScope, type RoleScope } from "@/lib/access/scope";
 import {
   PERSONAS,
   PERSONA_ORDER,
@@ -49,6 +50,9 @@ export interface RoleRecord {
    *  navAllow + capabilities by construction; the only home for grants that
    *  are neither, dashboard cards today. */
   grants: string[];
+  /** Which stages this role's data is limited to. Empty = the whole plant.
+   *  Enforced at /api/events, not in the browser. */
+  scope: RoleScope;
   /** Seeded with the app; may be edited, never deleted. */
   builtin: boolean;
   active: boolean;
@@ -70,6 +74,7 @@ export const BUILTIN_ROLES: Record<string, RoleRecord> = Object.fromEntries(
         navAllow: [...p.navAllow],
         capabilities: { ...p.capabilities },
         grants: [...grantsFromRole(p)],
+        scope: EMPTY_SCOPE,
         builtin: true,
         active: true,
         sortOrder: i * 10,
@@ -130,6 +135,7 @@ const rowToRole = (r: Record<string, unknown>): RoleRecord => {
     homeHref: String(r.home_href ?? "/"),
     navAllow: asStringArray(r.nav_allow) as NavKey[],
     grants: asStringArray(r.grants),
+    scope: parseScope(r.scope),
     capabilities: {
       write: caps.write === true,
       approve: caps.approve === true,
@@ -220,6 +226,7 @@ class SupabaseRoleStore implements RoleStore {
         nav_allow: role.navAllow,
         capabilities: role.capabilities,
         grants: role.grants,
+        scope: role.scope,
         builtin: role.builtin,
         active: role.active,
         sort_order: role.sortOrder,

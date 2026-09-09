@@ -26,6 +26,7 @@ import {
   type AccessNode,
 } from "@/lib/access/tree";
 import { grantsFromRole } from "@/lib/access/catalog";
+import { useRegistry } from "@/components/app/RegistryContext";
 import { NAV_ROUTES, ROUTED_NAV_KEYS } from "@/lib/nav-keys";
 import type { PersonaCapabilities } from "@/lib/persona";
 
@@ -38,6 +39,7 @@ interface RoleRow {
   navAllow: string[];
   capabilities: PersonaCapabilities;
   grants: string[];
+  scope: { stages: string[] };
   builtin: boolean;
   active: boolean;
   sortOrder: number;
@@ -67,12 +69,14 @@ const blankRole = (): RoleRow => ({
   navAllow: [],
   capabilities: { write: false, approve: false, configure: false, eraseLedger: false },
   grants: [],
+  scope: { stages: [] },
   builtin: false,
   active: true,
   sortOrder: 100,
 });
 
 export default function RolesAccess() {
+  const { registry } = useRegistry();
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [actingRole, setActingRole] = useState<string | null>(null);
@@ -128,7 +132,7 @@ export default function RolesAccess() {
   const openRole = useCallback((role: RoleRow) => {
     setCreating(false);
     setSelectedId(role.roleId);
-    setDraft({ ...role });
+    setDraft({ ...role, scope: { stages: [...(role.scope?.stages ?? [])] } });
     // A role saved before the grants column existed has none stored; fall back
     // to deriving them from navAllow + capabilities so the tree is never blank
     // for a role that plainly has access.
@@ -191,7 +195,8 @@ export default function RolesAccess() {
       draft.label !== granted.label ||
       draft.title !== granted.title ||
       draft.homeHref !== granted.homeHref ||
-      draft.active !== granted.active
+      draft.active !== granted.active ||
+      draft.scope.stages.join("|") !== (granted.scope?.stages ?? []).join("|")
     );
   }, [creating, granted, grants, draft]);
 
@@ -227,6 +232,7 @@ export default function RolesAccess() {
       title: draft.title,
       homeHref: draft.homeHref,
       active: draft.active,
+      scope: draft.scope,
       grants: [...grants],
     };
     const ok = await send(creating ? "POST" : "PATCH", payload);
@@ -437,6 +443,63 @@ export default function RolesAccess() {
                 }}
               />
             </div>
+          </section>
+
+          <section>
+            <h3 className="settings-admin-title">Data scope</h3>
+            <p className="settings-admin-body" style={{ marginTop: -4 }}>
+              Leave every stage unticked and this role sees the whole plant, which is
+              what every role does today. Tick stages and the server sends only those
+              rows — their totals are their line&rsquo;s, not a smaller version of the
+              plant&rsquo;s. Records with no stage of their own are always included.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {((registry?.stages ?? []) as { stageId: string; label?: string }[]).map((st) => {
+                const id = st.stageId;
+                const on = draft.scope.stages.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() =>
+                      setDraft({
+                        ...draft,
+                        scope: {
+                          stages: on
+                            ? draft.scope.stages.filter((x) => x !== id)
+                            : [...draft.scope.stages, id],
+                        },
+                      })
+                    }
+                    style={{
+                      padding: "5px 10px",
+                      borderRadius: 30,
+                      fontSize: 12,
+                      cursor: "pointer",
+                      font: "inherit",
+                      fontWeight: 550,
+                      border: `1px solid ${on ? "var(--accent)" : "var(--border-strong)"}`,
+                      background: on ? "var(--accent-weak)" : "transparent",
+                      color: "inherit",
+                    }}
+                  >
+                    {st.label ?? id}
+                  </button>
+                );
+              })}
+              {(registry?.stages ?? []).length === 0 && (
+                <span className="small" style={{ color: "var(--text-3)" }}>
+                  No stages in the plant catalog yet.
+                </span>
+              )}
+            </div>
+            {draft.scope.stages.length > 0 && (
+              <p className="settings-admin-warn" style={{ marginTop: 10 }}>
+                <Icon name="alert" /> Every number this role sees will be limited to{" "}
+                {draft.scope.stages.length} stage{draft.scope.stages.length === 1 ? "" : "s"},
+                the dashboard and their own entry history included.
+              </p>
+            )}
           </section>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>

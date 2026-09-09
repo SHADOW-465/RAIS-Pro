@@ -35,7 +35,9 @@ describe("POST /api/schema delete stays deleted on the next GET", () => {
       false,
     );
 
-    const got = await GET();
+    const got = await GET(
+      new NextRequest("http://localhost/api/schema", { headers: await authedJsonHeaders("gm") }),
+    );
     const data = await got.json();
     expect(data.catalog.stages.some((s: { stageId: string }) => s.stageId === "visual")).toBe(
       false,

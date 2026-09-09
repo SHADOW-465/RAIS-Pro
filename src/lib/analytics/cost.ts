@@ -27,6 +27,14 @@ export function getTargetRejectionRate(scope?: Scope): number {
 }
 
 export function copq(events: Event[], scope: Scope): COPQResult | null {
+  // No cost basis, no cost number. The policy arrives without a unit cost for a
+  // role that may not see plant money (lib/access/scope.ts redacts it server
+  // side), and a plant that genuinely has not set one is in the same position:
+  // in both cases every stage would come out at exactly ₹0, which reads as a
+  // measured result rather than an absent input. Returning null makes callers
+  // show their empty state, which is the true statement.
+  if (!(policyOf(scope).unitCostInr > 0)) return null;
+
   const ev = scopeEvents(events, scope);
   if (ev.length === 0) return { value: 0, byStage: {} };
 

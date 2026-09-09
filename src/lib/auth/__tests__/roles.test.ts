@@ -29,6 +29,7 @@ const SUPERVISOR: RoleRecord = {
   navAllow: ["dashboard", "data-entry", "hold", "open-lots", "defect"],
   capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
   grants: ["screen.dashboard", "screen.data-entry", "permission.write"],
+  scope: { stages: [] },
   builtin: false,
   active: true,
   sortOrder: 30,

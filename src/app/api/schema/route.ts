@@ -16,6 +16,9 @@ import { StageDef, DefectDef, SizeDef } from "@/lib/contract/d1";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import { getCatalogStore, type CompanyCatalog } from "@/core/ontology/store/catalog-store";
 import { getPolicyStore } from "@/core/policy/policy-store";
+import { requireSession } from "@/lib/auth/guard";
+import { resolveRole } from "@/lib/auth/roles";
+import { policyForRole, roleSeesCost } from "@/lib/access/scope";
 import { DEFAULT_POLICY } from "@/core/policy/policy";
 import { mergePlantCatalog } from "@/core/ontology/plant-catalog";
 import { loadCatalog, SEED_TAG } from "@/core/ontology/load-catalog";
@@ -137,7 +140,16 @@ async function loadMappings(company: string): Promise<
   });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // The policy rides along on this response, and it carries the unit cost —
+  // so the same redaction /api/policy does has to happen here too, or the
+  // figure withheld from one endpoint arrives on the other. This route is the
+  // reason to enforce that in lib/access/scope.ts rather than inline.
+  const auth = await requireSession(req);
+  if (!auth.ok) return auth.response;
+  const role = await resolveRole(auth.actor.role);
+  const nav = role?.navAllow ?? [];
+
   try {
     const company = companyId();
     // Policy rides along so the client gets all plant config in one round trip
@@ -164,8 +176,9 @@ export async function GET() {
         catalog,
         mappings,
         configured,
-        policy: policyVersion.policy,
+        policy: policyForRole(policyVersion.policy, nav),
         policyVersion: policyVersion.version,
+        costRedacted: roleSeesCost(nav) ? undefined : true,
         brain: {
           stageCount: catalog.stages.length,
           defectCount: catalog.defects.length,
@@ -193,7 +206,7 @@ export async function GET() {
       configured: false,
       // Shipped defaults, never undefined — a failed schema load must not make
       // every screen fall back to a *different* set of conventions.
-      policy: DEFAULT_POLICY,
+      policy: policyForRole(DEFAULT_POLICY, nav),
       policyVersion: 0,
       error: err instanceof Error ? err.message : "Failed to load catalog",
     });

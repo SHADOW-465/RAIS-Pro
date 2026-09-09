@@ -32,6 +32,7 @@ import {
 } from "@/lib/auth/roles";
 import { companyId, getUserStore } from "@/lib/auth/users";
 import { leafById, screenGrantId } from "@/lib/access/catalog";
+import { parseScope } from "@/lib/access/scope";
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
 
@@ -105,6 +106,7 @@ export async function POST(req: NextRequest) {
     title: String(body.title ?? "").trim(),
     initial: (String(body.initial ?? label).trim().charAt(0) || "?").toUpperCase(),
     homeHref: String(body.homeHref ?? "/") || "/",
+    scope: parseScope(body.scope),
     builtin: false,
     active: true,
     sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : 100,
@@ -142,6 +144,7 @@ export async function PATCH(req: NextRequest) {
     next.initial = body.initial.trim().charAt(0).toUpperCase();
   }
   if (typeof body.active === "boolean") next.active = body.active;
+  if (body.scope !== undefined) next.scope = parseScope(body.scope);
 
   let grants: Set<string> | null = null;
   if (body.grants !== undefined) {

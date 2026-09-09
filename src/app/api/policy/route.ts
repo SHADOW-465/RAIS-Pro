@@ -10,15 +10,26 @@
 // in one round trip; this route owns writes, history, and plant baseline.
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireCapability } from "@/lib/auth/guard";
-import { CalculationPolicy } from "@/core/policy/policy";
+import { requireCapability, requireSession } from "@/lib/auth/guard";
+import { resolveRole } from "@/lib/auth/roles";
+import { policyForRole, roleSeesCost } from "@/lib/access/scope";
+import { CalculationPolicy, type CalculationPolicyT } from "@/core/policy/policy";
 import { getPolicyStore } from "@/core/policy/policy-store";
 
 function companyId(): string {
   return process.env.MOID_COMPANY_ID || "default";
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // The unit cost lives in here, so this read is no longer anonymous-by-proxy:
+  // a role without the Cost of Rejection screen should not merely be unable to
+  // OPEN it, it should not receive the plant's money at all. Redacting only in
+  // the browser would leave the figure one network-tab away.
+  const auth = await requireSession(req);
+  if (!auth.ok) return auth.response;
+  const role = await resolveRole(auth.actor.role);
+  const seesCost = roleSeesCost(role?.navAllow ?? []);
+
   const store = getPolicyStore();
   const company = companyId();
   const [current, history, baseline] = await Promise.all([
@@ -26,7 +37,22 @@ export async function GET() {
     store.history(company),
     store.baseline(company),
   ]);
-  return NextResponse.json({ ...current, history, baseline });
+
+  if (seesCost) return NextResponse.json({ ...current, history, baseline });
+
+  // History and baseline carry past unit costs; redact those too, or the
+  // current value is withheld while every previous one is handed over.
+  const nav = role?.navAllow ?? [];
+  const redact = <T extends { policy: CalculationPolicyT }>(v: T): T => ({
+    ...v,
+    policy: policyForRole(v.policy, nav),
+  });
+  return NextResponse.json({
+    ...redact(current),
+    history: history.map(redact),
+    baseline: baseline ? redact(baseline) : baseline,
+    costRedacted: true,
+  });
 }
 
 export async function PUT(req: NextRequest) {

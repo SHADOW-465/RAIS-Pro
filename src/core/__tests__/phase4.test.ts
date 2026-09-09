@@ -85,7 +85,13 @@ describe("Phase 4: preset → MOD migration + generated entry + schema shim", ()
 
   it("serves the MOD catalog through the /api/schema compat shim in legacy registry shape", async () => {
     const { GET } = await import("@/app/api/schema/route");
-    const res = await GET();
+    const { NextRequest } = await import("next/server");
+    const { sessionCookie } = await import("@/__tests__/fixtures/auth");
+    const res = await GET(
+      new NextRequest("http://localhost/api/schema", {
+        headers: { Cookie: await sessionCookie("gm") },
+      }),
+    );
     expect(res.status).toBe(200);
     const data = await res.json();
 

@@ -36,6 +36,11 @@ CREATE TABLE IF NOT EXISTS plant_roles (
   -- capabilities stay the columns the guard reads, so a role whose grants
   -- column is empty still authorizes exactly as it did.
   grants       jsonb       NOT NULL DEFAULT '[]'::jsonb,
+  -- Data scope: { "stages": ["visual", ...] }. Empty means the whole plant,
+  -- which is what every role has always had. Unlike nav_allow this is not
+  -- presentation — /api/events filters on it, so a scoped role's browser never
+  -- receives another line's rows rather than merely not drawing them.
+  scope        jsonb       NOT NULL DEFAULT '{}'::jsonb,
   builtin      boolean     NOT NULL DEFAULT false,
   active       boolean     NOT NULL DEFAULT true,
   sort_order   int         NOT NULL DEFAULT 100,

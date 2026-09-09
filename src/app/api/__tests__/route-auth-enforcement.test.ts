@@ -124,11 +124,35 @@ describe("PATCH /api/notifications — approval authority is the session's, not 
   });
 });
 
-describe("reads are left to the proxy", () => {
-  test("GET /api/schema has no capability gate of its own", async () => {
-    // Every role may read; authentication for reads is the proxy's job, and
-    // adding a capability check here would lock the Owner out of the product.
-    const m = await import("../schema/route");
-    expect((await (m.GET as () => Promise<Response>)()).status).toBe(200);
+describe("reads carry no capability gate", () => {
+  // Every role may read the schema. Adding a CAPABILITY check here would lock
+  // the Owner — "view only" — out of the product entirely.
+  //
+  // It does now require a session at the handler, which it did not before: the
+  // response carries the calculation policy, and the policy carries the plant's
+  // unit cost, so the route has to know whose role it is answering in order to
+  // redact it (lib/access/scope.ts). That is authentication, not authorization
+  // — no role is refused.
+  const load = async () => (await import("../schema/route")).GET;
+
+  test("an Owner, who may change nothing, still reads it", async () => {
+    const GET = await load();
+    const req = new NextRequest("http://localhost/api/schema", {
+      headers: { Cookie: await sessionCookie("owner") },
+    });
+    expect((await GET(req)).status).toBe(200);
+  });
+
+  test("an operator reads it too", async () => {
+    const GET = await load();
+    const req = new NextRequest("http://localhost/api/schema", {
+      headers: { Cookie: await sessionCookie("operator") },
+    });
+    expect((await GET(req)).status).toBe(200);
+  });
+
+  test("but an unauthenticated caller does not", async () => {
+    const GET = await load();
+    expect((await GET(new NextRequest("http://localhost/api/schema"))).status).toBe(401);
   });
 });

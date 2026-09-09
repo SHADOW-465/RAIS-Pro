@@ -30,6 +30,7 @@ const SUPERVISOR: RoleRecord = {
   navAllow: ["dashboard", "data-entry", "hold"],
   capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
   grants: ["screen.dashboard", "screen.data-entry", "screen.hold", "permission.write"],
+  scope: { stages: [] },
   builtin: false,
   active: true,
   sortOrder: 30,
