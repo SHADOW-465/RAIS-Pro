@@ -14,13 +14,21 @@
 // field in, because on a fresh deploy with no accounts yet they are the only
 // way in and a new GM should not have to guess that "gm" is a valid username.
 //
-// They are labelled as what they are, rather than hidden once they retire. A
-// shared login stops working the moment somebody real holds that role, and the
-// page cannot ask which roles those are without telling an anonymous visitor
-// how far the plant has got through creating accounts. Saying it in words
-// costs nothing and leaks nothing.
+// Above that sits the quick login a shop floor actually uses: a card per
+// person, grouped under the role they hold, so the page shows every role that
+// has accounts. Tapping a card fills the username in — it is a shortcut for
+// typing, not a way past the password.
+//
+// That list is public, because this page has no session to check. See the note
+// on /api/auth/logins for what that discloses and why it was chosen over
+// giving every role a shared password: a shared login costs the ledger the
+// thing it exists for, which is being able to name who entered a value.
+//
+// Retired shared logins are filtered out server-side rather than shown and
+// left to fail. Once the staff list is public, hiding them leaks nothing new —
+// a role with a named account is already visible above.
 
-import { useEffect, useRef, useState, FormEvent, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { PERSONAS, PERSONA_ORDER } from "@/lib/persona";
@@ -32,6 +40,14 @@ type LoginOption = {
   username: string;
   label: string;
   title: string;
+  initial: string;
+};
+
+type LoginPerson = {
+  username: string;
+  displayName: string;
+  roleId: string;
+  roleLabel: string;
   initial: string;
 };
 
@@ -50,6 +66,8 @@ function LoginForm() {
   const { refreshAuth } = usePersona();
 
   const [presets, setPresets] = useState<LoginOption[]>(PRESET_FALLBACK);
+  const [people, setPeople] = useState<LoginPerson[]>([]);
+  const [roleOrder, setRoleOrder] = useState<string[]>([]);
   const [identity, setIdentity] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +81,11 @@ function LoginForm() {
         const res = await fetch("/api/auth/logins", { credentials: "same-origin" });
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
-        if (Array.isArray(data.logins) && data.logins.length > 0) setPresets(data.logins);
+        // An empty preset list is meaningful — every shared login has retired —
+        // so only fall back to the built-in list when the field is absent.
+        if (Array.isArray(data.logins)) setPresets(data.logins);
+        if (Array.isArray(data.people)) setPeople(data.people);
+        if (Array.isArray(data.roleOrder)) setRoleOrder(data.roleOrder);
       } catch {
         /* keep the built-in list */
       }
@@ -73,13 +95,31 @@ function LoginForm() {
     };
   }, []);
 
-  /** A tile fills the identity in and moves to the password — it is a shortcut
-   *  for typing "gm", not a different kind of sign-in. */
-  function fillSharedLogin(option: LoginOption) {
-    setIdentity(option.username);
+  /** A card fills the identity in and moves to the password — a shortcut for
+   *  typing it, never a way past the password. */
+  function pick(username: string) {
+    setIdentity(username);
     setError(null);
     passwordRef.current?.focus();
   }
+
+  /** People grouped under the role they hold, in the plant's own role order so
+   *  the sign-in page reads like the org rather than like the database. */
+  const groups = useMemo(() => {
+    const byRole = new Map<string, { label: string; people: LoginPerson[] }>();
+    for (const person of people) {
+      const g = byRole.get(person.roleId) ?? { label: person.roleLabel, people: [] };
+      g.people.push(person);
+      byRole.set(person.roleId, g);
+    }
+    const rank = (id: string) => {
+      const i = roleOrder.indexOf(id);
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    return [...byRole.entries()]
+      .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+      .map(([roleId, g]) => ({ roleId, ...g }));
+  }, [people, roleOrder]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -216,33 +256,65 @@ function LoginForm() {
             {busy ? "Signing in…" : "Sign in"}
           </button>
 
-          <section className="login-alt" aria-labelledby="login-alt-title">
-            <h3 className="login-alt-title" id="login-alt-title">
-              Shared role logins
-            </h3>
-            <div className="login-chips">
-              {presets.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className="login-chip"
-                  onClick={() => fillSharedLogin(option)}
-                  disabled={busy}
-                >
-                  <span className="login-chip-initial" aria-hidden>
-                    {option.initial}
-                  </span>
-                  <span className="login-chip-label">{option.label}</span>
-                </button>
+          {groups.length > 0 && (
+            <section className="login-alt" aria-labelledby="login-people-title">
+              <h3 className="login-alt-title" id="login-people-title">
+                Or tap your name
+              </h3>
+              {groups.map((group) => (
+                <div className="login-group" key={group.roleId}>
+                  <h4 className="login-group-title">{group.label}</h4>
+                  <div className="login-chips">
+                    {group.people.map((person) => (
+                      <button
+                        key={person.username}
+                        type="button"
+                        className="login-chip"
+                        onClick={() => pick(person.username)}
+                        disabled={busy}
+                      >
+                        <span className="login-chip-initial" aria-hidden>
+                          {person.initial}
+                        </span>
+                        <span className="login-chip-label">{person.displayName}</span>
+                        <span className="login-chip-sub">{person.username}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
-            </div>
-            <p className="login-alt-note">
-              For a plant that has not created accounts yet. Each one stops working as
-              soon as somebody has a personal account for that role — which is the point:
-              the ledger can then name who entered a value, instead of recording a job
-              title a whole shift shares.
-            </p>
-          </section>
+            </section>
+          )}
+
+          {presets.length > 0 && (
+            <section className="login-alt" aria-labelledby="login-alt-title">
+              <h3 className="login-alt-title" id="login-alt-title">
+                Shared role logins
+              </h3>
+              <div className="login-chips">
+                {presets.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className="login-chip"
+                    onClick={() => pick(option.username)}
+                    disabled={busy}
+                  >
+                    <span className="login-chip-initial" aria-hidden>
+                      {option.initial}
+                    </span>
+                    <span className="login-chip-label">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="login-alt-note">
+                {groups.length > 0
+                  ? "Still live because nobody holds these roles by name yet. Each one retires the moment somebody does — that is how the ledger stops recording a job title a whole shift shares."
+                  : "For a plant that has not created accounts yet. Each one stops working as soon as somebody has a personal account for that role, so the ledger can name who entered a value."}
+              </p>
+            </section>
+          )}
+
         </form>
       </main>
     </div>

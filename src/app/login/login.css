@@ -191,6 +191,13 @@
   gap: 10px;
 }
 
+/* Two of these can stack (people, then shared logins); one rule above the
+   pair is a separator, two in a row is a boxed-in look. */
+.login-alt + .login-alt {
+  margin-top: 0;
+  padding-top: 14px;
+}
+
 .login-alt-title {
   margin: 0;
   font-size: 12px;
@@ -268,6 +275,38 @@
 
 .login-chip-label {
   white-space: nowrap;
+}
+
+/* A role heading with the people who hold it. The sign-in page reads like the
+   org chart rather than like a flat list of accounts. */
+
+.login-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-group + .login-group {
+  margin-top: 4px;
+}
+
+.login-group-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.login-chip-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 450;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.login-chip:hover:not(:disabled) .login-chip-sub {
+  color: var(--text-2);
 }
 
 .login-alt-note {
