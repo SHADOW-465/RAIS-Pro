@@ -93,3 +93,30 @@ export const ROUTED_NAV_KEYS = (Object.keys(NAV_ROUTES) as NavKey[]).filter(
 export function navHref(key: NavKey): string {
   return NAV_ROUTES[key].href ?? "/";
 }
+
+/**
+ * Which destination a URL belongs to, or null for anything that is not a
+ * screen (API routes, /login, static paths).
+ *
+ * Longest match wins so `/settings/rules` resolves to Settings rather than to
+ * nothing, and `/` is matched exactly — every path starts with it.
+ *
+ * Deliberately dependency-free: `src/proxy.ts` runs this on every request in
+ * the Edge runtime, so this file must stay importable there.
+ */
+export function navKeyForPath(pathname: string): NavKey | null {
+  const path = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+  if (path === "/") return "dashboard";
+
+  let best: NavKey | null = null;
+  let bestLen = 0;
+  for (const key of ROUTED_NAV_KEYS) {
+    const href = NAV_ROUTES[key].href as string;
+    if (href === "/") continue;
+    if ((path === href || path.startsWith(`${href}/`)) && href.length > bestLen) {
+      best = key;
+      bestLen = href.length;
+    }
+  }
+  return best;
+}

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate } from "@/lib/auth/users";
 import {
+  NAV_COOKIE,
   SESSION_COOKIE,
+  createNavToken,
   createSessionToken,
   sessionCookieOptions,
 } from "@/lib/auth/session";
@@ -59,6 +61,13 @@ export async function POST(req: NextRequest) {
       },
     });
     res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
+    // Lets the proxy redirect away from a screen this role does not have,
+    // without it having to reach the database. Advisory only — see session.ts.
+    res.cookies.set(
+      NAV_COOKIE,
+      await createNavToken(user.role, role?.navAllow ?? persona.navAllow),
+      sessionCookieOptions(),
+    );
     return res;
   } catch (err) {
     // eslint-disable-next-line no-console

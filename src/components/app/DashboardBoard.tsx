@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Icon from "@/components/editorial/Icon";
+import { usePersona } from "@/components/app/PersonaContext";
+import { visibleCardIds } from "@/lib/access/catalog";
 import {
   DASH_COLS,
   clearLayout,
@@ -146,9 +148,16 @@ export default function DashboardBoard({
   onDirtyChange?: (dirty: boolean) => void;
   children: React.ReactNode;
 }) {
+  // Cards the signed-in role may see. The decision itself is
+  // `visibleCardIds` — a pure function with tests — because policy inside a
+  // component is policy nothing can check: this project's tests run in node
+  // with no jsdom, so a rule written here would never be exercised.
+  const { grants } = usePersona();
   const items = useMemo(() => {
-    return React.Children.toArray(children).filter(isDashItem);
-  }, [children]);
+    const all = React.Children.toArray(children).filter(isDashItem);
+    const allowed = new Set(visibleCardIds(all.map((el) => el.props.id), grants));
+    return all.filter((el) => allowed.has(el.props.id));
+  }, [children, grants]);
 
   const present = useMemo(() => items.map((el) => el.props.id), [items]);
   const spans = useMemo(() => {

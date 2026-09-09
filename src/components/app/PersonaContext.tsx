@@ -23,6 +23,7 @@ type ServerRole = {
   homeHref: string;
   navAllow: NavKey[];
   capabilities: PersonaCapabilities;
+  grants: string[];
 };
 
 type PersonaCtx = {
@@ -40,6 +41,15 @@ type PersonaCtx = {
   def: PersonaDef;
   /** Convenience: may this role open that sidebar destination? */
   allowsNav: (key: NavKey) => boolean;
+  /**
+   * May this role see a given grant leaf — a dashboard card, today.
+   *
+   * Null when the signed-in role's grants are not known yet (before
+   * /api/auth/me answers, or for the built-in fallback). Callers must read
+   * null as "show everything": withholding a card because the answer has not
+   * arrived would make the board flicker on every load.
+   */
+  grants: ReadonlySet<string> | null;
   capabilities: PersonaCapabilities;
   canWrite: boolean;
   canApprove: boolean;
@@ -137,6 +147,8 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       setPersona,
       def,
       allowsNav: (key: NavKey) => def.navAllow.includes(key),
+      grants:
+        serverRole && serverRole.roleId === persona ? new Set(serverRole.grants ?? []) : null,
       capabilities,
       canWrite: capabilities.write,
       canApprove: capabilities.approve,
@@ -165,6 +177,7 @@ export function usePersona(): PersonaCtx {
       setPersona: () => {},
       def,
       allowsNav: (key: NavKey) => def.navAllow.includes(key),
+      grants: null,
       capabilities,
       canWrite: capabilities.write,
       canApprove: capabilities.approve,

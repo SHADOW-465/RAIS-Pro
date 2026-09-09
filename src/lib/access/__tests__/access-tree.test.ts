@@ -19,6 +19,7 @@ import {
   permissionGrantId,
   roleAccessFromGrants,
   screenGrantId,
+  visibleCardIds,
 } from "@/lib/access/catalog";
 import {
   buildAccessTree,
@@ -210,5 +211,42 @@ describe("the card catalog tracks the actual dashboard", () => {
 
   test("every card on the board is grantable", () => {
     expect([...new Set(onBoard)].sort()).toEqual(dashboardCardIds().sort());
+  });
+});
+
+// Which cards a role sees IS the "separate dashboard per role" feature, so the
+// decision lives in a pure function rather than inside DashboardBoard: tests
+// here run in node with no jsdom, and a rule written in the component would
+// never be exercised by anything.
+describe("per-role dashboard cards", () => {
+  const board = dashboardCardIds();
+
+  test("an unknown role sees every card rather than an empty board", () => {
+    // grants === null is "the answer has not arrived", not "denied".
+    expect(visibleCardIds(board, null)).toEqual(board);
+  });
+
+  test("a role sees exactly the cards it was granted, in board order", () => {
+    const grants = new Set([cardGrantId("pareto"), cardGrantId("kpis")]);
+    expect(visibleCardIds(board, grants)).toEqual(["kpis", "pareto"]);
+  });
+
+  test("two roles granted different cards get different boards", () => {
+    const supervisor = new Set(["kpis", "wip", "pareto"].map(cardGrantId));
+    const quality = new Set(["kpis", "quality", "audit"].map(cardGrantId));
+    expect(visibleCardIds(board, supervisor)).toEqual(["kpis", "wip", "pareto"]);
+    // Board order, not grant order — the role picks WHICH cards, the board
+    // still decides the sequence, and "audit" sits before "quality" on it.
+    expect(visibleCardIds(board, quality)).toEqual(["kpis", "audit", "quality"]);
+  });
+
+  test("granting no cards leaves an empty board, not a full one", () => {
+    expect(visibleCardIds(board, new Set())).toEqual([]);
+  });
+
+  test("the built-in roles keep every card — nobody's board narrows by upgrade", () => {
+    for (const id of PERSONA_ORDER) {
+      expect(visibleCardIds(board, grantsFromRole(BUILTIN_ROLES[id]))).toEqual(board);
+    }
   });
 });

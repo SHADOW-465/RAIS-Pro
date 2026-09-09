@@ -105,6 +105,33 @@ const CARD_LEAVES: AccessLeaf[] = DASHBOARD_CARDS.map((c) => ({
 
 export const dashboardCardIds = (): string[] => DASHBOARD_CARDS.map((c) => c.id);
 
+/**
+ * Which dashboard cards a role may see, out of the ones on the board.
+ *
+ * This is what makes one dashboard read differently per role — a supervisor
+ * gets their line's numbers, a QA role gets trust and provenance — without a
+ * second board to maintain.
+ *
+ * `grants` is null while the signed-in role is not known yet: before
+ * /api/auth/me answers, and for the built-in fallback. Null means show
+ * everything, because withholding a card until the answer arrives would make
+ * the board flicker on every load.
+ *
+ * Note what this is NOT. The cards are computed in the browser from the event
+ * feed it already holds, so hiding one is layout, not confidentiality. A number
+ * somebody must not be able to READ needs /api/events scoped server-side.
+ */
+export function visibleCardIds(
+  onBoard: readonly string[],
+  grants: ReadonlySet<string> | null,
+): string[] {
+  if (!grants) return [...onBoard];
+  // Deny by omission, same rule as the rest of the catalog. A card that exists
+  // on the board but not in DASHBOARD_CARDS can never be granted and so never
+  // shows — which is why access-tree.test.ts holds the two lists together.
+  return onBoard.filter((id) => grants.has(cardGrantId(id)));
+}
+
 // ── Permissions ─────────────────────────────────────────────────────────────
 // The four bits `lib/auth/guard.ts` actually checks. Wording is deliberately
 // about consequences: a GM picking a role's rights should not have to know that

@@ -129,3 +129,61 @@ export function sessionCookieOptions(maxAgeSec: number = SESSION_TTL_SEC) {
 }
 
 export { SESSION_COOKIE };
+
+// ── The nav cookie ──────────────────────────────────────────────────────────
+//
+// `src/proxy.ts` can redirect someone away from a screen their role does not
+// have, but it runs in the Edge runtime and cannot reach the database to ask
+// which screens those are. So the allow-list travels with the request, signed
+// with the same key as the session so it cannot be edited by hand.
+//
+// This is NOT an authorization boundary and must never be treated as one. The
+// boundary is lib/auth/guard.ts, which reads the role from the database on
+// every guarded call. This cookie only spares someone the experience of
+// landing on a screen where every control is dead. It follows that a missing,
+// stale or unreadable nav cookie has to FAIL OPEN — the page renders, its APIs
+// refuse what they should, and nobody is locked out of the app by a cookie
+// problem. Failing closed here would turn a cache detail into an outage.
+
+export const NAV_COOKIE = "moid_nav";
+
+export type NavPayload = {
+  /** Role the list belongs to; ignored if it no longer matches the session. */
+  r: RoleId;
+  /** Allowed nav keys. */
+  n: string[];
+  exp: number;
+};
+
+export async function createNavToken(
+  role: RoleId,
+  navAllow: readonly string[],
+  ttlSec: number = SESSION_TTL_SEC,
+): Promise<string> {
+  const payload: NavPayload = {
+    r: role,
+    n: [...navAllow],
+    exp: Math.floor(Date.now() / 1000) + ttlSec,
+  };
+  const body = b64urlEncode(JSON.stringify(payload));
+  return `${body}.${await sign(body, getAuthSecret())}`;
+}
+
+export async function verifyNavToken(token: string | undefined | null): Promise<NavPayload | null> {
+  if (!token || !token.includes(".")) return null;
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const expected = await sign(body, getAuthSecret());
+  if (expected.length !== sig.length) return null;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
+  if (diff !== 0) return null;
+  try {
+    const raw = JSON.parse(b64urlDecodeToString(body)) as NavPayload;
+    if (!raw?.r || !Array.isArray(raw.n) || typeof raw.exp !== "number") return null;
+    if (raw.exp < Math.floor(Date.now() / 1000)) return null;
+    return raw;
+  } catch {
+    return null;
+  }
+}

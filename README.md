@@ -109,6 +109,9 @@ src/
 | `GET/DELETE /api/manual-entries` | Data Entry ledger rows |
 | `POST /api/chat` · `POST /api/capa-advisor` · `POST /api/decide` | AI-backed answers, CAPA drafting, rule recommendations |
 | `GET /api/raw-file` · `POST /api/archive-upload` | Original file retrieval / archival |
+| `GET/POST/PATCH/DELETE /api/roles` | Plant roles: what each may open, and its capability bits |
+| `GET/POST/PATCH /api/users` | Named logins and the role each holds |
+| `POST /api/auth/login` · `POST /api/auth/logout` · `GET /api/auth/me` | Sign in, out, and the signed-in role's definition |
 
 ## Setup
 

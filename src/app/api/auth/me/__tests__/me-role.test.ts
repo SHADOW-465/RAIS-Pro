@@ -9,10 +9,15 @@
 //
 // So: the server answers with navAllow and capabilities, and the client renders
 // exactly that. If this test goes red, the sidebar has stopped being trustworthy.
+//
+// Lives beside the route rather than in src/app/api/auth/__tests__: that folder
+// is a grouping segment with no route.ts of its own, and putting a __tests__
+// directory directly in it made Next 404 every route under /api/auth. Tests go
+// in the LEAF route directory here, same as api/users and api/ingest.
 process.env.MOID_STORE = "memory";
 
 import { NextRequest } from "next/server";
-import { GET } from "../me/route";
+import { GET } from "../route";
 import { sessionCookie } from "@/__tests__/fixtures/auth";
 import { __resetRoleStoreForTests, __seedRoleForTests, type RoleRecord } from "@/lib/auth/roles";
 

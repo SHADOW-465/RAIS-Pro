@@ -8,7 +8,13 @@
 // "no idea", so the server answers with both.
 
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth/session";
+import {
+  NAV_COOKIE,
+  SESSION_COOKIE,
+  createNavToken,
+  sessionCookieOptions,
+  verifySessionToken,
+} from "@/lib/auth/session";
 import { resolveRole } from "@/lib/auth/roles";
 
 export async function GET(req: NextRequest) {
@@ -25,7 +31,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ authEnabled: true, user: null }, { status: 401 });
   }
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     authEnabled: true,
     user: { username: session.u, role: role.roleId },
     role: {
@@ -39,4 +45,13 @@ export async function GET(req: NextRequest) {
       grants: role.grants,
     },
   });
+
+  // Re-issued on every check, so editing a role's screens takes effect on the
+  // next page load rather than at the next sign-in.
+  res.cookies.set(
+    NAV_COOKIE,
+    await createNavToken(role.roleId, role.navAllow),
+    sessionCookieOptions(),
+  );
+  return res;
 }
