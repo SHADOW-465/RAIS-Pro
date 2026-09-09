@@ -180,112 +180,102 @@
 
 /* Role segmented control */
 
-.login-roles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  background: var(--surface);
-  overflow: hidden;
-  box-shadow: var(--shadow-1);
-}
+/* ── Shared role logins: shortcuts, not a second sign-in ────────────────── */
 
-.login-role {
-  appearance: none;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-  padding: 12px 8px;
+.login-alt {
+  margin-top: 4px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  min-height: 72px;
+  gap: 10px;
+}
+
+.login-alt-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.login-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.login-chip {
+  appearance: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 550;
   color: var(--text-2);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 30px;
+  padding: 5px 12px 5px 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
   transition:
     background-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
-  border-right: 1px solid var(--border);
-}
-
-.login-role:last-child {
-  border-right: none;
-}
-
-.login-role:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-.login-role:focus {
-  outline: none;
-}
-
-.login-role:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: -2px;
-  z-index: 1;
-}
-
-.login-role[aria-selected="true"] {
-  background: var(--accent-weak);
-  color: var(--text);
-}
-
-.login-role[aria-selected="true"] .login-role-initial {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--surface);
-}
-
-.login-role-initial {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid var(--border-strong);
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  font-weight: 700;
-  font-family: var(--font-display);
-  line-height: 1;
-  background: var(--surface-2);
-  transition:
     border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
 }
 
-.login-role-label {
-  font-size: 12px;
+.login-chip:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.login-chip:focus {
+  outline: none;
+}
+
+.login-chip:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.login-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.login-chip-initial {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 1.15;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.login-role-hint {
-  font-size: 10.5px;
-  font-weight: 500;
   color: var(--text-3);
-  line-height: 1.2;
-  text-align: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.login-chip:hover:not(:disabled) .login-chip-initial {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.login-chip-label {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
 
-.login-role[aria-selected="true"] .login-role-hint {
-  color: var(--text-2);
+.login-alt-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
 }
-
-/* Form fields */
 
 .login-field {
   display: flex;
@@ -501,45 +491,16 @@
 }
 
 @media (max-width: 420px) {
-  .login-roles {
-    grid-template-columns: 1fr;
-  }
-
-  .login-role {
-    flex-direction: row;
+  /* Chips wrap on their own; give each a full row so a long role name is not
+     truncated on a phone-width shop-floor terminal. */
+  .login-chip {
+    width: 100%;
     justify-content: flex-start;
-    gap: 12px;
-    padding: 12px 14px;
-    min-height: 52px;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .login-role:last-child {
-    border-bottom: none;
-  }
-
-  .login-role-label,
-  .login-role-hint {
-    text-align: left;
-  }
-
-  .login-role {
-    display: grid;
-    grid-template-columns: 28px 1fr;
-    grid-template-rows: auto auto;
-    column-gap: 12px;
-    row-gap: 2px;
-    align-items: center;
-  }
-
-  .login-role-initial {
-    grid-row: 1 / span 2;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-role,
+  .login-chip,
   .login-input,
   .login-submit {
     transition: none;
