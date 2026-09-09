@@ -16,4 +16,6 @@ export * from "./batch-progress";
 export * from "./source-trace";
 export * from "./hold";
 export * from "./open-lots";
+export * from "./accepted";
+export * from "./report-coverage";
 

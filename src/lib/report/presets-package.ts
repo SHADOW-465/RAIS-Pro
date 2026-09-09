@@ -91,7 +91,7 @@ function blockHtml(block: ReportBlock, events: Event[], scope: Scope): string {
     case "evidence":
       return `<section><h2>${esc(block.title)}</h2><p class="note">Provenance appendix — use the in-app print view for full cell lineage.</p></section>`;
     case "forensic-book":
-      return `<section><h2>${esc(block.title)}</h2><p class="note">Full forensic package — open Print / Save as PDF in the app for the complete multi-page book.</p></section>`;
+      return `<section><h2>${esc(block.title)}</h2><p class="note">This layout referenced a retired forensic package. It is not included. Use the Financial Year Audit Pack in Reports.</p></section>`;
     default:
       return "";
   }
@@ -107,7 +107,7 @@ function renderHtml(spec: ReportSpec, events: Event[], scope: Scope, periodLabel
     return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(title)}</title>
 <style>body{font-family:system-ui,sans-serif;padding:24px;color:#14181f} .note{color:#555}</style></head>
 <body><h1>${esc(title)}</h1><p>${esc(periodLabel)}</p><p>Sources: ${esc(sources)}</p>
-<p class="note">This is the full forensic compliance book. Use <strong>Print / Save as PDF</strong> in MOID for the complete multi-page layout with charts.</p>
+<p class="note">The forensic package has been retired and is not exported. Generate a Financial Year Audit Pack from Reports.</p>
 </body></html>`;
   }
 

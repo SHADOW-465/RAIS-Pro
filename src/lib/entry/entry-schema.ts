@@ -14,7 +14,7 @@ import {
   type MacroId,
   type DefectDef,
 } from "@/lib/entry/disposafe-matrix";
-import { STAGE_CATEGORIES, STAGE_CATEGORY } from "@/core/ontology/plant-catalog";
+import { STAGE_CATEGORIES, STAGE_CATEGORY, STAGES, resolveStageId, sortStageIds } from "@/core/ontology/plant-catalog";
 
 export type QtyKey = "checked" | "accepted" | "hold" | "rejected";
 export type ExtraField = "trolleys" | "bin";
@@ -75,8 +75,9 @@ export function migrateToStageId(input: {
 }
 
 function extrasFor(stageId: string): ExtraField[] {
-  if (stageId === "production") return ["trolleys"];
-  if (stageId === "secondary") return ["bin"];
+  const canon = resolveStageId(stageId) ?? stageId;
+  if (canon === "production") return ["trolleys"];
+  if (canon === "secondary") return ["bin"];
   return [];
 }
 
@@ -172,7 +173,11 @@ export function stationsIn(
   schema: ResolvedEntrySchema,
   category: string,
 ): EntryStation[] {
-  return schema.stations.filter((s) => s.category === category);
+  const inCat = schema.stations.filter((s) => s.category === category);
+  const byId = new Map(inCat.map((s) => [s.stageId, s]));
+  return sortStageIds(inCat.map((s) => s.stageId))
+    .map((id) => byId.get(id))
+    .filter((s): s is EntryStation => !!s);
 }
 
 export function stationById(
@@ -182,22 +187,52 @@ export function stationById(
   return schema.stations.find((s) => s.stageId === stageId);
 }
 
+function catalogById(stageId: string) {
+  const canon = resolveStageId(stageId) ?? stageId;
+  return STAGES.find((s) => s.stageId === canon);
+}
+
+function schemaStationFor(schema: ResolvedEntrySchema, catalogId: string): EntryStation | undefined {
+  return schema.stations.find(
+    (s) => s.stageId === catalogId || resolveStageId(s.stageId) === catalogId,
+  );
+}
+
 /**
- * Previous station in the same category that records an accepted qty — used
- * to prefill Checked from upstream Accepted. Walks past throughput-only
- * stations (valve-fixing has checked only) so Valve Integrity still prefills
- * from Balloon.
+ * Previous station that records an accepted qty — used to prefill Checked
+ * from upstream Accepted. Walks the plant-schema `upstream` cascade across
+ * primary → secondary → assembly, skipping throughput-only stations
+ * (valve-fixing, hanging, …) so Visual still prefills from Secondary /
+ * production-dipping, and Valve Integrity still prefills from Balloon.
  */
 export function previousAcceptedStageId(
   schema: ResolvedEntrySchema,
   stageId: string,
 ): string | null {
+  const start = catalogById(stageId);
+  if (start) {
+    const seen = new Set<string>();
+    const queue = [...start.upstream];
+    while (queue.length > 0) {
+      const upId = queue.shift()!;
+      if (seen.has(upId)) continue;
+      seen.add(upId);
+      const hit = schemaStationFor(schema, upId);
+      if (hit?.columns.includes("accepted")) return hit.stageId;
+      const up = catalogById(upId);
+      if (up) queue.push(...up.upstream);
+    }
+    return null;
+  }
+
+  // Stage not in the authored catalog: walk schema order within, then prior
+  // sections, so a plant-added station still sees the process before it.
   const station = stationById(schema, stageId);
   if (!station) return null;
-  const peers = stationsIn(schema, station.category);
-  const idx = peers.findIndex((s) => s.stageId === stageId);
+  const ordered = [...schema.stations];
+  const idx = ordered.findIndex((s) => s.stageId === stageId);
   for (let i = idx - 1; i >= 0; i--) {
-    if (peers[i].columns.includes("accepted")) return peers[i].stageId;
+    if (ordered[i].columns.includes("accepted")) return ordered[i].stageId;
   }
   return null;
 }
@@ -222,6 +257,10 @@ export function schemaCategories(
   for (const id of present) {
     if (!listed.some((c) => c.id === id)) listed.push({ id, label: id });
   }
+  const rank = new Map<string, number>(STAGE_CATEGORIES.map((c, i) => [c.id, i]));
+  listed.sort(
+    (a, b) => (rank.get(a.id) ?? 99) - (rank.get(b.id) ?? 99) || a.id.localeCompare(b.id),
+  );
   return listed;
 }
 

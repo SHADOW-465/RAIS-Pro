@@ -44,6 +44,23 @@ describe("massBalanceIssues", () => {
     expect(issues[0]).toMatchObject({ code: "V-014", severity: "critical", stageId: "balloon", stated: 960, computed: 900 });
   });
 
+  it("on a named lot, Visual cannot check more than production-dipping passed forward", () => {
+    const issues = massBalanceIssues([
+      rec("production-dipping", { checked: 1000, accepted: 900, rejected: 100, batch: "27A01-20" }),
+      rec("visual", { checked: 1000, accepted: 800, rejected: 100, batch: "27A01-20" }),
+    ]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ code: "V-014", stageId: "visual", stated: 1000, computed: 900 });
+  });
+
+  it("without a lot code, dipping and Visual stay separate populations", () => {
+    const issues = massBalanceIssues([
+      rec("production", { checked: 1000, accepted: 900, rejected: 100 }),
+      rec("visual", { checked: 2000, accepted: 1800, rejected: 200 }),
+    ]);
+    expect(issues).toEqual([]);
+  });
+
   it("derives available = checked − rejected when accepted is absent", () => {
     const issues = massBalanceIssues([
       rec("visual", { checked: 1000, rejected: 100 }),   // available 900

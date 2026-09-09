@@ -32,10 +32,8 @@ export type ReportBlock =
    *  CSV-and-hashes export belongs: an optional appendix, not the whole thing. */
   | { id: string; kind: "evidence"; title: string }
   /**
-   * The full ~24-page forensic compliance book (stage run charts, matrices,
-   * custody, CAPA index, sign-off). Treated as ONE section in the editor so the
-   * GM can pick "Full forensic package" as a named preset without rebuilding it
-   * block-by-block.
+   * Retired. Kept on the type so stored user presets still parse. The Reports
+   * workspace no longer offers this block; renderers must not load ForensicBook.
    */
   | { id: string; kind: "forensic-book"; title: string };
 
@@ -220,18 +218,15 @@ export const REPORT_PRESETS: Partial<Record<NavKey, () => ReportSpec>> = {
   }),
 };
 
-/** Spec that is only the full forensic book (named preset on /reports). */
+/**
+ * Retired forensic-book spec. Not selectable. Callers must not render it.
+ * @deprecated Replaced by the Financial Year Audit Pack.
+ */
 export function forensicBookSpec(): ReportSpec {
   return {
-    title: "Full Forensic Quality Package",
+    title: "Retired forensic package",
     origin: "reports",
-    blocks: [
-      {
-        id: blockId("forensic"),
-        kind: "forensic-book",
-        title: "24-page forensic compliance book",
-      },
-    ],
+    blocks: [],
   };
 }
 
@@ -274,13 +269,6 @@ export function availableBlocks(page: NavKey): ReportBlock[] {
     { id: blockId("text"), kind: "text", title: "Notes", body: "" },
     { id: blockId("ev"), kind: "evidence", title: "Data provenance" },
   ];
-  if (page === "reports") {
-    extras.push({
-      id: blockId("forensic"),
-      kind: "forensic-book",
-      title: "Full forensic book",
-    });
-  }
   return canReport(page) ? extras : [];
 }
 

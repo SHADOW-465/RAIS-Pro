@@ -5,7 +5,7 @@
 //   Col 1  Channels (Excel · Data entry)     — always
 //   Col 2  Sections → stations               — process scope
 //   Col 3  Narrow by                         — batches and/or Excel files
-//          · Excel only  → files
+//          · Excel only  → tabs: Batches | Excel files
 //          · Entry only  → batches
 //          · Both        → tabs: Batches | Excel files
 //
@@ -23,6 +23,7 @@ import {
   listExcelSourceFiles,
   resolveScope,
   scopeEvents,
+  sourcesNarrowMode,
   STAGE_CATEGORIES,
   DEFAULT_STAGE_CATEGORIES,
 } from "@/lib/analytics/scope";
@@ -66,16 +67,18 @@ export default function SourcesScopePanel({
   );
 
   useEffect(() => {
-    if (onlyExcel) setNarrowTab("files");
-    else if (onlyEntry) setNarrowTab("batches");
-  }, [onlyExcel, onlyEntry]);
+    // Excel-only used to force the Files tab, which hid batch-wise analysis
+    // even though Excel rows carry lot codes. Keep Files as the default when
+    // nothing is batch-focused; never steal an active batch selection.
+    if (onlyEntry) setNarrowTab("batches");
+    else if (onlyExcel && t.batchIds.length === 0) setNarrowTab("files");
+  }, [onlyExcel, onlyEntry, t.batchIds.length]);
 
   const excelFiles = useMemo(() => listExcelSourceFiles(events), [events]);
   const batchOptions = useMemo(() => {
-    // Same lot set as dashboard / View Source: lot-date range + selected
-    // sections + channels. "All data" stays unscoped so the picker still
-    // lists every lot in the plant.
-    if (t.datePreset === "all") return listBatchIds(events);
+    // Same lot set the KPIs will actually compute: channels + sections +
+    // date window. "All data" no longer date-clips, so early lots (26H01-14)
+    // stay pickable and batch-wise analysis is non-empty.
     const scope = resolveScope(events, {
       grain: t.grain,
       datePreset: t.datePreset,
@@ -206,16 +209,10 @@ export default function SourcesScopePanel({
   const batchCount = t.batchIds.length;
   const filesActive = t.excelFiles.length > 0;
 
-  const col3Mode: "batches" | "files" | "tabs" | "empty" = noChannel
-    ? "empty"
-    : bothChannels
-      ? "tabs"
-      : onlyExcel
-        ? "files"
-        : "batches";
+  const col3Mode = sourcesNarrowMode(excelOn, entryOn);
 
   const activeNarrow: NarrowTab =
-    col3Mode === "files" ? "files" : col3Mode === "batches" ? "batches" : narrowTab;
+    col3Mode === "batches" ? "batches" : narrowTab;
 
   // Column “live” state for step color hierarchy
   const col1Live = true;
@@ -373,7 +370,7 @@ export default function SourcesScopePanel({
               />
               <p className="sources-hint">
                 {bothChannels && "Both on — pick sections, then batches or files."}
-                {onlyExcel && "Excel only — sections, then files on the right."}
+                {onlyExcel && "Excel only — sections, then batches or files on the right."}
                 {onlyEntry && "Data entry only — sections, then batches on the right."}
                 {noChannel && "Turn on at least one channel to continue."}
               </p>
@@ -465,8 +462,14 @@ export default function SourcesScopePanel({
                   <div className="muted" style={{ fontSize: 11.5, marginTop: 1, lineHeight: 1.35 }}>
                     {col3Mode === "empty" && "Waiting for channels"}
                     {col3Mode === "batches" && (batchCount === 0 ? "Full plant · every batch" : `${batchCount} batch${batchCount === 1 ? "" : "es"} focused`)}
-                    {col3Mode === "files" && (filesActive ? `${t.excelFiles.length} upload${t.excelFiles.length === 1 ? "" : "s"}` : "All Excel uploads")}
-                    {col3Mode === "tabs" && "Batches or Excel files"}
+                    {col3Mode === "tabs" &&
+                      (activeNarrow === "files"
+                        ? filesActive
+                          ? `${t.excelFiles.length} upload${t.excelFiles.length === 1 ? "" : "s"}`
+                          : "All Excel uploads"
+                        : batchCount === 0
+                          ? "Batches or Excel files"
+                          : `${batchCount} batch${batchCount === 1 ? "" : "es"} focused`)}
                   </div>
                 </div>
               </div>
@@ -521,7 +524,7 @@ export default function SourcesScopePanel({
                 />
               )}
 
-              {(col3Mode === "files" || (col3Mode === "tabs" && activeNarrow === "files")) && (
+              {col3Mode === "tabs" && activeNarrow === "files" && (
                 <FilesPane
                   excelFiles={excelFiles}
                   filteredFiles={filteredFiles}
@@ -1369,7 +1372,7 @@ function CustomRangePill({ batchCount }: { batchCount: number }) {
                 value={t.dateFrom || ""}
                 onChange={(d) => {
                   setTweak("dateFrom", d);
-                  setTweak("datePreset", "custom");
+                  if (t.dateTo) setTweak("datePreset", "custom");
                 }}
                 ariaLabel="Scope from date"
                 size="sm"
@@ -1382,7 +1385,7 @@ function CustomRangePill({ batchCount }: { batchCount: number }) {
                 value={t.dateTo || ""}
                 onChange={(d) => {
                   setTweak("dateTo", d);
-                  setTweak("datePreset", "custom");
+                  if (t.dateFrom) setTweak("datePreset", "custom");
                 }}
                 ariaLabel="Scope to date"
                 size="sm"

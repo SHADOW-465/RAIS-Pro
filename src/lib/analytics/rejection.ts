@@ -409,6 +409,124 @@ export function byStage(events: Event[], scope: Scope, registry: Registry = DERI
     .filter((r) => r.checked > 0 || r.rejected > 0);
 }
 
+export type StageActivityStatus = "has-records" | "no-qualifying-records";
+
+export interface StageAnalysisRow {
+  stageId: string;
+  label: string;
+  checked: number;
+  rejected: number;
+  rejRate: number | null;
+  yield: number | null;
+  contributionPct: number | null;
+  rank: number | null;
+  sourceEventCount: number;
+  status: StageActivityStatus;
+  unmapped?: boolean;
+}
+
+export interface StageAnalysis {
+  rows: StageAnalysisRow[];
+  rejectedDenominator: number;
+  rejectedDenominatorNote: "stage rejected quantity / cumulative rejected quantity × 100";
+  unmappedRejected: number;
+  unmappedEventCount: number;
+}
+
+/**
+ * Stage-wise report rows in authored catalog order, plus an unmapped row when
+ * rejection/production events have no stageId. Contribution uses total rejected
+ * in the analysis population (same denominator as byStage).
+ */
+export function stageAnalysis(
+  events: Event[],
+  scope: Scope,
+  registry: Registry = DERIVED_REGISTRY,
+): StageAnalysis {
+  const ev = scopeEvents(events, scope);
+  const policy = policyOf(scope);
+  const active = byStage(events, scope, registry);
+  const byId = new Map(active.map((r) => [r.stageId, r]));
+  const totalRejectedQty = aggregate(ev, policy).rejected;
+
+  const countByStage = new Map<string, number>();
+  let unmappedRejected = 0;
+  let unmappedEventCount = 0;
+  for (const e of ev) {
+    const sid = stageOf(e);
+    if (!sid) {
+      if (e.eventType === "production" || e.eventType === "inspection" || e.eventType === "rejection") {
+        unmappedEventCount += 1;
+        if (isRej(e) || e.eventType === "rejection") unmappedRejected += qty(e);
+      }
+      continue;
+    }
+    countByStage.set(sid, (countByStage.get(sid) ?? 0) + 1);
+  }
+
+  const ordered = stagesFor(ev, registry);
+  const rows: StageAnalysisRow[] = ordered.map((s) => {
+    const r = byId.get(s.stageId);
+    if (!r) {
+      return {
+        stageId: s.stageId,
+        label: s.label ?? s.stageId,
+        checked: 0,
+        rejected: 0,
+        rejRate: null,
+        yield: null,
+        contributionPct: null,
+        rank: null,
+        sourceEventCount: countByStage.get(s.stageId) ?? 0,
+        status: "no-qualifying-records",
+      };
+    }
+    return {
+      stageId: r.stageId,
+      label: r.label || r.stageId,
+      checked: r.checked,
+      rejected: r.rejected,
+      rejRate: r.checked > 0 ? r.rejRate : r.rejected > 0 ? null : 0,
+      yield: r.checked > 0 ? r.yield : null,
+      contributionPct: totalRejectedQty > 0 ? r.contributionPct : totalRejectedQty === 0 && r.rejected === 0 ? 0 : null,
+      rank: null,
+      sourceEventCount: countByStage.get(r.stageId) ?? 0,
+      status: "has-records",
+    };
+  });
+
+  if (unmappedEventCount > 0) {
+    rows.push({
+      stageId: "unmapped",
+      label: "Unmapped / unknown stage",
+      checked: 0,
+      rejected: unmappedRejected,
+      rejRate: null,
+      yield: null,
+      contributionPct: totalRejectedQty > 0 ? (unmappedRejected / totalRejectedQty) * 100 : null,
+      rank: null,
+      sourceEventCount: unmappedEventCount,
+      status: "has-records",
+      unmapped: true,
+    });
+  }
+
+  const ranked = [...rows]
+    .filter((r) => r.status === "has-records")
+    .sort((a, b) => b.rejected - a.rejected);
+  ranked.forEach((r, i) => {
+    r.rank = i + 1;
+  });
+
+  return {
+    rows,
+    rejectedDenominator: totalRejectedQty,
+    rejectedDenominatorNote: "stage rejected quantity / cumulative rejected quantity × 100",
+    unmappedRejected,
+    unmappedEventCount,
+  };
+}
+
 export interface SeriesPoint { period: string; label: string; value: number; rejected?: number; checked?: number }
 
 type MetricFn = (events: Event[], scope: Scope, registry?: Registry) => MetricValue;

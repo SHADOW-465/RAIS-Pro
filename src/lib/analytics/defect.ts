@@ -64,6 +64,90 @@ export function defectTrend(events: Event[], scope: Scope, topN = 5, registry: R
   });
 }
 
+export type DefectKind = "resolved" | "unresolved-raw" | "unclassified";
+
+export interface DefectAnalysisRow {
+  defectCode: string | null;
+  label: string;
+  rejected: number;
+  pct: number;
+  cumPct: number;
+  rank: number;
+  kind: DefectKind;
+}
+
+export interface DefectAnalysis {
+  rows: DefectAnalysisRow[];
+  /** Rejected quantity included in this analysis (all rejection events in scope). */
+  rejectedDenominator: number;
+  denominatorNote: "defect rejected quantity / total rejected quantity included in the defect analysis × 100";
+  resolvedRejected: number;
+  unresolvedRawRejected: number;
+  unclassifiedRejected: number;
+}
+
+/**
+ * Defect Pareto over rejection events. Unresolved raw codes stay verbatim.
+ * Missing code and raw become an explicit Unclassified row — no fallback code.
+ */
+export function defectAnalysis(
+  events: Event[],
+  scope: Scope,
+  registry: Registry = DERIVED_REGISTRY,
+): DefectAnalysis {
+  const ev = scopeEvents(events, scope).filter((e) => e.eventType === "rejection");
+  const sums = new Map<string, { code: string | null; raw: string; qty: number; kind: DefectKind }>();
+  for (const e of ev) {
+    const code = (e as { defectCode?: string | null }).defectCode ?? null;
+    const raw = String((e as { defectCodeRaw?: string }).defectCodeRaw ?? "").trim();
+    let key: string;
+    let kind: DefectKind;
+    if (code) {
+      key = `code:${code}`;
+      kind = "resolved";
+    } else if (raw) {
+      key = `raw:${raw}`;
+      kind = "unresolved-raw";
+    } else {
+      key = "unclassified";
+      kind = "unclassified";
+    }
+    const cur = sums.get(key) ?? { code, raw, qty: 0, kind };
+    cur.qty += (e as { quantity?: number }).quantity ?? 0;
+    sums.set(key, cur);
+  }
+  const total = [...sums.values()].reduce((a, s) => a + s.qty, 0);
+  let cum = 0;
+  const rows: DefectAnalysisRow[] = [...sums.values()]
+    .sort((a, b) => b.qty - a.qty)
+    .map((s, i) => {
+      const pct = total > 0 ? (s.qty / total) * 100 : 0;
+      cum += pct;
+      const label =
+        s.kind === "unclassified"
+          ? "Unclassified"
+          : defectLabel(s.code, s.raw, registry);
+      return {
+        defectCode: s.code,
+        label,
+        rejected: s.qty,
+        pct,
+        cumPct: cum,
+        rank: i + 1,
+        kind: s.kind,
+      };
+    });
+  return {
+    rows,
+    rejectedDenominator: total,
+    denominatorNote:
+      "defect rejected quantity / total rejected quantity included in the defect analysis × 100",
+    resolvedRejected: rows.filter((r) => r.kind === "resolved").reduce((a, r) => a + r.rejected, 0),
+    unresolvedRawRejected: rows.filter((r) => r.kind === "unresolved-raw").reduce((a, r) => a + r.rejected, 0),
+    unclassifiedRejected: rows.filter((r) => r.kind === "unclassified").reduce((a, r) => a + r.rejected, 0),
+  };
+}
+
 export interface SizeRow { size: string; checked: number; rejected: number; rejRate: number }
 
 /** Per-FR-size rejection. [] when no size-tagged events. */

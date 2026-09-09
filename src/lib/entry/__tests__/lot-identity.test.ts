@@ -38,6 +38,13 @@ test("typing a code round-trips to the lot date the popover shows", () => {
   expect(buildBatchId(p.date, `${p.sizeFr}Fr`)).toBe(typed);
 });
 
+test("picking a lot date in the calendar rewrites the code from that day + size", () => {
+  // The Change-popover calendar must call this path: lot date in, code out.
+  // Nested popovers used to swallow the click, so the code never updated.
+  expect(buildBatchId("2026-09-01", "20Fr")).toBe("26I01-20");
+  expect(buildBatchId("2026-08-15", "18Fr")).toBe("26H15-18");
+});
+
 test("a lot opened in one month and finished in the next keeps its month letter", () => {
   const code = buildBatchId("2026-06-30", "16Fr")!;
   expect(code).toBe("26F30-16");

@@ -96,7 +96,7 @@ describe("moveBlock", () => {
   });
 });
 
-describe("Phase 2 — named presets + forensic book", () => {
+describe("Phase 2 — named presets (forensic book retired)", () => {
   it("reports page can report and defaults to a GM summary, not the forensic book", () => {
     expect(canReport("reports")).toBe(true);
     const reports = presetFor("reports")!;
@@ -105,20 +105,17 @@ describe("Phase 2 — named presets + forensic book", () => {
     expect(reports.blocks.some((b) => b.kind === "kpi-row")).toBe(true);
   });
 
-  it("folds the 24-page forensic book in as one forensic-book block", () => {
+  it("retired forensicBookSpec is empty and not a renderable forensic book", () => {
     const forensic = forensicBookSpec();
-    expect(isForensicSpec(forensic)).toBe(true);
-    expect(forensic.blocks).toHaveLength(1);
-    expect(forensic.blocks[0].kind).toBe("forensic-book");
+    expect(isForensicSpec(forensic)).toBe(false);
+    expect(forensic.blocks.some((b) => b.kind === "forensic-book")).toBe(false);
   });
 
-  it("ships built-in named presets including Full forensic package", () => {
+  it("does not ship a Full forensic package built-in", () => {
     const names = builtInNamedPresets().map((p) => p.name);
     expect(names).toContain("GM monthly summary");
-    expect(names).toContain("Full forensic package");
-    const forensic = builtInNamedPresets().find((p) => p.id === "builtin:forensic")!;
-    expect(isForensicSpec(forensic.spec)).toBe(true);
-    expect(forensic.builtIn).toBe(true);
+    expect(names).not.toContain("Full forensic package");
+    expect(builtInNamedPresets().some((p) => p.id === "builtin:forensic")).toBe(false);
   });
 
   it("cloneSpec assigns fresh block ids so two loads do not share keys", () => {
@@ -127,8 +124,8 @@ describe("Phase 2 — named presets + forensic book", () => {
     expect(a.blocks.map((x) => x.id)).not.toEqual(b.blocks.map((x) => x.id));
   });
 
-  it("lets the reports shelf add the forensic book as a section", () => {
-    expect(availableBlocks("reports").some((b) => b.kind === "forensic-book")).toBe(true);
+  it("does not offer the forensic book as an addable section", () => {
+    expect(availableBlocks("reports").some((b) => b.kind === "forensic-book")).toBe(false);
     expect(availableBlocks("dashboard").some((b) => b.kind === "forensic-book")).toBe(false);
   });
 });

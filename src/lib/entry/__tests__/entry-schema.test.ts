@@ -4,6 +4,7 @@ import {
   migrateToStageId,
   previousAcceptedStageId,
   resolveEntrySchema,
+  schemaCategories,
   stationById,
   stationsIn,
 } from "../entry-schema";
@@ -110,9 +111,76 @@ describe("station → defect pairing matches /api/entry-template for every stage
     );
   });
 
-  test("previous accepted station walks past throughput-only valve-fixing", () => {
+  test("catalog Hold on balloon becomes a Data Entry column", () => {
+    const catalog = plantCatalog();
+    const withHold = {
+      ...catalog,
+      stages: catalog.stages.map((s) =>
+        s.stageId === "balloon"
+          ? { ...s, captures: ["checked", "accepted", "hold", "rejected"] as NonNullable<typeof s.captures> }
+          : s,
+      ),
+    };
+    const tpl = templateFrom(withHold);
+    expect(tpl.stages.find((s) => s.stageId === "balloon")!.columns.map((c) => c.key)).toContain(
+      "rework",
+    );
+    const schema = resolveEntrySchema(tpl);
+    expect(schema.source).toBe("catalog");
+    expect(stationById(schema, "balloon")?.columns).toContain("hold");
+    expect(stationById(schema, "production-dipping")?.extras ?? stationById(schema, "production")?.extras).toEqual(
+      ["trolleys"],
+    );
+  });
+
+  test("production-dipping extras follow the authored production station", () => {
+    const schema = resolveEntrySchema({
+      stages: [
+        {
+          stageId: "production-dipping",
+          label: "Production Dipping",
+          category: "primary",
+          columns: [{ key: "checked" }, { key: "accepted" }, { key: "rejected" }],
+        },
+      ],
+      sections: [{ id: "primary", label: "Production Dipping" }],
+    });
+    expect(schema.source).toBe("catalog");
+    expect(stationById(schema, "production-dipping")?.extras).toEqual(["trolleys"]);
+    expect(schemaCategories(schema).map((c) => c.label)).toEqual(["Production Dipping"]);
+  });
+
+  test("stationsIn and schemaCategories follow plant entry order", () => {
+    const schema = resolveEntrySchema({
+      stages: [
+        { stageId: "final", label: "Final", category: "assembly", columns: [{ key: "checked" }] },
+        { stageId: "visual", label: "Visual", category: "assembly", columns: [{ key: "checked" }] },
+        { stageId: "balloon", label: "Balloon", category: "assembly", columns: [{ key: "checked" }] },
+        { stageId: "valve-integrity", label: "Valve", category: "assembly", columns: [{ key: "checked" }] },
+        { stageId: "production", label: "Dipping", category: "primary", columns: [{ key: "checked" }] },
+        { stageId: "secondary", label: "Secondary", category: "secondary", columns: [{ key: "checked" }] },
+      ],
+      sections: [
+        { id: "assembly", label: "Assembly" },
+        { id: "secondary", label: "Secondary" },
+        { id: "primary", label: "Primary" },
+      ],
+    });
+    expect(stationsIn(schema, "assembly").map((s) => s.stageId)).toEqual([
+      "visual",
+      "balloon",
+      "valve-integrity",
+      "final",
+    ]);
+    expect(schemaCategories(schema).map((c) => c.id)).toEqual(["primary", "secondary", "assembly"]);
+  });
+
+  test("previous accepted station walks the plant cascade across processes", () => {
     const schema = resolveEntrySchema(templateFrom(plantCatalog()));
-    expect(previousAcceptedStageId(schema, "visual")).toBeNull();
+    expect(previousAcceptedStageId(schema, "production")).toBeNull();
+    expect(previousAcceptedStageId(schema, "eye-punching")).toBe("production");
+    expect(previousAcceptedStageId(schema, "secondary")).toBe("eye-punching");
+    expect(previousAcceptedStageId(schema, "visual")).toBe("secondary");
     expect(previousAcceptedStageId(schema, "balloon")).toBe("visual");
     expect(previousAcceptedStageId(schema, "valve-integrity")).toBe("balloon");
     expect(previousAcceptedStageId(schema, "final")).toBe("valve-integrity");

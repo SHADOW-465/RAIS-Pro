@@ -31,7 +31,6 @@ import { useCapas } from "@/lib/capa-store";
 import type { Event } from "@/lib/store/types";
 import type { ReportSpec, ReportBlock, KpiId } from "@/lib/report/blocks";
 import { KPI_LABEL, isForensicSpec } from "@/lib/report/blocks";
-import ForensicBook from "@/components/report/ForensicBook";
 import type { Registry } from "@/lib/analytics/rejection";
 import { describeSourceFilter } from "@/lib/analytics/scope";
 
@@ -204,7 +203,7 @@ function ReportTable({ block, events, scope }: { block: Extract<ReportBlock, { k
           sub: `${num(s.rejected)} of ${num(s.checked)}`,
         }));
       case "spc-violations":
-        return [];
+        return []; // stub — rendered as Not evaluated below
       case "capa-open":
         return capas
           .filter((c) => c.status !== "Completed")
@@ -212,8 +211,16 @@ function ReportTable({ block, events, scope }: { block: Extract<ReportBlock, { k
     }
   }, [block.table, events, scope, reg, capas]);
 
+  if (block.table === "spc-violations") {
+    return (
+      <p className="muted" style={{ fontSize: 14, margin: 0 }}>
+        Not evaluated — this table has no implemented SPC violation series.
+      </p>
+    );
+  }
+
   if (rows.length === 0) {
-    return <p className="muted" style={{ fontSize: 12, margin: 0 }}>No rows for the selected period.</p>;
+    return <p className="muted" style={{ fontSize: 14, margin: 0 }}>No rows for the selected period.</p>;
   }
 
   if (block.table === "capa-open") {
@@ -308,7 +315,7 @@ export default function ReportDocument({
   events,
   scope,
   periodLabel,
-  registry,
+  registry: _registry,
 }: {
   spec: ReportSpec;
   events: Event[];
@@ -319,7 +326,13 @@ export default function ReportDocument({
   if (isForensicSpec(spec)) {
     return (
       <div className="rp-doc">
-        <ForensicBook events={events} registry={registry} scope={scope} />
+        <header className="rp-masthead">
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Retired forensic package</h1>
+          <p className="body" style={{ marginTop: 8, color: "var(--text-2)" }}>
+            The previous forensic book is not part of this product’s export path. It contained
+            unsupported claims and is not generated. Open Reports and choose Financial Year Audit Pack.
+          </p>
+        </header>
       </div>
     );
   }

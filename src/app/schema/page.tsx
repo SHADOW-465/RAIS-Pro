@@ -1152,6 +1152,7 @@ export default function SchemaPage() {
                   onPendingCreateConsumed={consumePendingCreate}
                   onSelectId={setSelectedNodeId}
                   onExpand={ensureExpanded}
+                  onRequestUnlock={() => setUnlockOpen(true)}
                   mutate={mutate}
                 />
               </div>

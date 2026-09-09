@@ -997,6 +997,7 @@ export default function FloatingDetailModal({
                           >
                             <th style={th}>Date</th>
                             <th style={th}>Batch</th>
+                            <th style={th}>Stage</th>
                             <th style={th}>Size</th>
                             <th style={{ ...th, textAlign: "right" }}>Checked</th>
                             <th style={{ ...th, textAlign: "right" }}>Accepted</th>
@@ -1058,6 +1059,9 @@ export default function FloatingDetailModal({
                                       Confirmed distinct
                                     </div>
                                   )}
+                                </td>
+                                <td style={{ ...td, fontWeight: 600, color: "var(--text)" }}>
+                                  {e.stage || e.stageId || "—"}
                                 </td>
                                 <td style={td}>{e.size || "—"}</td>
                                 <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600 }}>

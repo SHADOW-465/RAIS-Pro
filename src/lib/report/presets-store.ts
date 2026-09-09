@@ -6,7 +6,6 @@
 import type { ReportSpec } from "./blocks";
 import {
   cloneSpec,
-  forensicBookSpec,
   presetFor,
   REPORT_PRESETS,
 } from "./blocks";
@@ -29,7 +28,6 @@ export const NAMED_PRESETS_STORAGE_KEY = "moid_report_presets";
 export function builtInNamedPresets(): NamedReportPreset[] {
   const now = new Date(0).toISOString();
   const gm = cloneSpec(presetFor("reports")!);
-  const forensic = cloneSpec(forensicBookSpec());
   const plant = cloneSpec(presetFor("dashboard")!);
   plant.origin = "reports";
   plant.title = "Plant Quality Review";
@@ -41,14 +39,6 @@ export function builtInNamedPresets(): NamedReportPreset[] {
       builtIn: true,
       description: "Short management review — KPIs, trend, stage table, defects.",
       spec: gm,
-      updatedAt: now,
-    },
-    {
-      id: "builtin:forensic",
-      name: "Full forensic package",
-      builtIn: true,
-      description: "The complete ~24-page audit book (run charts, matrices, CAPA, sign-off).",
-      spec: forensic,
       updatedAt: now,
     },
     {

@@ -45,6 +45,7 @@ import LotProgress from "@/components/LotProgress";
 import EntryRevisionHistory from "@/components/entry/EntryRevisionHistory";
 import { usePersona } from "@/components/app/PersonaContext";
 import Select from "@/components/ui/Select";
+import { sortStageIds } from "@/core/ontology/plant-catalog";
 import {
   integrityFixHref,
   parseIntegrityFocus,
@@ -54,8 +55,6 @@ import {
 } from "@/lib/analytics/integrity";
 
 type ViewMode = "batch" | "sessions" | "raw";
-
-const STAGE_ORDER = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
 
 /**
  * One shared column template for the batch list: chevron / id / dates /
@@ -236,11 +235,7 @@ export default function AuditPage() {
   const stageOptions = useMemo(() => {
     const set = new Set<string>();
     for (const e of events) if (e.stageId) set.add(e.stageId);
-    return [...set].sort((a, b) => {
-      const ia = STAGE_ORDER.indexOf(a);
-      const ib = STAGE_ORDER.indexOf(b);
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-    });
+    return sortStageIds([...set]);
   }, [events]);
 
   const datedEvents = useMemo(() => {

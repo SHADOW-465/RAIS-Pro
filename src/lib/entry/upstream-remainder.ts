@@ -3,6 +3,8 @@
 // from this so Balloon on the 4th still sees Visual accepted on the 1st–3rd.
 
 import { canonicalBatchId } from "@/lib/entry/batch-id";
+import { passedForward } from "@/lib/entry/passed-forward";
+import { resolveStageId } from "@/core/ontology/plant-catalog";
 import type { IdentifiableEvent } from "@/lib/entry/identity";
 
 export interface UpstreamEvent extends IdentifiableEvent {
@@ -31,6 +33,14 @@ function dayOf(e: UpstreamEvent): string {
   return e.occurredOn?.start ?? "";
 }
 
+function sameStation(a: string | undefined, b: string): boolean {
+  if (!a) return false;
+  if (a === b) return true;
+  const ca = resolveStageId(a);
+  const cb = resolveStageId(b);
+  return !!ca && ca === cb;
+}
+
 /**
  * Remaining units this station can still check for the lot, given what the
  * previous station accepted across every day and what this station has
@@ -50,7 +60,10 @@ export function upstreamRemainder(opts: {
 }): UpstreamRemainder {
   const lot = canonicalBatchId(opts.lot);
   const size = opts.size ?? null;
-  let previousAccepted = 0;
+  let prevChecked = 0;
+  let prevAccepted = 0;
+  let prevRejected = 0;
+  let prevHold = 0;
   let alreadyChecked = 0;
 
   if (!lot) return { previousAccepted: 0, alreadyChecked: 0, remaining: 0 };
@@ -61,23 +74,33 @@ export function upstreamRemainder(opts: {
     const qty = Number(e.quantity ?? 0);
     if (qty <= 0) continue;
 
-    if (
-      e.stageId === opts.previousStation &&
-      e.eventType === "inspection" &&
-      (e.disposition === "accepted" || e.disposition === "good")
-    ) {
-      previousAccepted += qty;
+    if (sameStation(e.stageId, opts.previousStation)) {
+      if (e.eventType === "production") prevChecked += qty;
+      else if (e.eventType === "inspection" && (e.disposition === "accepted" || e.disposition === "good")) {
+        prevAccepted += qty;
+      } else if (e.eventType === "inspection" && e.disposition === "rejected") {
+        prevRejected += qty;
+      } else if (e.eventType === "inspection" && e.disposition === "rework") {
+        prevHold += qty;
+      }
       continue;
     }
 
     if (
-      e.stageId === opts.currentStation &&
+      sameStation(e.stageId, opts.currentStation) &&
       e.eventType === "production" &&
       (!opts.excludeDate || dayOf(e) !== opts.excludeDate)
     ) {
       alreadyChecked += qty;
     }
   }
+
+  const previousAccepted = passedForward({
+    checked: prevChecked,
+    accepted: prevAccepted,
+    rejected: prevRejected,
+    hold: prevHold,
+  });
 
   return {
     previousAccepted,

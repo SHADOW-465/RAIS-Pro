@@ -199,6 +199,21 @@ export function describeSectionsFromStageIds(stageIds?: string[]): string | null
 }
 
 /**
+ * What the Sources panel Narrow column offers.
+ *
+ * Batches are available for every live channel — Excel rows carry lot codes
+ * too, so Excel-only must not hide the batch picker.
+ */
+export function sourcesNarrowMode(
+  includeExcel: boolean,
+  includeDirectEntry: boolean,
+): "empty" | "batches" | "tabs" {
+  if (!includeExcel && !includeDirectEntry) return "empty";
+  if (includeExcel) return "tabs";
+  return "batches";
+}
+
+/**
  * True when tweaks match plant default scope: both channels, assembly only,
  * no batch/file restriction, cumulative stage view.
  */
@@ -395,11 +410,19 @@ export function scopeEvents(events: Event[], scope: Scope): Event[] {
     // not the day the row was recorded. View Source and every KPI share this
     // filter, so the drill-down cannot show 26G lots inside an August window.
     // Rows with no parseable lot code still use occurredOn.
+    //
+    // An explicitly selected batch skips the window: the picker listed it, so
+    // batch-wise analysis must actually compute it (26H01-14 started 1 Aug and
+    // was recorded later — clipping against occurredOn-min zeroed every KPI).
     if (scope.dateFrom || scope.dateTo) {
-      const day = eventLotDate(e);
-      if (!day) return false;
-      if (scope.dateFrom && day < scope.dateFrom) return false;
-      if (scope.dateTo && day > scope.dateTo) return false;
+      const batch = eventBatchId(e);
+      const picked = !!(batches && batch && batches.has(batch));
+      if (!picked) {
+        const day = eventLotDate(e);
+        if (!day) return false;
+        if (scope.dateFrom && day < scope.dateFrom) return false;
+        if (scope.dateTo && day > scope.dateTo) return false;
+      }
     }
     // Same rule as channels: `undefined` = no restriction, `[]` = the user
     // deselected every section, so nothing qualifies.
@@ -612,14 +635,19 @@ export function resolveScope(
   policy: CalculationPolicyT = DEFAULT_POLICY,
 ): Scope {
   const iso = (d: Date) => d.toISOString().slice(0, 10);
-  const { min: dataMin, max: dataMax } = dateBounds(events);
+  const { max: dataMax } = dateBounds(events);
   const anchor = dataMax ? new Date(`${dataMax}T00:00:00Z`) : new Date();
 
   let from: string | undefined = t.dateFrom || undefined;
   let to: string | undefined = t.dateTo || undefined;
 
   if (t.datePreset === "custom") {
-    /* keep typed from/to */
+    // Both ends required. Opening "Custom range…" with empty or one-sided
+    // dates must not change the window (or any KPI) versus All data.
+    if (!from || !to) {
+      from = undefined;
+      to = undefined;
+    }
   } else if (t.datePreset === "last-90-days") {
     from = iso(new Date(anchor.getTime() - 90 * 86400000));
     to = iso(anchor);
@@ -635,8 +663,11 @@ export function resolveScope(
     from = `${fy}-04-01`;
     to = `${fy + 1}-03-31`;
   } else {
-    from = dataMin; // "all"
-    to = dataMax;
+    // "all" — no date window. Pairing occurredOn min/max with a lot-date
+    // filter dropped lots that started before the first recorded-on day
+    // (26H01-14: lot 1 Aug, keyed in on 11 Aug → 0 checked / 0%).
+    from = undefined;
+    to = undefined;
   }
 
   // A station view pins one stage; otherwise the section filter decides. Both

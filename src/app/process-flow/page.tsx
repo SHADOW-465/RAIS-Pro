@@ -6,6 +6,7 @@ import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
+import { sortStageIds } from "@/core/ontology/plant-catalog";
 import FloatingDetailModal from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
@@ -54,8 +55,10 @@ export default function ProcessFlowPage() {
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
     const stages = byStage(events, scope, activeRegistry);
-    const order = ["visual", "eye-punching", "balloon", "valve-integrity", "final"];
-    const orderedStages = [...stages].sort((a, b) => order.indexOf(a.stageId) - order.indexOf(b.stageId));
+    const stageRank = new Map(sortStageIds(stages.map((s) => s.stageId)).map((id, i) => [id, i]));
+    const orderedStages = [...stages].sort(
+      (a, b) => (stageRank.get(a.stageId) ?? 99) - (stageRank.get(b.stageId) ?? 99),
+    );
 
     return {
       stages: orderedStages,
