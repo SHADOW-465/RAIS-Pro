@@ -17,7 +17,7 @@
 import { useState } from "react";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { usePersona } from "@/components/app/PersonaContext";
-import { PERSONAS } from "@/lib/persona";
+import { personaDef } from "@/lib/persona";
 import Icon from "@/components/editorial/Icon";
 import type { CalculationPolicyT } from "@/core/policy/policy";
 
@@ -66,7 +66,7 @@ export default function DisplayDefaults() {
         body: JSON.stringify({
           policy: { ...policy, defaultSections: value.split(",") as Sections },
           note: `Default floor areas → ${choice?.label ?? value}`,
-          changedBy: PERSONAS[persona]?.label ?? "GM",
+          changedBy: personaDef(persona).label,
         }),
       });
       const data = await res.json().catch(() => ({}));

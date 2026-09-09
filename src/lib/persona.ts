@@ -6,8 +6,22 @@
 import type { NavKey } from "@/lib/nav-keys";
 export type { NavKey };
 
-/** Dashboard role views: GM (full), Owner, Data Entry Operator. */
+/** Built-in role views: GM (full), Owner, Data Entry Operator. */
 export type PersonaId = "gm" | "owner" | "operator";
+
+/**
+ * A role id in general — built-in or one the plant created.
+ *
+ * Roles moved into the database (`plant_roles`, lib/auth/roles.ts), so the id
+ * of the role on a session is no longer drawn from a closed union. The three
+ * built-ins below stay in code as the seed AND as the anti-lockout fallback:
+ * if the roles table is missing or unreadable, a GM is still a GM.
+ *
+ * Anything that indexes role definitions must go through `personaDef()`, which
+ * denies by omission for an id it does not know. `PERSONAS[id]` on a RoleId is
+ * a crash waiting for the first custom role.
+ */
+export type RoleId = string;
 
 /** Capability bits beyond chrome nav. Interim until real auth. */
 export interface PersonaCapabilities {
@@ -152,6 +166,29 @@ export function isPersonaId(v: string | null | undefined): v is PersonaId {
   return !!v && v in PERSONAS;
 }
 
+/**
+ * Definition for a role id, or a zero-access stand-in for one we do not know.
+ *
+ * Deny by omission, same rule as `navAllow`: an unrecognised role sees no
+ * sidebar and holds no capability, rather than throwing on `.label` somewhere
+ * deep in the chrome. The API boundary resolves the real definition from the
+ * roles store (lib/auth/roles.ts); this is what the client falls back to while
+ * it only knows the built-ins.
+ */
+export function personaDef(id: RoleId): PersonaDef {
+  const known = PERSONAS[id as PersonaId];
+  if (known) return known;
+  return {
+    id: id as PersonaId,
+    label: id || "Unknown role",
+    title: "No access configured",
+    initial: (id || "?").charAt(0).toUpperCase(),
+    homeHref: "/",
+    navAllow: [],
+    capabilities: { write: false, approve: false, configure: false, eraseLedger: false },
+  };
+}
+
 export function readStoredPersona(): PersonaId {
   if (typeof window === "undefined") return DEFAULT_PERSONA;
   try {
@@ -171,33 +208,33 @@ export function writeStoredPersona(id: PersonaId): void {
   }
 }
 
-export function personaAllowsNav(persona: PersonaId, key: NavKey): boolean {
-  return PERSONAS[persona].navAllow.includes(key);
+export function personaAllowsNav(persona: RoleId, key: NavKey): boolean {
+  return personaDef(persona).navAllow.includes(key);
 }
 
 export function filterNavKeys(
-  persona: PersonaId,
+  persona: RoleId,
   keys: readonly NavKey[]
 ): NavKey[] {
   return keys.filter((k) => personaAllowsNav(persona, k));
 }
 
-export function personaCapabilities(persona: PersonaId): PersonaCapabilities {
-  return PERSONAS[persona].capabilities;
+export function personaCapabilities(persona: RoleId): PersonaCapabilities {
+  return personaDef(persona).capabilities;
 }
 
-export function canWrite(persona: PersonaId): boolean {
-  return PERSONAS[persona].capabilities.write;
+export function canWrite(persona: RoleId): boolean {
+  return personaDef(persona).capabilities.write;
 }
 
-export function canApprove(persona: PersonaId): boolean {
-  return PERSONAS[persona].capabilities.approve;
+export function canApprove(persona: RoleId): boolean {
+  return personaDef(persona).capabilities.approve;
 }
 
-export function canConfigure(persona: PersonaId): boolean {
-  return PERSONAS[persona].capabilities.configure;
+export function canConfigure(persona: RoleId): boolean {
+  return personaDef(persona).capabilities.configure;
 }
 
-export function canEraseLedger(persona: PersonaId): boolean {
-  return PERSONAS[persona].capabilities.eraseLedger;
+export function canEraseLedger(persona: RoleId): boolean {
+  return personaDef(persona).capabilities.eraseLedger;
 }

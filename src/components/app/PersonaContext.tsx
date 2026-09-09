@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_PERSONA,
-  PERSONAS,
+  personaDef,
   isPersonaId,
   readStoredPersona,
   writeStoredPersona,
@@ -94,7 +94,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<PersonaCtx>(() => {
-    const capabilities = PERSONAS[persona].capabilities;
+    const capabilities = personaDef(persona).capabilities;
     return {
       persona,
       setPersona,
@@ -119,7 +119,7 @@ export function usePersona(): PersonaCtx {
   const v = useContext(Ctx);
   if (!v) {
     // Safe fallback when a page is rendered outside the provider (tests).
-    const capabilities = PERSONAS[DEFAULT_PERSONA].capabilities;
+    const capabilities = personaDef(DEFAULT_PERSONA).capabilities;
     return {
       persona: DEFAULT_PERSONA,
       setPersona: () => {},

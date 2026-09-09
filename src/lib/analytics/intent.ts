@@ -2,10 +2,9 @@
 // navigation target. The LLM fallback is added in Task 4 (resolveIntent).
 import type { Event } from "@/lib/store/types";
 import { navHref, type NavKey } from "@/lib/nav-keys";
-import { type PersonaId, personaAllowsNav } from "@/lib/persona";
+import { type PersonaId, personaAllowsNav, personaDef } from "@/lib/persona";
 import type { InvestigationState } from "./investigation-state";
 import { type SearchHit, searchJumpTargets } from "./search-index";
-import { PERSONAS } from "@/lib/persona";
 import { parseDatePhrase } from "./date-phrase";
 import {
   buildEntitySets,
@@ -100,7 +99,7 @@ export function resolveIntentDeterministic(text: string, ctx: IntentCtx): Intent
   }
 
   const confident = score >= CONFIDENT;
-  const searchOpts = { events: ctx.events, allowedNavKeys: PERSONAS[ctx.persona].navAllow };
+  const searchOpts = { events: ctx.events, allowedNavKeys: personaDef(ctx.persona).navAllow };
   let alternatives: SearchHit[] = [];
   if (!confident) {
     alternatives = searchJumpTargets(text, searchOpts);

@@ -25,6 +25,19 @@ import {
 } from "@/lib/persona";
 
 export const SESSION_COOKIE = "moid_session";
+
+/** Single-tenant by default; one deployment may host several plants.
+ *
+ *  Lives here, not in users.ts, purely to keep `roles.ts` and `users.ts` from
+ *  importing each other — roles.ts needs the company and users.ts needs to
+ *  validate a role against the roles store, which would otherwise be a cycle.
+ *  A bare env read is safe in this leaf module. */
+export const DEFAULT_COMPANY = "default";
+
+export function companyId(): string {
+  return process.env.MOID_COMPANY_ID || DEFAULT_COMPANY;
+}
+
 /** Session lifetime (seconds). Default 12h plant shift. */
 export const SESSION_TTL_SEC = 60 * 60 * 12;
 

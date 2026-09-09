@@ -10,7 +10,7 @@ import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { usePersona } from "@/components/app/PersonaContext";
 import { useTweaks } from "@/components/editorial/TweaksContext";
-import { PERSONAS } from "@/lib/persona";
+import { personaDef } from "@/lib/persona";
 import {
   resolveScope,
   rejectionRate,
@@ -312,7 +312,7 @@ export default function CalculationRules() {
       body: JSON.stringify({
         policy: draft,
         note: opts.note,
-        changedBy: PERSONAS[persona]?.label ?? "GM",
+        changedBy: personaDef(persona).label,
         asBaseline: opts.asBaseline === true,
         baselineOnly: opts.baselineOnly === true,
       }),

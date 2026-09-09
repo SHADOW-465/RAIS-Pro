@@ -18,7 +18,13 @@
 // sidebar links to render; its own header said "Does not affect APIs".
 //
 // This module makes the declared model the enforced one. It does not invent
-// permissions — it reads `PERSONAS[role].capabilities`.
+// permissions — it reads the capabilities of the caller's role.
+//
+// Roles themselves moved into `plant_roles` (lib/auth/roles.ts) so a plant can
+// add a Supervisor or a QA role without a deploy. That changed WHERE the answer
+// comes from, not the model: `resolveRole` returns the built-in definition
+// whenever the database has nothing to say, so the three original roles behave
+// exactly as they did when they were a union.
 //
 // The check lives next to the handler rather than in the proxy because Next is
 // explicit that proxy "should not be used as a full session management or
@@ -30,7 +36,8 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySessionToken } from "./session";
-import { PERSONAS, type PersonaCapabilities, type PersonaId } from "@/lib/persona";
+import { resolveRole } from "./roles";
+import type { PersonaCapabilities, RoleId } from "@/lib/persona";
 
 export type Capability = keyof PersonaCapabilities;
 
@@ -38,7 +45,9 @@ export type Capability = keyof PersonaCapabilities;
  *  can name its own role can grant itself one. */
 export interface Actor {
   username: string;
-  role: PersonaId;
+  role: RoleId;
+  /** Human name for the role, so a 403 can say which one refused. */
+  roleLabel: string;
   capabilities: PersonaCapabilities;
 }
 
@@ -46,13 +55,23 @@ export type Guard =
   | { ok: true; actor: Actor }
   | { ok: false; actor: null; response: NextResponse };
 
-/** The session's actor, or null when unauthenticated / expired / tampered. */
+/** The session's actor, or null when unauthenticated / expired / tampered.
+ *
+ *  A signed token naming a role that no longer exists — or one a GM has since
+ *  deactivated — is treated as no session at all rather than as a session with
+ *  no permissions, so the caller is sent to sign in again instead of collecting
+ *  403s on every screen. */
 export async function actorFrom(req: NextRequest): Promise<Actor | null> {
   const session = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) return null;
-  const persona = PERSONAS[session.r];
-  if (!persona) return null;
-  return { username: session.u, role: session.r, capabilities: persona.capabilities };
+  const role = await resolveRole(session.r);
+  if (!role || !role.active) return null;
+  return {
+    username: session.u,
+    role: role.roleId,
+    roleLabel: role.label,
+    capabilities: role.capabilities,
+  };
 }
 
 /**
@@ -81,7 +100,7 @@ export async function requireCapability(req: NextRequest, cap: Capability): Prom
       ok: false,
       actor: null,
       response: NextResponse.json(
-        { error: `Your role (${PERSONAS[session.actor.role].label}) cannot perform this action.`, need: cap },
+        { error: `Your role (${session.actor.roleLabel}) cannot perform this action.`, need: cap },
         { status: 403 },
       ),
     };

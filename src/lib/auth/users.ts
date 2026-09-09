@@ -12,9 +12,10 @@
 // identity provider, no per-user setup beyond a name and a password — the model
 // on-prem MES/LIMS use.
 //
-// Roles are unchanged (`PersonaId`), so the capability model in persona.ts and
-// the guard in guard.ts carry over untouched. This module only changes WHO a
-// session belongs to.
+// The capability model in persona.ts and the guard in guard.ts carry over
+// untouched. This module only changes WHO a session belongs to. Which role a
+// user may hold is a lookup against `plant_roles` (lib/auth/roles.ts) rather
+// than a closed union, so a GM can assign a role the plant created.
 //
 // ── Migration, and why you cannot lock yourself out ────────────────────────
 // A preset role login stays valid until an ACTIVE named user holds that role.
@@ -28,8 +29,9 @@ import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { shouldUseSupabase } from "@/lib/store";
 import { createServerClient } from "@/lib/supabase";
-import { isPersonaId, PERSONAS, type PersonaId } from "@/lib/persona";
-import { findUser } from "./config";
+import { PERSONAS, personaDef, type RoleId } from "@/lib/persona";
+import { companyId, DEFAULT_COMPANY, findUser } from "./config";
+import { isAssignableRole } from "./roles";
 
 const scrypt = promisify(scryptCb) as (
   pw: string | Buffer,
@@ -37,12 +39,12 @@ const scrypt = promisify(scryptCb) as (
   len: number,
 ) => Promise<Buffer>;
 
-export const DEFAULT_COMPANY = "default";
+export { companyId, DEFAULT_COMPANY };
 
 export interface PlantUser {
   username: string;
   displayName: string;
-  role: PersonaId;
+  role: RoleId;
   active: boolean;
   createdBy: string;
   createdAt: string;
@@ -99,7 +101,7 @@ export function validateUsername(raw: string): string | null {
     return "Use letters, numbers, dot, dash or underscore; start with a letter or number.";
   }
   // Would shadow a preset role login and make which-one-am-I ambiguous.
-  if (isPersonaId(u)) return `"${u}" is a reserved role name.`;
+  if (u in PERSONAS) return `"${u}" is a reserved role name.`;
   return null;
 }
 
@@ -159,7 +161,7 @@ class MemoryUserStore implements UserStore {
 const rowToUser = (r: Record<string, unknown>): StoredUser => ({
   username: String(r.username),
   displayName: String(r.display_name ?? r.username),
-  role: (isPersonaId(String(r.role)) ? String(r.role) : "operator") as PersonaId,
+  role: String(r.role ?? "operator"),
   active: r.active !== false,
   createdBy: String(r.created_by ?? "system"),
   createdAt: String(r.created_at ?? ""),
@@ -293,23 +295,19 @@ export function __resetUserStoreForTests(): void {
   delete g.__moidUserStore;
 }
 
-export function companyId(): string {
-  return process.env.MOID_COMPANY_ID || DEFAULT_COMPANY;
-}
-
 // ── Authentication ──────────────────────────────────────────────────────────
 
 export interface AuthenticatedUser {
   username: string;
   displayName: string;
-  role: PersonaId;
+  role: RoleId;
 }
 
 /**
  * True when this role still accepts its shared preset password — i.e. nobody
  * real holds it yet. Creating an active named GM retires the `gm` login.
  */
-export async function presetLoginAllowed(role: PersonaId): Promise<boolean> {
+export async function presetLoginAllowed(role: RoleId): Promise<boolean> {
   const users = await getUserStore().list(companyId());
   return !users.some((u) => u.role === role && u.active);
 }
@@ -335,7 +333,7 @@ export async function authenticateNamedUser(
 export async function createUser(opts: {
   username: string;
   displayName: string;
-  role: PersonaId;
+  role: RoleId;
   password: string;
   createdBy: string;
 }): Promise<string | null> {
@@ -343,7 +341,9 @@ export async function createUser(opts: {
   if (nameErr) return nameErr;
   const pwErr = validatePassword(opts.password);
   if (pwErr) return pwErr;
-  if (!isPersonaId(opts.role)) return "Unknown role.";
+  // Roles are rows now, so "is this a real role?" is a lookup, not a type
+  // guard — that is what lets a GM assign the Supervisor role they created.
+  if (!(await isAssignableRole(opts.role))) return "Unknown role.";
 
   const username = normalizeUsername(opts.username);
   const store = getUserStore();
@@ -385,7 +385,7 @@ export async function authenticate(
   if (!(await presetLoginAllowed(preset.role))) return null;
   return {
     username: preset.username,
-    displayName: `${PERSONAS[preset.role].label} (shared login)`,
+    displayName: `${personaDef(preset.role).label} (shared login)`,
     role: preset.role,
   };
 }

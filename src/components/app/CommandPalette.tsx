@@ -13,7 +13,7 @@ import { emitNavBanner } from "@/lib/analytics/nav-banner";
 import { classifyTaskKind } from "@/lib/agent/classify";
 import type { Event } from "@/lib/store/types";
 import type { PersonaId } from "@/lib/persona";
-import { PERSONAS } from "@/lib/persona";
+import { personaDef } from "@/lib/persona";
 
 export default function CommandPalette({
   open,
@@ -31,7 +31,7 @@ export default function CommandPalette({
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
 
-  const allowedNavKeys = PERSONAS[persona].navAllow;
+  const allowedNavKeys = personaDef(persona).navAllow;
 
   const hits: SearchHit[] = useMemo(() => {
     return searchJumpTargets(query, {
@@ -303,7 +303,7 @@ export default function CommandPalette({
             color: "var(--text-3)",
           }}
         >
-          Role: {PERSONAS[persona].label} · ↑↓ navigate · Enter open
+          Role: {personaDef(persona).label} · ↑↓ navigate · Enter open
         </div>
       </div>
     </div>

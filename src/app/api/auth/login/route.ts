@@ -5,7 +5,7 @@ import {
   createSessionToken,
   sessionCookieOptions,
 } from "@/lib/auth/session";
-import { PERSONAS } from "@/lib/persona";
+import { personaDef } from "@/lib/persona";
 
 export async function POST(req: NextRequest) {
   let body: { username?: string; role?: string; password?: string };
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     const token = await createSessionToken(user);
-    const persona = PERSONAS[user.role];
+    const persona = personaDef(user.role);
     const res = NextResponse.json({
       ok: true,
       user: {

@@ -33,6 +33,7 @@ import {
   PERSONAS,
   PERSONA_ORDER,
   personaAllowsNav,
+  personaDef,
   type PersonaId,
 } from "@/lib/persona";
 import { useCommandPaletteHotkey } from "@/components/app/CommandPaletteHotkey";
@@ -351,7 +352,7 @@ export default function AppShell({
     }
     setPersona(id);
     setShowPersonaMenu(false);
-    router.push(PERSONAS[id].homeHref);
+    router.push(personaDef(id).homeHref);
   };
 
   const visibleNavSections = useMemo(() => {
@@ -361,7 +362,7 @@ export default function AppShell({
     })).filter((section) => section.items.length > 0);
   }, [persona]);
 
-  const personaDef = PERSONAS[persona];
+  const activePersona = personaDef(persona);
   const navRef = useRef<HTMLDivElement>(null);
   const lastPos = typeof window !== "undefined" ? (window as any).__last_nav_pos : null;
   const [activeOffsetTop, setActiveOffsetTop] = useState(lastPos ? lastPos.top : -1000);
@@ -1939,14 +1940,14 @@ export default function AppShell({
                 border: "1px solid var(--border-strong)",
                 flexShrink: 0,
               }}>
-                {personaDef.initial}
+                {activePersona.initial}
               </div>
               <div style={{ display: "flex", flexDirection: "column", textAlign: "left", minWidth: 0 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {personaDef.label}
+                  {activePersona.label}
                 </span>
                 <span className="muted" style={{ fontSize: 9, lineHeight: 1.1 }}>
-                  {authEnabled ? "Signed in" : personaDef.title}
+                  {authEnabled ? "Signed in" : activePersona.title}
                 </span>
               </div>
             </button>
@@ -2003,7 +2004,7 @@ export default function AppShell({
                   })}
                 {personaLocked && (
                   <div style={{ padding: "6px 10px 10px", fontSize: 12, color: "var(--text-2)", lineHeight: 1.4 }}>
-                    Role is set by your account ({personaDef.label}). It cannot be switched from the UI.
+                    Role is set by your account ({activePersona.label}). It cannot be switched from the UI.
                   </div>
                 )}
                 {authEnabled && (

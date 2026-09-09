@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Icon from "@/components/editorial/Icon";
 import Select from "@/components/ui/Select";
-import { PERSONAS, PERSONA_ORDER, type PersonaId } from "@/lib/persona";
+import { PERSONAS, PERSONA_ORDER, type PersonaId, personaDef } from "@/lib/persona";
 
 interface PlantUser {
   username: string;
@@ -120,7 +120,7 @@ export default function PlantUsers() {
       {sharedActive.length > 0 && (
         <p className="settings-admin-warn">
           <Icon name="alert" />{" "}
-          {sharedActive.map((r) => PERSONAS[r].label).join(", ")}{" "}
+          {sharedActive.map((r) => personaDef(r).label).join(", ")}{" "}
           {sharedActive.length === 1 ? "still signs in" : "still sign in"} with a shared password, so
           entries record the role rather than the person. Creating an account for that role turns the
           shared login off automatically.
@@ -203,7 +203,7 @@ export default function PlantUsers() {
                   <tr key={u.username} style={{ borderTop: "1px solid var(--border)", opacity: u.active ? 1 : 0.55 }}>
                     <td style={{ padding: "8px" }}>{u.displayName}</td>
                     <td style={{ padding: "8px", fontFamily: "var(--font-mono)" }}>{u.username}</td>
-                    <td style={{ padding: "8px" }}>{PERSONAS[u.role].label}</td>
+                    <td style={{ padding: "8px" }}>{personaDef(u.role).label}</td>
                     <td style={{ padding: "8px" }}>{u.active ? "Active" : "Disabled"}</td>
                     <td style={{ padding: "8px", textAlign: "right", whiteSpace: "nowrap" }}>
                       <button className="settings-btn settings-btn--ghost" onClick={() => onResetPassword(u)} disabled={busy}>

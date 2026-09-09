@@ -59,13 +59,14 @@ describe("authentication", () => {
     expect(actor).toEqual({
       username: "operator",
       role: "operator",
+      roleLabel: "Data Entry Operator",
       capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
     });
   });
 });
 
 describe("authorization", () => {
-  // The full matrix, straight from PERSONAS[*].capabilities.
+  // The full matrix, straight from the built-in role definitions.
   const MATRIX: Record<PersonaId, Record<Capability, boolean>> = {
     gm: { write: true, approve: true, configure: true, eraseLedger: true },
     owner: { write: false, approve: false, configure: false, eraseLedger: false },

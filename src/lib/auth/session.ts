@@ -5,16 +5,21 @@ import {
   SESSION_COOKIE,
   SESSION_TTL_SEC,
   getAuthSecret,
-  type AuthUser,
 } from "./config";
-import type { PersonaId } from "@/lib/persona";
-import { isPersonaId } from "@/lib/persona";
+import type { RoleId } from "@/lib/persona";
 
 export type SessionPayload = {
   /** username */
   u: string;
-  /** role → persona */
-  r: PersonaId;
+  /**
+   * Role id. Deliberately NOT validated against a known set here: roles live in
+   * `plant_roles` now, and this module runs in the Edge proxy where reaching the
+   * database is not an option. The token is signed, so `r` is untampered; what
+   * it MEANS is resolved at the API boundary by lib/auth/roles.ts, which denies
+   * an id it cannot find. Rejecting unknown ids here would have made every
+   * plant-created role unable to sign in.
+   */
+  r: RoleId;
   /** exp unix seconds */
   exp: number;
 };
@@ -68,7 +73,7 @@ async function sign(body: string, secret: string): Promise<string> {
 }
 
 export async function createSessionToken(
-  user: Pick<AuthUser, "username" | "role">,
+  user: { username: string; role: RoleId },
   ttlSec: number = SESSION_TTL_SEC,
 ): Promise<string> {
   const secret = getAuthSecret();
@@ -99,7 +104,7 @@ export async function verifySessionToken(
   if (diff !== 0) return null;
   try {
     const raw = JSON.parse(b64urlDecodeToString(body)) as SessionPayload;
-    if (!raw?.u || !isPersonaId(raw.r) || typeof raw.exp !== "number") return null;
+    if (!raw?.u || typeof raw.r !== "string" || !raw.r || typeof raw.exp !== "number") return null;
     if (raw.exp < Math.floor(Date.now() / 1000)) return null;
     return raw;
   } catch {
