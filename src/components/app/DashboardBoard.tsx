@@ -236,6 +236,7 @@ export default function DashboardBoard({
 
   return (
     <div
+      className="dashboard-board-grid"
       style={{
         display: "grid",
         gridTemplateColumns: `repeat(${DASH_COLS}, minmax(0, 1fr))`,
@@ -253,6 +254,7 @@ export default function DashboardBoard({
           <div
             key={id}
             data-dash-id={id}
+            className={`dashboard-board-item dash-span-${span}`}
             onDragOver={(e) => {
               if (!editing || !dragging) return;
               e.preventDefault();
@@ -322,8 +324,10 @@ function MoveChrome({
   onDragEnd: () => void;
 }) {
   const btn: React.CSSProperties = {
-    width: 22,
-    height: 22,
+    width: 28,
+    height: 28,
+    minWidth: 28,
+    minHeight: 28,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -332,7 +336,7 @@ function MoveChrome({
     color: "var(--text-3)",
     cursor: "pointer",
     padding: 0,
-    borderRadius: 4,
+    borderRadius: 6,
   };
 
   return (

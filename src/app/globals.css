@@ -1151,3 +1151,98 @@ button:active:not(:disabled),
     transform: none !important;
   }
 }
+
+/* =========================================================
+   Dashboard Mobile & Tablet Responsive Layouts
+   =========================================================
+   Progressive reflow: 1-column card stack on mobile (<768px),
+   2x2+1 grid for executive KPIs (<640px), responsive AI brief,
+   touch-friendly scrollable funnel strip and matrix heatmaps.
+*/
+@media (max-width: 768px) {
+  /* Dashboard customizable board: stack into 1 clean column */
+  .dashboard-board-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .dashboard-board-item {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* Executive Attention Rail: stack vertically */
+  .dashboard-attention-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* AI Diagnostics Brief: stack vertically */
+  .dashboard-ai-brief {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .ai-brief-bottleneck {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .ai-brief-recovery {
+    border-left: none !important;
+    border-top: 1px solid var(--border) !important;
+    padding-left: 0 !important;
+    padding-top: 14px !important;
+  }
+
+  .ai-brief-divider {
+    width: 100% !important;
+    height: 1px !important;
+    margin: 4px 0 !important;
+  }
+
+  /* Funnel Strip: touch-friendly horizontal swipe with snap */
+  .funnel-strip-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    padding-bottom: 6px !important;
+  }
+
+  .funnel-gate-col {
+    scroll-snap-align: start;
+    min-width: 175px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Scale down executive KPI typography slightly on small phones to prevent clipping */
+  :root {
+    --text-kpi: 1.5rem;
+    --text-kpi-sm: 1.25rem;
+    --text-kpi-word: 1.05rem;
+  }
+
+  /* Executive KPIs: 2x2 grid + COPQ full width */
+  .dashboard-kpis-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .dashboard-kpi-copq {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* Station Mode KPIs */
+  .station-kpis-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  /* Defect table rows on small screens */
+  .defect-table-header,
+  .defect-table-row {
+    grid-template-columns: 18px minmax(0, 1fr) 52px 48px 42px !important;
+    gap: 6px !important;
+    font-size: 11px !important;
+  }
+}

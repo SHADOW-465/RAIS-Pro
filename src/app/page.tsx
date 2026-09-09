@@ -662,7 +662,7 @@ export default function Dashboard() {
             <DashboardBoard userKey={layoutUser} editing={layoutEditing} onDirtyChange={setLayoutDirty}>
               {/* Section 1: Executive KPIs */}
               <DashItem id="kpis" span={12}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
+              <div className="dashboard-kpis-grid" style={{ gap: "var(--gap-grid)" }}>
                 <Kpi
                   primary
                   label="Overall Rejection"
@@ -737,21 +737,23 @@ export default function Dashboard() {
                     }
                   )}
                 />
-                <Kpi
-                  primary
-                  label="COPQ (₹)"
-                  value={rupee(m.copq)}
-                  detail={m.rejected > 0 ? `${num(m.rejected)} rejected units` : undefined}
-                  sub={stats.copqDiff || "Cost of poor quality"}
-                  tone={m.copq > 0 ? "bad" : "good"}
-                  spark={m.copqTrend}
-                  onClick={() => openModal(
-                    `COPQ Trend (${grainLabel})`,
-                    kpiNarrative("copq", `Cost of Poor Quality (COPQ) is ${rupee(m.copq)} for the latest period (${stats.copqDiff}).`),
-                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>,
-                    { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq), metricKind: "copq" },
-                  )}
-                />
+                <div className="dashboard-kpi-copq" style={{ display: "flex", flexDirection: "column" }}>
+                  <Kpi
+                    primary
+                    label="COPQ (₹)"
+                    value={rupee(m.copq)}
+                    detail={m.rejected > 0 ? `${num(m.rejected)} rejected units` : undefined}
+                    sub={stats.copqDiff || "Cost of poor quality"}
+                    tone={m.copq > 0 ? "bad" : "good"}
+                    spark={m.copqTrend}
+                    onClick={() => openModal(
+                      `COPQ Trend (${grainLabel})`,
+                      kpiNarrative("copq", `Cost of Poor Quality (COPQ) is ${rupee(m.copq)} for the latest period (${stats.copqDiff}).`),
+                      <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>,
+                      { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq), metricKind: "copq" },
+                    )}
+                  />
+                </div>
               </div>
               </DashItem>
 
@@ -858,7 +860,7 @@ export default function Dashboard() {
                 >
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                      <div style={{
+                      <div className="defect-table-header" style={{
                         display: "grid",
                         gridTemplateColumns: "20px minmax(0, 1.3fr) 55px 70px 60px",
                         gap: "var(--space-2)",
@@ -883,7 +885,7 @@ export default function Dashboard() {
                           const colors = ["#C8421C", "#2563EB", "#D97706", "#0D9488", "#EC4899"];
                           const rejRate = getDefectRejRate(d);
                           return (
-                            <div key={d.label} style={{
+                            <div key={d.label} className="defect-table-row" style={{
                               display: "grid",
                               gridTemplateColumns: "22px minmax(0, 1.3fr) 58px 70px 56px",
                               gap: "var(--space-2)",
@@ -1061,7 +1063,7 @@ export default function Dashboard() {
 
               <DashItem id="ai-brief" span={12}>
                 <Card title="AI Diagnostics & Actionable Brief">
-                  <div style={{
+                  <div className="dashboard-ai-brief" style={{
                     display: "grid",
                     gridTemplateColumns: "minmax(0, 1.8fr) 1px minmax(0, 1.2fr)",
                     gap: 32,
@@ -1091,13 +1093,13 @@ export default function Dashboard() {
                             {exec.slice(1).map((bullet, i) => (
                               <li key={i} style={{ listStyleType: "none", position: "relative", paddingLeft: 4, marginBottom: 8 }}>
                                 <span style={{
-                                  position: "absolute",
-                                  left: -16,
-                                  top: 8,
-                                  width: 6,
-                                  height: 6,
-                                  borderRadius: "50%",
-                                  background: "var(--accent)"
+                                   position: "absolute",
+                                   left: -16,
+                                   top: 8,
+                                   width: 6,
+                                   height: 6,
+                                   borderRadius: "50%",
+                                   background: "var(--accent)"
                                 }} />
                                 {safeBolden(bullet)}
                               </li>
@@ -1110,7 +1112,7 @@ export default function Dashboard() {
                       Hidden with no rejecting stage in scope — "— Bottleneck …
                       rate of —" is a claim about nothing. */}
                       {worstStageRow && (
-                        <div style={{
+                        <div className="ai-brief-bottleneck" style={{
                           display: "grid",
                           gridTemplateColumns: "1.2fr 1fr",
                           gap: 20,
@@ -1136,7 +1138,7 @@ export default function Dashboard() {
                             </p>
                           </div>
 
-                          <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: 20, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <div className="ai-brief-recovery" style={{ borderLeft: "1px solid var(--border)", paddingLeft: 20, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                             <div className="ui-label" style={{ marginBottom: 4 }}>
                               Financial Recovery Potential
                             </div>
@@ -1152,7 +1154,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Vertical Divider Line */}
-                    <div style={{ background: "var(--border)", height: "100%" }} />
+                    <div className="ai-brief-divider" style={{ background: "var(--border)", height: "100%" }} />
 
                     {/* Right Side: Action Plan (CAPA Items) */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1294,12 +1296,12 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
   const last = stages[stages.length - 1];
   const finalGood = last ? Math.max(last.checked - last.rejected, 0) : 0;
   return (
-    <div style={{ display: "flex", alignItems: "stretch", gap: 0, overflowX: "auto", padding: "4px 0" }}>
+    <div className="funnel-strip-scroll" style={{ display: "flex", alignItems: "stretch", gap: 0, overflowX: "auto", padding: "4px 0" }}>
       {stages.map((s, i) => {
         const passed = Math.max(s.checked - s.rejected, 0);
         const over = s.rejRate > targetRej;
         return (
-          <div key={s.stageId} style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 150 }}>
+          <div key={s.stageId} className="funnel-gate-col" style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 150 }}>
             <button
               type="button"
               onClick={() => onGateClick(s)}
@@ -1410,7 +1412,7 @@ function AttentionRail({ m, targetRej, base, onGo }: {
   }
   if (items.length === 0) return null;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, gap: "var(--gap-grid)" }}>
+    <div className="dashboard-attention-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, gap: "var(--gap-grid)" }}>
       {items.map((it) => (
         <button
           key={`${it.path}|${it.state.stage ?? ""}|${it.state.size ?? ""}|${it.label}`}
@@ -1515,7 +1517,7 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-grid)" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
+      <div className="station-kpis-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
         <Kpi
           primary
           label={`${label} — Rejection Rate`}
