@@ -1,15 +1,33 @@
 "use client";
 
-// The tree half of Data Schema. Renders whatever nodes it is handed and knows
-// nothing about stages, defects or sizes — every structural rule lives in
-// lib/schema/tree.ts. Keyboard model follows the WAI-ARIA tree pattern.
+// The directory-tree renderer. Renders whatever nodes it is handed and knows
+// nothing about what they mean — every structural rule lives in the module that
+// derives the tree (lib/schema/tree.ts for Data Schema, lib/access/tree.ts for
+// role access on Settings). Keyboard model follows the WAI-ARIA tree pattern.
+//
+// It is typed structurally rather than against `SchemaNode` for that reason: a
+// second tree meant either widening this to a shared shape or copying three
+// hundred lines of ARIA keyboard handling, and the second one rots.
 //
 // Depth reads through indent guides rather than indentation alone: a directory
 // is legible because you can see which trunk a row hangs off, and at four
 // levels deep padding-left on its own stops answering that.
 
 import React, { useCallback, useMemo, useState } from "react";
-import { visibleRows, type SchemaNode, type SchemaNodeBadge } from "@/lib/schema/tree";
+import { visibleRows, type SchemaNodeBadge } from "@/lib/schema/tree";
+
+/** What this component needs of a node. `SchemaNode` and `AccessNode` both
+ *  satisfy it; `kind` stays a free string because it only drives typography. */
+export interface TreeNode {
+  id: string;
+  kind: string;
+  label: string;
+  sublabel?: string;
+  count?: number;
+  badge?: SchemaNodeBadge;
+  locked?: boolean;
+  children: TreeNode[];
+}
 
 /** Row geometry. One place, so the indent guides and rows can never disagree. */
 const ROW_H = 30;
@@ -36,6 +54,38 @@ function Chevron({ open }: { open: boolean }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+/** Tri-state box. "mixed" is a dash, the convention for a folder whose
+ *  children disagree — a half-filled square reads as a rendering glitch. */
+function Check({ state }: { state: "on" | "off" | "mixed" }) {
+  const filled = state !== "off";
+  return (
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+      <rect
+        x="1.25"
+        y="1.25"
+        width="11.5"
+        height="11.5"
+        rx="3"
+        fill={filled ? "var(--accent)" : "transparent"}
+        stroke={filled ? "var(--accent)" : "var(--border-strong)"}
+        strokeWidth="1.3"
+      />
+      {state === "on" && (
+        <path
+          d="M4 7.1l2.1 2.1L10 5.4"
+          stroke="var(--paper)"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {state === "mixed" && (
+        <path d="M4.2 7h5.6" stroke="var(--paper)" strokeWidth="1.7" strokeLinecap="round" />
+      )}
     </svg>
   );
 }
@@ -95,11 +145,29 @@ function Badge({ badge }: { badge: SchemaNodeBadge }) {
 }
 
 export interface SchemaTreeProps {
-  nodes: SchemaNode[];
+  nodes: TreeNode[];
   expanded: Set<string>;
   onToggle: (id: string) => void;
   selectedId: string | null;
-  onSelect: (node: SchemaNode) => void;
+  /** The clicked row. Callers that need their own richer node look it up by
+   *  `id` in the tree they derived — the pattern /schema already uses for its
+   *  detail panel, and what keeps this component free of either node type. */
+  onSelect: (node: TreeNode) => void;
+  /** Accessible name for the tree. */
+  label?: string;
+  /**
+   * Supply both to turn the tree into a picker. `checkState` answers per row —
+   * "mixed" is what a folder returns when only some of its leaves are on — and
+   * `onCheck` fires for the row that was clicked, leaving the caller to decide
+   * what a folder click means to its descendants.
+   *
+   * The checkbox is a span, not an <input>: the row itself carries
+   * `role="treeitem"` and `aria-checked`, which is how the ARIA tree pattern
+   * expects a multi-selectable tree to report state. A nested focusable input
+   * would put a second tab stop inside every row and break arrow-key walking.
+   */
+  checkState?: (node: TreeNode) => "on" | "off" | "mixed";
+  onCheck?: (node: TreeNode) => void;
 }
 
 export default function SchemaTree({
@@ -108,12 +176,15 @@ export default function SchemaTree({
   onToggle,
   selectedId,
   onSelect,
+  label = "Plant schema",
+  checkState,
+  onCheck,
 }: SchemaTreeProps) {
   const rows = useMemo(() => visibleRows(nodes, expanded), [nodes, expanded]);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const onKeyDown = useCallback(
-    (e: React.KeyboardEvent, node: SchemaNode, index: number) => {
+    (e: React.KeyboardEvent, node: TreeNode, index: number) => {
       const move = (to: number) => {
         e.preventDefault();
         const next = rows[to];
@@ -148,12 +219,17 @@ export default function SchemaTree({
         case " ":
           e.preventDefault();
           onSelect(node);
-          if (node.children.length > 0) onToggle(node.id);
+          // ARIA's multi-selectable tree pattern puts toggling on Space. With a
+          // picker attached, expanding is the arrow keys' job — so Space here
+          // must not also open the folder, or a keyboard user cannot tick one
+          // without the rows shifting underneath them.
+          if (onCheck) onCheck(node);
+          else if (node.children.length > 0) onToggle(node.id);
           return;
         default:
       }
     },
-    [rows, expanded, onToggle, onSelect],
+    [rows, expanded, onToggle, onSelect, onCheck],
   );
 
   if (rows.length === 0) {
@@ -167,13 +243,19 @@ export default function SchemaTree({
   }
 
   return (
-    <div role="tree" aria-label="Plant schema" style={{ padding: "6px 6px 12px" }}>
+    <div
+      role="tree"
+      aria-label={label}
+      aria-multiselectable={onCheck ? true : undefined}
+      style={{ padding: "6px 6px 12px" }}
+    >
       {rows.map(({ node, depth }, i) => {
         const open = expanded.has(node.id);
         const selected = node.id === selectedId;
         const hovered = hoveredId === node.id;
         const hasKids = node.children.length > 0;
         const isSection = node.kind === "category";
+        const check = checkState?.(node);
         // Top-level groups get air above them; siblings stay tight. That
         // contrast is what turns a flat list into readable groups.
         const startsGroup = depth === 0 && i > 0;
@@ -185,6 +267,7 @@ export default function SchemaTree({
             role="treeitem"
             aria-level={depth + 1}
             aria-selected={selected}
+            aria-checked={check ? check === "on" : undefined}
             aria-expanded={hasKids ? open : undefined}
             tabIndex={i === 0 ? 0 : -1}
             onKeyDown={(e) => onKeyDown(e, node, i)}
@@ -192,7 +275,11 @@ export default function SchemaTree({
             onMouseLeave={() => setHoveredId((cur) => (cur === node.id ? null : cur))}
             onClick={() => {
               onSelect(node);
-              if (hasKids) onToggle(node.id);
+              // In picker mode a row click is a decision, so expanding as well
+              // would move the rows out from under the pointer mid-decision.
+              // The chevron still expands; see the Space/Enter keys too.
+              if (onCheck) onCheck(node);
+              else if (hasKids) onToggle(node.id);
             }}
             style={{
               position: "relative",
@@ -245,7 +332,26 @@ export default function SchemaTree({
 
             <span style={{ width: depth * INDENT, flexShrink: 0 }} />
 
+            {check && (
+              <span
+                aria-hidden
+                style={{ display: "grid", placeItems: "center", width: 14, flexShrink: 0, marginLeft: 4 }}
+              >
+                <Check state={check} />
+              </span>
+            )}
+
             <span
+              onClick={
+                // With a checkbox present the chevron is the only way to expand,
+                // so it has to stop the row's toggle from also firing.
+                onCheck && hasKids
+                  ? (e) => {
+                      e.stopPropagation();
+                      onToggle(node.id);
+                    }
+                  : undefined
+              }
               style={{
                 display: "grid",
                 placeItems: "center",

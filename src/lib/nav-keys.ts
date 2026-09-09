@@ -21,6 +21,17 @@ export type NavKey =
   | "schema"
   | "settings";
 
+/** Sidebar groupings, in the order the sidebar shows them. */
+export const NAV_SECTIONS = ["overview", "data", "analysis", "management"] as const;
+export type NavSectionId = (typeof NAV_SECTIONS)[number];
+
+export const NAV_SECTION_LABELS: Record<NavSectionId, string> = {
+  overview: "Overview",
+  data: "Your data",
+  analysis: "Analysis",
+  management: "Management",
+};
+
 /**
  * Where each destination lives, and what people call it.
  *
@@ -37,29 +48,40 @@ export interface NavRoute {
   href: string | null;
   /** Extra words people type when they mean this screen. */
   keywords: string;
+  /**
+   * Which sidebar group this destination belongs to.
+   *
+   * Recorded here for the same reason everything else in this table is: the
+   * grouping was previously written out only inside AppShell, and the access
+   * tree on Settings needs the identical structure. Two hand-kept copies of
+   * "which screens are Analysis" is how the dead-link bug in the note above
+   * happened. AppShell still owns the icons; it should read the grouping from
+   * here when the sidebar moves onto grants.
+   */
+  section: NavSectionId;
 }
 
 export const NAV_ROUTES: Record<NavKey, NavRoute> = {
-  dashboard: { label: "Dashboard", href: "/", keywords: "home status factory overview" },
-  "data-entry": { label: "Data Entry", href: "/data-entry", keywords: "batch matrix log capture" },
-  staging: { label: "Import from Excel", href: "/staging", keywords: "excel upload import" },
-  workbooks: { label: "Excel Data", href: "/workbooks", keywords: "mod ontology files" },
-  stage: { label: "By Stage", href: "/stage-analysis", keywords: "gate visual balloon valve" },
-  size: { label: "By Size", href: "/size-analysis", keywords: "fr french size" },
-  defect: { label: "By Defect", href: "/defect-analysis", keywords: "pareto reason" },
-  hold: { label: "Hold Quantity", href: "/hold", keywords: "hold rework visual lot stage" },
-  "open-lots": { label: "Open Lots", href: "/open-lots", keywords: "wip stalled waiting batch open complete" },
-  spc: { label: "SPC & Control Charts", href: "/spc", keywords: "control chart xbar" },
-  "process-flow": { label: "Process Flow", href: "/process-flow", keywords: "fpy flow" },
-  copq: { label: "Cost of Rejection", href: "/copq", keywords: "cost rupee money" },
-  reports: { label: "Reports", href: "/reports", keywords: "print monthly pack" },
-  capa: { label: "CAPA & Actions", href: "/capa", keywords: "action owner" },
-  remedies: { label: "Defect Remedies", href: "/remedies", keywords: "remedy description primary secondary tertiary spike dip" },
-  alerts: { label: "Alerts", href: "/alerts", keywords: "notification history timeline exception" },
-  ask: { label: "Ask MOID", href: null, keywords: "assistant copilot chat" },
-  audit: { label: "Audit Trail", href: "/audit", keywords: "provenance trust" },
-  schema: { label: "Plant Schema", href: "/schema", keywords: "registry stages defects" },
-  settings: { label: "Settings", href: "/settings", keywords: "target cost theme" },
+  dashboard: { label: "Dashboard", href: "/", keywords: "home status factory overview", section: "overview" },
+  "data-entry": { label: "Data Entry", href: "/data-entry", keywords: "batch matrix log capture", section: "data" },
+  staging: { label: "Import from Excel", href: "/staging", keywords: "excel upload import", section: "data" },
+  workbooks: { label: "Excel Data", href: "/workbooks", keywords: "mod ontology files", section: "data" },
+  stage: { label: "By Stage", href: "/stage-analysis", keywords: "gate visual balloon valve", section: "analysis" },
+  size: { label: "By Size", href: "/size-analysis", keywords: "fr french size", section: "analysis" },
+  defect: { label: "By Defect", href: "/defect-analysis", keywords: "pareto reason", section: "analysis" },
+  hold: { label: "Hold Quantity", href: "/hold", keywords: "hold rework visual lot stage", section: "analysis" },
+  "open-lots": { label: "Open Lots", href: "/open-lots", keywords: "wip stalled waiting batch open complete", section: "analysis" },
+  spc: { label: "SPC & Control Charts", href: "/spc", keywords: "control chart xbar", section: "analysis" },
+  "process-flow": { label: "Process Flow", href: "/process-flow", keywords: "fpy flow", section: "analysis" },
+  copq: { label: "Cost of Rejection", href: "/copq", keywords: "cost rupee money", section: "analysis" },
+  reports: { label: "Reports", href: "/reports", keywords: "print monthly pack", section: "management" },
+  capa: { label: "CAPA & Actions", href: "/capa", keywords: "action owner", section: "management" },
+  remedies: { label: "Defect Remedies", href: "/remedies", keywords: "remedy description primary secondary tertiary spike dip", section: "management" },
+  alerts: { label: "Alerts", href: "/alerts", keywords: "notification history timeline exception", section: "management" },
+  ask: { label: "Ask MOID", href: null, keywords: "assistant copilot chat", section: "management" },
+  audit: { label: "Audit Trail", href: "/audit", keywords: "provenance trust", section: "management" },
+  schema: { label: "Plant Schema", href: "/schema", keywords: "registry stages defects", section: "management" },
+  settings: { label: "Settings", href: "/settings", keywords: "target cost theme", section: "management" },
 };
 
 /** Destinations that are actually routes — everything Jump can navigate to. */

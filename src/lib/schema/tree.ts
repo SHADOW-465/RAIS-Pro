@@ -480,12 +480,12 @@ export function deleteIntentFor(
 }
 
 /** Flatten to the visible rows, given which folders are open. */
-export function visibleRows(
-  nodes: SchemaNode[],
+export function visibleRows<T extends { id: string; children: T[] }>(
+  nodes: T[],
   expanded: Set<string>,
   depth = 0,
-): { node: SchemaNode; depth: number }[] {
-  const out: { node: SchemaNode; depth: number }[] = [];
+): { node: T; depth: number }[] {
+  const out: { node: T; depth: number }[] = [];
   for (const node of nodes) {
     out.push({ node, depth });
     if (node.children.length > 0 && expanded.has(node.id)) {
@@ -499,16 +499,15 @@ export function visibleRows(
  * Filter the tree to nodes matching `query`, keeping ancestors of any hit so
  * the path stays walkable. Returns the ids that must be expanded to reveal them.
  */
-export function filterTree(
-  nodes: SchemaNode[],
-  query: string,
-): { nodes: SchemaNode[]; expand: Set<string> } {
+export function filterTree<
+  T extends { id: string; label: string; sublabel?: string; children: T[] },
+>(nodes: T[], query: string): { nodes: T[]; expand: Set<string> } {
   const q = query.trim().toLowerCase();
   if (!q) return { nodes, expand: new Set() };
   const expand = new Set<string>();
 
-  const walk = (list: SchemaNode[]): SchemaNode[] => {
-    const kept: SchemaNode[] = [];
+  const walk = (list: T[]): T[] => {
+    const kept: T[] = [];
     for (const node of list) {
       const self =
         node.label.toLowerCase().includes(q) ||
