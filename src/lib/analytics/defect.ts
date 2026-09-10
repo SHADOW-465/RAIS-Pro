@@ -44,6 +44,29 @@ export function byDefect(events: Event[], scope: Scope, registry: Registry = DER
     });
 }
 
+/**
+ * Chart order: the plant's own catalog order, not volume order.
+ *
+ * The Pareto deliberately sorts by size — that is what a Pareto is for. The
+ * trend charts must not, because a colour has to mean the same defect from one
+ * render to the next: sorting by volume repaints every line the moment two
+ * defects swap places, and a reader who learned "orange is COAG" learns it
+ * wrong. Catalog order is stable, and it is the order the plant already reads
+ * on Data Schema.
+ *
+ * A defect the registry does not list sorts after the ones it does, by label,
+ * so an unclassified row never jumps to the front.
+ */
+export function orderDefectsByCatalog(rows: DefectRow[], registry: Registry = DERIVED_REGISTRY): DefectRow[] {
+  const rank = new Map(registry.defects.map((d, i) => [d.defectCode, i]));
+  return [...rows].sort((a, b) => {
+    const ia = a.defectCode != null ? (rank.get(a.defectCode) ?? 1000) : 1001;
+    const ib = b.defectCode != null ? (rank.get(b.defectCode) ?? 1000) : 1001;
+    if (ia !== ib) return ia - ib;
+    return a.label.localeCompare(b.label);
+  });
+}
+
 export interface DefectTrendPoint { period: string; label: string; perDefect: Record<string, number> }
 
 /** Top-N defects' qty over time. */

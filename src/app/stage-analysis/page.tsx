@@ -14,7 +14,8 @@ import {
   BarsH,
   ProcessFlow,
   Donut,
-  pct
+  pct,
+  seriesColor,
 } from "@/components/app/widgets";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import { sortStageIds } from "@/core/ontology/plant-catalog";
@@ -163,6 +164,11 @@ export default function StageAnalysisPage() {
 
         {m && (() => {
           const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
+          const chartStages = m.stages.filter((s) => s.checked > 0 || s.rejected > 0);
+          const colorByStageId: Record<string, string> = {};
+          chartStages.forEach((s, i) => {
+            colorByStageId[s.stageId] = seriesColor(i);
+          });
           const hasLeft = m.stageTrend.length > 0 || m.tr.length > 0;
           const hasRight = m.stages.length > 0;
           const gridTemplate = hasLeft && hasRight ? "minmax(0, 1.8fr) minmax(0, 1.2fr)" : "minmax(0, 1fr)";
@@ -171,16 +177,61 @@ export default function StageAnalysisPage() {
             <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
               {hasLeft && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
-                  {m.stageTrend.length > 0 && (
-                    <Card title={`Stage-wise Rejection Trend (${grainLabel})`} onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Visual Inspection continues to drive the highest defect volume, followed by Valve Integrity and Balloon Inspection.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.stageTrend} stages={activeRegistry.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
-                      <MultiLine data={m.stageTrend} stages={activeRegistry.stages} />
+                  {m.tr.length > 0 && (
+                    <Card title={`Overall Rejection Trend (${grainLabel})`} onClick={() => openModal(`Overall Rejection Trend (${grainLabel})`, `Cumulative ${grainLabel.toLowerCase()} rejection across every stage on the line, against the ${(targetRej * 100).toFixed(0)}% target.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+                      <LineChart points={m.tr} target={targetRej} fmt={pct} />
                     </Card>
                   )}
 
-                  {m.tr.length > 0 && (
-                    <Card title={`Overall Rejection Trend (${grainLabel})`} onClick={() => openModal(`Overall Rejection Trend (${grainLabel})`, `Overall ${grainLabel.toLowerCase()} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}%.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
-                      <LineChart points={m.tr} target={targetRej} fmt={pct} />
+                  {m.stageTrend.length > 0 && chartStages.length > 0 && (
+                    <Card title={`All Stages Rejection Trend (${grainLabel})`} onClick={() => openModal(`All Stages Rejection Trend (${grainLabel})`, "Each colour is one station in process order. The same colours are used on the pie and on the per-stage charts below.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.stageTrend} stages={chartStages} colorByStageId={colorByStageId} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
+                      <MultiLine data={m.stageTrend} stages={chartStages} colorByStageId={colorByStageId} />
                     </Card>
+                  )}
+
+                  {m.stageTrend.length > 0 && chartStages.length > 0 && (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                        gap: 16,
+                      }}
+                    >
+                      {chartStages.map((s) => {
+                        const points = m.stageTrend.map((p) => ({
+                          period: p.period,
+                          label: p.label,
+                          value: p.perStage[s.stageId] ?? 0,
+                          rejected: p.counts?.[s.stageId]?.rejected,
+                          checked: p.counts?.[s.stageId]?.checked,
+                        }));
+                        const color = colorByStageId[s.stageId];
+                        return (
+                          <Card
+                            key={s.stageId}
+                            title={s.label}
+                            onClick={() =>
+                              openModal(
+                                `${s.label} · ${grainLabel}`,
+                                `${s.label} rejection over time. Colour matches the all-stages chart and the pie.`,
+                                <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                                  <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} />
+                                </div>,
+                                { rows: srcRows({ types: ["production", "inspection"], stageId: s.stageId }), value: pct(s.rejRate) },
+                              )
+                            }
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                              <span style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
+                              <span style={{ fontSize: 12, color: "var(--text-2)" }}>
+                                {pct(s.rejRate)} · {s.rejected.toLocaleString("en-IN")} rejected of {s.checked.toLocaleString("en-IN")}
+                              </span>
+                            </div>
+                            <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} height={220} />
+                          </Card>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               )}
@@ -196,7 +247,13 @@ export default function StageAnalysisPage() {
                   </Card>
 
                   <Card title="Rejection Share by Stage">
-                    <Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} />
+                    <Donut
+                      data={chartStages.map((s) => ({
+                        label: s.label,
+                        value: s.rejected,
+                        color: colorByStageId[s.stageId],
+                      }))}
+                    />
                   </Card>
                 </div>
               )}
