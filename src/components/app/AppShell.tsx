@@ -24,7 +24,7 @@ import {
   type InvestigationState,
 } from "@/lib/analytics";
 import type { DashboardConfig } from "@/types/dashboard";
-import { resolveScope, DEFAULT_STAGE_CATEGORIES, STAGE_CATEGORY } from "@/lib/analytics/scope";
+import { resolveScope, DEFAULT_STAGE_CATEGORIES, stageCategoryOf } from "@/lib/analytics/scope";
 import { trustScore as computeTrustScore } from "@/lib/analytics/trust";
 
 import { NAV_ROUTES, type NavKey } from "@/lib/nav-keys";
@@ -1143,7 +1143,7 @@ export default function AppShell({
   // so the View chip doesn't show a station outside the active sections.
   useEffect(() => {
     if (!t.stageView || t.stageView === "cumulative") return;
-    const cat = STAGE_CATEGORY[t.stageView];
+    const cat = stageCategoryOf(t.stageView);
     const enabled = t.stageCategories?.length
       ? t.stageCategories
       : DEFAULT_STAGE_CATEGORIES;
@@ -1174,7 +1174,7 @@ export default function AppShell({
   );
   const stationOptions = stationCandidates.filter((v) => {
     if (!stagesWithData.has(v.id)) return false;
-    const cat = STAGE_CATEGORY[v.id];
+    const cat = stageCategoryOf(v.id);
     // Unknown stage ids: only show when every section is selected (or none
     // mapped yet) so we don't hide custom plant stages permanently.
     if (!cat) return enabledSections.size >= STAGE_CATEGORIES.length;

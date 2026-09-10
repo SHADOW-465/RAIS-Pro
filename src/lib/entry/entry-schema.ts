@@ -14,7 +14,7 @@ import {
   type MacroId,
   type DefectDef,
 } from "@/lib/entry/disposafe-matrix";
-import { STAGE_CATEGORIES, STAGE_CATEGORY, STAGES, resolveStageId, sortStageIds } from "@/core/ontology/plant-catalog";
+import { STAGE_CATEGORIES, STAGES, resolveStageId, sortStageIds, stageCategoryOf } from "@/core/ontology/plant-catalog";
 
 export type QtyKey = "checked" | "accepted" | "hold" | "rejected";
 export type ExtraField = "trolleys" | "bin";
@@ -91,7 +91,10 @@ function qtyFromTemplateKey(key: string): QtyKey | null {
 
 function categoryOf(stageId: string, explicit?: string): string {
   if (explicit && explicit.trim()) return explicit.trim();
-  return STAGE_CATEGORY[stageId] ?? "assembly";
+  // stageCategoryOf resolves the plant's own stage names. A raw lookup misses
+  // them and the "assembly" default then files a Dipping stage under Assembly
+  // — silently, and in the grid the operator types into.
+  return stageCategoryOf(stageId) ?? "assembly";
 }
 
 function fromTemplate(template: EntryTemplateLike): ResolvedEntrySchema {

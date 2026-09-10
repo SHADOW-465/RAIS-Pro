@@ -14,7 +14,7 @@
 import { NextResponse } from "next/server";
 import type { CompanyCatalog } from "@/core/ontology/store/catalog-store";
 import { loadCatalog } from "@/core/ontology/load-catalog";
-import { DEFECT_ORDER, STAGE_CATEGORIES, STAGE_CATEGORY } from "@/core/ontology/plant-catalog";
+import { DEFECT_ORDER, STAGE_CATEGORIES, stageCategoryOf } from "@/core/ontology/plant-catalog";
 import { resolveSections } from "@/lib/schema/sections";
 
 const CAPTURE_COLUMNS: Record<string, { key: string; label: string }> = {
@@ -61,7 +61,7 @@ export function templateFrom(catalog: CompanyCatalog, source = "Plant catalog"):
         const i = order.indexOf(code);
         return i === -1 ? order.length : i; // unknown/plant-added codes go last
       };
-      const category = s.category ?? STAGE_CATEGORY[s.stageId] ?? "assembly";
+      const category = s.category ?? stageCategoryOf(s.stageId) ?? "assembly";
       return {
         stageId: s.stageId,
         label: s.label,
