@@ -13,11 +13,13 @@ import {
   STAGE_CATEGORY,
   STAGE_CATEGORIES,
   DEFAULT_STAGE_CATEGORIES,
+  resolveStageId,
+  stageCategoryOf,
   type StageCategory,
 } from "@/core/ontology/plant-catalog";
 
 export type { StageCategory };
-export { STAGE_CATEGORIES, DEFAULT_STAGE_CATEGORIES, STAGE_CATEGORY };
+export { STAGE_CATEGORIES, DEFAULT_STAGE_CATEGORIES, STAGE_CATEGORY, stageCategoryOf };
 
 export type Grain = "day" | "week" | "month" | "fy";
 
@@ -71,6 +73,40 @@ export function policyOf(scope: Scope): CalculationPolicyT {
 
 function stageOf(e: Event): string | null {
   return "stageId" in e ? (e.stageId as string) : null;
+}
+
+// ── Canonical vs. as-recorded stage ids ─────────────────────────────────────
+//
+// A stage has one authored id and any number of names the plant actually uses.
+// `production` is the catalog's id for Dipping; the ledger holds 699 rows under
+// `production-dipping`, because that is what the workbook column said and the
+// alias system is what lets the plant keep its own vocabulary.
+//
+// The two ends of this comparison come from different places, and that is the
+// whole bug. Sources → sections builds its allow-list from the CATALOG, so it
+// asks for `production`. View → a station pins the id as RECORDED, so it asks
+// for `production-dipping`. Matching with `includes()` meant picking Primary
+// production dropped every dipping row on the floor and the dashboard read
+// empty, while pinning the same stage by hand worked — one path happened to
+// compare like with like and the other did not.
+//
+// So compare canonically, in both directions: an allow-list entry matches an
+// event when either side resolves to the same authored stage.
+
+function stageAllowSet(ids: string[]): Set<string> {
+  const allowed = new Set<string>();
+  for (const id of ids) {
+    allowed.add(id);
+    const canon = resolveStageId(id);
+    if (canon) allowed.add(canon);
+  }
+  return allowed;
+}
+
+function stageIdAllowed(stageId: string, allowed: Set<string>): boolean {
+  if (allowed.has(stageId)) return true;
+  const canon = resolveStageId(stageId);
+  return !!canon && allowed.has(canon);
 }
 function sizeOf(e: Event): string | null {
   return "size" in e ? ((e.size as string | null) ?? null) : null;
@@ -187,7 +223,9 @@ export function describeSectionsFromStageIds(stageIds?: string[]): string | null
   if (stageIds.length === 0) return "No sections";
   const cats = new Set<StageCategory>();
   for (const id of stageIds) {
-    const c = STAGE_CATEGORY[id];
+    // stageCategoryOf, not STAGE_CATEGORY[id]: a pinned station arrives as
+    // recorded ("production-dipping"), which the raw table does not know.
+    const c = stageCategoryOf(id);
     if (c) cats.add(c);
   }
   if (cats.size === 0) return null;
@@ -404,6 +442,8 @@ export function scopeEvents(events: Event[], scope: Scope): Event[] {
   const batches = scope.batchIds?.length
     ? new Set(scope.batchIds.map((b) => b.toUpperCase()))
     : null;
+  // Built once per call, not per event: resolveStageId walks the alias table.
+  const allowedStageIds = scope.stageIds ? stageAllowSet(scope.stageIds) : null;
 
   const filtered = events.filter((e) => {
     // Custom range is the lot calendar encoded in the batch ID (H = August),
@@ -426,9 +466,9 @@ export function scopeEvents(events: Event[], scope: Scope): Event[] {
     }
     // Same rule as channels: `undefined` = no restriction, `[]` = the user
     // deselected every section, so nothing qualifies.
-    if (scope.stageIds) {
+    if (allowedStageIds) {
       const s = stageOf(e);
-      if (s != null && !scope.stageIds.includes(s)) return false;
+      if (s != null && !stageIdAllowed(s, allowedStageIds)) return false;
     }
     if (scope.sizes?.length) {
       const s = sizeOf(e);

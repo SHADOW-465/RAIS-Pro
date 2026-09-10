@@ -29,7 +29,7 @@ import {
 } from "@/lib/analytics/scope";
 import {
   STAGES,
-  STAGE_CATEGORY,
+  stageCategoryOf,
   type StageCategory,
 } from "@/core/ontology/plant-catalog";
 import type { Event } from "@/lib/store/types";
@@ -52,7 +52,7 @@ export default function SourcesScopePanel({
   const [batchSearch, setBatchSearch] = useState("");
   const [fileSearch, setFileSearch] = useState("");
   const [openAssemblyStages, setOpenAssemblyStages] = useState(
-    () => !!(t.stageView && t.stageView !== "cumulative" && STAGE_CATEGORY[t.stageView] === "assembly"),
+    () => !!(t.stageView && t.stageView !== "cumulative" && stageCategoryOf(t.stageView) === "assembly"),
   );
 
   const excelOn = t.includeExcel;
@@ -109,7 +109,10 @@ export default function SourcesScopePanel({
     const n: Record<string, number> = {};
     for (const e of events) {
       const stage = "stageId" in e ? (e.stageId as string) : null;
-      const cat = stage ? STAGE_CATEGORY[stage] : undefined;
+      // stageCategoryOf, not the raw table: events are recorded under the
+      // plant's own stage names ("production-dipping"), so a raw lookup counts
+      // none of them and the section shows an empty tally next to real rows.
+      const cat = stage ? stageCategoryOf(stage) : undefined;
       if (cat) n[cat] = (n[cat] ?? 0) + 1;
     }
     return n;
@@ -189,7 +192,7 @@ export default function SourcesScopePanel({
       // Pinned station in View must belong to an enabled section — clear if not.
       if (
         t.stageView !== "cumulative" &&
-        STAGE_CATEGORY[t.stageView] === id
+        stageCategoryOf(t.stageView) === id
       ) {
         setTweak("stageView", "cumulative");
       }

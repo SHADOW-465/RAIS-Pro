@@ -12,6 +12,7 @@ import {
   describeSourceFilter,
   isPlantDefaultTweaks,
   sourcesNarrowMode,
+  describeSectionsFromStageIds,
   type Scope,
 } from "../scope";
 import { buildBatchId, parseBatchId } from "@/lib/entry/batch-id";
@@ -629,6 +630,71 @@ describe("stage-category (shop-floor section) filter", () => {
   it("a pinned station view still wins over the section filter", () => {
     const scope = resolveScope([], { ...base, stageView: "production", stageCategories: ["assembly"] });
     expect(scope.stageIds).toEqual(["production"]);
+  });
+});
+
+// The section filter builds its allow-list from the CATALOG ("production"),
+// while the ledger records what the plant's own workbook called the stage
+// ("production-dipping" — 699 rows of it on the live plant). Matching those
+// two by string equality meant selecting Primary production emptied the
+// dashboard, while pinning the same stage under View worked, because that path
+// happens to compare the as-recorded id with itself.
+describe("section filter matches stages recorded under a plant alias", () => {
+  const scope = (over: Partial<Scope> = {}): Scope => ({
+    grain: "month",
+    ...over,
+  });
+
+  const dipping = makeEv({ eventId: "d1", stageId: "production-dipping", qty: 40 });
+  const visual = makeEv({ eventId: "v1", stageId: "visual", qty: 10 });
+
+  it("keeps an aliased event when the allow-list holds the canonical id", () => {
+    const kept = scopeEvents([dipping, visual], scope({ stageIds: ["production"] }));
+    expect(kept.map((e) => e.eventId)).toEqual(["d1"]);
+  });
+
+  it("keeps it when the allow-list holds the alias instead — View pins that id", () => {
+    const kept = scopeEvents([dipping, visual], scope({ stageIds: ["production-dipping"] }));
+    expect(kept.map((e) => e.eventId)).toEqual(["d1"]);
+  });
+
+  it("a canonical event still matches an allow-list built from the alias", () => {
+    const canonical = makeEv({ eventId: "p1", stageId: "production", qty: 5 });
+    const kept = scopeEvents([canonical], scope({ stageIds: ["production-dipping"] }));
+    expect(kept.map((e) => e.eventId)).toEqual(["p1"]);
+  });
+
+  // The whole point of the filter still has to work: widening the match must
+  // not quietly let another section's rows through.
+  it("still excludes a stage that is genuinely in another section", () => {
+    const kept = scopeEvents([dipping, visual], scope({ stageIds: ["visual"] }));
+    expect(kept.map((e) => e.eventId)).toEqual(["v1"]);
+  });
+
+  it("an unrelated id matches nothing", () => {
+    expect(scopeEvents([dipping], scope({ stageIds: ["balloon"] }))).toHaveLength(0);
+  });
+
+  // End to end through the control the user actually operates.
+  it("picking Primary production keeps the plant's dipping rows", () => {
+    const resolved = resolveScope([dipping, visual], {
+      grain: "month",
+      datePreset: "all",
+      dateFrom: "",
+      dateTo: "",
+      stageCategories: ["primary"],
+    });
+    expect(scopeEvents([dipping, visual], resolved).map((e) => e.eventId)).toEqual(["d1"]);
+  });
+});
+
+// A pinned station arrives as recorded, so the "Active" summary has to resolve
+// it before it can name the section — otherwise it reads as no section at all.
+describe("describeSectionsFromStageIds resolves aliases", () => {
+  it("names the section for a stage recorded under a plant alias", () => {
+    expect(describeSectionsFromStageIds(["production-dipping"])).toBe(
+      describeSectionsFromStageIds(["production"]),
+    );
   });
 });
 
