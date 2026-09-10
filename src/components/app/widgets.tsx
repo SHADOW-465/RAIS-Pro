@@ -1103,7 +1103,7 @@ export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLab
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
         <thead>
           <tr>
-            <th style={{ ...cth, textAlign: "left", color: "var(--text-3)", position: "sticky", left: 0, background: "var(--surface)", zIndex: 2, boxShadow: "2px 0 4px -2px rgba(0,0,0,0.08)" }}>Stage \ Size</th>
+            <th style={{ ...cth, textAlign: "left", color: "var(--text-3)" }}>Stage \ Size</th>
             {sizes.map((sz) => (
               <th key={sz} style={{ ...cth, textAlign: "center", color: "var(--text-3)" }}>{sz}</th>
             ))}
@@ -1112,7 +1112,7 @@ export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLab
         <tbody>
           {stageIds.map((stageId, i) => (
             <tr key={stageId}>
-              <td style={{ ...ctd, fontWeight: 700, position: "sticky", left: 0, background: "var(--surface)", zIndex: 1, boxShadow: "2px 0 4px -2px rgba(0,0,0,0.08)" }}>{stages[i]}</td>
+              <td style={{ ...ctd, fontWeight: 700 }}>{stages[i]}</td>
               {sizes.map((sz) => {
                 const cell = cells.find((c) => c.stageId === stageId && c.size === sz);
                 if (!cell) {
@@ -1209,14 +1209,14 @@ export function Heatmap({ rows, cols, matrix, fmt }: { rows: string[]; cols: str
     <div style={{ position: "relative", overflowX: "auto" }} onMouseLeave={() => setHover(null)}>
       <table style={{ borderCollapse: "collapse", fontSize: 10 }}>
         <thead>
-          <tr><th style={{ position: "sticky", left: 0, background: "var(--surface)", zIndex: 2 }} />{cols.map((c, ci) => (
+          <tr><th />{cols.map((c, ci) => (
             <th key={ci} style={{ padding: "2px 3px", color: "var(--text-3)", fontWeight: 600, height: 52, whiteSpace: "nowrap", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>{c}</th>
           ))}</tr>
         </thead>
         <tbody>
           {rows.map((rl, ri) => (
             <tr key={ri}>
-              <td style={{ padding: "2px 8px", color: "var(--text-2)", fontWeight: 600, whiteSpace: "nowrap", textAlign: "right", position: "sticky", left: 0, background: "var(--surface)", zIndex: 1, boxShadow: "2px 0 4px -2px rgba(0,0,0,0.08)" }}>{rl}</td>
+              <td style={{ padding: "2px 8px", color: "var(--text-2)", fontWeight: 600, whiteSpace: "nowrap", textAlign: "right" }}>{rl}</td>
               {cols.map((_, ci) => {
                 const v = matrix[ri]?.[ci] ?? 0, on = hover?.r === ri && hover?.c === ci;
                 return <td key={ci} title={`${rl} · ${cols[ci]}: ${f(v)}`} onMouseEnter={() => setHover({ r: ri, c: ci })}
