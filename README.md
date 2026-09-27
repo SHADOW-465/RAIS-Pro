@@ -107,6 +107,7 @@ src/
 | `POST /api/clear-data` | Clear the transactional ledger (keeps the schema) |
 | `GET /api/events` · `GET /api/day-records` | Ledger reads for screens and grids |
 | `GET/DELETE /api/manual-entries` | Data Entry ledger rows |
+| `GET/POST /api/batch-conversions` | Batch size-conversion lineage (isolated from the ledger) |
 | `POST /api/chat` · `POST /api/capa-advisor` · `POST /api/decide` | AI-backed answers, CAPA drafting, rule recommendations |
 | `GET /api/raw-file` · `POST /api/archive-upload` | Original file retrieval / archival |
 | `GET/POST/PATCH/DELETE /api/roles` | Plant roles: what each may open, and its capability bits |

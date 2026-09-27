@@ -29,8 +29,10 @@ import {
   pct,
   rupee,
   num,
-  Donut
+  Donut,
+  SizeColorLegend
 } from "@/components/app/widgets";
+import { sizeColorFor } from "@/lib/entry/size-color";
 import type { Event } from "@/lib/store/types";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import { sortStageIds } from "@/core/ontology/plant-catalog";
@@ -311,6 +313,16 @@ export default function Dashboard() {
       setSelectedSize(worstSize ? worstSize.size : m.sizes[0].size);
     }
   }, [m, selectedSize]);
+
+  // DS/ANX/05 size color code for the selected caliber — same mapping used on
+  // Size Analysis, so a size reads the same color everywhere in the app. Pure
+  // yellow/white read poorly as a thin line stroke, so the trend line falls
+  // back to the house accent for those two.
+  const selectedSizeColor = sizeColorFor(selectedSize);
+  const trendColor =
+    selectedSizeColor && selectedSizeColor.hex !== "#FFFF00" && selectedSizeColor.hex !== "#FFFFFF"
+      ? selectedSizeColor.hex
+      : undefined;
 
   // Build provenance rows for a metric's "View Source" panel (scoped to the snapshot period).
   const srcRows = (filter: Parameters<typeof toSourceRows>[1] = {}): SourceRow[] =>
@@ -795,30 +807,8 @@ export default function Dashboard() {
                   onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected), metricKind: "rejected" })}
                 >
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                      <div style={{ display: "flex", justifyContent: "center", padding: "4px 0" }}>
-                        <Donut data={m.stages.map((s) => ({ label: s.label.split(" ")[0], value: s.rejected }))} size={130} fontSize={10} hideLegend={true} />
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-3)", borderTop: "1px solid var(--border)", paddingTop: "var(--space-3)" }}>
-                        {[...m.stages].sort((a, b) => b.rejected - a.rejected).slice(0, 4).map((s, idx) => {
-                          const colors = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#EC4899", "#65A30D"];
-                          const share = ((s.rejected / (m.rejected || 1)) * 100).toFixed(1);
-                          return (
-                            <div key={s.stageId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--text-sm)", gap: 8 }}>
-                              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 600, color: "var(--text)", minWidth: 0 }}>
-                                <span style={{ width: 7, height: 7, borderRadius: "50%", background: colors[idx % colors.length], flexShrink: 0 }} />
-                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
-                              </span>
-                              <span className="num" style={{ fontWeight: 600, flexShrink: 0 }}>
-                                {pct(s.rejRate)}{" "}
-                                <span className="muted" style={{ fontWeight: 500, fontSize: "var(--text-xs)", fontFamily: "var(--font-sans)" }}>
-                                  ({share}%)
-                                </span>
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                    <div style={{ flex: 1, minHeight: 180, display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 0" }}>
+                      <Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={175} fontSize={10} hideLegend={true} />
                     </div>
                     <div style={{ marginTop: "var(--space-2)", display: "flex" }}>
                       <a
@@ -953,9 +943,9 @@ export default function Dashboard() {
                   <Card
                     title="Rejection by Size (YTD)"
                     sub={m.worstSize ? `Worst: ${m.worstSize.size}` : "YTD"}
-                    onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—", metricKind: "size" })}
+                    onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center", gap: 16 }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => `${n.toFixed(1)}%`} /><div style={{ paddingTop: 16, borderTop: "1px solid var(--border)" }}><SizeColorLegend sizes={m.sizes.map((s) => s.size)} /></div></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—", metricKind: "size" })}
                   >
-                    <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} />
+                    <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => `${n.toFixed(1)}%`} />
                   </Card>
                 </DashItem>
               )}
@@ -964,10 +954,24 @@ export default function Dashboard() {
                 <DashItem id="size-trend" span={8}>
                   <Card
                     title={`Size Trend (${selectedSize})`}
-                    onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—", metricKind: "size" })}
+                    onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} color={trendColor} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—", metricKind: "size" })}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
                       <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Size:</span>
+                      {selectedSizeColor && (
+                        <span
+                          aria-hidden="true"
+                          title={`${selectedSize} — ${selectedSizeColor.name}`}
+                          style={{
+                            width: 9,
+                            height: 9,
+                            borderRadius: 3,
+                            flexShrink: 0,
+                            background: selectedSizeColor.hex,
+                            boxShadow: selectedSizeColor.hex === "#FFFFFF" ? "inset 0 0 0 1px var(--border-strong)" : undefined,
+                          }}
+                        />
+                      )}
                       <Select
                         value={selectedSize}
                         onChange={setSelectedSize}
@@ -979,7 +983,7 @@ export default function Dashboard() {
                         style={{ minWidth: 92 }}
                       />
                     </div>
-                    <LineChart points={m.sizeTrend} fmt={pct} height={180} />
+                    <LineChart points={m.sizeTrend} fmt={pct} height={180} color={trendColor} />
                   </Card>
                 </DashItem>
               )}

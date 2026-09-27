@@ -11,8 +11,15 @@ const present = fs.existsSync(FILE);
 const maybe = present ? describe : describe.skip;
 
 maybe("ASSEMBLY_REJECTION_REPORT — four stages on one sheet", () => {
-  const tables = buildProfilingTables(fs.readFileSync(FILE), "ASSEMBLY_REJECTION_REPORT_corrected.xlsx", { maxRows: 40 });
-  const april = tables.filter((t) => t.sheetName === "APRIL 25");
+  let tables: ReturnType<typeof buildProfilingTables> = [];
+  let april: ReturnType<typeof buildProfilingTables> = [];
+
+  beforeAll(() => {
+    if (present) {
+      tables = buildProfilingTables(fs.readFileSync(FILE), "ASSEMBLY_REJECTION_REPORT_corrected.xlsx", { maxRows: 40 });
+      april = tables.filter((t) => t.sheetName === "APRIL 25");
+    }
+  });
 
   it("profiles one region per stage rather than one for the sheet", () => {
     expect(april.map((t) => t.regionLabel)).toEqual(["Visual", "Balloon", "Valve Integrity", "Final"]);

@@ -20,16 +20,25 @@ export function processLabel(id: ProcessId): string {
   return STAGE_CATEGORIES.find((c) => c.id === id)?.label.replace(/\s*\(.*\)$/, "") ?? id;
 }
 
+function recordsQty(s: (typeof STAGES)[number]): boolean {
+  return Array.isArray(s.captures) && (s.captures.includes("accepted") || s.captures.includes("checked"));
+}
+
 /**
  * Stations that define process completion on the line.
- * Primary / Secondary: stations that record accepted qty (Dipping, Eye Punching,
- * Secondary). Assembly: the four quality gates. Conveyance-only steps skipped.
+ *
+ * Primary: Dipping (accepted qty). Conveyance steps after it are skipped.
+ * Secondary: every qty station in the P10–P14 department — Eye Punching,
+ * Hanging, and the lumped Data Entry "Secondary Production" row. Those are
+ * the same process recorded three ways, not three sequential gates.
+ * Assembly: the four quality gates.
  */
 export function requiredStations(): { stageId: string; label: string; process: ProcessId }[] {
   return STAGES.filter((s) => {
     if (!s.category) return false;
     if (s.stageId === "balloon-production") return false;
     if (s.category === "assembly") return !!s.isQualityGate;
+    if (s.category === "secondary") return recordsQty(s);
     return Array.isArray(s.captures) && s.captures.includes("accepted");
   }).map((s) => ({
     stageId: s.stageId,
@@ -142,14 +151,14 @@ export function buildOpenLots(
 
     for (const p of PROCESS_ORDER) {
       const req = byProcess.get(p) ?? [];
-      let done = 0;
+      let stationsDone = 0;
       let nextStageId: string | null = null;
       let nextStageLabel: string | null = null;
       const processDates: string[] = [];
       for (const st of req) {
         const hit = a.occupied.get(st.stageId);
         if (hit && (hit.checked > 0 || hit.accepted > 0)) {
-          done += 1;
+          stationsDone += 1;
           if (hit.date) {
             processDates.push(hit.date);
             allRequiredDates.push(hit.date);
@@ -159,7 +168,35 @@ export function buildOpenLots(
           nextStageLabel = st.label;
         }
       }
-      const complete = req.length > 0 && done === req.length;
+      // Secondary trackability: Eye Punching (1/2) then Hanging (2/2).
+      // The lumped Data Entry "secondary" row fills both slots.
+      let done = stationsDone;
+      let total = req.length;
+      let complete = total > 0 && done === total;
+      if (p === "secondary") {
+        const lumped = a.occupied.get("secondary");
+        const lumpedHit = !!(lumped && (lumped.checked > 0 || lumped.accepted > 0));
+        const ep = a.occupied.get("eye-punching");
+        const hang = a.occupied.get("hanging");
+        const epHit = lumpedHit || !!(ep && (ep.checked > 0 || ep.accepted > 0));
+        const hangHit = lumpedHit || !!(hang && (hang.checked > 0 || hang.accepted > 0));
+        done = (epHit ? 1 : 0) + (hangHit ? 1 : 0);
+        total = 2;
+        complete = done === 2;
+        if (!epHit) {
+          nextStageId = "eye-punching";
+          nextStageLabel = "Eye Punching";
+        } else if (!hangHit) {
+          nextStageId = "hanging";
+          nextStageLabel = "Hanging";
+        } else {
+          nextStageId = null;
+          nextStageLabel = null;
+        }
+      } else if (complete) {
+        nextStageId = null;
+        nextStageLabel = null;
+      }
       if (complete && processDates.length) {
         const last = [...processDates].sort().at(-1)!;
         if (!completedOn || last > completedOn) completedOn = last;
@@ -167,7 +204,7 @@ export function buildOpenLots(
       processes[p] = {
         process: p,
         done,
-        total: req.length,
+        total,
         complete,
         nextStageId,
         nextStageLabel,

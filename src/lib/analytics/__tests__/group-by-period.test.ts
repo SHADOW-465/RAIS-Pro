@@ -51,13 +51,15 @@ describe("groupByPeriod", () => {
     expect(out[out.length - 1].period).toBe("2026-07-02");
   });
 
-  it("keeps a multi-day lot whole, filed under its last activity", () => {
-    // A lot spans days on the floor. Splitting its stages across two headers
-    // would break the one thing this screen exists for.
+  it("keeps a multi-day lot whole, filed under its production date", () => {
+    // A lot spans days on the floor (started 17 Aug, last logged 19 Aug), but
+    // the batch id is the one spelling of "when this lot was made" — splitting
+    // its stages across two headers would break the one thing this screen
+    // exists for, so it files under the id, not the last stage touched.
     const spanning = [group("26H17-14", "2026-08-17", "2026-08-19", 5)];
     const out = groupByPeriod(spanning, "day");
     expect(out).toHaveLength(1);
-    expect(out[0].period).toBe("2026-08-19");
+    expect(out[0].period).toBe("2026-08-17");
     expect(out[0].groups[0].batch).toBe("26H17-14");
   });
 
@@ -66,10 +68,16 @@ describe("groupByPeriod", () => {
     expect(groupByPeriod(lots, "day")[0].label).toMatch(/19/);
   });
 
-  it("does not lose a lot with no date", () => {
-    const out = groupByPeriod([group("26H19-14", "", "")], "day");
+  it("does not lose a lot with no date and no parseable batch id", () => {
+    const out = groupByPeriod([group("(no batch)", "", "")], "day");
     expect(out).toHaveLength(1);
     expect(out[0].label).toBe("No date recorded");
+  });
+
+  it("falls back to dateTo/dateFrom when the batch id can't be parsed", () => {
+    const out = groupByPeriod([group("hand-typed-oddity", "2026-08-19", "2026-08-19")], "day");
+    expect(out).toHaveLength(1);
+    expect(out[0].period).toBe("2026-08-19");
   });
 
   it("returns nothing for nothing", () => {

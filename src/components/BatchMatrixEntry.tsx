@@ -49,6 +49,7 @@ import {
   type ProcessEventLike,
 } from "@/lib/entry/process-sequence";
 import { buildLineStatus } from "@/lib/entry/line-status";
+import { stageCategoryOf } from "@/core/ontology/plant-catalog";
 import {
   latestLedgerRowForLotStation,
   latestLocalRowForLotStation,
@@ -87,10 +88,11 @@ import { useRegistry } from "@/components/app/RegistryContext";
 import { loadDraft, saveDraft } from "@/lib/entry/draft";
 import { buildBatchProgress, progressFor } from "@/lib/analytics/batch-progress";
 import { buildEntryRows, type AuditEventLike } from "@/lib/analytics/audit-sessions";
+import { sizeOfLot } from "@/lib/lineage";
 
 // Modular Child Components
 import EntryContextBar from "@/components/entry/EntryContextBar";
-import BatchIdentityZone from "@/components/entry/BatchIdentityZone";
+import BatchIdentityZone, { type ConversionFlowInfo } from "@/components/entry/BatchIdentityZone";
 import QuantityReconciliationZone from "@/components/entry/QuantityReconciliationZone";
 import DefectWorkspace from "@/components/entry/DefectWorkspace";
 import IssueSummaryZone from "@/components/entry/IssueSummaryZone";
@@ -163,10 +165,14 @@ export default function BatchMatrixEntry({
   onSynced,
   hydrate,
   onHydrateConsumed,
+  hideConvertBatch = false,
+  conversionFlow,
 }: {
   onSynced?: () => void;
   hydrate?: EntryHydrate | null;
   onHydrateConsumed?: () => void;
+  hideConvertBatch?: boolean;
+  conversionFlow?: ConversionFlowInfo | null;
 }) {
   const { events, refreshEvents } = useEvents();
   const { canWrite, canEraseLedger, persona } = usePersona();
@@ -246,6 +252,108 @@ export default function BatchMatrixEntry({
   const prefillAppliedKey = useRef<string | null>(null);
   const [schema, setSchema] = useState<ResolvedEntrySchema | null>(null);
   const draftReady = useRef(false);
+  const workingStageInputsRef = useRef<
+    Record<
+      string,
+      {
+        checked: number;
+        accept: number;
+        hold: number;
+        reject: number;
+        defects: Record<string, number>;
+        trolleys: number;
+        trolleyDefects: TrolleyDefectRow[];
+        bin: string;
+        remarks: string;
+      }
+    >
+  >({});
+
+  const [lineageConversion, setLineageConversion] = useState<ConversionFlowInfo | null>(null);
+
+  useEffect(() => {
+    if (conversionFlow) return;
+    const target = isValidBatchId(batchId.trim())
+      ? canonicalBatchId(batchId) ?? batchId.trim().toUpperCase()
+      : null;
+    if (!target) {
+      setLineageConversion(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/batch-conversions?batch=${encodeURIComponent(target)}`, { credentials: "same-origin" })
+      .then(async (res) => {
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { chain?: Array<{ batch: string; sizeFr?: string }> };
+        if (cancelled || !data.chain || data.chain.length < 2) {
+          setLineageConversion(null);
+          return;
+        }
+        const idx = data.chain.findIndex((n) => n.batch === target);
+        if (idx > 0) {
+          const parent = data.chain[idx - 1];
+          setLineageConversion({
+            fromBatch: parent.batch,
+            toBatch: target,
+            fromSize: parent.sizeFr ? `${parent.sizeFr}Fr` : sizeOfLot(parent.batch),
+            toSize: sizeOfLot(target),
+          });
+        } else {
+          setLineageConversion(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLineageConversion(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversionFlow, batchId]);
+
+  const activeConversionFlow = conversionFlow ?? lineageConversion;
+
+  // Keep form state synchronized when a batch conversion is being authored
+  useEffect(() => {
+    if (!conversionFlow?.toBatch) return;
+    const targetLot = conversionFlow.toBatch;
+    setEditing(null);
+    setBatchId(targetLot);
+    const p = parseBatchId(targetLot);
+    if (p?.date) setBatchDate(p.date);
+    if (conversionFlow.toSize) {
+      const sz = conversionFlow.toSize.endsWith("Fr")
+        ? conversionFlow.toSize
+        : `${conversionFlow.toSize}Fr`;
+      setSize(sz);
+    }
+    if (conversionFlow.convertedOn) {
+      setDate(conversionFlow.convertedOn);
+    }
+    if (conversionFlow.stageId) {
+      setStageId(conversionFlow.stageId);
+      const cat = ((schema ? stationById(schema, conversionFlow.stageId)?.category : undefined) ?? "assembly") as MacroId;
+      setMacro(cat);
+      userPickedStation.current = true;
+      lastLineJump.current = `${targetLot}|${conversionFlow.stageId}`;
+    }
+    setChecked((prevChecked) => {
+      if (prevChecked > 0) return prevChecked;
+      const targetQty =
+        conversionFlow.originalAccepted != null && conversionFlow.originalAccepted > 0
+          ? conversionFlow.originalAccepted
+          : conversionFlow.originalChecked ?? 0;
+      return targetQty > 0 ? targetQty : 0;
+    });
+    setAccept((prevAccept) => {
+      if (prevAccept > 0) return prevAccept;
+      const targetQty =
+        conversionFlow.originalAccepted != null && conversionFlow.originalAccepted > 0
+          ? conversionFlow.originalAccepted
+          : conversionFlow.originalChecked ?? 0;
+      return targetQty > 0 ? targetQty : 0;
+    });
+    userTouchedQty.current = true;
+  }, [conversionFlow, setEditing, schema]);
 
   // Load shift records & local draft on mount
   useEffect(() => {
@@ -259,8 +367,8 @@ export default function BatchMatrixEntry({
 
     const d = loadDraft<BatchDraft>(DRAFT_KEY);
     const mem = readLotMemory();
-    if (hydrate?.mode === "edit") {
-      // Applied in hydrate effect below
+    if (hydrate?.mode === "edit" || hydrate?.mode === "reuse-lot" || Boolean(conversionFlow)) {
+      // Applied in hydrate effect below / conversion flow
     } else if (d) {
       setMacro((d.macro as MacroId) || "primary");
       setStageId(migrateToStageId(d));
@@ -569,10 +677,18 @@ export default function BatchMatrixEntry({
   );
 
   const processSchema = useMemo(() => schema ?? resolveEntrySchema(null), [schema]);
-  const occupied = useMemo(
-    () => occupiedStageIds((events ?? []) as ProcessEventLike[], batchId, saved),
-    [events, batchId, saved],
-  );
+  const occupied = useMemo(() => {
+    const base = occupiedStageIds((events ?? []) as ProcessEventLike[], batchId, saved);
+    if (activeConversionFlow?.fromBatch) {
+      const parent = occupiedStageIds(
+        (events ?? []) as ProcessEventLike[],
+        activeConversionFlow.fromBatch,
+        saved,
+      );
+      for (const id of parent) base.add(id);
+    }
+    return base;
+  }, [events, batchId, saved, activeConversionFlow]);
 
   const lineStatus = useMemo(
     () => buildLineStatus({ lot: batchId, schema: processSchema, occupied }),
@@ -596,7 +712,14 @@ export default function BatchMatrixEntry({
     const sig = `${trackedLot}|${lineStatus.nextStationId ?? ""}`;
     const prevLot = lastLineJump.current?.split("|")[0] ?? null;
     const lotChanged = prevLot !== trackedLot;
-    if (lotChanged) userPickedStation.current = false;
+    if (lotChanged) {
+      if (activeConversionFlow && (stageId || activeConversionFlow.stageId)) {
+        userPickedStation.current = true;
+        lastLineJump.current = `${trackedLot}|${stageId || activeConversionFlow.stageId}`;
+        return;
+      }
+      userPickedStation.current = false;
+    }
     if (!lotChanged && userPickedStation.current) {
       lastLineJump.current = sig;
       return;
@@ -609,7 +732,7 @@ export default function BatchMatrixEntry({
     setStageId(lineStatus.nextStationId);
     // stageId is read for the no-op guard only; jumping is keyed on the lot + next station.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackedLot, lineStatus.nextStationId, lineStatus.nextLaneId, editingId, inspectAll]);
+  }, [trackedLot, lineStatus.nextStationId, lineStatus.nextLaneId, editingId, inspectAll, activeConversionFlow, stageId]);
 
   const lockedMacroIds = useMemo(() => {
     if (editingId || inspectAll) return [];
@@ -850,9 +973,34 @@ export default function BatchMatrixEntry({
   useEffect(() => {
     if (!hydrate) return;
     if (hydrate.mode === "reuse-lot") {
+      setEditing(null);
       setBatchId(hydrate.batchId);
       const p = parseBatchId(hydrate.batchId);
       if (p?.date) setBatchDate(p.date);
+      if (hydrate.date) setDate(hydrate.date);
+      if (p?.sizeFr) {
+        setSize(`${p.sizeFr}Fr`);
+      } else if (hydrate.size) {
+        setSize(hydrate.size.endsWith("Fr") ? hydrate.size : `${hydrate.size}Fr`);
+      }
+      if (hydrate.productType) {
+        applyProductType(hydrate.productType);
+      }
+      if (hydrate.stageId) {
+        setStageId(hydrate.stageId);
+        setMacro((stageCategoryOf(hydrate.stageId) as MacroId) || "primary");
+        userPickedStation.current = true;
+        lastLineJump.current = `${hydrate.batchId}|${hydrate.stageId}`;
+      }
+      if (hydrate.checked > 0) {
+        setChecked(hydrate.checked);
+        setAccept(hydrate.accepted > 0 ? hydrate.accepted : hydrate.checked);
+        setHold(hydrate.hold ?? 0);
+        setReject(hydrate.rejected ?? 0);
+        setDefects(hydrate.defects ?? {});
+        setTrolleyDefects([]);
+        userTouchedQty.current = true;
+      }
       onHydrateConsumed?.();
       return;
     }
@@ -1007,8 +1155,51 @@ export default function BatchMatrixEntry({
       return false;
     }
 
+    if (
+      stageId &&
+      stageId !== sid &&
+      (checked > 0 || accept > 0 || hold > 0 || reject > 0 || Object.keys(defects).length > 0)
+    ) {
+      workingStageInputsRef.current[stageId] = {
+        checked,
+        accept,
+        hold,
+        reject,
+        defects: { ...defects },
+        trolleys,
+        trolleyDefects: [...trolleyDefects],
+        bin,
+        remarks,
+      };
+    }
+
     userPickedStation.current = true;
-    const local = latestLocalRowForLotStation(saved, batchId, sid);
+
+    const working = workingStageInputsRef.current[sid];
+    if (working && (working.checked > 0 || working.accept > 0 || working.hold > 0 || working.reject > 0)) {
+      const cat = (stationById(processSchema, sid)?.category as MacroId) || "primary";
+      setMacro(cat);
+      setStageId(sid);
+      setChecked(working.checked);
+      setAccept(working.accept);
+      setHold(working.hold);
+      setReject(working.reject);
+      setDefects({ ...working.defects });
+      setTrolleys(working.trolleys);
+      setTrolleyDefects(working.trolleyDefects);
+      setBin(working.bin);
+      setRemarks(working.remarks);
+      setEditing(null);
+      userTouchedQty.current = true;
+      setPrefillNote(null);
+      return true;
+    }
+
+    const local =
+      latestLocalRowForLotStation(saved, batchId, sid) ||
+      (activeConversionFlow?.fromBatch
+        ? latestLocalRowForLotStation(saved, activeConversionFlow.fromBatch, sid)
+        : null);
     if (local && (local.checked > 0 || local.accept > 0 || local.hold > 0 || local.reject > 0)) {
       loadRecordIntoForm({
         batchId: local.batchId,
@@ -1031,14 +1222,24 @@ export default function BatchMatrixEntry({
         passReason: local.passReason,
         editingId: local.id,
       });
-      setPrefillNote(`Showing ${local.processName || sid} as recorded for this lot.`);
+      const isParent = local.batchId !== batchId;
+      setPrefillNote(
+        isParent
+          ? `Showing ${local.processName || sid} as recorded for parent lot ${local.batchId}.`
+          : `Showing ${local.processName || sid} as recorded for this lot.`
+      );
       return true;
     }
 
-    const row = latestLedgerRowForLotStation((events ?? []) as AuditEventLike[], batchId, sid);
+    const row =
+      latestLedgerRowForLotStation((events ?? []) as AuditEventLike[], batchId, sid) ||
+      (activeConversionFlow?.fromBatch
+        ? latestLedgerRowForLotStation((events ?? []) as AuditEventLike[], activeConversionFlow.fromBatch, sid)
+        : null);
     if (row && (row.checked > 0 || row.accepted > 0 || row.rejected > 0 || row.rework > 0)) {
       const h = hydrateFromAuditRow(row, "edit");
-      const tCount = trolleysFromEvents((events ?? []) as AuditEventLike[], batchId, sid);
+      const targetLot = h.batchId;
+      const tCount = trolleysFromEvents((events ?? []) as AuditEventLike[], targetLot, sid);
       loadRecordIntoForm({
         batchId: h.batchId,
         date: h.date,
@@ -1053,12 +1254,17 @@ export default function BatchMatrixEntry({
         trolleys: tCount,
         defects: h.defects,
         trolleyDefects:
-          trolleyDefectsFromEvents((events ?? []) as AuditEventLike[], batchId, sid) ??
+          trolleyDefectsFromEvents((events ?? []) as AuditEventLike[], targetLot, sid) ??
           rowsFromLegacyTotals(h.defects, tCount),
         editingId: h.editingId,
       });
       const label = stationById(processSchema, sid)?.label ?? sid;
-      setPrefillNote(`Showing ${label} as recorded for this lot.`);
+      const isParent = targetLot !== batchId;
+      setPrefillNote(
+        isParent
+          ? `Showing ${label} as recorded for parent lot ${targetLot}.`
+          : `Showing ${label} as recorded for this lot.`
+      );
       return true;
     }
 
@@ -1183,6 +1389,25 @@ export default function BatchMatrixEntry({
       localStorage.setItem("rais_hdr_operator", rec.operator);
       localStorage.setItem("rais_hdr_shift", rec.shift);
       if (rec.productType) localStorage.setItem(PRODUCT_TYPE_STORAGE_KEY, String(rec.productType));
+
+      if (activeConversionFlow?.fromBatch && activeConversionFlow?.toSize) {
+        try {
+          await fetch("/api/batch-conversions", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fromBatch: activeConversionFlow.fromBatch,
+              toSize: activeConversionFlow.toSize,
+              toBatch: rec.batchId,
+              convertedOn: rec.date,
+              reason: activeConversionFlow.reason || "Customer / process",
+            }),
+          });
+        } catch {
+          /* non-blocking */
+        }
+      }
 
       setReceipt({
         batchId: rec.batchId,
@@ -1438,6 +1663,13 @@ export default function BatchMatrixEntry({
         editingId={editingId}
         memoryOn={lotMemoryOn}
         onToggleMemory={toggleLotMemory}
+        hideConvertBatch={hideConvertBatch || Boolean(activeConversionFlow)}
+        conversionFlow={activeConversionFlow}
+        stageId={stageId}
+        checked={checked}
+        accepted={accept}
+        hold={hold}
+        reject={reject}
       />
 
       {/* 4. Quantity Reconciliation Workspace */}

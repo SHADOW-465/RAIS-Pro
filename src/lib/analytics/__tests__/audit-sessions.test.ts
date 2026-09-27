@@ -252,6 +252,49 @@ describe("buildEntryRows + groupByBatchThenStage", () => {
   });
 });
 
+describe("buildEntryRows — corrections must not invent No batch / Unknown", () => {
+  it("a Data Entry correction with no batch/stage is not its own empty card", () => {
+    const events: AuditEventLike[] = [
+      ev({
+        eventId: "p-new",
+        eventType: "production",
+        stageId: "visual",
+        quantity: 900,
+        customFields: { batch: "26I15-14" },
+      }),
+      ev({
+        eventId: "corr",
+        eventType: "correction",
+        quantity: undefined,
+        supersedesEventId: "p-old",
+        replacementEventId: "p-new",
+        extractedBy: "ingest:auto-reconcile",
+      }),
+    ];
+    const rows = buildEntryRows(events);
+    expect(rows.every((r) => r.batch !== "(no batch)")).toBe(true);
+    expect(rows.every((r) => r.stageId !== "(unknown stage)")).toBe(true);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].batch).toBe("26I15-14");
+    expect(rows[0].stageId).toBe("visual");
+    expect(rows[0].checked).toBe(900);
+    expect(rows[0].hasCorrection).toBe(true);
+  });
+
+  it("an orphan correction (superseded event gone, no replacement) is dropped", () => {
+    const events: AuditEventLike[] = [
+      ev({
+        eventId: "corr",
+        eventType: "correction",
+        supersedesEventId: "gone",
+        replacementEventId: null,
+        extractedBy: "ingest:auto-reconcile",
+      }),
+    ];
+    expect(buildEntryRows(events)).toEqual([]);
+  });
+});
+
 describe("buildEntryRows — held/reworked units", () => {
   it("reads Hold back from the ledger instead of dropping it", () => {
     // Visual: 1326 checked, 1163 accepted, 124 held, 39 rejected — the row

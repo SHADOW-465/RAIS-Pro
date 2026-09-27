@@ -119,6 +119,34 @@ describe("buildLineStatus", () => {
     expect(s.headline).toMatch(/Production Dipping completed/);
   });
 
+  test("Eye Punching is 1/2 Secondary; Hanging is 2/2", () => {
+    const ep = occ("production", "eye-punching");
+    const s1 = buildLineStatus({ lot: LOT, schema: SCHEMA, occupied: ep });
+    expect(s1.lanes[1].done).toBe(1);
+    expect(s1.lanes[1].total).toBe(2);
+    expect(s1.lanes[1].complete).toBe(false);
+    expect(s1.nextStationId).toBe("hanging");
+    expect(laneCaption(s1.lanes[1])).toBe("1/2 complete");
+
+    const both = occ("production", "eye-punching", "hanging");
+    const s2 = buildLineStatus({ lot: LOT, schema: SCHEMA, occupied: both });
+    expect(s2.lanes[1].done).toBe(2);
+    expect(s2.lanes[1].complete).toBe(true);
+    expect(laneCaption(s2.lanes[1])).toBe("2/2 completed");
+    expect(s2.nextStationId).toBe("visual");
+  });
+
+  test("builtin seed schema still counts Eye Punching + Hanging as Secondary 2/2", () => {
+    const seed = resolveEntrySchema(null);
+    const occupied = occ("production", "eye-punching", "hanging", "visual", "balloon", "valve-integrity", "final");
+    const s = buildLineStatus({ lot: LOT, schema: seed, occupied });
+    const secondary = s.lanes.find((l) => l.id === "secondary")!;
+    expect(secondary.total).toBe(2);
+    expect(secondary.done).toBe(2);
+    expect(secondary.complete).toBe(true);
+    expect(s.isComplete).toBe(true);
+  });
+
   test("a finished lot has no next station", () => {
     const occupied = occ(
       "production",

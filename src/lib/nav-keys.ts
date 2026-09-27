@@ -3,6 +3,7 @@ export type NavKey =
   | "dashboard"
   | "workbooks"
   | "data-entry"
+  | "batch-conversion"
   | "staging"
   | "stage"
   | "size"
@@ -64,6 +65,12 @@ export interface NavRoute {
 export const NAV_ROUTES: Record<NavKey, NavRoute> = {
   dashboard: { label: "Dashboard", href: "/", keywords: "home status factory overview", section: "overview" },
   "data-entry": { label: "Data Entry", href: "/data-entry", keywords: "batch matrix log capture", section: "data" },
+  "batch-conversion": {
+    label: "Batch Conversion",
+    href: "/batch-conversion",
+    keywords: "lineage size conversion convert lot french fr identity",
+    section: "data",
+  },
   staging: { label: "Import from Excel", href: "/staging", keywords: "excel upload import", section: "data" },
   workbooks: { label: "Excel Data", href: "/workbooks", keywords: "mod ontology files", section: "data" },
   stage: { label: "By Stage", href: "/stage-analysis", keywords: "gate visual balloon valve", section: "analysis" },

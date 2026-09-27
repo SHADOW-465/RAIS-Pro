@@ -10,7 +10,7 @@ TABLE OF CONTENTS
 3. 5-Tier Ontology Resolver Ladder Algorithm Diagram
 4. MOD (Mapping Ontology Document) Lifecycle & Catalog Learning Flow
 5. Immutable Event Ledger & SHA-256 Content-Addressed Hashing Pipeline
-6. Deterministic Mass-Balance & Discrepancy Reconciliation Engine
+6. Deterministic Mass-Balance & Discrepancy Reconcilation Engine
 7. Analytics, Pareto (80/20), SPC (Shewhart/Nelson), & COPQ Mathematical Flow
 8. Multi-Tier AI Cascade & Failover Sequence
 9. Dynamic Data Entry Schema Synthesis Flow

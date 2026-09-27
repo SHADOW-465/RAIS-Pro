@@ -24,7 +24,7 @@ import {
   type InvestigationState,
 } from "@/lib/analytics";
 import type { DashboardConfig } from "@/types/dashboard";
-import { resolveScope, DEFAULT_STAGE_CATEGORIES, stageCategoryOf } from "@/lib/analytics/scope";
+import { resolveScope, DEFAULT_STAGE_CATEGORIES, stageCategoryOf, dateBounds } from "@/lib/analytics/scope";
 import { trustScore as computeTrustScore } from "@/lib/analytics/trust";
 
 import { NAV_ROUTES, type NavKey } from "@/lib/nav-keys";
@@ -128,6 +128,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: "Your data",
     items: [
       nav("data-entry", "file"),
+      nav("batch-conversion", "split"),
       // One destination, two tabs (Import - Files). They used to be two sidebar
       // entries that linked to each other in their own body copy.
       nav("workbooks", "folder"),
@@ -192,6 +193,7 @@ const SCOPE_CONTROLS: Partial<Record<NavKey, ("view" | "interval" | "range" | "s
   "process-flow": ["view", "interval", "range", "sources"],
   copq: ["view", "interval", "range", "sources"],
   "data-entry": ["interval"],
+  "batch-conversion": ["interval"],
   reports: ["range", "sources"],
   capa: ["range", "sources"],
   audit: ["range", "sources"],
@@ -312,6 +314,8 @@ export default function AppShell({
     switch (t.datePreset) {
       case "all":
         return "All data";
+      case "this-month":
+        return "This month";
       case "last-90-days":
         return "Last 90d";
       case "last-12-months":
@@ -836,7 +840,9 @@ export default function AppShell({
 
   const getSuggestedGrain = (): "day" | "week" | "month" | "fy" => {
     let days = 30;
-    if (t.datePreset === "last-90-days") {
+    if (t.datePreset === "this-month") {
+      days = 30;
+    } else if (t.datePreset === "last-90-days") {
       days = 90;
     } else if (t.datePreset === "last-12-months" || t.datePreset === "this-fy") {
       days = 365;
@@ -1701,7 +1707,7 @@ export default function AppShell({
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)" }}>
                   Date range
                 </div>
-                {(["all", "last-90-days", "last-12-months", "this-fy", "custom"] as const).map((preset) => {
+                {(["all", "this-month", "last-90-days", "last-12-months", "this-fy", "custom"] as const).map((preset) => {
                   const customActive = customDraft !== null || t.datePreset === "custom";
                   const selected =
                     preset === "custom"
@@ -1722,6 +1728,20 @@ export default function AppShell({
                         return;
                       }
                       setCustomDraft(null);
+                      if (preset === "this-month") {
+                        const { max: dataMax } = dateBounds(events ?? []);
+                        const anchor = dataMax ? new Date(`${dataMax}T00:00:00Z`) : new Date();
+                        const y = anchor.getUTCFullYear();
+                        const m = anchor.getUTCMonth();
+                        const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+                        const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+                        const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+                        setTweak("dateFrom", start);
+                        setTweak("dateTo", end);
+                      } else {
+                        setTweak("dateFrom", "");
+                        setTweak("dateTo", "");
+                      }
                       setTweak("datePreset", preset);
                       setShowPicker(false);
                     }}
@@ -1740,6 +1760,7 @@ export default function AppShell({
                     }}
                   >
                     {preset === "all" && "All data"}
+                    {preset === "this-month" && "This month"}
                     {preset === "last-90-days" && "Last 90 days"}
                     {preset === "last-12-months" && "Last 12 months"}
                     {preset === "this-fy" && "This FY"}
@@ -1750,6 +1771,35 @@ export default function AppShell({
 
                 {customDraft !== null && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase" }}>Range picker</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const { max: dataMax } = dateBounds(events ?? []);
+                          const anchor = dataMax ? new Date(`${dataMax}T00:00:00Z`) : new Date();
+                          const y = anchor.getUTCFullYear();
+                          const m = anchor.getUTCMonth();
+                          const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+                          const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+                          const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+                          setCustomDraft({ from: start, to: end });
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--accent)",
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          padding: "1px 4px",
+                          borderRadius: "var(--radius-xs)",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        This month
+                      </button>
+                    </div>
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <span style={{ fontSize: 10, color: "var(--text-3)", width: 30 }}>From</span>
                       <DatePicker

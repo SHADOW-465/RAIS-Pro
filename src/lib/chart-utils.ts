@@ -4,6 +4,19 @@ import { useState, useEffect, useRef } from "react";
  * Calculates the baseline spacing in pixels between points based on the total number of points,
  * preventing overlap.
  */
+/**
+ * Round a data-max up onto a 1 / 2 / 2.5 / 5 / 10 × 10^k grid so Y ticks
+ * read as round percents or counts. Pads 15% so the peak is not on the frame.
+ */
+export function niceYMax(raw: number): number {
+  if (!Number.isFinite(raw) || raw <= 0) return 0.01;
+  const padded = raw * 1.15;
+  const exp = Math.pow(10, Math.floor(Math.log10(padded)));
+  const n = padded / exp;
+  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  return nice * exp;
+}
+
 export function getBaseSpacing(n: number): number {
   if (n <= 30) return 50;
   if (n <= 90) return 35;

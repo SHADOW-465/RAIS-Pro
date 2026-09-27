@@ -26,9 +26,20 @@ const LINE = [
   "final",
 ] as const;
 
-test("required stations are Dipping + two secondary + four assembly gates", () => {
+const REQUIRED = [
+  "production",
+  "eye-punching",
+  "hanging",
+  "secondary",
+  "visual",
+  "balloon",
+  "valve-integrity",
+  "final",
+] as const;
+
+test("required stations are Dipping + secondary qty stations + four assembly gates", () => {
   const ids = requiredStations().map((s) => s.stageId);
-  expect(ids).toEqual([...LINE]);
+  expect(ids).toEqual([...REQUIRED]);
   expect(PROCESS_ORDER).toEqual(["primary", "secondary", "assembly"]);
 });
 
@@ -64,6 +75,48 @@ test("production-dipping alias counts as primary complete", () => {
   expect(r.lots[0].waitingOn).toBe("secondary");
 });
 
+test("Eye Punching is Secondary 1/2; Eye Punching + Hanging is 2/2 complete", () => {
+  const half = buildOpenLots(
+    [ev("26H01-16", "production", "2026-08-01"), ev("26H01-16", "eye-punching", "2026-08-02")],
+    { today: "2026-08-03" },
+  );
+  expect(half.lots[0].processes.secondary.done).toBe(1);
+  expect(half.lots[0].processes.secondary.total).toBe(2);
+  expect(half.lots[0].processes.secondary.complete).toBe(false);
+  expect(half.lots[0].waitingOn).toBe("secondary");
+  expect(half.lots[0].processes.secondary.nextStageId).toBe("hanging");
+
+  const full = buildOpenLots(
+    [
+      ev("26H01-16", "production", "2026-08-01"),
+      ev("26H01-16", "eye-punching", "2026-08-02"),
+      ev("26H01-16", "hanging", "2026-08-03"),
+    ],
+    { today: "2026-08-04" },
+  );
+  expect(full.lots[0].processes.secondary.done).toBe(2);
+  expect(full.lots[0].processes.secondary.complete).toBe(true);
+  expect(full.lots[0].waitingOn).toBe("assembly");
+});
+
+test("Data Entry lumped Secondary Production completes Secondary without Eye Punching", () => {
+  const r = buildOpenLots(
+    [ev("26H01-16", "production", "2026-08-01"), ev("26H01-16", "secondary", "2026-08-02")],
+    { today: "2026-08-03" },
+  );
+  expect(r.lots[0].processes.secondary.complete).toBe(true);
+  expect(r.lots[0].waitingOn).toBe("assembly");
+});
+
+test("a lot with only Dipping is still waiting on Secondary", () => {
+  const r = buildOpenLots([ev("26H01-16", "production", "2026-08-01")], { today: "2026-08-02" });
+  expect(r.lots[0].processes.secondary.complete).toBe(false);
+  expect(r.lots[0].waitingOn).toBe("secondary");
+  const mix = r.processMix.find((p) => p.process === "secondary")!;
+  expect(mix.complete).toBe(0);
+  expect(mix.incomplete).toBe(1);
+});
+
 test("process mix counts complete vs incomplete among started lots", () => {
   const events = [
     ...LINE.map((s) => ev("DONE-14", s, "2026-08-01")),
@@ -76,6 +129,9 @@ test("process mix counts complete vs incomplete among started lots", () => {
   const assembly = r.processMix.find((p) => p.process === "assembly")!;
   expect(assembly.complete).toBe(1);
   expect(assembly.incomplete).toBe(1);
+  const secondary = r.processMix.find((p) => p.process === "secondary")!;
+  expect(secondary.complete).toBe(1);
+  expect(secondary.incomplete).toBe(1);
 });
 
 test("cumulative completed trend counts a lot on the day the last gate ran", () => {

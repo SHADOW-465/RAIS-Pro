@@ -26,6 +26,7 @@ import {
   sourcesNarrowMode,
   STAGE_CATEGORIES,
   DEFAULT_STAGE_CATEGORIES,
+  dateBounds,
 } from "@/lib/analytics/scope";
 import {
   STAGES,
@@ -33,6 +34,8 @@ import {
   type StageCategory,
 } from "@/core/ontology/plant-catalog";
 import type { Event } from "@/lib/store/types";
+import { parseBatchId } from "@/lib/entry/batch-id";
+import { sizeColorFor } from "@/lib/entry/size-color";
 
 const EXCLUDED_ASSEMBLY_STAGES = new Set(["valve-fixing", "primary-pack-inspection"]);
 const ASSEMBLY_STAGES = STAGES.filter(
@@ -342,7 +345,7 @@ export default function SourcesScopePanel({
             </div>
 
             <div style={{ marginLeft: "auto", flexShrink: 0 }}>
-              <CustomRangePill batchCount={batchOptions.length} />
+              <CustomRangePill events={events} batchCount={batchOptions.length} />
             </div>
           </div>
         </header>
@@ -785,13 +788,21 @@ function BatchesPane({
       >
         {displayBatches.map((b) => {
           const selected = selectedIds.includes(b);
+          // DS/ANX/05 balloon-capacity size color code, from the size encoded
+          // in the batch id itself (e.g. "26H01-14" → 14Fr → Green) — same
+          // mapping as the Audit trail / Data Entry batch id chips.
+          const sizeFr = parseBatchId(b)?.sizeFr;
+          const swatch = sizeFr ? sizeColorFor(sizeFr) : null;
           return (
             <button
               key={b}
               type="button"
               onClick={() => onToggle(b)}
               aria-pressed={selected}
-              title={selected ? "Selected — click to deselect" : "Click to select"}
+              title={
+                (selected ? "Selected — click to deselect" : "Click to select") +
+                (swatch ? ` · ${swatch.name} (${sizeFr}Fr)` : "")
+              }
               className="sources-batch-tile"
               data-selected={selected ? "true" : "false"}
               style={{
@@ -801,6 +812,7 @@ function BatchesPane({
                 border: selected
                   ? "1px solid color-mix(in srgb, var(--accent) 55%, var(--border))"
                   : "1px solid var(--border-strong)",
+                borderLeft: swatch ? `4px solid ${swatch.hex}` : undefined,
                 background: selected ? "var(--accent-weak)" : "var(--surface)",
                 color: selected ? "var(--accent-text)" : "var(--text)",
                 cursor: "pointer",
@@ -808,6 +820,8 @@ function BatchesPane({
                 fontSize: 12.5,
                 fontWeight: 700,
                 letterSpacing: "0.02em",
+                boxShadow:
+                  swatch?.hex === "#FFFFFF" ? "inset 4px 0 0 0 var(--border-strong)" : undefined,
               }}
             >
               {b}
@@ -1237,14 +1251,26 @@ const scopePanelCss = `
 }
 `;
 
-function CustomRangePill({ batchCount }: { batchCount: number }) {
+function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: number }) {
   const { t, setTweak } = useTweaks();
   const [open, setOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const hasRange = !!(t.dateFrom || t.dateTo || (t.datePreset && t.datePreset !== "all"));
 
+  const getThisMonthDates = () => {
+    const { max: dataMax } = dateBounds(events);
+    const anchor = dataMax ? new Date(`${dataMax}T00:00:00Z`) : new Date();
+    const y = anchor.getUTCFullYear();
+    const m = anchor.getUTCMonth();
+    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    return { start, end };
+  };
+
   const label = useMemo(() => {
+    if (t.datePreset === "this-month") return "This month";
     if (t.dateFrom && t.dateTo) {
       const fmt = (iso: string) => {
         const d = new Date(iso + "T00:00:00");
@@ -1367,6 +1393,46 @@ function CustomRangePill({ batchCount }: { batchCount: number }) {
               </button>
             )}
           </div>
+
+          {/* Quick preset for This Month */}
+          <button
+            type="button"
+            onClick={() => {
+              const { start, end } = getThisMonthDates();
+              setTweak("datePreset", "this-month");
+              setTweak("dateFrom", start);
+              setTweak("dateTo", end);
+            }}
+            style={{
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: t.datePreset === "this-month"
+                ? "1px solid color-mix(in srgb, var(--accent) 55%, var(--border))"
+                : "1px solid var(--border-strong)",
+              background: t.datePreset === "this-month" ? "var(--accent-weak)" : "var(--surface-2)",
+              color: t.datePreset === "this-month" ? "var(--accent-text, var(--accent))" : "var(--text)",
+              fontSize: 12,
+              fontWeight: t.datePreset === "this-month" ? 700 : 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              fontFamily: "inherit",
+              transition: "all var(--duration-fast) var(--ease-out)",
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <span>This month</span>
+            {t.datePreset === "this-month" && (
+              <span style={{ fontSize: 10, marginLeft: 2 }}>✓</span>
+            )}
+          </button>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

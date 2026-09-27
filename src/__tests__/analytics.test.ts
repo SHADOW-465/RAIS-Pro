@@ -21,7 +21,7 @@ import type { Event } from "@/lib/store/types";
 import { DEFAULT_POLICY } from "@/core/policy/policy";
 import type { RawSheet } from "@/types/dashboard";
 import {
-  rejectionRate, totalRejected, totalChecked, fpy, byStage, trend, stageTrend, stageBySize,
+  rejectionRate, totalRejected, totalChecked, totalAccepted, fpy, byStage, trend, stageTrend, stageBySize,
   legacySumOfGateRates,
 } from "@/lib/analytics/rejection";
 import { byDefect, bySize } from "@/lib/analytics/defect";
@@ -87,6 +87,14 @@ describe("analytics — rejection selectors", () => {
     const visualRate = (1054 + 828 + 451) / (10982 + 11054 + 8346);
     const valveRate = 129 / 9612;
     expect(fpy(events, FY, REG).value).toBeCloseTo((1 - visualRate) * (1 - valveRate), 9);
+  });
+
+  test("totalAccepted = totalChecked - totalRejected", () => {
+    const checked = totalChecked(events, FY, REG).value;
+    const rejected = totalRejected(events, FY).value;
+    const accepted = totalAccepted(events, FY, REG).value;
+    expect(accepted).toBe(checked - rejected);
+    expect(accepted).toBeGreaterThan(0);
   });
 
   test("byStage splits visual vs valve and computes contribution", () => {

@@ -68,6 +68,27 @@ const FEATURE_PROSE: Omit<AppFeature, "label" | "href">[] = [
     ],
   },
   {
+    id: "batch-conversion",
+    navKey: "batch-conversion",
+    keywords: [
+      "batch conversion", "size conversion", "lineage", "convert lot", "french size change",
+      "same lot new size", "26I21-14 to 26I21-16",
+    ],
+    summary: "Record that a lot changed French size mid-process. Original and converted IDs both stay; analytics still read each ID as entered.",
+    howTo: [
+      "Open Your data → Batch Conversion.",
+      "Enter the original batch ID (the lot as it started, e.g. 26I21-14).",
+      "Pick the new French size. The converted ID keeps the start-date stem (26I21-16).",
+      "Set the date the size changed and the reason (customer / process).",
+      "Record conversion. Later Data Entry for remaining stages uses the new ID.",
+      "Click a row to see the full lineage chain if the lot converted more than once.",
+    ],
+    tips: [
+      "This does not rename or overwrite ledger rows. It only stores the relationship.",
+      "A lot can convert onward again (14 → 16 → 18) but cannot convert back onto an ancestor.",
+    ],
+  },
+  {
     id: "workbooks",
     navKey: "workbooks",
     keywords: [

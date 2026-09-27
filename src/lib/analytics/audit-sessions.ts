@@ -2,7 +2,7 @@
 // One session ≈ one save / upload / ingest batch (ingestionId), not one atom row.
 
 export type AuditDatePreset = "7d" | "30d" | "90d" | "all";
-import { canonicalBatchId } from "@/lib/entry/batch-id";
+import { canonicalBatchId, parseBatchId } from "@/lib/entry/batch-id";
 import { passedForward } from "@/lib/entry/passed-forward";
 import { sortStageIds } from "@/core/ontology/plant-catalog";
 import { periodKey, periodLabel, type Grain } from "./scope";
@@ -32,6 +32,9 @@ export interface AuditEventLike {
   };
   text?: string;
   targetEventIds?: string[];
+  supersedesEventId?: string | null;
+  replacementEventId?: string | null;
+  aboutStageId?: string | null;
 }
 
 export interface AuditSession {
@@ -398,6 +401,10 @@ export function buildEntryRows(
   };
 
   const map = new Map<string, Acc>();
+  const byId = new Map<string, AuditEventLike>();
+  for (const e of events) {
+    if (e.eventId) byId.set(e.eventId, e);
+  }
 
   const putAtom = (a: Acc, atomKey: string, qty: number, ts: string, eventId: string) => {
     const prev = a.atoms.get(atomKey);
@@ -407,23 +414,55 @@ export function buildEntryRows(
     }
   };
 
+  const stageOf = (e: AuditEventLike): string | null =>
+    (e.stageId && e.stageId.trim()) || (e.aboutStageId && e.aboutStageId.trim()) || null;
+
+  const identityOf = (e: AuditEventLike) => ({
+    date: e.occurredOn?.start ?? e.recordedAt?.slice(0, 10) ?? "—",
+    batch: batchOf(e),
+    stageId: stageOf(e),
+    size: sizeOf(e),
+  });
+
+  /** Correction events have no batch/stage of their own. Follow the
+   *  replacement (still on the ledger) then the superseded id. */
+  const resolveIdentity = (e: AuditEventLike) => {
+    const own = identityOf(e);
+    if (e.eventType !== "correction") return own;
+    const related =
+      (e.replacementEventId ? byId.get(e.replacementEventId) : undefined) ??
+      (e.supersedesEventId ? byId.get(e.supersedesEventId) : undefined);
+    const from = related ? identityOf(related) : { date: own.date, batch: null, stageId: null, size: null };
+    return {
+      date: own.date !== "—" ? own.date : from.date,
+      batch: own.batch ?? from.batch,
+      stageId: own.stageId ?? from.stageId,
+      size: own.size ?? from.size,
+    };
+  };
+
   for (const e of events) {
     if (e.eventType === "annotation") continue;
-    // Corrections do not carry quantities; they only flag history.
+    if (
+      e.eventType === "aggregate-claim" ||
+      e.eventType === "dispatch" ||
+      e.eventType === "carryover"
+    ) {
+      continue;
+    }
+    // Corrections do not carry quantities; they only flag history on the lot
+    // they actually updated. Never invent a "No batch / Unknown" card.
     if (e.eventType === "correction") {
-      // Attach flag to matching slice when possible
-      const date = e.occurredOn?.start ?? e.recordedAt?.slice(0, 10) ?? "—";
-      const batch = batchOf(e) ?? "(no batch)";
-      const stageId = e.stageId ?? "(unknown stage)";
-      const size = sizeOf(e);
-      const key = `${date}|${batch}|${stageId}|${size ?? ""}`;
+      const id = resolveIdentity(e);
+      if (!id.batch || !id.stageId) continue;
+      const key = `${id.date}|${id.batch}|${id.stageId}|${id.size ?? ""}`;
       let a = map.get(key);
       if (!a) {
         a = {
-          date,
-          batch,
-          stageId,
-          size,
+          date: id.date,
+          batch: id.batch,
+          stageId: id.stageId,
+          size: id.size,
           atoms: new Map(),
           manual: 0,
           excel: 0,
@@ -451,7 +490,7 @@ export function buildEntryRows(
 
     const date = e.occurredOn?.start ?? e.recordedAt?.slice(0, 10) ?? "—";
     const batch = batchOf(e) ?? "(no batch)";
-    const stageId = e.stageId ?? "(unknown stage)";
+    const stageId = stageOf(e) ?? "(unknown stage)";
     const size = sizeOf(e);
     const key = `${date}|${batch}|${stageId}|${size ?? ""}`;
 
@@ -517,6 +556,7 @@ export function buildEntryRows(
 
   const rows: AuditEntryRow[] = [];
   for (const a of map.values()) {
+    if (a.atoms.size === 0) continue;
     let source: AuditEntryRow["source"] = "mixed";
     if (a.manual > 0 && a.excel === 0) source = "manual";
     else if (a.excel > 0 && a.manual === 0) source = "excel";
@@ -590,9 +630,10 @@ export interface AuditPeriodGroup {
 /**
  * Bucket batch groups into calendar periods for the History list.
  *
- * A lot spans days, so it is filed under `dateTo` — the last day anything was
- * recorded against it. Splitting a lot across two headers would break the one
- * thing this screen is for: seeing a lot's stages together.
+ * A lot is filed under the production date encoded in its batch id (e.g.
+ * 26I17-14 → 17 Sep), not the last day any of its stages happened to be
+ * logged — two lots produced the same day but finished on different days
+ * would otherwise land under different headers.
  *
  * Periods come back newest first, which is the order someone looking for what
  * they just entered reads in.
@@ -600,8 +641,20 @@ export interface AuditPeriodGroup {
 export function groupByPeriod(groups: AuditBatchGroup[], grain: Grain): AuditPeriodGroup[] {
   const byPeriod = new Map<string, AuditBatchGroup[]>();
   for (const g of groups) {
-    const day = g.dateTo || g.dateFrom;
-    const key = day ? periodKey(day, grain) : "unknown";
+    // The batch id encodes its own production date (e.g. 26I17-14 → 17 Sep),
+    // which is what identifies "one lot" to the plant — prefer it over
+    // dateTo/dateFrom (last-activity date), so a lot files under the day it
+    // was produced rather than the day its final stage happened to be logged.
+    let day = "";
+    if (g.batch && g.batch !== "(no batch)") {
+      const parsed = parseBatchId(g.batch);
+      day = parsed?.date || "";
+    }
+    if (!day) {
+      const rawDate = g.dateTo || g.dateFrom;
+      day = rawDate && rawDate !== "—" ? rawDate : "";
+    }
+    const key = day && day !== "—" ? periodKey(day, grain) : "unknown";
     const arr = byPeriod.get(key);
     if (arr) arr.push(g);
     else byPeriod.set(key, [g]);
@@ -727,6 +780,7 @@ export function filterEntryRows(
     size?: string;
     search?: string;
     exceptionsOnly?: boolean;
+    batchLabel?: (batch: string) => string;
   }
 ): AuditEntryRow[] {
   const q = (opts.search ?? "").trim().toLowerCase();
@@ -737,8 +791,10 @@ export function filterEntryRows(
     if (opts.size && opts.size !== "all" && r.size !== opts.size) return false;
     if (opts.exceptionsOnly && r.commentCount === 0 && !r.hasCorrection) return false;
     if (q) {
+      const label = opts.batchLabel ? opts.batchLabel(r.batch) : "";
       const hay = [
         r.batch,
+        label,
         r.stageId,
         r.size ?? "",
         r.date,

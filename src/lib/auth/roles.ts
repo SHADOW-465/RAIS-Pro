@@ -283,6 +283,27 @@ export function invalidateRoleCache(): void {
 }
 
 /**
+ * Screens added after a role row was seeded. A GM signed in against
+ * `plant_roles` from 20260910 would otherwise never see Batch Conversion,
+ * because the stored `nav_allow` snapshot does not include it.
+ *
+ * Anyone who already has Data Entry gets the conversion page — it is the
+ * same shop-floor identity work. Roles without Data Entry are left alone.
+ */
+export function withCurrentScreens(role: RoleRecord): RoleRecord {
+  if (!role.builtin) return role;
+  if (!role.navAllow.includes("data-entry")) return role;
+  if (role.navAllow.includes("batch-conversion")) return role;
+  return {
+    ...role,
+    navAllow: [...role.navAllow, "batch-conversion"],
+    grants: role.grants.includes("screen.batch-conversion")
+      ? role.grants
+      : [...role.grants, "screen.batch-conversion"],
+  };
+}
+
+/**
  * The definition behind a session's role id, or null if no such role.
  *
  * The database wins when it has an answer — that is what makes a role editable
@@ -305,6 +326,7 @@ export async function resolveRole(roleId: RoleId): Promise<RoleRecord | null> {
     warnUnreadable(err);
     role = BUILTIN_ROLES[roleId] ?? null;
   }
+  if (role) role = withCurrentScreens(role);
   cache.set(key, { role, at: Date.now() });
   return role;
 }
@@ -312,7 +334,8 @@ export async function resolveRole(roleId: RoleId): Promise<RoleRecord | null> {
 /** Every role a GM may assign. Built-ins are always in the list. */
 export async function listRoles(): Promise<RoleRecord[]> {
   try {
-    return await getRoleStore().list(companyId());
+    const rows = await getRoleStore().list(companyId());
+    return rows.map(withCurrentScreens);
   } catch (err) {
     warnUnreadable(err);
     return builtinList();

@@ -169,92 +169,177 @@ export default function StageAnalysisPage() {
           chartStages.forEach((s, i) => {
             colorByStageId[s.stageId] = seriesColor(i);
           });
-          const hasLeft = m.stageTrend.length > 0 || m.tr.length > 0;
-          const hasRight = m.stages.length > 0;
-          const gridTemplate = hasLeft && hasRight ? "minmax(0, 1.8fr) minmax(0, 1.2fr)" : "minmax(0, 1fr)";
 
           return (
-            <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
-              {hasLeft && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
-                  {m.tr.length > 0 && (
-                    <Card title={`Overall Rejection Trend (${grainLabel})`} onClick={() => openModal(`Overall Rejection Trend (${grainLabel})`, `Cumulative ${grainLabel.toLowerCase()} rejection across every stage on the line, against the ${(targetRej * 100).toFixed(0)}% target.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
-                      <LineChart points={m.tr} target={targetRej} fmt={pct} />
-                    </Card>
-                  )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {/* Top Tier: Macro Trends (Overall line + Multi-stage line) */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(480px, 1fr))", gap: 20 }}>
+                {m.tr.length > 0 && (
+                  <Card
+                    title={`Overall Rejection Trend (${grainLabel})`}
+                    sub={`Cumulative rejection across all plant stages vs ${(targetRej * 100).toFixed(0)}% target`}
+                    onClick={() =>
+                      openModal(
+                        `Overall Rejection Trend (${grainLabel})`,
+                        `Cumulative ${grainLabel.toLowerCase()} rejection across every stage on the line, against the ${(targetRej * 100).toFixed(0)}% target.`,
+                        <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <LineChart points={m.tr} target={targetRej} fmt={pct} />
+                        </div>,
+                        { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) }
+                      )
+                    }
+                  >
+                    <LineChart points={m.tr} target={targetRej} fmt={pct} height={230} />
+                  </Card>
+                )}
 
-                  {m.stageTrend.length > 0 && chartStages.length > 0 && (
-                    <Card title={`All Stages Rejection Trend (${grainLabel})`} onClick={() => openModal(`All Stages Rejection Trend (${grainLabel})`, "Each colour is one station in process order. The same colours are used on the pie and on the per-stage charts below.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.stageTrend} stages={chartStages} colorByStageId={colorByStageId} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
-                      <MultiLine data={m.stageTrend} stages={chartStages} colorByStageId={colorByStageId} />
-                    </Card>
-                  )}
+                {m.stageTrend.length > 0 && chartStages.length > 0 && (
+                  <Card
+                    title={`Multi-Stage Rejection Comparative (${grainLabel})`}
+                    sub="Comparative trend overlay across all manufacturing stations"
+                    onClick={() =>
+                      openModal(
+                        `All Stages Rejection Trend (${grainLabel})`,
+                        "Each colour is one station in process order. The same colours are used on the pie and on the per-stage charts below.",
+                        <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <MultiLine data={m.stageTrend} stages={chartStages} colorByStageId={colorByStageId} />
+                        </div>,
+                        { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) }
+                      )
+                    }
+                  >
+                    <MultiLine data={m.stageTrend} stages={chartStages} colorByStageId={colorByStageId} height={230} />
+                  </Card>
+                )}
+              </div>
 
-                  {m.stageTrend.length > 0 && chartStages.length > 0 && (
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                        gap: 16,
-                      }}
-                    >
-                      {chartStages.map((s) => {
-                        const points = m.stageTrend.map((p) => ({
-                          period: p.period,
-                          label: p.label,
-                          value: p.perStage[s.stageId] ?? 0,
-                          rejected: p.counts?.[s.stageId]?.rejected,
-                          checked: p.counts?.[s.stageId]?.checked,
-                        }));
-                        const color = colorByStageId[s.stageId];
-                        return (
-                          <Card
-                            key={s.stageId}
-                            title={s.label}
-                            onClick={() =>
-                              openModal(
-                                `${s.label} · ${grainLabel}`,
-                                `${s.label} rejection over time. Colour matches the all-stages chart and the pie.`,
-                                <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                                  <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} />
-                                </div>,
-                                { rows: srcRows({ types: ["production", "inspection"], stageId: s.stageId }), value: pct(s.rejRate) },
-                              )
-                            }
-                          >
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                              <span style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
-                              <span style={{ fontSize: 12, color: "var(--text-2)" }}>
-                                {pct(s.rejRate)} · {s.rejected.toLocaleString("en-IN")} rejected of {s.checked.toLocaleString("en-IN")}
-                              </span>
-                            </div>
-                            <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} height={220} />
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  )}
+              {/* Middle Tier: Station-by-Station Grid */}
+              {m.stageTrend.length > 0 && chartStages.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--text)" }}>
+                      Station Gate Breakdown ({chartStages.length} Active Stations)
+                    </h2>
+                    <span className="muted" style={{ fontSize: 12, fontFamily: "var(--font-mono)" }}>
+                      Independent station defect curves vs control limits
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                      gap: 16,
+                    }}
+                  >
+                    {chartStages.map((s) => {
+                      const points = m.stageTrend.map((p) => ({
+                        period: p.period,
+                        label: p.label,
+                        value: p.perStage[s.stageId] ?? 0,
+                        rejected: p.counts?.[s.stageId]?.rejected,
+                        checked: p.counts?.[s.stageId]?.checked,
+                      }));
+                      const color = colorByStageId[s.stageId];
+                      return (
+                        <Card
+                          key={s.stageId}
+                          title={s.label}
+                          onClick={() =>
+                            openModal(
+                              `${s.label} · ${grainLabel}`,
+                              `${s.label} rejection over time. Colour matches the all-stages chart and the pie.`,
+                              <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                                <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} />
+                              </div>,
+                              { rows: srcRows({ types: ["production", "inspection"], stageId: s.stageId }), value: pct(s.rejRate) }
+                            )
+                          }
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                            <span style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 12, color: "var(--text-2)" }}>
+                              {pct(s.rejRate)} · {s.rejected.toLocaleString("en-IN")} rejected of {s.checked.toLocaleString("en-IN")}
+                            </span>
+                          </div>
+                          <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} height={200} compact />
+                        </Card>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
-              {hasRight && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
-                  <Card title="Process Flow Quality Gates" onClick={() => openModal("Process Flow Quality Gates", "catheter manufacturing process flow highlights Balloon Sealing and Valve Integrity as crucial quality checkpoints.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) })}>
-                    <ProcessFlow rows={m.stages} />
-                  </Card>
+              {/* Bottom Tier: Quality Loss Distribution & Process Diagnostics (3 Columns) */}
+              {m.stages.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--text)" }}>
+                    Quality Loss &amp; Process Pipeline Distribution
+                  </h2>
 
-                  <Card title="Stage Contribution (YTD)" onClick={() => openModal("Stage Contribution (YTD)", "Visual Inspection represents the single largest quality loss stage, contributing over half of all shopfloor rejects.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: pct(m.rate) })}>
-                    <BarsH rows={m.stages.map((s) => ({ label: s.label, value: s.contributionPct, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} />
-                  </Card>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+                    <Card
+                      title="Rejection Share by Stage"
+                      sub="Relative volume contribution per gate"
+                    >
+                      <Donut
+                        data={chartStages.map((s) => ({
+                          label: s.label,
+                          value: s.rejected,
+                          color: colorByStageId[s.stageId],
+                        }))}
+                        size={170}
+                      />
+                    </Card>
 
-                  <Card title="Rejection Share by Stage">
-                    <Donut
-                      data={chartStages.map((s) => ({
-                        label: s.label,
-                        value: s.rejected,
-                        color: colorByStageId[s.stageId],
-                      }))}
-                    />
-                  </Card>
+                    <Card
+                      title="Stage Contribution (YTD)"
+                      sub="Rejection loss proportion by station"
+                      onClick={() =>
+                        openModal(
+                          "Stage Contribution (YTD)",
+                          "Visual Inspection represents the single largest quality loss stage, contributing over half of all shopfloor rejects.",
+                          <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                            <BarsH
+                              rows={m.stages.map((s) => ({
+                                label: s.label,
+                                value: s.contributionPct,
+                                sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`,
+                              }))}
+                              fmt={(n) => `${n.toFixed(1)}%`}
+                            />
+                          </div>,
+                          { rows: srcRows({ types: ["inspection", "rejection"] }), value: pct(m.rate) }
+                        )
+                      }
+                    >
+                      <BarsH
+                        rows={m.stages.map((s) => ({
+                          label: s.label,
+                          value: s.contributionPct,
+                          sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`,
+                        }))}
+                        fmt={(n) => `${n.toFixed(1)}%`}
+                      />
+                    </Card>
+
+                    <Card
+                      title="Process Flow Quality Gates"
+                      sub="Gate-by-gate pass & yield metrics"
+                      onClick={() =>
+                        openModal(
+                          "Process Flow Quality Gates",
+                          "Catheter manufacturing process flow highlights key quality checkpoints and station yields.",
+                          <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                            <ProcessFlow rows={m.stages} />
+                          </div>,
+                          { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) }
+                        )
+                      }
+                    >
+                      <ProcessFlow rows={m.stages} />
+                    </Card>
+                  </div>
                 </div>
               )}
             </div>

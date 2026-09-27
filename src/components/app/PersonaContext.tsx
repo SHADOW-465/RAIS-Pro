@@ -146,7 +146,9 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       persona,
       setPersona,
       def,
-      allowsNav: (key: NavKey) => def.navAllow.includes(key),
+      allowsNav: (key: NavKey) =>
+        def.navAllow.includes(key) ||
+        (key === "batch-conversion" && def.navAllow.includes("data-entry")),
       grants:
         serverRole && serverRole.roleId === persona ? new Set(serverRole.grants ?? []) : null,
       capabilities,
@@ -176,7 +178,9 @@ export function usePersona(): PersonaCtx {
       persona: DEFAULT_PERSONA,
       setPersona: () => {},
       def,
-      allowsNav: (key: NavKey) => def.navAllow.includes(key),
+      allowsNav: (key: NavKey) =>
+        def.navAllow.includes(key) ||
+        (key === "batch-conversion" && def.navAllow.includes("data-entry")),
       grants: null,
       capabilities,
       canWrite: capabilities.write,

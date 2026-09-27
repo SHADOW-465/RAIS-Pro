@@ -15,6 +15,7 @@ import {
   sizesFor,
 } from "@/lib/entry/disposafe-matrix";
 import { useEvents } from "@/components/app/EventsContext";
+import { useTweaks } from "@/components/editorial/TweaksContext";
 import DatePicker from "@/components/ui/DatePicker";
 import { useConfirm } from "@/components/ui/ConfirmContext";
 import AppShell from "@/components/app/AppShell";
@@ -27,12 +28,14 @@ import {
   filterSessions,
   groupAuditSessions,
   groupByBatchThenStage,
+  groupByPeriod,
   isDirectEntry,
   batchFiguresInconsistent,
   listRowSizes,
   type AuditBatchGroup,
   type AuditDatePreset,
   type AuditEntryRow,
+  type AuditPeriodGroup,
   type AuditSession,
   type AuditStageBucket,
 } from "@/lib/analytics/audit-sessions";
@@ -41,11 +44,16 @@ import {
   progressFor,
   type BatchProgress,
 } from "@/lib/analytics/batch-progress";
+import { buildLineStatus, type LineStatus } from "@/lib/entry/line-status";
+import { resolveEntrySchema } from "@/lib/entry/entry-schema";
+import { canonicalBatchId } from "@/lib/entry/batch-id";
 import LotProgress from "@/components/LotProgress";
 import EntryRevisionHistory from "@/components/entry/EntryRevisionHistory";
+import BatchIdChip from "@/components/entry/BatchIdChip";
+import { historyNameForLot, type BatchConversion } from "@/lib/lineage";
 import { usePersona } from "@/components/app/PersonaContext";
 import Select from "@/components/ui/Select";
-import { sortStageIds } from "@/core/ontology/plant-catalog";
+import { sortStageIds, stageCategoryOf, STAGE_CATEGORIES } from "@/core/ontology/plant-catalog";
 import {
   integrityFixHref,
   parseIntegrityFocus,
@@ -79,7 +87,89 @@ function compactRange(from: string, to: string): string {
   return `${fmt(from, !sameMonth)}–${fmt(to, true)}`;
 }
 
-const AUDIT_ROW_COLS = "16px minmax(96px, 1.1fr) minmax(94px, 0.9fr) 150px 78px 78px 78px 62px";
+const AUDIT_ROW_COLS = "16px minmax(96px, 1.1fr) minmax(90px, 0.9fr) minmax(280px, 2.5fr) 78px 78px 78px 62px";
+
+function BatchProcessTrack({
+  lineStatus,
+  progress,
+}: {
+  lineStatus?: LineStatus | null;
+  progress?: ReturnType<typeof progressFor>;
+}) {
+  if (!lineStatus || lineStatus.lanes.length === 0) {
+    return progress && progress.doneCount > 0 ? (
+      <LotProgress progress={progress} showLabels={false} />
+    ) : (
+      <span style={{ color: "var(--text-3)", fontSize: "var(--text-xs)" }}>—</span>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", minWidth: 0 }}>
+      {lineStatus.lanes.map((lane) => {
+        const isPrimary = lane.id === "primary";
+        const isSecondary = lane.id === "secondary";
+        const isAssembly = lane.id === "assembly";
+        const shortName = isPrimary ? "Primary Dipping" : isSecondary ? "Secondary" : isAssembly ? "Assembly" : lane.label;
+        const isDone = lane.complete;
+        const isStarted = lane.started && !lane.complete;
+
+        const countText = isDone
+          ? isPrimary
+            ? "completed"
+            : `${lane.done}/${lane.total} completed`
+          : isStarted
+            ? `${lane.done}/${lane.total}`
+            : "—";
+
+        const tagColor = isDone
+          ? "var(--positive)"
+          : isStarted
+            ? "var(--status-warn, #d97706)"
+            : "var(--text-3)";
+        const tagBg = isDone
+          ? "var(--positive-weak)"
+          : isStarted
+            ? "var(--warning-weak)"
+            : "var(--surface-2)";
+
+        return (
+          <span
+            key={lane.id}
+            title={`${lane.label}: ${isDone ? "Completed" : isStarted ? `${lane.done}/${lane.total} complete` : "Not started"}`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3.5,
+              fontSize: "11px",
+              padding: "1.5px 6px",
+              borderRadius: "4px",
+              background: tagBg,
+              color: tagColor,
+              border: `1px solid color-mix(in srgb, ${tagColor} 26%, transparent)`,
+              whiteSpace: "nowrap",
+              lineHeight: 1.25,
+              fontFamily: "var(--font-sans)",
+            }}
+          >
+            <span style={{ fontSize: 8 }}>{isDone ? "✓" : isStarted ? "●" : "○"}</span>
+            <span style={{ fontWeight: 600 }}>{shortName}</span>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                fontWeight: isDone || isStarted ? 700 : 400,
+                opacity: 0.95,
+              }}
+            >
+              {countText}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 /** "31 Jul, 09:56" — the wall-clock moment a row was written. */
 function fmtStamp(iso: string): string {
@@ -147,8 +237,22 @@ function stageLabel(id: string): string {
   return map[id] ?? id;
 }
 
+const PROCESS_LABEL: Record<string, string> = Object.fromEntries(
+  STAGE_CATEGORIES.map((c) => [c.id, c.label]),
+);
+
+function laneForStage(stageId: string): string {
+  const cat = stageCategoryOf(stageId);
+  if (cat) return cat;
+  const s = stageId.toLowerCase();
+  if (s.includes("dipp") || s.includes("prod") || s.includes("leach") || s.includes("chlor") || s.includes("gauge") || s.includes("trim")) return "primary";
+  if (s.includes("visual") || s.includes("balloon") || s.includes("valve") || s.includes("final") || s.includes("pack") || s.includes("assembly")) return "assembly";
+  return "secondary";
+}
+
 export default function AuditPage() {
   const { events: contextEvents, isLoading: loading, refreshEvents } = useEvents();
+  const { t } = useTweaks();
   const events = (contextEvents ?? []) as any[];
   const { canEraseLedger } = usePersona();
 
@@ -166,6 +270,31 @@ export default function AuditPage() {
   const [typeStoredFilter, setTypeStoredFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "batch-asc" | "batch-desc" | "volume-desc" | "rejection-desc">("newest");
   const [page, setPage] = useState(0);
+  const [conversions, setConversions] = useState<BatchConversion[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/batch-conversions", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        const list = Array.isArray(data.conversions)
+          ? data.conversions
+          : Array.isArray(data)
+            ? data
+            : [];
+        setConversions(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const batchLabel = useCallback(
+    (b: string) => (b && b !== "(no batch)" ? historyNameForLot(b, conversions) : b),
+    [conversions],
+  );
 
   /** Which batches are expanded */
   const [openBatch, setOpenBatch] = useState<string | null>(null);
@@ -235,7 +364,14 @@ export default function AuditPage() {
   const stageOptions = useMemo(() => {
     const set = new Set<string>();
     for (const e of events) if (e.stageId) set.add(e.stageId);
-    return sortStageIds([...set]);
+    // Sorted in plant-schema order (Primary → Secondary → Assembly), then
+    // grouped under that same process so the "All stages" menu reads as the
+    // three-process shop floor instead of one flat alphabetical list.
+    return sortStageIds([...set]).map((s) => ({
+      value: s,
+      label: stageLabel(s),
+      group: PROCESS_LABEL[laneForStage(s)] ?? "Other",
+    }));
   }, [events]);
 
   const datedEvents = useMemo(() => {
@@ -314,6 +450,7 @@ export default function AuditPage() {
         stageId: stageFilter,
         size: sizeFilter,
         search: searchQuery,
+        batchLabel,
       });
       if (categoryFilter !== "all" || typeStoredFilter !== "all") {
         rows = rows.filter((r) => {
@@ -325,12 +462,44 @@ export default function AuditPage() {
       }
       return rows;
     },
-    [allRows, sourceFilter, stageFilter, sizeFilter, categoryFilter, typeStoredFilter, searchQuery],
+    [allRows, sourceFilter, stageFilter, sizeFilter, categoryFilter, typeStoredFilter, searchQuery, batchLabel],
   );
 
   /** Lot completion — over ALL events, never the filtered set, or a stage filter
    *  would make every lot look unfinished. */
   const batchProgress = useMemo(() => buildBatchProgress(events), [events]);
+
+  const lineStatusMap = useMemo(() => {
+    const schema = resolveEntrySchema(null);
+    const map = new Map<string, LineStatus>();
+    const batchOccupied = new Map<string, Set<string>>();
+
+    for (const e of events) {
+      const raw = batchOf(e);
+      if (!raw) continue;
+      const b = canonicalBatchId(raw) ?? raw.trim().toUpperCase();
+      if (!b) continue;
+      let set = batchOccupied.get(b);
+      if (!set) {
+        set = new Set();
+        batchOccupied.set(b, set);
+      }
+      if (
+        e.stageId &&
+        ((e.quantity ?? 0) > 0 ||
+          e.eventType === "production" ||
+          e.eventType === "inspection" ||
+          e.eventType === "rejection")
+      ) {
+        set.add(e.stageId);
+      }
+    }
+
+    for (const [batch, occ] of batchOccupied) {
+      map.set(batch, buildLineStatus({ lot: batch, schema, occupied: occ }));
+    }
+    return map;
+  }, [events]);
 
   const batchGroups = useMemo(() => {
     let groups = groupByBatchThenStage(entryRows);
@@ -341,15 +510,17 @@ export default function AuditPage() {
       });
     }
     return [...groups].sort((a, b) => {
-      if (sortOrder === "newest") return b.dateTo.localeCompare(a.dateTo) || a.batch.localeCompare(b.batch);
-      if (sortOrder === "oldest") return a.dateFrom.localeCompare(b.dateFrom) || a.batch.localeCompare(b.batch);
-      if (sortOrder === "batch-asc") return a.batch.localeCompare(b.batch);
-      if (sortOrder === "batch-desc") return b.batch.localeCompare(a.batch);
-      if (sortOrder === "volume-desc") return b.checkedQty - a.checkedQty || a.batch.localeCompare(b.batch);
-      if (sortOrder === "rejection-desc") return b.rejectedQty - a.rejectedQty || a.batch.localeCompare(b.batch);
+      const aLabel = batchLabel(a.batch) || a.batch;
+      const bLabel = batchLabel(b.batch) || b.batch;
+      if (sortOrder === "newest") return b.dateTo.localeCompare(a.dateTo) || aLabel.localeCompare(bLabel);
+      if (sortOrder === "oldest") return a.dateFrom.localeCompare(b.dateFrom) || aLabel.localeCompare(bLabel);
+      if (sortOrder === "batch-asc") return aLabel.localeCompare(bLabel);
+      if (sortOrder === "batch-desc") return bLabel.localeCompare(aLabel);
+      if (sortOrder === "volume-desc") return b.checkedQty - a.checkedQty || aLabel.localeCompare(bLabel);
+      if (sortOrder === "rejection-desc") return b.rejectedQty - a.rejectedQty || aLabel.localeCompare(bLabel);
       return 0;
     });
-  }, [entryRows, statusFilter, sortOrder, batchProgress]);
+  }, [entryRows, statusFilter, sortOrder, batchProgress, batchLabel]);
 
   /**
    * Erase a displayed row from the ledger. This is the ONLY erase path in the
@@ -640,7 +811,7 @@ export default function AuditPage() {
               onChange={setStageFilter}
               options={[
                 { value: "all", label: "All stages" },
-                ...stageOptions.map((s) => ({ value: s, label: stageLabel(s) })),
+                ...stageOptions,
               ]}
               ariaLabel="Filter by stage"
             />
@@ -807,25 +978,52 @@ export default function AuditPage() {
                 <span />
                 <span>Batch</span>
                 <span>Dates</span>
-                <span>Gates</span>
+                <span>Process Track</span>
                 <span style={{ textAlign: "right" }}>Checked</span>
                 <span style={{ textAlign: "right" }}>Accepted</span>
                 <span style={{ textAlign: "right" }}>Rejected</span>
                 <span style={{ textAlign: "right" }}>Rate</span>
               </div>
-              {(pageSlice as AuditBatchGroup[]).map((g) => (
-                <BatchAccordion
-                  key={g.batch}
-                  group={g}
-                  open={openBatch === g.batch}
-                  activeStage={stageTab[g.batch] ?? g.stages[0]?.stageId ?? ""}
-                  onToggle={() => selectBatch(g.batch)}
-                  onStage={(sid) => setStageTab((t) => ({ ...t, [g.batch]: sid }))}
-                  progress={progressFor(batchProgress, g.batch)}
-                  onErase={canEraseLedger ? eraseRow : undefined}
-                  erasingId={erasing}
-                  focus={focusIssue}
-                />
+              {groupByPeriod(pageSlice as AuditBatchGroup[], t.grain || "month").map((p) => (
+                <div key={p.period}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "baseline",
+                      gap: 10,
+                      padding: "10px 16px 6px",
+                      borderBottom: "1px solid var(--border)",
+                      background: "var(--surface)",
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 1,
+                    }}
+                  >
+                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text)" }}>
+                      {p.label}
+                    </span>
+                    <span className="small" style={{ color: "var(--text-3)" }}>
+                      {p.batchCount} {p.batchCount === 1 ? "lot" : "lots"} · {p.rowCount}{" "}
+                      {p.rowCount === 1 ? "entry" : "entries"}
+                    </span>
+                  </div>
+                  {p.groups.map((g) => (
+                    <BatchAccordion
+                      key={g.batch}
+                      group={g}
+                      open={openBatch === g.batch}
+                      activeStage={stageTab[g.batch] ?? g.stages[0]?.stageId ?? ""}
+                      onToggle={() => selectBatch(g.batch)}
+                      onStage={(sid) => setStageTab((t) => ({ ...t, [g.batch]: sid }))}
+                      progress={progressFor(batchProgress, g.batch)}
+                      lineStatus={lineStatusMap.get(g.batch) ?? null}
+                      onErase={canEraseLedger ? eraseRow : undefined}
+                      erasingId={erasing}
+                      focus={focusIssue}
+                      batchLabel={batchLabel}
+                    />
+                  ))}
+                </div>
               ))}
             </div>
           ) : viewMode === "sessions" ? (
@@ -837,11 +1035,12 @@ export default function AuditPage() {
                   open={openSession === s.id}
                   onToggle={() => setOpenSession((c) => (c === s.id ? null : s.id))}
                   commentsMap={commentsMap}
+                  batchLabel={batchLabel}
                 />
               ))}
             </div>
           ) : (
-            <RawTable rows={pageSlice as any[]} />
+            <RawTable rows={pageSlice as any[]} batchLabel={batchLabel} />
           )}
 
           {pageItems.length > PAGE && (
@@ -868,9 +1067,11 @@ function BatchAccordion({
   onToggle,
   onStage,
   progress,
+  lineStatus,
   onErase,
   erasingId,
   focus,
+  batchLabel,
 }: {
   group: AuditBatchGroup;
   open: boolean;
@@ -878,11 +1079,14 @@ function BatchAccordion({
   onToggle: () => void;
   onStage: (stageId: string) => void;
   progress?: BatchProgress | null;
+  lineStatus?: LineStatus | null;
   /** Present only when the current role may erase ledger rows (GM). */
   onErase?: (row: AuditEntryRow) => void;
   erasingId?: string | null;
   focus?: IntegrityFocus | null;
+  batchLabel?: (batch: string) => string;
 }) {
+  const [hoveredLane, setHoveredLane] = useState<string | null>(null);
   const stage: AuditStageBucket | undefined =
     g.stages.find((s) => s.stageId === activeStage) ?? g.stages[0];
   const dateLine = compactRange(g.dateFrom, g.dateTo);
@@ -890,14 +1094,47 @@ function BatchAccordion({
   const noBatch = g.batch === "(no batch)";
   const hasReject = g.rejectedQty > 0;
 
+  const stagesByLane = useMemo(() => {
+    const laneMap = new Map<string, AuditStageBucket[]>();
+    for (const st of g.stages) {
+      const lId = laneForStage(st.stageId);
+      if (!laneMap.has(lId)) {
+        laneMap.set(lId, []);
+      }
+      laneMap.get(lId)!.push(st);
+    }
+
+    const order = ["primary", "secondary", "assembly"];
+    const groups: { laneId: string; label: string; stages: AuditStageBucket[] }[] = [];
+
+    for (const lId of order) {
+      const list = laneMap.get(lId);
+      if (list && list.length > 0) {
+        const laneInfo = lineStatus?.lanes.find((l) => l.id === lId);
+        const label =
+          laneInfo?.label ??
+          (lId === "primary"
+            ? "Production Dipping"
+            : lId === "secondary"
+              ? "Secondary"
+              : "Assembly");
+        groups.push({ laneId: lId, label, stages: list });
+      }
+    }
+
+    for (const [lId, list] of laneMap) {
+      if (!order.includes(lId) && list.length > 0) {
+        groups.push({ laneId: lId, label: lId, stages: list });
+      }
+    }
+    return groups;
+  }, [g.stages, lineStatus]);
+
   return (
     <article
       className="audit-row"
       style={{
         borderTop: "1px solid var(--border)",
-        // Closed rows stay plain. Tinting every row that has any rejection made
-        // 78 of 78 rows red, which carries no information — the Rate column
-        // already says which ones are actually bad.
         background: open ? "var(--surface-2)" : "var(--surface)",
         transition: "background var(--duration-fast) var(--ease-out)",
       }}
@@ -926,40 +1163,28 @@ function BatchAccordion({
       >
         <Chevron open={open} tone={hasReject ? "critical" : "accent"} />
 
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "var(--text-md)",
-            fontWeight: 700,
-            letterSpacing: "0.03em",
-            color: noBatch ? "var(--text-3)" : "var(--text)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {noBatch ? "No batch" : g.batch}
-          {impossible && (
-            <span
-              title="Accepted is higher than checked — a gate is missing from this lot, so these two figures are measured over different lots. Open the batch to see which gate."
-              style={{ marginLeft: 6, color: "var(--warning)", fontFamily: "var(--font-sans)" }}
-            >
-              &#9888;
-            </span>
-          )}
-        </span>
+        <BatchIdChip
+          batchId={g.batch}
+          label={noBatch ? "No batch" : batchLabel ? batchLabel(g.batch) : g.batch}
+          warnSuffix={
+            impossible ? (
+              <span
+                title="Accepted is higher than checked — a gate is missing from this lot, so these two figures are measured over different lots. Open the batch to see which gate."
+                style={{ marginLeft: 6, color: "var(--warning)", fontFamily: "var(--font-sans)" }}
+              >
+                &#9888;
+              </span>
+            ) : null
+          }
+          style={{ overflow: "hidden" }}
+        />
 
         <span className="small" style={{ fontSize: "var(--text-xs)", whiteSpace: "nowrap" }}>
           {dateLine}
         </span>
 
         <span style={{ minWidth: 0 }}>
-          {progress && progress.doneCount > 0 ? (
-            <LotProgress progress={progress} showLabels={false} />
-          ) : (
-            <span className="small" style={{ fontSize: "var(--text-2xs)" }}>
-              {g.stages.length} stage{g.stages.length === 1 ? "" : "s"}
-            </span>
-          )}
+          <BatchProcessTrack lineStatus={lineStatus} progress={progress} />
         </span>
 
         <Num value={g.checkedQty} />
@@ -974,72 +1199,272 @@ function BatchAccordion({
           style={{
             padding: "4px 16px 16px 52px",
             borderTop: "1px solid var(--border)",
+            display: "grid",
+            gap: 14,
           }}
         >
-          {/* Stage tabs */}
+          {/* Lane status cards */}
+          {lineStatus && lineStatus.lanes.length > 0 && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${Math.min(lineStatus.lanes.length, 3)}, minmax(0, 1fr))`,
+                gap: 10,
+                padding: "12px",
+                borderRadius: "var(--radius-md, 8px)",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              {lineStatus.lanes.map((lane) => {
+                const isPrimary = lane.id === "primary";
+                const isDone = lane.complete;
+                const isStarted = lane.started && !lane.complete;
+                const isHovered = hoveredLane === lane.id;
+                const toneColor = isDone
+                  ? "var(--positive)"
+                  : isStarted
+                    ? "var(--status-warn, #d97706)"
+                    : "var(--text-3)";
+                const capText = isDone
+                  ? "COMPLETED"
+                  : isStarted
+                    ? `${lane.done}/${lane.total} COMPLETE`
+                    : "NOT STARTED";
+                const subText = isPrimary
+                  ? "Production Dipping"
+                  : lane.id === "secondary"
+                    ? `${lane.done}/${lane.total} Secondary Stages`
+                    : `${lane.done}/${lane.total} Assembly Gates`;
+
+                return (
+                  <div
+                    key={lane.id}
+                    onMouseEnter={() => setHoveredLane(lane.id)}
+                    onMouseLeave={() => setHoveredLane((prev) => (prev === lane.id ? null : prev))}
+                    onClick={() => {
+                      const firstInLane = g.stages.find((s) => laneForStage(s.stageId) === lane.id);
+                      if (firstInLane) {
+                        onStage(firstInLane.stageId);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        const firstInLane = g.stages.find((s) => laneForStage(s.stageId) === lane.id);
+                        if (firstInLane) onStage(firstInLane.stageId);
+                      }
+                    }}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: "var(--radius-sm, 6px)",
+                      background: isHovered
+                        ? "color-mix(in srgb, var(--accent) 12%, var(--surface-2))"
+                        : "var(--surface-2)",
+                      border: isHovered
+                        ? "1.5px solid var(--accent)"
+                        : `1px solid ${
+                            isDone
+                              ? "color-mix(in srgb, var(--positive) 35%, transparent)"
+                              : isStarted
+                                ? "color-mix(in srgb, var(--status-warn, #d97706) 35%, transparent)"
+                                : "var(--border)"
+                          }`,
+                      boxShadow: isHovered
+                        ? "0 0 0 1px var(--accent), 0 4px 14px color-mix(in srgb, var(--accent) 22%, transparent)"
+                        : "none",
+                      transform: isHovered ? "translateY(-1px)" : "none",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                      cursor: "pointer",
+                      transition: "all 0.18s var(--ease-out)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", color: toneColor }}>
+                        {capText}
+                      </span>
+                      {isHovered && (
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "var(--accent)", fontFamily: "var(--font-mono)" }}>
+                          View stages ↓
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: isHovered ? "var(--accent)" : "var(--text)" }}>
+                      {lane.label}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+                      {subText}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Stage tabs grouped by process lane */}
           <div
             role="tablist"
-            aria-label="Stages in this batch"
+            aria-label="Stages in this batch grouped by process"
             style={{
               display: "flex",
               flexWrap: "wrap",
-              gap: 6,
-              padding: "4px 0 12px",
+              gap: 8,
+              padding: "4px 0 0",
+              alignItems: "stretch",
             }}
           >
-            {g.stages.map((st) => {
-              const on = st.stageId === stage.stageId;
-              const stageReject = st.rows.reduce((n, r) => n + (r.rejected || 0), 0);
+            {stagesByLane.map((grp) => {
+              const isTargetLane = hoveredLane === grp.laneId;
+              const isAnyHovered = Boolean(hoveredLane);
+              const isDimmed = isAnyHovered && !isTargetLane;
+
               return (
-                <button
-                  key={st.stageId}
-                  type="button"
-                  role="tab"
-                  aria-selected={on}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStage(st.stageId);
-                  }}
+                <div
+                  key={grp.laneId}
+                  onMouseEnter={() => setHoveredLane(grp.laneId)}
+                  onMouseLeave={() => setHoveredLane((prev) => (prev === grp.laneId ? null : prev))}
                   style={{
-                    padding: "7px 12px",
-                    borderRadius: 999,
-                    border: on
-                      ? stageReject > 0
-                        ? "1px solid color-mix(in srgb, var(--critical) 35%, var(--border))"
-                        : "1px solid color-mix(in srgb, var(--accent) 40%, var(--border))"
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 8px 4px 10px",
+                    borderRadius: "var(--radius-md, 8px)",
+                    border: isTargetLane
+                      ? "1.5px solid var(--accent)"
                       : "1px solid var(--border)",
-                    background: on
-                      ? stageReject > 0
-                        ? "var(--critical-weak)"
-                        : "var(--accent-weak)"
+                    background: isTargetLane
+                      ? "color-mix(in srgb, var(--accent) 10%, var(--surface))"
                       : "var(--surface)",
-                    color: on
-                      ? stageReject > 0
-                        ? "var(--critical)"
-                        : "var(--accent)"
-                      : "var(--text-2)",
-                    boxShadow: on ? "var(--shadow-1)" : "none",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    transition:
-                      "background 0.15s var(--ease-out), color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out)",
+                    boxShadow: isTargetLane
+                      ? "0 0 0 1px var(--accent), 0 4px 16px color-mix(in srgb, var(--accent) 22%, transparent)"
+                      : "none",
+                    opacity: isDimmed ? 0.32 : 1,
+                    filter: isDimmed ? "grayscale(40%)" : "none",
+                    transform: isTargetLane ? "translateY(-1px)" : "none",
+                    transition: "all 0.18s var(--ease-out)",
                   }}
                 >
-                  {stageLabel(st.stageId)}
-                  <span
+                  {/* Category label pill */}
+                  <div
                     style={{
-                      marginLeft: 6,
-                      opacity: 0.85,
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 11,
-                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      paddingRight: 8,
+                      borderRight: isTargetLane
+                        ? "1px solid color-mix(in srgb, var(--accent) 40%, var(--border))"
+                        : "1px solid var(--border)",
+                      marginRight: 2,
                     }}
                   >
-                    {st.rowCount}
-                  </span>
-                </button>
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: isTargetLane ? "var(--accent)" : "var(--text-3)",
+                        boxShadow: isTargetLane ? "0 0 8px var(--accent)" : "none",
+                        transition: "all 0.18s var(--ease-out)",
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                        color: isTargetLane ? "var(--accent)" : "var(--text-3)",
+                        fontFamily: "var(--font-mono)",
+                        textTransform: "uppercase",
+                        whiteSpace: "nowrap",
+                        transition: "color 0.18s var(--ease-out)",
+                      }}
+                    >
+                      {grp.label}
+                    </span>
+                  </div>
+
+                  {/* Stage buttons within this process group */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                    {grp.stages.map((st) => {
+                      const on = st.stageId === stage.stageId;
+                      const stageReject = st.rows.reduce((n, r) => n + (r.rejected || 0), 0);
+                      const isHighlighted = isTargetLane;
+
+                      return (
+                        <button
+                          key={st.stageId}
+                          type="button"
+                          role="tab"
+                          aria-selected={on}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onStage(st.stageId);
+                          }}
+                          style={{
+                            padding: "6px 11px",
+                            borderRadius: 999,
+                            border: on
+                              ? stageReject > 0
+                                ? "1.5px solid var(--critical)"
+                                : "1.5px solid var(--accent)"
+                              : isHighlighted
+                                ? "1.5px solid color-mix(in srgb, var(--accent) 65%, var(--border))"
+                                : "1px solid var(--border)",
+                            background: on
+                              ? stageReject > 0
+                                ? "var(--critical-weak)"
+                                : "var(--accent-weak)"
+                              : isHighlighted
+                                ? "color-mix(in srgb, var(--accent) 14%, var(--surface-2))"
+                                : "var(--surface-2)",
+                            color: on
+                              ? stageReject > 0
+                                ? "var(--critical)"
+                                : "var(--accent)"
+                              : isHighlighted
+                                ? "var(--text)"
+                                : "var(--text-2)",
+                            boxShadow: on
+                              ? "var(--shadow-1)"
+                              : isHighlighted
+                                ? "0 2px 8px color-mix(in srgb, var(--accent) 15%, transparent)"
+                                : "none",
+                            fontSize: 12,
+                            fontWeight: on || isHighlighted ? 600 : 500,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            transform: isHighlighted && !on ? "scale(1.02)" : "none",
+                            transition: "all 0.15s var(--ease-out)",
+                          }}
+                        >
+                          <span>{stageLabel(st.stageId)}</span>
+                          <span
+                            style={{
+                              opacity: 0.85,
+                              fontFamily: "var(--font-mono)",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: "1px 5px",
+                              borderRadius: 4,
+                              background: on
+                                ? "color-mix(in srgb, currentColor 15%, transparent)"
+                                : "var(--border)",
+                            }}
+                          >
+                            {st.rowCount}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -1053,6 +1478,7 @@ function BatchAccordion({
               onErase={onErase}
               erasingId={erasingId}
               focus={focus}
+              batchLabel={batchLabel}
             />
           </div>
         </div>
@@ -1069,6 +1495,7 @@ function EntryGrid({
   onErase,
   erasingId,
   focus,
+  batchLabel,
 }: {
   rows: AuditEntryRow[];
   stageName: string;
@@ -1077,6 +1504,7 @@ function EntryGrid({
   onErase?: (row: AuditEntryRow) => void;
   erasingId?: string | null;
   focus?: IntegrityFocus | null;
+  batchLabel?: (batch: string) => string;
 }) {
   const [historyRow, setHistoryRow] = useState<AuditEntryRow | null>(null);
   const anyFocus =
@@ -1113,7 +1541,10 @@ function EntryGrid({
         }}
       >
         <span>
-          {name} · {rows.length} entr{rows.length === 1 ? "y" : "ies"}
+          {name}
+          {batch && batch !== "(no batch)" ? ` · ${batchLabel ? batchLabel(batch) : batch}` : ""}
+          {" · "}
+          {rows.length} entr{rows.length === 1 ? "y" : "ies"}
           {" · "}
           values are current (superseded history via History)
         </span>
@@ -1462,11 +1893,13 @@ function SessionAccordion({
   open,
   onToggle,
   commentsMap,
+  batchLabel,
 }: {
   session: AuditSession;
   open: boolean;
   onToggle: () => void;
   commentsMap: Map<string, string[]>;
+  batchLabel?: (batch: string) => string;
 }) {
   const sourceTone: Tone =
     s.source === "manual" ? "accent" : s.source === "excel" ? "positive" : "warning";
@@ -1523,14 +1956,22 @@ function SessionAccordion({
       </button>
       {open && (
         <div className="audit-reveal" style={{ padding: "4px 16px 14px 52px", borderTop: "1px solid var(--border)" }}>
-          <RawTable rows={s.events} commentsMap={commentsMap} />
+          <RawTable rows={s.events} commentsMap={commentsMap} batchLabel={batchLabel} />
         </div>
       )}
     </article>
   );
 }
 
-function RawTable({ rows, commentsMap }: { rows: any[]; commentsMap?: Map<string, string[]> }) {
+function RawTable({
+  rows,
+  commentsMap,
+  batchLabel,
+}: {
+  rows: any[];
+  commentsMap?: Map<string, string[]>;
+  batchLabel?: (batch: string) => string;
+}) {
   return (
     <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -1558,7 +1999,9 @@ function RawTable({ rows, commentsMap }: { rows: any[]; commentsMap?: Map<string
           {rows.map((e, i) => (
             <tr key={e.eventId || i} style={{ borderTop: "1px solid var(--border)" }}>
               <td style={{ ...cellMono, padding: "9px 12px" }}>{e.occurredOn?.start ?? "—"}</td>
-              <td style={{ ...cellMono, padding: "9px 12px", fontWeight: 600 }}>{batchOf(e) ?? "—"}</td>
+              <td style={{ ...cellMono, padding: "9px 12px", fontWeight: 600 }}>
+                {batchOf(e) ? (batchLabel ? batchLabel(batchOf(e)!) : batchOf(e)) : "—"}
+              </td>
               <td style={{ padding: "9px 12px" }}>
                 <TypeBadge type={e.eventType} />
               </td>

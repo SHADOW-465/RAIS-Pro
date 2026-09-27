@@ -11,6 +11,7 @@ import {
   stationsIn,
   type ResolvedEntrySchema,
 } from "@/lib/entry/entry-schema";
+import { secondaryTrack } from "@/lib/entry/secondary-track";
 
 export type ProcessEventLike = {
   stageId?: string;
@@ -101,6 +102,7 @@ function lotHasLane(
   schema: ResolvedEntrySchema,
   lane: string,
 ): boolean {
+  if (lane === "secondary") return secondaryTrack(occupied).started;
   return stationsIn(schema, lane).some((s) => lotHasStage(occupied, s.stageId));
 }
 

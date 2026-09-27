@@ -8,15 +8,17 @@ import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
-import { 
-  Card, 
-  LineChart, 
-  BarsH, 
+import {
+  Card,
+  LineChart,
+  BarsH,
   Empty,
   pct,
   Heatmap,
-  num
+  num,
+  SizeColorLegend
 } from "@/components/app/widgets";
+import { sizeColorFor } from "@/lib/entry/size-color";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import {
   bySize,
@@ -142,6 +144,15 @@ export default function SizeAnalysisPage() {
 
   const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
 
+  // Pure yellow/white read poorly as a thin line stroke, so the trend line
+  // falls back to the house accent for those two; every other size color
+  // reads fine at 1.8px.
+  const selectedSizeColor = sizeColorFor(selectedSize);
+  const trendColor =
+    selectedSizeColor && selectedSizeColor.hex !== "#FFFF00" && selectedSizeColor.hex !== "#FFFFFF"
+      ? selectedSizeColor.hex
+      : undefined;
+
   return (
     <AppShell active="size" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -193,49 +204,135 @@ export default function SizeAnalysisPage() {
 
           const hasLeft = m.sizes.length > 0;
           const hasRight = m.sizeTrend.length > 0;
-          const gridTemplate = hasLeft && hasRight ? "minmax(0, 1.2fr) minmax(0, 1.8fr)" : "minmax(0, 1fr)";
 
           return (
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <div style={{ display: "grid", gridTemplateColumns: gridTemplate, gap: 20 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {/* Reference: DS/ANX/05 size color code, so every colored size
+                  below (rejection list, caliber picker, trend line, heatmap
+                  columns) reads against its own legend instead of assumed
+                  knowledge. */}
+              <Card
+                title="Size Color Code"
+                sub="DS/ANX/05 — Dispofoley Latex Foley Balloon Capacity"
+              >
+                <SizeColorLegend sizes={m.heatCols} />
+              </Card>
+
+              {/* Top Tier: Size-wise YTD Loss & Interactive Trend Explorer (2 Equal Columns) */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(480px, 1fr))", gap: 20 }}>
                 {hasLeft && (
-                  <Card title={`Size-wise Rejection (YTD) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection (YTD) (${grainLabel})`, ytdModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" })}>
-                    <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}` }))} fmt={(n) => `${n.toFixed(1)}%`} />
+                  <Card
+                    title={`Size-wise Rejection (YTD) (${grainLabel})`}
+                    sub="Cumulative rejection loss across all catheter calibers (Fr10–Fr24)"
+                    onClick={() =>
+                      openModal(
+                        `Size-wise Rejection (YTD) (${grainLabel})`,
+                        ytdModalInsight,
+                        <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <BarsH
+                            rows={m.sizes.map((s) => ({
+                              label: s.size,
+                              value: s.rejRate * 100,
+                              sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`,
+                              color: sizeColorFor(s.size)?.hex,
+                            }))}
+                            fmt={(n) => `${n.toFixed(1)}%`}
+                          />
+                        </div>,
+                        { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—" }
+                      )
+                    }
+                  >
+                    <BarsH
+                      rows={m.sizes.map((s) => ({
+                        label: s.size,
+                        value: s.rejRate * 100,
+                        sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`,
+                        color: sizeColorFor(s.size)?.hex,
+                      }))}
+                      fmt={(n) => `${n.toFixed(1)}%`}
+                    />
                   </Card>
                 )}
 
                 {hasRight && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>Filter Size Trend:</span>
-                      <Select
-                        value={selectedSize}
-                        onChange={setSelectedSize}
-                        options={(m.sizes.length > 0 ? m.sizes.map((s) => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => ({ value: sz, label: `${sz} Catheter` }))}
-                        block={false}
-                        mono
-                        size="sm"
-                        ariaLabel="Filter size trend"
-                        style={{ minWidth: 170 }}
-                      />
+                  <Card
+                    title={`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`}
+                    sub="Longitudinal defect rate for selected French gauge"
+                    onClick={() =>
+                      openModal(
+                        `Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`,
+                        trendModalInsight,
+                        <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <LineChart points={m.sizeTrend} fmt={pct} color={trendColor} />
+                        </div>,
+                        { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" }
+                      )
+                    }
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>Select Caliber:</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {selectedSizeColor && (
+                          <span
+                            aria-hidden="true"
+                            title={`${selectedSize} — ${selectedSizeColor.name}`}
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: 3,
+                              flexShrink: 0,
+                              background: selectedSizeColor.hex,
+                              boxShadow: selectedSizeColor.hex === "#FFFFFF" ? "inset 0 0 0 1px var(--border-strong)" : undefined,
+                            }}
+                          />
+                        )}
+                        <Select
+                          value={selectedSize}
+                          onChange={setSelectedSize}
+                          options={(m.sizes.length > 0 ? m.sizes.map((s) => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => ({ value: sz, label: `${sz} Catheter` }))}
+                          block={false}
+                          mono
+                          size="sm"
+                          ariaLabel="Filter size trend"
+                          style={{ minWidth: 150 }}
+                        />
+                      </div>
                     </div>
-
-                    <Card title={`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`} onClick={() => openModal(`Size-wise Rejection Trend (${selectedSize}) (${grainLabel})`, trendModalInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—" })}>
-                      <LineChart points={m.sizeTrend} fmt={pct} />
-                    </Card>
-                  </div>
+                    <LineChart points={m.sizeTrend} fmt={pct} height={230} color={trendColor} />
+                  </Card>
                 )}
               </div>
 
+              {/* Bottom Tier: Full Width Heatmap Matrix */}
               {hasLeft && m.heatMatrix && m.heatMatrix.length > 0 && (
-                <Card title="Size × Defect Correlation Heatmap" sub="rejected quantity by size vs defect category" onClick={() => openModal("Size × Defect Correlation Heatmap", "Correlation matrix mapping rejected quantities across different catheter sizes (Fr10–Fr24) against active defect modes.", <div style={{ minHeight: 320, display: "flex", flexDirection: "column", justifyContent: "center" }}><Heatmap rows={m.heatRows} cols={m.heatCols} matrix={m.heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: num(m.sizes.reduce((s, x) => s + x.rejected, 0)) })}>
-                  <Heatmap 
-                    rows={m.heatRows} 
-                    cols={m.heatCols} 
-                    matrix={m.heatMatrix} 
-                    fmt={(n) => Math.round(n).toLocaleString("en-IN")} 
-                  />
-                </Card>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--text)" }}>
+                    Cross-Dimensional Size × Defect Mode Correlation Matrix
+                  </h2>
+                  <Card
+                    title="Size × Defect Correlation Heatmap"
+                    sub="Longitudinal distribution of rejected units across active size calibers and defect categories"
+                    onClick={() =>
+                      openModal(
+                        "Size × Defect Correlation Heatmap",
+                        "Correlation matrix mapping rejected quantities across different catheter sizes (Fr10–Fr24) against active defect modes.",
+                        <div style={{ minHeight: 320, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <Heatmap rows={m.heatRows} cols={m.heatCols} matrix={m.heatMatrix} fmt={(n) => Math.round(n).toLocaleString("en-IN")} colColor={(col) => sizeColorFor(col)?.hex} />
+                        </div>,
+                        { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: num(m.sizes.reduce((s, x) => s + x.rejected, 0)) }
+                      )
+                    }
+                  >
+                    <Heatmap
+                      rows={m.heatRows}
+                      cols={m.heatCols}
+                      matrix={m.heatMatrix}
+                      fmt={(n) => Math.round(n).toLocaleString("en-IN")}
+                      colColor={(col) => sizeColorFor(col)?.hex}
+                    />
+                  </Card>
+                </div>
               )}
             </div>
           );

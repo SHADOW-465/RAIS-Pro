@@ -35,6 +35,7 @@ import { resolveEntrySchema } from "@/lib/entry/entry-schema";
 import { canonicalBatchId } from "@/lib/entry/batch-id";
 import LotProgress from "@/components/LotProgress";
 import EntryRevisionHistory from "@/components/entry/EntryRevisionHistory";
+import BatchIdChip from "@/components/entry/BatchIdChip";
 import Icon from "@/components/editorial/Icon";
 import { usePersona } from "@/components/app/PersonaContext";
 import Select from "@/components/ui/Select";
@@ -49,6 +50,20 @@ import {
   type CatheterCategory,
   type CatheterType,
 } from "@/lib/entry/disposafe-matrix";
+import { sortStageIds, stageCategoryOf, STAGE_CATEGORIES } from "@/core/ontology/plant-catalog";
+
+function laneForStage(stageId: string): string {
+  const cat = stageCategoryOf(stageId);
+  if (cat) return cat;
+  const s = stageId.toLowerCase();
+  if (s.includes("dipp") || s.includes("prod") || s.includes("leach") || s.includes("chlor") || s.includes("gauge") || s.includes("trim")) return "primary";
+  if (s.includes("visual") || s.includes("balloon") || s.includes("valve") || s.includes("final") || s.includes("pack") || s.includes("assembly")) return "assembly";
+  return "secondary";
+}
+
+const PROCESS_LABEL: Record<string, string> = Object.fromEntries(
+  STAGE_CATEGORIES.map((c) => [c.id, c.label]),
+);
 
 type SourceScope = "mine" | "all";
 type StatusScope = "all" | "open" | "complete";
@@ -85,7 +100,7 @@ function compactRange(from: string, to: string): string {
   return `${fmt(from, !sameMonth)}–${fmt(to, true)}`;
 }
 
-const HISTORY_COLS = "16px minmax(88px, 0.9fr) minmax(84px, 0.8fr) minmax(310px, 3fr) 76px 76px 76px";
+const HISTORY_COLS = "16px minmax(140px, 1.15fr) minmax(84px, 0.8fr) minmax(280px, 3fr) 76px 76px 76px";
 
 function BatchProcessTrack({
   lineStatus,
@@ -211,7 +226,10 @@ export default function EntryHistory({
   onEdit,
   onReuse,
   initialStatus = "all",
+  initialSearch = "",
+  initialBatch,
   grain = "month",
+  batchLabel,
 }: {
   events: AuditEventLike[];
   /** Open this station's recorded row on the entry form for correction. */
@@ -220,15 +238,22 @@ export default function EntryHistory({
   onReuse?: (row: AuditEntryRow) => void;
   /** Status to land on, e.g. arriving from the dashboard's WIP strip. */
   initialStatus?: StatusScope;
+  /** Pre-fill the search box (e.g. from a ?batch= URL param). */
+  initialSearch?: string;
+  /** Batch ID to automatically expand once events load (from DE deep-link). */
+  initialBatch?: string;
   /** Topbar Day / Week / Month / FY — groups the list under period headers. */
   grain?: Grain;
+  /** Optional display name, e.g. `26I17-16 CT 26I17-18` for a converted lot. */
+  batchLabel?: (batch: string) => string;
 }) {
   const { canEraseLedger } = usePersona();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [scope, setScope] = useState<SourceScope>("mine");
   const [status, setStatus] = useState<StatusScope>(initialStatus);
   const [ledgerFilter, setLedgerFilter] = useState<LedgerScope>("all");
   const [groupByLedger, setGroupByLedger] = useState(false);
+  const [stageFilter, setStageFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [productTypeFilter, setProductTypeFilter] = useState("all");
   const [size, setSize] = useState("all");
@@ -236,6 +261,9 @@ export default function EntryHistory({
   const [openBatch, setOpenBatch] = useState<string | null>(null);
   const [historyRow, setHistoryRow] = useState<AuditEntryRow | null>(null);
   const [localShiftRows, setLocalShiftRows] = useState<AuditEntryRow[]>([]);
+  // Track whether we've already auto-expanded the initialBatch
+  const autoExpandedRef = React.useRef(false);
+
 
   // Load unsynced shift batches from localStorage to show realtime "not on ledger" batches
   useEffect(() => {
@@ -356,6 +384,19 @@ export default function EntryHistory({
 
   const sizeOptions = useMemo(() => listRowSizes(scopedRows), [scopedRows]);
 
+  const stageOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of scopedRows) if (r.stageId) set.add(r.stageId);
+    // Sorted in plant-schema order (Primary → Secondary → Assembly), then
+    // grouped under that same process so the menu reads as the three-process
+    // shop floor instead of one flat alphabetical list — same as Audit trail.
+    return sortStageIds([...set]).map((s) => ({
+      value: s,
+      label: stageLabel(s),
+      group: PROCESS_LABEL[laneForStage(s)] ?? "Other",
+    }));
+  }, [scopedRows]);
+
   /** Valid sizes allowed by the current Category and Type filter. */
   const validSizesForSelection = useMemo(() => {
     if (categoryFilter === "Female") return sizesFor("Female", "2 way");
@@ -413,7 +454,7 @@ export default function EntryHistory({
   };
 
   const baseGroups = useMemo(() => {
-    let rows = filterEntryRows(scopedRows, { search, size });
+    let rows = filterEntryRows(scopedRows, { search, size, stageId: stageFilter, batchLabel });
     if (categoryFilter !== "all" || productTypeFilter !== "all") {
       rows = rows.filter((r) => {
         const { category, type } = categoryAndTypeFrom(r.productType);
@@ -431,17 +472,36 @@ export default function EntryHistory({
       });
     }
     return [...all].sort((a, b) => {
-      if (sortOrder === "newest") return b.dateTo.localeCompare(a.dateTo) || a.batch.localeCompare(b.batch);
-      if (sortOrder === "oldest") return a.dateFrom.localeCompare(b.dateFrom) || a.batch.localeCompare(b.batch);
-      if (sortOrder === "batch-asc") return a.batch.localeCompare(b.batch);
-      if (sortOrder === "batch-desc") return b.batch.localeCompare(a.batch);
-      if (sortOrder === "volume-desc") return b.checkedQty - a.checkedQty || a.batch.localeCompare(b.batch);
-      if (sortOrder === "rejection-desc") return b.rejectedQty - a.rejectedQty || a.batch.localeCompare(b.batch);
+      const aLabel = batchLabel ? batchLabel(a.batch) : a.batch;
+      const bLabel = batchLabel ? batchLabel(b.batch) : b.batch;
+      if (sortOrder === "newest") return b.dateTo.localeCompare(a.dateTo) || aLabel.localeCompare(bLabel);
+      if (sortOrder === "oldest") return a.dateFrom.localeCompare(b.dateFrom) || aLabel.localeCompare(bLabel);
+      if (sortOrder === "batch-asc") return aLabel.localeCompare(bLabel);
+      if (sortOrder === "batch-desc") return bLabel.localeCompare(aLabel);
+      if (sortOrder === "volume-desc") return b.checkedQty - a.checkedQty || aLabel.localeCompare(bLabel);
+      if (sortOrder === "rejection-desc") return b.rejectedQty - a.rejectedQty || aLabel.localeCompare(bLabel);
       return 0;
     });
-  }, [scopedRows, search, size, categoryFilter, productTypeFilter, status, sortOrder, progressMap, lineStatusMap]);
+  }, [scopedRows, search, size, stageFilter, categoryFilter, productTypeFilter, status, sortOrder, progressMap, lineStatusMap, batchLabel]);
+
+  // Auto-expand initialBatch once events have loaded and the group appears
+  useEffect(() => {
+    if (!initialBatch || autoExpandedRef.current || baseGroups.length === 0) return;
+    const target = initialBatch.trim().toUpperCase();
+    const match = baseGroups.find(
+      (g) => g.batch.trim().toUpperCase() === target || g.batch.toUpperCase().includes(target),
+    );
+    if (match) {
+      autoExpandedRef.current = true;
+      setOpenBatch(match.batch);
+      // If not visible under current scope, widen to "all"
+      const inScope = baseGroups.some((g) => g.batch === match.batch);
+      if (!inScope) setScope("all");
+    }
+  }, [initialBatch, baseGroups]);
 
   // Counts for ledger pills
+
   const totalBatchCount = baseGroups.length;
   const onLedgerCount = useMemo(() => baseGroups.filter(isGroupOnLedger).length, [baseGroups]);
   const notOnLedgerCount = useMemo(() => baseGroups.filter((g) => !isGroupOnLedger(g)).length, [baseGroups]);
@@ -705,6 +765,15 @@ export default function EntryHistory({
           ariaLabel="Status filter"
         />
         <Select
+          value={stageFilter}
+          onChange={setStageFilter}
+          options={[{ value: "all", label: "Stage: All" }, ...stageOptions]}
+          variant="pill"
+          size="sm"
+          block={false}
+          ariaLabel="Stage filter"
+        />
+        <Select
           value={categoryFilter}
           onChange={setCategoryFilter}
           options={[
@@ -857,6 +926,7 @@ export default function EntryHistory({
                           onReuse={onReuse}
                           onHistory={setHistoryRow}
                           canErase={canEraseLedger}
+                          batchLabel={batchLabel}
                         />
                       ))}
                     </div>
@@ -916,6 +986,7 @@ export default function EntryHistory({
                           onReuse={onReuse}
                           onHistory={setHistoryRow}
                           canErase={canEraseLedger}
+                          batchLabel={batchLabel}
                         />
                       ))}
                     </div>
@@ -959,6 +1030,7 @@ export default function EntryHistory({
                     onReuse={onReuse}
                     onHistory={setHistoryRow}
                     canErase={canEraseLedger}
+                    batchLabel={batchLabel}
                   />
                 ))}
               </div>
@@ -986,6 +1058,7 @@ function HistoryBatch({
   onReuse,
   onHistory,
   canErase,
+  batchLabel,
 }: {
   group: AuditBatchGroup;
   open: boolean;
@@ -996,7 +1069,9 @@ function HistoryBatch({
   onReuse?: (row: AuditEntryRow) => void;
   onHistory?: (row: AuditEntryRow) => void;
   canErase: boolean;
+  batchLabel?: (batch: string) => string;
 }) {
+  const [hoveredLane, setHoveredLane] = useState<string | null>(null);
   const noBatch = g.batch === "(no batch)";
   const dateLine = compactRange(g.dateFrom, g.dateTo);
   const impossible = batchFiguresInconsistent(g);
@@ -1035,27 +1110,22 @@ function HistoryBatch({
           &#9654;
         </span>
 
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "var(--text-md)",
-            fontWeight: 700,
-            letterSpacing: "0.03em",
-            color: noBatch ? "var(--text-3)" : "var(--text)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {noBatch ? "No batch id" : g.batch}
-          {impossible && (
-            <span
-              title="Accepted is higher than checked — a gate is missing from this lot, so the two figures cover different lots. Open it to see which gate."
-              style={{ marginLeft: 6, color: "var(--warning)", fontFamily: "var(--font-sans)" }}
-            >
-              &#9888;
-            </span>
-          )}
-        </span>
+        <BatchIdChip
+          batchId={g.batch}
+          label={noBatch ? "No batch id" : batchLabel ? batchLabel(g.batch) : g.batch}
+          warnSuffix={
+            impossible ? (
+              <span
+                title="Accepted is higher than checked — a gate is missing from this lot, so the two figures cover different lots. Open it to see which gate."
+                style={{ marginLeft: 6, color: "var(--warning)", fontFamily: "var(--font-sans)" }}
+              >
+                &#9888;
+              </span>
+            ) : null
+          }
+          style={{ overflow: "hidden" }}
+          showDataEntry={false}
+        />
 
         <span className="muted" style={{ fontSize: "var(--text-xs)", whiteSpace: "nowrap" }}>
           {dateLine}
@@ -1088,6 +1158,7 @@ function HistoryBatch({
                 const isPrimary = lane.id === "primary";
                 const isDone = lane.complete;
                 const isStarted = lane.started && !lane.complete;
+                const isHovered = hoveredLane === lane.id;
                 const toneColor = isDone
                   ? "var(--positive)"
                   : isStarted
@@ -1107,26 +1178,64 @@ function HistoryBatch({
                 return (
                   <div
                     key={lane.id}
+                    onMouseEnter={() => setHoveredLane(lane.id)}
+                    onMouseLeave={() => setHoveredLane((prev) => (prev === lane.id ? null : prev))}
+                    onClick={() => {
+                      const first = g.stages.find((s) => laneForStage(s.stageId) === lane.id);
+                      if (first) {
+                        const el = document.getElementById(`hist-stage-${g.batch}-${first.stageId}`);
+                        el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        const first = g.stages.find((s) => laneForStage(s.stageId) === lane.id);
+                        if (first) {
+                          const el = document.getElementById(`hist-stage-${g.batch}-${first.stageId}`);
+                          el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                        }
+                      }
+                    }}
                     style={{
                       padding: "10px 12px",
                       borderRadius: "var(--radius-sm, 6px)",
-                      background: "var(--surface)",
-                      border: `1px solid ${
-                        isDone
-                          ? "color-mix(in srgb, var(--positive) 35%, transparent)"
-                          : isStarted
-                            ? "color-mix(in srgb, var(--status-warn, #d97706) 35%, transparent)"
-                            : "var(--border)"
-                      }`,
+                      background: isHovered
+                        ? "color-mix(in srgb, var(--accent) 12%, var(--surface))"
+                        : "var(--surface)",
+                      border: isHovered
+                        ? "1.5px solid var(--accent)"
+                        : `1px solid ${
+                            isDone
+                              ? "color-mix(in srgb, var(--positive) 35%, transparent)"
+                              : isStarted
+                                ? "color-mix(in srgb, var(--status-warn, #d97706) 35%, transparent)"
+                                : "var(--border)"
+                          }`,
+                      boxShadow: isHovered
+                        ? "0 0 0 1px var(--accent), 0 4px 14px color-mix(in srgb, var(--accent) 22%, transparent)"
+                        : "none",
+                      transform: isHovered ? "translateY(-1px)" : "none",
                       display: "flex",
                       flexDirection: "column",
                       gap: 4,
+                      cursor: "pointer",
+                      transition: "all 0.18s var(--ease-out)",
                     }}
                   >
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", color: toneColor }}>
-                      {capText}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", color: toneColor }}>
+                        {capText}
+                      </span>
+                      {isHovered && (
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "var(--accent)", fontFamily: "var(--font-mono)" }}>
+                          View stages ↓
+                        </span>
+                      )}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: isHovered ? "var(--accent)" : "var(--text)" }}>
                       {lane.label}
                     </div>
                     <div style={{ fontSize: 11, color: "var(--text-3)" }}>
@@ -1137,35 +1246,70 @@ function HistoryBatch({
               })}
             </div>
           )}
-          {g.stages.map((st, i) => (
-            <div
-              key={st.stageId}
-              className="fade-up"
-              style={{ animationDelay: `${Math.min(i, 4) * 40}ms` }}
-            >
+          {g.stages.map((st, i) => {
+            const stLane = laneForStage(st.stageId);
+            const isTarget = hoveredLane === stLane;
+            const isDimmed = Boolean(hoveredLane) && !isTarget;
+            const laneLabel = lineStatus?.lanes.find((l) => l.id === stLane)?.label ?? stLane;
+
+            return (
               <div
+                id={`hist-stage-${g.batch}-${st.stageId}`}
+                key={st.stageId}
+                className="fade-up"
+                onMouseEnter={() => setHoveredLane(stLane)}
+                onMouseLeave={() => setHoveredLane((prev) => (prev === stLane ? null : prev))}
                 style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "baseline",
-                  gap: "2px 10px",
-                  marginBottom: 6,
+                  animationDelay: `${Math.min(i, 4) * 40}ms`,
+                  opacity: isDimmed ? 0.35 : 1,
+                  filter: isDimmed ? "grayscale(40%)" : "none",
+                  padding: isTarget ? "10px 12px" : "0",
+                  borderRadius: "var(--radius-md, 8px)",
+                  border: isTarget ? "1.5px solid var(--accent)" : "1.5px solid transparent",
+                  background: isTarget ? "color-mix(in srgb, var(--accent) 6%, transparent)" : "transparent",
+                  boxShadow: isTarget ? "0 0 0 1px var(--accent), 0 4px 14px color-mix(in srgb, var(--accent) 15%, transparent)" : "none",
+                  transition: "all 0.18s var(--ease-out)",
                 }}
               >
-                <h3 style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600 }}>
-                  {stageLabel(st.stageId)}
-                </h3>
-                <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-                  {st.rowCount} row{st.rowCount === 1 ? "" : "s"} · <Num>{st.checkedQty.toLocaleString()}</Num>{" "}
-                  checked
-                  {st.rejectedQty > 0 && (
-                    <>
-                      {" · "}
-                      <Num tone="var(--critical)">{st.rejectedQty.toLocaleString()}</Num> rejected
-                    </>
-                  )}
-                </span>
-              </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    gap: "4px 10px",
+                    marginBottom: 6,
+                  }}
+                >
+                  <h3 style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600, color: isTarget ? "var(--accent)" : "var(--text)" }}>
+                    {stageLabel(st.stageId)}
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                      padding: "2px 7px",
+                      borderRadius: 999,
+                      background: isTarget ? "var(--accent-weak)" : "var(--surface-2)",
+                      color: isTarget ? "var(--accent)" : "var(--text-3)",
+                      border: isTarget ? "1px solid color-mix(in srgb, var(--accent) 40%, var(--border))" : "1px solid var(--border)",
+                      transition: "all 0.18s var(--ease-out)",
+                    }}
+                  >
+                    {laneLabel}
+                  </span>
+                  <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
+                    {st.rowCount} row{st.rowCount === 1 ? "" : "s"} · <Num>{st.checkedQty.toLocaleString()}</Num>{" "}
+                    checked
+                    {st.rejectedQty > 0 && (
+                      <>
+                        {" · "}
+                        <Num tone="var(--critical)">{st.rejectedQty.toLocaleString()}</Num> rejected
+                      </>
+                    )}
+                  </span>
+                </div>
 
               <div style={{ display: "grid", gap: 8 }}>
                 {st.rows.map((r) => {
@@ -1314,7 +1458,8 @@ function HistoryBatch({
                 })}
               </div>
             </div>
-          ))}
+          );
+        })}
 
           <p className="muted" style={{ margin: 0, fontSize: "var(--text-xs)" }}>
             <a

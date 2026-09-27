@@ -63,6 +63,18 @@ describe("built-in roles", () => {
     expect(gm?.label).toBe("General Manager (GM)");
   });
 
+  test("a stored GM from before Batch Conversion still receives the screen", async () => {
+    const stale: RoleRecord = {
+      ...BUILTIN_ROLES.gm,
+      navAllow: BUILTIN_ROLES.gm.navAllow.filter((k) => k !== "batch-conversion"),
+      grants: BUILTIN_ROLES.gm.grants.filter((g) => g !== "screen.batch-conversion"),
+    };
+    __seedRoleForTests(stale);
+    const gm = await resolveRole("gm");
+    expect(gm?.navAllow).toContain("batch-conversion");
+    expect(gm?.navAllow).toContain("data-entry");
+  });
+
   test("are always listed, so a GM can never be left with no role to assign", async () => {
     const ids = (await listRoles()).map((r) => r.roleId);
     expect(ids).toEqual(expect.arrayContaining(["gm", "owner", "operator"]));

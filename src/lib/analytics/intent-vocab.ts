@@ -69,6 +69,7 @@ const METRIC_SYNONYMS: Array<[string, RegExp]> = [
   ["stage", /\b(stage|gate|checkpoint|inspection point)\b/],
   ["hold", /\b(hold qty|hold quantity|\bhold\b|held|rework qty)\b/],
   ["open-lots", /\b(open lots?|wip|work in progress|stalled lots?)\b/],
+  ["batch-conversion", /\b(batch conversion|size conversion|lot lineage|converted batch)\b/],
   ["defect", /\b(defect|reject|rejection|nonconformance|non-conformance|\bnc\b|scrap)\b/],
 ];
 
@@ -89,6 +90,7 @@ export const METRIC_SCREEN: Record<string, NavKey> = {
   rate: "stage",
   hold: "hold",
   "open-lots": "open-lots",
+  "batch-conversion": "batch-conversion",
 };
 
 export function screenForMetric(metric: string): NavKey | null {

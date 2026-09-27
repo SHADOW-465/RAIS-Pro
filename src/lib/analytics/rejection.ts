@@ -368,6 +368,19 @@ export function totalChecked(events: Event[], scope: Scope, registry: Registry =
   };
 }
 
+/**
+ * Total Accepted quantity = checked - rejected (non-negative).
+ */
+export function totalAccepted(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): MetricValue {
+  const ev = scopeEvents(events, scope);
+  const checked = totalChecked(events, scope, registry);
+  const rejected = totalRejected(events, scope);
+  return {
+    value: Math.max(0, checked.value - rejected.value),
+    sourceEventIds: [...checked.sourceEventIds, ...rejected.sourceEventIds],
+  };
+}
+
 /** First Pass Yield = rolled-throughput yield Π(1 − stageRate) across stages —
  *  the fraction of entering units that pass every stage without rejection. */
 export function fpy(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): MetricValue {
@@ -530,7 +543,7 @@ export function stageAnalysis(
 export interface SeriesPoint { period: string; label: string; value: number; rejected?: number; checked?: number }
 
 type MetricFn = (events: Event[], scope: Scope, registry?: Registry) => MetricValue;
-const METRICS: Record<string, MetricFn> = { rejectionRate, totalRejected, totalChecked, fpy };
+const METRICS: Record<string, MetricFn> = { rejectionRate, totalRejected, totalChecked, fpy, totalAccepted };
 
 /** A metric bucketed over time by scope.grain. */
 export function trend(events: Event[], scope: Scope, metric: keyof typeof METRICS = "rejectionRate", registry: Registry = DERIVED_REGISTRY): SeriesPoint[] {

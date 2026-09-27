@@ -8,8 +8,10 @@ import {
   useContainerWidth,
   getBaseSpacing,
   hoverIndexFromPixels,
-  shouldShowLabel
+  shouldShowLabel,
+  niceYMax,
 } from "@/lib/chart-utils";
+import { sizeColorFor } from "@/lib/entry/size-color";
 
 /** Shared hover tooltip card used by every time-series chart. Positioned over the
  *  chart container at the hovered point; flips below when the point sits high. */
@@ -92,24 +94,42 @@ export function ChartTip({ leftPx, topPx, below, title, rows }: {
   );
 }
 
-export function ZoomButton({ onClick, children, title }: { onClick: (e: any) => void; children: React.ReactNode; title: string }) {
+export function ZoomButton({
+  onClick,
+  children,
+  title,
+  active,
+  compact = false,
+}: {
+  onClick: (e: any) => void;
+  children: React.ReactNode;
+  title: string;
+  active?: boolean;
+  compact?: boolean;
+}) {
   const [hovered, setHovered] = useState(false);
+  const isMultiChar = typeof children === "string" && children.length > 1;
   return (
     <button
+      type="button"
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       title={title}
+      aria-pressed={active || undefined}
       style={{
-        width: 26,
-        height: 22,
+        width: isMultiChar ? "auto" : compact ? 20 : 26,
+        minWidth: compact ? 20 : 26,
+        padding: isMultiChar ? (compact ? "0 4px" : "0 6px") : 0,
+        height: compact ? 20 : 22,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: children === "FIT" ? 9 : 12,
+        fontSize: isMultiChar ? (compact ? 8.5 : 9) : (compact ? 10.5 : 12),
         fontWeight: 700,
-        color: "var(--text-2)",
-        background: hovered ? "var(--surface-2)" : "transparent",
+        fontFamily: "var(--font-mono)",
+        color: active ? "var(--accent)" : "var(--text-2)",
+        background: hovered || active ? "var(--surface-2)" : "transparent",
         border: "none",
         borderRadius: 2,
         cursor: "pointer",
@@ -118,6 +138,366 @@ export function ZoomButton({ onClick, children, title }: { onClick: (e: any) => 
     >
       {children}
     </button>
+  );
+}
+
+const PCT_Y_PRESETS: { label: string; max: number }[] = [
+  { label: "1%", max: 0.01 },
+  { label: "2%", max: 0.02 },
+  { label: "5%", max: 0.05 },
+  { label: "10%", max: 0.1 },
+];
+
+function getCountPresets(dataMax: number): { label: string; max: number }[] {
+  const d = dataMax > 0 ? dataMax : 100;
+  if (d <= 20) {
+    return [
+      { label: "5", max: 5 },
+      { label: "10", max: 10 },
+      { label: "20", max: 20 },
+      { label: "50", max: 50 },
+    ];
+  }
+  if (d <= 60) {
+    return [
+      { label: "10", max: 10 },
+      { label: "25", max: 25 },
+      { label: "50", max: 50 },
+      { label: "100", max: 100 },
+    ];
+  }
+  if (d <= 150) {
+    return [
+      { label: "25", max: 25 },
+      { label: "50", max: 50 },
+      { label: "100", max: 100 },
+      { label: "200", max: 200 },
+    ];
+  }
+  if (d <= 400) {
+    return [
+      { label: "50", max: 50 },
+      { label: "100", max: 100 },
+      { label: "250", max: 250 },
+      { label: "500", max: 500 },
+    ];
+  }
+  if (d <= 1200) {
+    return [
+      { label: "100", max: 100 },
+      { label: "250", max: 250 },
+      { label: "500", max: 500 },
+      { label: "1k", max: 1000 },
+    ];
+  }
+  if (d <= 3000) {
+    return [
+      { label: "250", max: 250 },
+      { label: "500", max: 500 },
+      { label: "1k", max: 1000 },
+      { label: "2.5k", max: 2500 },
+    ];
+  }
+  return [
+    { label: "500", max: 500 },
+    { label: "1k", max: 1000 },
+    { label: "2.5k", max: 2500 },
+    { label: "5k", max: 5000 },
+  ];
+}
+
+/** Y-axis: Auto fits the data. Manual presets (and a custom %) keep a line
+ *  from being crushed by disproportionate targets or axes. */
+function YScaleBar({
+  isPercent,
+  dataMax,
+  mode,
+  onChange,
+  compact = false,
+}: {
+  isPercent: boolean;
+  dataMax?: number;
+  mode: "auto" | number;
+  onChange: (m: "auto" | number) => void;
+  compact?: boolean;
+}) {
+  const [custom, setCustom] = useState("");
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const presets = isPercent ? PCT_Y_PRESETS : getCountPresets(dataMax ?? 100);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  if (compact) {
+    let currentLabel = "AUTO";
+    if (typeof mode === "number") {
+      const match = presets.find((p) => Math.abs(mode - p.max) < (isPercent ? 1e-6 : 0.01));
+      if (match) {
+        currentLabel = match.label;
+      } else if (isPercent) {
+        currentLabel = `${(mode * 100).toFixed(mode * 100 < 1 ? 1 : 0)}%`;
+      } else {
+        currentLabel = mode >= 1000 ? `${(mode / 1000).toFixed(mode % 1000 === 0 ? 0 : 1)}k` : `${mode}`;
+      }
+    }
+
+    return (
+      <div
+        ref={menuRef}
+        onClick={(e) => e.stopPropagation()}
+        style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
+      >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((prev) => !prev);
+          }}
+          title={`Scale: ${currentLabel}. Click to change.`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3.5,
+            height: 20,
+            padding: "0 5px",
+            borderRadius: 3,
+            border: "1px solid var(--border)",
+            background: mode === "auto" ? "var(--surface-2)" : "var(--accent-weak)",
+            color: mode === "auto" ? "var(--text-2)" : "var(--accent)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 9.5,
+            fontWeight: 700,
+            cursor: "pointer",
+            lineHeight: 1,
+            transition: "all 0.12s ease",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span style={{ fontSize: 8.5, opacity: 0.65, fontWeight: 600 }}>Y:</span>
+          <span>{currentLabel}</span>
+          <svg width="7" height="7" viewBox="0 0 8 8" fill="none" style={{ opacity: 0.65 }}>
+            <path d="M1.5 2.5L4 5L6.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {open && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute",
+              top: "100%",
+              right: 0,
+              marginTop: 4,
+              zIndex: 100,
+              minWidth: 124,
+              background: "var(--surface)",
+              border: "1px solid var(--border-strong)",
+              borderRadius: "var(--radius-sm, 6px)",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.25), 0 1px 3px rgba(0,0,0,0.1)",
+              padding: "4px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+            }}
+          >
+            <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", padding: "2px 6px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              Y-Axis Scale
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => {
+                onChange("auto");
+                setOpen(false);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "4px 8px",
+                borderRadius: 3,
+                border: "none",
+                background: mode === "auto" ? "var(--accent-weak)" : "transparent",
+                color: mode === "auto" ? "var(--accent)" : "var(--text)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 10.5,
+                fontWeight: mode === "auto" ? 700 : 500,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span>Auto (fit data)</span>
+              {mode === "auto" && <span style={{ fontSize: 10 }}>✓</span>}
+            </button>
+
+            <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
+
+            {presets.map((p) => {
+              const isSelected = typeof mode === "number" && Math.abs(mode - p.max) < (isPercent ? 1e-6 : 0.01);
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => {
+                    onChange(p.max);
+                    setOpen(false);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "4px 8px",
+                    borderRadius: 3,
+                    border: "none",
+                    background: isSelected ? "var(--accent-weak)" : "transparent",
+                    color: isSelected ? "var(--accent)" : "var(--text)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 10.5,
+                    fontWeight: isSelected ? 700 : 500,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <span>{p.label}</span>
+                  {isSelected && <span style={{ fontSize: 10 }}>✓</span>}
+                </button>
+              );
+            })}
+
+            <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
+            <div style={{ padding: "3px 4px", display: "flex", alignItems: "center", gap: 3 }}>
+              <input
+                aria-label="Custom max"
+                placeholder={isPercent ? "Set %" : "Set"}
+                value={custom}
+                onChange={(e) => setCustom(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const n = Number(custom);
+                    if (Number.isFinite(n) && n > 0) {
+                      onChange(isPercent ? n / 100 : n);
+                      setOpen(false);
+                    }
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  height: 20,
+                  padding: "0 5px",
+                  border: "1px solid var(--border)",
+                  borderRadius: 3,
+                  background: "var(--bg)",
+                  color: "var(--text)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10,
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const n = Number(custom);
+                  if (Number.isFinite(n) && n > 0) {
+                    onChange(isPercent ? n / 100 : n);
+                    setOpen(false);
+                  }
+                }}
+                style={{
+                  height: 20,
+                  padding: "0 5px",
+                  borderRadius: 3,
+                  border: "none",
+                  background: "var(--surface-3)",
+                  color: "var(--text)",
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Set
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{ display: "flex", alignItems: "center", gap: 2 }}
+    >
+      <ZoomButton
+        title="Fit Y to the data (not the plant target)"
+        active={mode === "auto"}
+        onClick={(e) => {
+          e.stopPropagation();
+          onChange("auto");
+        }}
+      >
+        AUTO
+      </ZoomButton>
+      {presets.map((p) => (
+        <ZoomButton
+          key={p.label}
+          title={`Y max ${p.label}`}
+          active={typeof mode === "number" && Math.abs(mode - p.max) < (isPercent ? 1e-6 : 0.01)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange(p.max);
+          }}
+        >
+          {p.label}
+        </ZoomButton>
+      ))}
+      <input
+        aria-label={isPercent ? "Custom Y-axis maximum percent" : "Custom Y-axis maximum count"}
+        title={isPercent ? "Enter custom % and press Enter" : "Enter custom value and press Enter"}
+        inputMode={isPercent ? "decimal" : "numeric"}
+        placeholder={isPercent ? "Set %" : "Set"}
+        value={custom}
+        onChange={(e) => setCustom(e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          const n = Number(custom);
+          if (!Number.isFinite(n) || n <= 0) return;
+          onChange(isPercent ? n / 100 : n);
+        }}
+        onBlur={() => {
+          const n = Number(custom);
+          if (!Number.isFinite(n) || n <= 0) return;
+          onChange(isPercent ? n / 100 : n);
+        }}
+        style={{
+          width: isPercent ? 52 : 46,
+          height: 22,
+          padding: "0 6px",
+          border: "none",
+          background: "transparent",
+          color: "var(--text-2)",
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          fontWeight: 700,
+        }}
+      />
+    </div>
   );
 }
 
@@ -488,6 +868,8 @@ export function LineChart({
   stage,
   metric,
   height = 280,
+  compact,
+  strokeWidth = 2.25,
 }: {
   points: SeriesPoint[];
   target?: number;
@@ -497,10 +879,14 @@ export function LineChart({
   stage?: string;
   metric?: string;
   height?: number;
+  compact?: boolean;
+  /** Line thickness — the builder's "weight" control. Default matches every existing caller. */
+  strokeWidth?: number;
 }) {
   const [zoom, setZoom] = useState(1.0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
+  const [yMode, setYMode] = useState<"auto" | number>("auto");
 
   const { t } = useTweaks();
   const { ref: containerRef, width: containerWidth } = useContainerWidth(660);
@@ -510,19 +896,24 @@ export function LineChart({
     return <Empty label="No trend points available for the selected range." />;
   }
 
-  const H = height, padX = 42, padTop = 22, padBottom = 72;
+  const isCompact = compact ?? (containerWidth > 0 && containerWidth < 520);
+  const H = height, padX = 48, padTop = isCompact ? 28 : 22, padBottom = 72;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
   const v = points.map((p) => p.value);
-  const maxVal = Math.max(...v, target ?? 0);
+  const dataMax = Math.max(0, ...v);
   let defaultMax = 0.05;
+  let isPercent = false;
   try {
-    const testStr = fmt(1000);
-    if (testStr.includes("₹") || testStr.includes("Lakhs")) {
+    const testStr = fmt(0.01);
+    isPercent = testStr.includes("%");
+    const rupeeStr = fmt(1000);
+    if (rupeeStr.includes("₹") || rupeeStr.includes("Lakhs")) {
       defaultMax = 100000;
     }
   } catch (e) { }
-  const max = maxVal === 0 ? defaultMax : maxVal;
+  const autoMax = dataMax === 0 ? defaultMax : niceYMax(dataMax);
+  const max = typeof yMode === "number" && yMode > 0 ? yMode : autoMax;
   const avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
 
   const numPoints = points.length;
@@ -537,7 +928,7 @@ export function LineChart({
     : (containerWidth - padX * 2) / Math.max(numPoints - 1, 1);
 
   const x = (i: number) => padX + i * spacing;
-  const y = (val: number) => axisY - (val / (max || 1)) * plotH;
+  const y = (val: number) => axisY - (Math.min(Math.max(val, 0), max) / (max || 1)) * plotH;
 
   const buffer = 10;
   const startIdx = isScrollable ? Math.max(0, Math.floor((scrollLeft - padX) / spacing) - buffer) : 0;
@@ -577,20 +968,23 @@ export function LineChart({
     <div ref={containerRef} style={{ position: "relative", width: "100%", minWidth: 0 }} onMouseLeave={() => setHover(null)}>
       <div className="no-print" style={{
         position: "absolute",
-        right: 12,
-        top: -12,
+        right: isCompact ? 6 : 10,
+        top: isCompact ? 3 : 2,
         zIndex: 40,
         display: "flex",
-        gap: 4,
+        alignItems: "center",
+        gap: isCompact ? 2 : 4,
         background: "var(--surface)",
         border: "1px solid var(--border)",
-        borderRadius: "var(--radius-sm)",
-        padding: "2px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+        borderRadius: "var(--radius-sm, 4px)",
+        padding: isCompact ? "1px 2px" : "2px",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.06)"
       }}>
-        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(4.0, z * 1.3)); }} title="Zoom In">+</ZoomButton>
-        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(0.25, z / 1.3)); }} title="Zoom Out">−</ZoomButton>
-        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(1.0); }} title="Fit Viewport">FIT</ZoomButton>
+        <YScaleBar isPercent={isPercent} dataMax={dataMax} mode={yMode} onChange={setYMode} compact={isCompact} />
+        <span style={{ width: 1, alignSelf: "stretch", background: "var(--border)", margin: isCompact ? "1px 2px" : "2px 4px" }} />
+        <ZoomButton compact={isCompact} onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(4.0, z * 1.3)); }} title="Zoom In">+</ZoomButton>
+        <ZoomButton compact={isCompact} onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(0.25, z / 1.3)); }} title="Zoom Out">−</ZoomButton>
+        <ZoomButton compact={isCompact} onClick={(e) => { e.stopPropagation(); setZoom(1.0); }} title="Fit Viewport">FIT</ZoomButton>
       </div>
 
       <div
@@ -615,16 +1009,19 @@ export function LineChart({
           {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
             <line key={i} x1={padX} y1={padTop + plotH * p} x2={canvasWidth - padX} y2={padTop + plotH * p} stroke="var(--border)" strokeWidth={0.5} />
           ))}
-          {[0, 0.5, 1].map((p, i) => (
+          {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
             <text key={`yl${i}`} x={padX - 8} y={padTop + plotH * p + 4} fontSize={11} fontWeight={600} textAnchor="end" fill="var(--text-2)" fontFamily="var(--font-mono)">{fmt(max * (1 - p))}</text>
           ))}
           <line x1={padX} y1={axisY} x2={canvasWidth - padX} y2={axisY} stroke="var(--border-strong)" strokeWidth={1} />
 
-          {target != null && (
+          {target != null && target <= max && (
             <g>
               <line x1={padX} y1={y(target)} x2={canvasWidth - padX} y2={y(target)} stroke="var(--critical)" strokeDasharray="5,4" strokeWidth={1.2} />
               <text x={canvasWidth - padX - 4} y={y(target) - 6} fontSize={11} fill="var(--critical)" fontWeight={800} textAnchor="end">TARGET {fmt(target)}</text>
             </g>
+          )}
+          {target != null && target > max && (
+            <text x={canvasWidth - padX - 4} y={padTop + 12} fontSize={11} fill="var(--critical)" fontWeight={800} textAnchor="end">TARGET {fmt(target)} (off scale)</text>
           )}
           {mean && (
             <g>
@@ -650,7 +1047,7 @@ export function LineChart({
               d={pathD}
               fill="none"
               stroke={color}
-              strokeWidth={2.25}
+              strokeWidth={strokeWidth}
               strokeLinejoin="round"
               strokeLinecap="round"
             />
@@ -724,6 +1121,7 @@ export function MultiLine({
   const [zoom, setZoom] = useState(1.0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
+  const [yMode, setYMode] = useState<"auto" | number>("auto");
 
   const { t } = useTweaks();
   const { ref: containerRef, width: containerWidth } = useContainerWidth(660);
@@ -735,7 +1133,7 @@ export function MultiLine({
 
   // Smart default: rates (≤1) render as %, counts render as integers.
   const fmtVal = fmt ?? ((n: number) => (n <= 1 ? `${(n * 100).toFixed(2)}%` : Math.round(n).toLocaleString("en-IN")));
-  const H = height, padX = 42, padTop = 38, padBottom = 72;
+  const H = height, padX = 48, padTop = 38, padBottom = 72;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
 
@@ -746,15 +1144,19 @@ export function MultiLine({
     }
   }
   let defaultMax = 0.05;
+  let isPercent = false;
   try {
-    const testStr = fmtVal(1000);
-    if (testStr.includes("₹") || testStr.includes("Lakhs")) {
+    const testStr = fmtVal(0.01);
+    isPercent = testStr.includes("%");
+    const rupeeStr = fmtVal(1000);
+    if (rupeeStr.includes("₹") || rupeeStr.includes("Lakhs")) {
       defaultMax = 100000;
     } else if (!testStr.includes("%") && maxVal > 1) {
       defaultMax = 10;
     }
   } catch (e) { }
-  const max = maxVal === 0 ? defaultMax : maxVal;
+  const autoMax = maxVal === 0 ? defaultMax : niceYMax(maxVal);
+  const max = typeof yMode === "number" && yMode > 0 ? yMode : autoMax;
 
   const numPoints = data.length;
   const baseSpacing = getBaseSpacing(numPoints);
@@ -768,7 +1170,7 @@ export function MultiLine({
     : (containerWidth - padX * 2) / Math.max(numPoints - 1, 1);
 
   const x = (i: number) => padX + i * spacing;
-  const y = (val: number) => axisY - (val / (max || 1)) * plotH;
+  const y = (val: number) => axisY - (Math.min(Math.max(val, 0), max) / (max || 1)) * plotH;
   const getStageColor = (s: { stageId: string; label: string }, si: number) => {
     if (s.stageId === "total" || s.label.toLowerCase() === "total") {
       return "#39FF14"; // Neon green
@@ -797,25 +1199,30 @@ export function MultiLine({
     ? Math.max(...stages.map((s) => data[hover].perStage[s.stageId] ?? 0))
     : 0;
 
+  const isCompact = containerWidth > 0 && containerWidth < 620;
+
   return (
     <div ref={containerRef} style={{ position: "relative", width: "100%", minWidth: 0 }} onMouseLeave={() => setHover(null)}>
       {/* Zoom Controls */}
       <div style={{
         position: "absolute",
-        right: 12,
-        top: -12,
+        right: isCompact ? 6 : 10,
+        top: isCompact ? 3 : 2,
         zIndex: 40,
         display: "flex",
-        gap: 4,
+        alignItems: "center",
+        gap: isCompact ? 2 : 4,
         background: "var(--surface)",
         border: "1px solid var(--border)",
-        borderRadius: "var(--radius-sm)",
-        padding: "2px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+        borderRadius: "var(--radius-sm, 4px)",
+        padding: isCompact ? "1px 2px" : "2px",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.06)"
       }}>
-        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(4.0, z * 1.3)); }} title="Zoom In">+</ZoomButton>
-        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(0.25, z / 1.3)); }} title="Zoom Out">−</ZoomButton>
-        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(1.0); }} title="Fit Viewport">FIT</ZoomButton>
+        <YScaleBar isPercent={isPercent} dataMax={maxVal} mode={yMode} onChange={setYMode} compact={isCompact} />
+        <span style={{ width: 1, alignSelf: "stretch", background: "var(--border)", margin: isCompact ? "1px 2px" : "2px 4px" }} />
+        <ZoomButton compact={isCompact} onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(4.0, z * 1.3)); }} title="Zoom In">+</ZoomButton>
+        <ZoomButton compact={isCompact} onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(0.25, z / 1.3)); }} title="Zoom Out">−</ZoomButton>
+        <ZoomButton compact={isCompact} onClick={(e) => { e.stopPropagation(); setZoom(1.0); }} title="Fit Viewport">FIT</ZoomButton>
       </div>
 
       <div
@@ -839,7 +1246,7 @@ export function MultiLine({
           {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
             <line key={i} x1={padX} y1={padTop + plotH * p} x2={canvasWidth - padX} y2={padTop + plotH * p} stroke="var(--border)" strokeWidth={0.5} />
           ))}
-          {[0, 0.5, 1].map((p, i) => (
+          {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
             <text key={`yl${i}`} x={padX - 8} y={padTop + plotH * p + 4} fontSize={11} fontWeight={600} textAnchor="end" fill="var(--text-2)" fontFamily="var(--font-mono)">{fmtVal(max * (1 - p))}</text>
           ))}
           <line x1={padX} y1={axisY} x2={canvasWidth - padX} y2={axisY} stroke="var(--border-strong)" strokeWidth={1} />
@@ -916,30 +1323,62 @@ export function MultiLine({
 }
 
 
-export function BarsH({ rows, fmt, sort = true }: { rows: { label: string; value: number; sub?: string }[]; fmt: (n: number) => string; sort?: boolean }) {
+export function BarsH({
+  rows,
+  fmt,
+  sort = true,
+  barHeight = 10,
+}: {
+  /** `color`, when given, replaces the default accent fill + adds a swatch before the label — e.g. the DS/ANX/05 size color code on Size Analysis. */
+  rows: { label: string; value: number; sub?: string; color?: string }[];
+  fmt: (n: number) => string;
+  sort?: boolean;
+  /** Track thickness — the builder's "weight" control. Default matches every existing caller. */
+  barHeight?: number;
+}) {
   // Full width immediately — width:0→animate fails in print (snapshot before mount effect).
   if (!rows || rows.length === 0) {
     return <Empty label="No distribution records available." />;
   }
   const displayRows = sort ? [...rows].sort((a, b) => b.value - a.value) : rows;
   const max = Math.max(...displayRows.map((r) => r.value), 1e-6);
+  const radius = Math.min(5, barHeight / 2);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {displayRows.map((r, i) => (
         <div key={r.label}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, fontSize: 12.5, marginBottom: 5 }}>
-            <span style={{ color: "var(--text)", fontWeight: 600, minWidth: 0 }}>
+            <span style={{ color: "var(--text)", fontWeight: 600, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {r.color && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 2,
+                    flexShrink: 0,
+                    background: r.color,
+                    boxShadow: r.color.toUpperCase() === "#FFFFFF" ? "inset 0 0 0 1px var(--border-strong)" : undefined,
+                  }}
+                />
+              )}
               {r.label}
               {r.sub ? <span className="muted" style={{ fontSize: 11, fontWeight: 500 }}> · {r.sub}</span> : null}
             </span>
             <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)", flexShrink: 0 }}>{fmt(r.value)}</span>
           </div>
-          <div style={{ height: 10, background: "var(--surface-2)", borderRadius: 5, overflow: "hidden", border: "1px solid var(--border)" }}>
+          <div style={{ height: barHeight, background: "var(--surface-2)", borderRadius: radius, overflow: "hidden", border: "1px solid var(--border)" }}>
             <div style={{
               width: `${(r.value / max) * 100}%`,
               height: "100%",
-              background: i === 0 ? "var(--accent)" : "color-mix(in srgb, var(--accent) 72%, #14181f 8%)",
-              borderRadius: 5,
+              background: r.color ?? (i === 0 ? "var(--accent)" : "color-mix(in srgb, var(--accent) 72%, #14181f 8%)"),
+              borderRadius: radius,
+              // A pale fill (white/yellow) needs its own edge to read against
+              // the track, since the track and the fill would otherwise blend.
+              boxShadow:
+                r.color && ["#FFFFFF", "#FFFF00"].includes(r.color.toUpperCase())
+                  ? "inset 0 0 0 1px var(--border-strong)"
+                  : undefined,
             }} />
           </div>
         </div>
@@ -1104,9 +1543,29 @@ export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLab
         <thead>
           <tr>
             <th style={{ ...cth, textAlign: "left", color: "var(--text-3)" }}>Stage \ Size</th>
-            {sizes.map((sz) => (
-              <th key={sz} style={{ ...cth, textAlign: "center", color: "var(--text-3)" }}>{sz}</th>
-            ))}
+            {sizes.map((sz) => {
+              const accent = sizeColorFor(sz)?.hex;
+              return (
+                <th key={sz} style={{ ...cth, textAlign: "center", color: "var(--text-3)" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    {accent && (
+                      <span
+                        aria-hidden="true"
+                        title={sizeColorFor(sz)?.name}
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 2,
+                          background: accent,
+                          boxShadow: accent === "#FFFFFF" ? "inset 0 0 0 1px var(--border-strong)" : undefined,
+                        }}
+                      />
+                    )}
+                    {sz}
+                  </div>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -1143,13 +1602,16 @@ export function Donut({
   fmt,
   size = 160,
   fontSize = 12,
-  hideLegend = false
+  hideLegend = false,
+  ringWidth = 20,
 }: {
   data: { label: string; value: number; color?: string }[];
   fmt?: (n: number) => string;
   size?: number;
   fontSize?: number;
   hideLegend?: boolean;
+  /** Ring thickness — the builder's "weight" control. Default matches every existing caller. */
+  ringWidth?: number;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -1167,19 +1629,37 @@ export function Donut({
   const R = 62, C = 2 * Math.PI * R, cx = 80, cy = 80;
   const col = (i: number) => sortedData[i].color ?? SERIES_COLORS[i % SERIES_COLORS.length];
   let acc = 0;
+  const activeHover = hover != null ? sortedData[hover] : null;
+
   return (
     <div style={{ position: "relative", display: "flex", gap: 24, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }} onMouseLeave={() => setHover(null)}>
-      <svg viewBox="0 0 160 160" style={{ width: size, height: size, flexShrink: 0 }}>
-        <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--border)" strokeWidth={20} />
+      <svg viewBox="0 0 160 160" style={{ width: size, height: size, flexShrink: 0, overflow: "visible" }}>
+        <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--border)" strokeWidth={ringWidth} />
         {sortedData.map((d, i) => {
           const frac = d.value / total, seg = frac * C, off = acc * C; acc += frac;
           const animatedSeg = mounted ? seg : 0;
-          return <circle key={i} cx={cx} cy={cy} r={R} fill="none" stroke={col(i)} strokeWidth={hover === i ? 24 : 20}
+          return <circle key={i} cx={cx} cy={cy} r={R} fill="none" stroke={col(i)} strokeWidth={hover === i ? ringWidth + 4 : ringWidth}
             strokeDasharray={`${animatedSeg} ${C - animatedSeg}`} strokeDashoffset={-off} transform={`rotate(-90 ${cx} ${cy})`}
-            onMouseEnter={() => setHover(i)} style={{ transition: "stroke-width .15s, stroke-dasharray 1.4s cubic-bezier(0.16, 1, 0.3, 1)" }} />;
+            onMouseEnter={() => setHover(i)} style={{ transition: "stroke-width .15s, stroke-dasharray 1.4s cubic-bezier(0.16, 1, 0.3, 1)", cursor: "pointer" }} />;
         })}
-        <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fill="var(--text-3)">Total</text>
-        <text x={cx} y={cy + 14} textAnchor="middle" fontSize={15} fontWeight={800} fontFamily="var(--font-mono)" fill="var(--text)">{f(total)}</text>
+        {activeHover ? (
+          <>
+            <text x={cx} y={cy - 12} textAnchor="middle" fontSize={9} fontWeight={600} fill="var(--text-3)">
+              {activeHover.label.length > 12 ? `${activeHover.label.slice(0, 11)}…` : activeHover.label}
+            </text>
+            <text x={cx} y={cy + 3} textAnchor="middle" fontSize={14} fontWeight={800} fontFamily="var(--font-mono)" fill="var(--text)">
+              {f(activeHover.value)}
+            </text>
+            <text x={cx} y={cy + 16} textAnchor="middle" fontSize={9.5} fontWeight={700} fontFamily="var(--font-mono)" fill="var(--accent)">
+              {((activeHover.value / total) * 100).toFixed(1)}%
+            </text>
+          </>
+        ) : (
+          <>
+            <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fill="var(--text-3)">Total</text>
+            <text x={cx} y={cy + 14} textAnchor="middle" fontSize={15} fontWeight={800} fontFamily="var(--font-mono)" fill="var(--text)">{f(total)}</text>
+          </>
+        )}
       </svg>
       {!hideLegend && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: fontSize }}>
@@ -1198,7 +1678,20 @@ export function Donut({
 }
 
 /** Heatmap — rows × cols matrix, color intensity = value. Spots hotspots (defect×month). */
-export function Heatmap({ rows, cols, matrix, fmt }: { rows: string[]; cols: string[]; matrix: number[][]; fmt?: (n: number) => string }) {
+export function Heatmap({
+  rows,
+  cols,
+  matrix,
+  fmt,
+  colColor,
+}: {
+  rows: string[];
+  cols: string[];
+  matrix: number[][];
+  fmt?: (n: number) => string;
+  /** Column header accent — e.g. the DS/ANX/05 size color code on Size Analysis. Returns a CSS color or undefined/null to leave the header uncolored. */
+  colColor?: (col: string) => string | null | undefined;
+}) {
   const [hover, setHover] = useState<{ r: number; c: number } | null>(null);
   if (!rows.length || !cols.length) return <Empty label="No data for the selected range." />;
   const f = fmt ?? ((n: number) => (n <= 1 ? `${(n * 100).toFixed(2)}%` : Math.round(n).toLocaleString("en-IN")));
@@ -1209,9 +1702,30 @@ export function Heatmap({ rows, cols, matrix, fmt }: { rows: string[]; cols: str
     <div style={{ position: "relative", overflowX: "auto" }} onMouseLeave={() => setHover(null)}>
       <table style={{ borderCollapse: "collapse", fontSize: 10 }}>
         <thead>
-          <tr><th />{cols.map((c, ci) => (
-            <th key={ci} style={{ padding: "2px 3px", color: "var(--text-3)", fontWeight: 600, height: 52, whiteSpace: "nowrap", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>{c}</th>
-          ))}</tr>
+          <tr><th />{cols.map((c, ci) => {
+            const accent = colColor?.(c);
+            return (
+              <th key={ci} style={{ padding: "2px 3px", color: "var(--text-3)", fontWeight: 600, height: 52, whiteSpace: "nowrap" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  {accent && (
+                    <span
+                      aria-hidden="true"
+                      title={c}
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 2,
+                        flexShrink: 0,
+                        background: accent,
+                        boxShadow: accent.toUpperCase() === "#FFFFFF" ? "inset 0 0 0 1px var(--border-strong)" : undefined,
+                      }}
+                    />
+                  )}
+                  <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>{c}</span>
+                </div>
+              </th>
+            );
+          })}</tr>
         </thead>
         <tbody>
           {rows.map((rl, ri) => (
@@ -1231,6 +1745,63 @@ export function Heatmap({ rows, cols, matrix, fmt }: { rows: string[]; cols: str
           {rows[hover.r]} · {cols[hover.c]}: <strong style={{ color: "var(--text)" }}>{f(matrix[hover.r]?.[hover.c] ?? 0)}</strong>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * DS/ANX/05 size color-code reference strip — the plant's own "COLOR CODE"
+ * chart row (Brown/Black/Ash Grey/White/Green/Orange/Red/Yellow/Violet/Dark
+ * Blue/Pink), read for a given list of Fr sizes. Drop into a Card wherever a
+ * size is color-coded elsewhere on the page, so the coding is self-explaining
+ * rather than assumed knowledge.
+ */
+export function SizeColorLegend({ sizes }: { sizes: readonly (string | number)[] }) {
+  // Normalize "Fr14" / "14Fr" / 14 alike down to the bare FR digits, so the
+  // chip always reads "14Fr" once regardless of how the caller spelled it.
+  const entries = sizes
+    .map((sz) => {
+      const digits = String(sz).match(/\d+/)?.[0];
+      const color = digits ? sizeColorFor(digits) : null;
+      return digits && color ? { size: digits, color } : null;
+    })
+    .filter((e): e is { size: string; color: NonNullable<ReturnType<typeof sizeColorFor>> } => !!e);
+
+  if (entries.length === 0) return <Empty label="No sized records available." />;
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+      {entries.map(({ size, color }) => (
+        <div
+          key={size}
+          title={`${size}Fr — ${color.name}`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            padding: "6px 10px",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--border)",
+            background: "var(--surface-2)",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 14,
+              height: 14,
+              borderRadius: 4,
+              flexShrink: 0,
+              background: color.hex,
+              boxShadow: color.hex === "#FFFFFF" ? "inset 0 0 0 1px var(--border-strong)" : undefined,
+            }}
+          />
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 12, color: "var(--text)" }}>
+            {size}Fr
+          </span>
+          <span className="muted" style={{ fontSize: 11.5 }}>{color.name}</span>
+        </div>
+      ))}
     </div>
   );
 }

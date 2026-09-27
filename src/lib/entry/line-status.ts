@@ -9,6 +9,7 @@ import {
   type ResolvedEntrySchema,
 } from "@/lib/entry/entry-schema";
 import { lotHasStage } from "@/lib/entry/process-sequence";
+import { SECONDARY_TRACK, secondaryTrack } from "@/lib/entry/secondary-track";
 
 export type LaneStatus = {
   id: string;
@@ -80,6 +81,26 @@ export function buildLineStatus(opts: {
   const lot = isValidBatchId(raw) ? (canonicalBatchId(raw) ?? raw) : raw || null;
   const isBlank = !lot || !isValidBatchId(lot);
   const lanes: LaneStatus[] = schemaCategories(opts.schema).map((cat) => {
+    if (cat.id === "secondary") {
+      const track = isBlank
+        ? {
+            done: 0,
+            total: 2 as const,
+            complete: false,
+            started: false,
+            nextStageId: "eye-punching",
+          }
+        : secondaryTrack(opts.occupied);
+      return {
+        id: cat.id,
+        label: cat.label.replace(/\s*\(.*\)$/, ""),
+        done: track.done,
+        total: track.total,
+        complete: track.complete,
+        started: track.started,
+        nextStationId: track.nextStageId,
+      };
+    }
     const stations = stationsIn(opts.schema, cat.id);
     const done = stations.filter((s) => lotHasStage(opts.occupied, s.stageId)).length;
     const next = isBlank
@@ -115,7 +136,10 @@ export function buildLineStatus(opts: {
 
   const isNew = !isBlank && lanes.every((l) => !l.started);
   const isComplete = !isBlank && lanes.length > 0 && lanes.every((l) => l.total === 0 || l.complete);
-  const nextStationLabel = nextStationId ? shortLabel(opts.schema, nextStationId) : null;
+  const nextStationLabel = nextStationId
+    ? (SECONDARY_TRACK.find((s) => s.stageId === nextStationId)?.label ??
+      shortLabel(opts.schema, nextStationId))
+    : null;
 
   const base: Omit<LineStatus, "headline"> = {
     lot: isBlank ? null : lot,

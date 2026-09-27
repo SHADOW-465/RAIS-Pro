@@ -63,6 +63,7 @@ const FULL_NAV: readonly NavKey[] = [
   "dashboard",
   "workbooks",
   "data-entry",
+  "batch-conversion",
   "staging",
   "stage",
   "size",
@@ -134,6 +135,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
     // Hide under Management: Data Schema, Settings.
     navAllow: [
       "data-entry",
+      "batch-conversion",
       "staging",
       "workbooks",
       "dashboard",

@@ -627,7 +627,7 @@ export function dateBounds(events: Event[]): { min?: string; max?: string } {
 
 export interface ScopeTweaks {
   grain: Grain;
-  datePreset: "all" | "last-90-days" | "last-12-months" | "this-fy" | "custom";
+  datePreset: "all" | "this-month" | "last-90-days" | "last-12-months" | "this-fy" | "custom";
   dateFrom: string;
   dateTo: string;
   stageView?: string;
@@ -688,6 +688,12 @@ export function resolveScope(
       from = undefined;
       to = undefined;
     }
+  } else if (t.datePreset === "this-month") {
+    const y = anchor.getUTCFullYear();
+    const m = anchor.getUTCMonth();
+    from = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    to = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
   } else if (t.datePreset === "last-90-days") {
     from = iso(new Date(anchor.getTime() - 90 * 86400000));
     to = iso(anchor);
