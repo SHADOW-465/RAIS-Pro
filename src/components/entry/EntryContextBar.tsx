@@ -391,9 +391,13 @@ export default function EntryContextBar({
                     color: active ? "var(--accent)" : done ? "var(--positive)" : "var(--text)",
                     fontWeight: active || isNext ? 700 : 500,
                     fontSize: 13,
-                    opacity: inherited && !inspectAll ? 0.45 : 1,
+                    opacity:
+                      inherited && !inspectAll
+                        ? 0.45
+                        : inspectAll || done || !locked || active
+                          ? 1
+                          : 0.62,
                     cursor: inherited && !inspectAll ? "default" : "pointer",
-                    opacity: inspectAll || done || !locked || active ? 1 : 0.62,
                   }}
                 >
                   <span
