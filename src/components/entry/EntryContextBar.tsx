@@ -26,6 +26,8 @@ interface EntryContextBarProps {
   lockedStageIds?: string[];
   lineStatus?: LineStatus | null;
   completedStageIds?: string[];
+  /** Stations before a size change. They stay on the original lot. */
+  inheritedStageIds?: string[];
   /** GM: Line is a tracker — every process is open for inspection. */
   inspectAll?: boolean;
 }
@@ -45,6 +47,7 @@ export default function EntryContextBar({
   lockedStageIds = [],
   lineStatus = null,
   completedStageIds = [],
+  inheritedStageIds = [],
   inspectAll = false,
 }: EntryContextBarProps) {
   const sections = React.useMemo(() => {
@@ -238,9 +241,10 @@ export default function EntryContextBar({
           const active = macro === sec.id;
           const lane = laneById.get(sec.id);
           const caption = lane ? laneCaption(lane) : `${i + 1} / ${sections.length}`;
+          const waived = lane?.waived === true;
           const locked = lockedMacroIds.includes(sec.id);
           const isNextLane = lineStatus?.nextLaneId === sec.id && !lineStatus.isComplete;
-          const complete = lane?.complete === true;
+          const complete = lane?.complete === true && !waived;
           const border = active
             ? "1.5px solid var(--accent)"
             : complete
@@ -261,7 +265,9 @@ export default function EntryContextBar({
               aria-selected={active}
               aria-disabled={locked && !active}
               title={
-                inspectAll
+                waived && !inspectAll
+                  ? "Stays on the original lot. This converted lot starts later."
+                  : inspectAll
                   ? complete
                     ? "Inspect entered values"
                     : caption
@@ -269,7 +275,10 @@ export default function EntryContextBar({
                     ? "Complete earlier entry first — Dipping, then Secondary, then Assembly."
                     : caption
               }
-              onClick={() => onSelectMacro(sec.id as MacroId)}
+              onClick={() => {
+                if (waived && !inspectAll) return;
+                onSelectMacro(sec.id as MacroId);
+              }}
               style={{
                 position: "relative",
                 textAlign: "left",
@@ -282,8 +291,8 @@ export default function EntryContextBar({
                     ? "color-mix(in srgb, var(--positive) 6%, var(--surface-2))"
                     : "var(--surface-2)",
                 color: "var(--text)",
-                cursor: "pointer",
-                opacity: inspectAll || complete || !locked || active ? 1 : 0.72,
+                opacity: waived && !inspectAll ? 0.55 : inspectAll || complete || !locked || active ? 1 : 0.72,
+                cursor: waived && !inspectAll ? "default" : "pointer",
                 boxShadow: active ? "0 1px 3px rgba(200, 66, 28, 0.10)" : "none",
               }}
             >
@@ -332,8 +341,9 @@ export default function EntryContextBar({
           ) : (
             stations.map((st, i) => {
               const active = stageId === st.stageId;
+              const inherited = inheritedStageIds.includes(st.stageId);
               const locked = lockedStageIds.includes(st.stageId);
-              const done = completedStageIds.includes(st.stageId);
+              const done = !inherited && completedStageIds.includes(st.stageId);
               const isNext = lineStatus?.nextStationId === st.stageId;
               return (
                 <button
@@ -342,7 +352,9 @@ export default function EntryContextBar({
                   aria-pressed={active}
                   aria-disabled={locked && !active}
                   title={
-                    done
+                    inherited && !inspectAll
+                      ? "Stays on the original lot. Enter this converted lot from the change station."
+                      : done
                       ? inspectAll
                         ? "Inspect entered values"
                         : "Entered for this lot"
@@ -354,7 +366,10 @@ export default function EntryContextBar({
                             ? "Open this station"
                             : undefined
                   }
-                  onClick={() => onSelectStage(st.stageId)}
+                  onClick={() => {
+                    if (inherited && !inspectAll) return;
+                    onSelectStage(st.stageId);
+                  }}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -376,7 +391,8 @@ export default function EntryContextBar({
                     color: active ? "var(--accent)" : done ? "var(--positive)" : "var(--text)",
                     fontWeight: active || isNext ? 700 : 500,
                     fontSize: 13,
-                    cursor: "pointer",
+                    opacity: inherited && !inspectAll ? 0.45 : 1,
+                    cursor: inherited && !inspectAll ? "default" : "pointer",
                     opacity: inspectAll || done || !locked || active ? 1 : 0.62,
                   }}
                 >

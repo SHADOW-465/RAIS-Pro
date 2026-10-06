@@ -31,12 +31,15 @@ export async function POST(req: NextRequest) {
       fromBatch?: string;
       toSize?: string;
       toBatch?: string;
+      changedQty?: number;
+      stageId?: string;
       convertedOn?: string;
       reason?: string;
     };
-    if (!body?.fromBatch || !body?.toSize || !body?.convertedOn) {
+    const changedQty = Number(body?.changedQty);
+    if (!body?.fromBatch || !body?.toSize || !body?.convertedOn || !body?.stageId || !changedQty) {
       return NextResponse.json(
-        { error: "fromBatch, toSize, and convertedOn are required." },
+        { error: "fromBatch, toSize, changedQty, stageId, and convertedOn are required." },
         { status: 400 },
       );
     }
@@ -44,6 +47,8 @@ export async function POST(req: NextRequest) {
       fromBatch: body.fromBatch,
       toSize: body.toSize,
       toBatch: body.toBatch,
+      changedQty,
+      stageId: body.stageId,
       convertedOn: body.convertedOn,
       reason: body.reason ?? "",
       createdBy: auth.actor.username,

@@ -1,8 +1,11 @@
-// Batch lineage — a size conversion of the SAME physical lot.
+// Batch lineage — a size conversion of PART of the same physical lot.
 //
 // Isolated from the event ledger. Analytics, Data Entry, Source Trace, and
 // batch-ID generation never read this module. A plant that never records a
 // conversion behaves exactly as it does today.
+//
+// Only `changedQty` pieces move to the new size, at `stageId`. The rest stay
+// on the original lot. The converted lot is entered from that station forward.
 
 export interface BatchConversion {
   /** Stable id: `bc_<from>_<to>` so a repeat POST is a no-op. */
@@ -11,6 +14,10 @@ export interface BatchConversion {
   toBatch: string;
   fromSize: string;
   toSize: string;
+  /** Pieces of the original lot that changed size. The remainder stays put. */
+  changedQty: number;
+  /** Station where the size change happens. Entry on the new lot starts here. */
+  stageId: string;
   /** Business date the size change happened (YYYY-MM-DD). */
   convertedOn: string;
   reason: string;
@@ -23,6 +30,8 @@ export interface CreateConversionInput {
   toSize: string;
   /** Optional override; default is the derived stem+new-size id. */
   toBatch?: string;
+  changedQty: number;
+  stageId: string;
   convertedOn: string;
   reason: string;
   createdBy: string;
@@ -37,7 +46,9 @@ export type ConversionErrorCode =
   | "target-taken"
   | "cycle"
   | "reason-required"
-  | "invalid-date";
+  | "invalid-date"
+  | "qty-invalid"
+  | "stage-required";
 
 export class ConversionError extends Error {
   readonly code: ConversionErrorCode;

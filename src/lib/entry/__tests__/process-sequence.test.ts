@@ -202,6 +202,64 @@ describe("missingProcessStep — Dipping → Secondary → Assembly", () => {
     expect(isLineCompleteStage("production-dipping")).toBe(false);
   });
 
+  test("a converted lot that changes at Visual skips Dipping and Secondary", () => {
+    const open = missingProcessStep({
+      lot: LOT,
+      station: "visual",
+      schema: SCHEMA,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(open).toBeNull();
+  });
+
+  test("a converted lot still has to enter Balloon after Visual", () => {
+    const g = missingProcessStep({
+      lot: LOT,
+      station: "balloon",
+      schema: SCHEMA,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(g?.missingStationId).toBe("visual");
+  });
+
+  test("stations before the size change are not part of the converted lot", () => {
+    const dipping = mayOpenStation({
+      lot: LOT,
+      station: "production",
+      schema: SCHEMA,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(dipping.ok).toBe(false);
+    if (!dipping.ok) {
+      expect(dipping.gap.missingStationId).toBe("visual");
+      expect(dipping.gap.message).toMatch(/original lot/);
+    }
+    const secondary = mayOpenStation({
+      lot: LOT,
+      station: "secondary",
+      schema: SCHEMA,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(secondary.ok).toBe(false);
+  });
+
+  test("Balloon is open once the converted lot has Visual", () => {
+    const occupied = occupiedStageIds([prod("visual")], LOT);
+    expect(
+      missingProcessStep({
+        lot: LOT,
+        station: "balloon",
+        schema: SCHEMA,
+        occupied,
+        entryFromStageId: "visual",
+      }),
+    ).toBeNull();
+  });
+
   test("going back to Dipping after Assembly is always allowed", () => {
     const occ = occupiedStageIds(
       [prod("production"), prod("secondary"), prod("visual"), prod("balloon"), prod("final")],

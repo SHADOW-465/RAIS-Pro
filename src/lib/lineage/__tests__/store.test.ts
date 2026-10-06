@@ -10,6 +10,8 @@ test("create then list returns the lineage edge", async () => {
   const row = await store.create({
     fromBatch: "26I21-14",
     toSize: "16Fr",
+    changedQty: 120,
+    stageId: "visual",
     convertedOn: "2026-09-23",
     reason: "Customer asked 16Fr",
     createdBy: "gm",
@@ -25,6 +27,8 @@ test("repeat POST of the same conversion is a no-op", async () => {
   const a = await store.create({
     fromBatch: "26I21-14",
     toSize: "16Fr",
+    changedQty: 120,
+    stageId: "visual",
     convertedOn: "2026-09-23",
     reason: "size",
     createdBy: "gm",
@@ -32,6 +36,8 @@ test("repeat POST of the same conversion is a no-op", async () => {
   const b = await store.create({
     fromBatch: "26I21-14",
     toSize: "16Fr",
+    changedQty: 120,
+    stageId: "visual",
     convertedOn: "2026-09-23",
     reason: "size",
     createdBy: "gm",
@@ -45,6 +51,8 @@ test("chainFor walks origin to latest", async () => {
   await store.create({
     fromBatch: "26I21-14",
     toSize: "16Fr",
+    changedQty: 40,
+    stageId: "visual",
     convertedOn: "2026-09-21",
     reason: "first",
     createdBy: "op",
@@ -52,6 +60,8 @@ test("chainFor walks origin to latest", async () => {
   await store.create({
     fromBatch: "26I21-16",
     toSize: "18Fr",
+    changedQty: 15,
+    stageId: "balloon",
     convertedOn: "2026-09-23",
     reason: "second",
     createdBy: "op",
@@ -66,6 +76,8 @@ test("does not write through EventStore — a rejected create leaves the list em
     store.create({
       fromBatch: "26I21-14",
       toSize: "14Fr",
+      changedQty: 10,
+      stageId: "visual",
       convertedOn: "2026-09-23",
       reason: "nope",
       createdBy: "gm",

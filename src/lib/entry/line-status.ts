@@ -8,7 +8,7 @@ import {
   stationsIn,
   type ResolvedEntrySchema,
 } from "@/lib/entry/entry-schema";
-import { lotHasStage } from "@/lib/entry/process-sequence";
+import { lotHasStage, sameStage, stageIsBefore } from "@/lib/entry/process-sequence";
 import { SECONDARY_TRACK, secondaryTrack } from "@/lib/entry/secondary-track";
 
 export type LaneStatus = {
@@ -19,6 +19,8 @@ export type LaneStatus = {
   complete: boolean;
   started: boolean;
   nextStationId: string | null;
+  /** Earlier process on a converted lot. It stays on the original batch. */
+  waived?: boolean;
 };
 
 export type LineStatus = {
@@ -38,6 +40,7 @@ function shortLabel(schema: ResolvedEntrySchema, stageId: string): string {
 }
 
 export function laneCaption(lane: LaneStatus): string {
+  if (lane.waived) return "On original lot";
   if (lane.total === 0) return "";
   if (lane.complete) {
     return lane.total > 1 ? `${lane.done}/${lane.total} completed` : "Completed";
@@ -76,12 +79,17 @@ export function buildLineStatus(opts: {
   lot: string;
   schema: ResolvedEntrySchema;
   occupied: Set<string>;
+  /** Converted lot: the station where the size changed. Earlier stations are waived. */
+  entryFromStageId?: string | null;
 }): LineStatus {
   const raw = opts.lot.trim().toUpperCase();
   const lot = isValidBatchId(raw) ? (canonicalBatchId(raw) ?? raw) : raw || null;
   const isBlank = !lot || !isValidBatchId(lot);
+  const entryFrom = (opts.entryFromStageId ?? "").trim();
+  const waived = (stageId: string) => Boolean(entryFrom) && stageIsBefore(stageId, entryFrom);
   const lanes: LaneStatus[] = schemaCategories(opts.schema).map((cat) => {
-    if (cat.id === "secondary") {
+    const label = cat.label.replace(/\s*\(.*\)$/, "");
+    if (cat.id === "secondary" && !entryFrom) {
       const track = isBlank
         ? {
             done: 0,
@@ -93,7 +101,7 @@ export function buildLineStatus(opts: {
         : secondaryTrack(opts.occupied);
       return {
         id: cat.id,
-        label: cat.label.replace(/\s*\(.*\)$/, ""),
+        label,
         done: track.done,
         total: track.total,
         complete: track.complete,
@@ -102,16 +110,30 @@ export function buildLineStatus(opts: {
       };
     }
     const stations = stationsIn(opts.schema, cat.id);
-    const done = stations.filter((s) => lotHasStage(opts.occupied, s.stageId)).length;
+    const live = stations.filter((s) => !waived(s.stageId));
+    if (!isBlank && stations.length > 0 && live.length === 0) {
+      return {
+        id: cat.id,
+        label,
+        done: stations.length,
+        total: stations.length,
+        complete: true,
+        started: true,
+        nextStationId: null,
+        waived: true,
+      };
+    }
+    const counted = entryFrom ? live : stations;
+    const done = counted.filter((s) => lotHasStage(opts.occupied, s.stageId)).length;
     const next = isBlank
       ? null
-      : (stations.find((s) => !lotHasStage(opts.occupied, s.stageId))?.stageId ?? null);
+      : (counted.find((s) => !lotHasStage(opts.occupied, s.stageId))?.stageId ?? null);
     return {
       id: cat.id,
-      label: cat.label.replace(/\s*\(.*\)$/, ""),
+      label,
       done,
-      total: stations.length,
-      complete: stations.length > 0 && done === stations.length,
+      total: counted.length,
+      complete: counted.length > 0 && done === counted.length,
       started: done > 0,
       nextStationId: next,
     };
@@ -151,5 +173,15 @@ export function buildLineStatus(opts: {
     nextStationLabel,
     nextLaneId,
   };
-  return { ...base, headline: headlineFor(base) };
+  let headline = headlineFor(base);
+  if (
+    entryFrom &&
+    lot &&
+    nextStationId &&
+    sameStage(nextStationId, entryFrom) &&
+    !lotHasStage(opts.occupied, entryFrom)
+  ) {
+    headline = `Converted lot ${lot} — enter from ${nextStationLabel} through the end of the line.`;
+  }
+  return { ...base, headline };
 }

@@ -40,6 +40,8 @@ type DbRow = {
   to_batch: string;
   from_size: string;
   to_size: string;
+  changed_qty?: number | string | null;
+  stage_id?: string | null;
   converted_on: string;
   reason: string;
   created_at: string;
@@ -47,12 +49,15 @@ type DbRow = {
 };
 
 function fromDb(r: DbRow): BatchConversion {
+  const qty = Number(r.changed_qty ?? 0);
   return {
     id: r.id,
     fromBatch: r.from_batch,
     toBatch: r.to_batch,
     fromSize: r.from_size,
     toSize: r.to_size,
+    changedQty: Number.isFinite(qty) ? qty : 0,
+    stageId: (r.stage_id ?? "").trim(),
     convertedOn: r.converted_on,
     reason: r.reason,
     createdAt: r.created_at,
@@ -67,6 +72,8 @@ function toDb(n: BatchConversion): DbRow {
     to_batch: n.toBatch,
     from_size: n.fromSize,
     to_size: n.toSize,
+    changed_qty: n.changedQty,
+    stage_id: n.stageId,
     converted_on: n.convertedOn,
     reason: n.reason,
     created_at: n.createdAt,

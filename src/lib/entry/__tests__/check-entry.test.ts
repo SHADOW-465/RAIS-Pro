@@ -242,7 +242,8 @@ describe("checkEntry — process sequence", () => {
     stages: [
       { stageId: "production", label: "Dipping", category: "primary", columns: [{ key: "checked" }] },
       { stageId: "secondary", label: "Secondary", category: "secondary", columns: [{ key: "checked" }] },
-      { stageId: "visual", label: "Visual Inspection", category: "assembly", columns: [{ key: "checked" }] },
+      { stageId: "visual", label: "Visual Inspection", category: "assembly", columns: [{ key: "checked" }, { key: "accepted" }] },
+      { stageId: "balloon", label: "Balloon Inspection", category: "assembly", columns: [{ key: "checked" }, { key: "accepted" }] },
     ],
     sections: [
       { id: "primary", label: "Production Dipping" },
@@ -269,6 +270,26 @@ describe("checkEntry — process sequence", () => {
     const v = checkEntry(draft(), EMPTY, TODAY, { schema, occupied });
     expect(v.blocks.map((b) => b.code)).not.toContain("process-incomplete");
     expect(v.canSave).toBe(true);
+  });
+
+  it("lets a converted lot save at Visual without Dipping or Secondary", () => {
+    const v = checkEntry(draft(), EMPTY, TODAY, {
+      schema,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(v.blocks.map((b) => b.code)).not.toContain("process-incomplete");
+    expect(v.canSave).toBe(true);
+  });
+
+  it("still blocks Balloon on a converted lot until Visual is entered", () => {
+    const v = checkEntry(draft({ station: "balloon", stationLabel: "Balloon" }), EMPTY, TODAY, {
+      schema,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(v.canSave).toBe(false);
+    expect(v.blocks.find((b) => b.code === "process-incomplete")?.message).toMatch(/Visual/);
   });
 
   it("does not apply the gate when no process context is passed", () => {

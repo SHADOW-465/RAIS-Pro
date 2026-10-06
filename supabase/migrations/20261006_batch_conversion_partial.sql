@@ -1,7 +1,8 @@
--- Batch size-conversion lineage. Independent of the event ledger.
--- Analytics, Data Entry, and Source Trace do not read this table.
+-- Batch conversion lineage, including partial quantity and the station
+-- where the size changes. Safe to run when the table is missing and when
+-- an older table already exists without changed_qty / stage_id.
 
-CREATE TABLE IF NOT EXISTS batch_conversions (
+CREATE TABLE IF NOT EXISTS public.batch_conversions (
   id            text PRIMARY KEY,
   from_batch    text NOT NULL,
   to_batch      text NOT NULL,
@@ -15,25 +16,27 @@ CREATE TABLE IF NOT EXISTS batch_conversions (
   created_by    text NOT NULL
 );
 
+ALTER TABLE public.batch_conversions
+  ADD COLUMN IF NOT EXISTS changed_qty integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS stage_id text NOT NULL DEFAULT '';
+
 CREATE UNIQUE INDEX IF NOT EXISTS batch_conversions_from_batch_uidx
-  ON batch_conversions (from_batch);
+  ON public.batch_conversions (from_batch);
 
 CREATE UNIQUE INDEX IF NOT EXISTS batch_conversions_to_batch_uidx
-  ON batch_conversions (to_batch);
+  ON public.batch_conversions (to_batch);
 
 CREATE INDEX IF NOT EXISTS batch_conversions_created_idx
-  ON batch_conversions (created_at DESC);
+  ON public.batch_conversions (created_at DESC);
 
-ALTER TABLE batch_conversions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.batch_conversions ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS batch_conversions_service_role_all ON batch_conversions;
-CREATE POLICY batch_conversions_service_role_all ON batch_conversions
+DROP POLICY IF EXISTS batch_conversions_service_role_all ON public.batch_conversions;
+CREATE POLICY batch_conversions_service_role_all ON public.batch_conversions
   FOR ALL USING (true) WITH CHECK (true);
 
 GRANT ALL ON TABLE public.batch_conversions TO anon, authenticated, service_role;
 
--- Additive: show the new screen for built-in GM and operator without
--- overwriting any grants a plant already edited.
 DO $$
 BEGIN
   IF to_regclass('public.plant_roles') IS NULL THEN

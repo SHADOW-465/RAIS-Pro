@@ -142,6 +142,8 @@ export interface EntryProcessContext {
   schema: ResolvedEntrySchema;
   /** Stage ids this lot already occupies (ledger + unsynced local rows). */
   occupied: Set<string>;
+  /** Converted lot: stations before this one stay on the original batch. */
+  entryFromStageId?: string | null;
 }
 
 export function checkEntry(
@@ -315,6 +317,7 @@ export function checkEntry(
       station: draft.station,
       schema: process.schema,
       occupied: process.occupied,
+      entryFromStageId: process.entryFromStageId,
     });
     if (gap) {
       blocks.push({

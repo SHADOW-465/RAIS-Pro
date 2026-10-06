@@ -42,10 +42,12 @@ import {
 } from "@/lib/entry/batch-id";
 import { checkEntry, summariseLedger } from "@/lib/entry/check-entry";
 import {
+  inheritedStageIds,
   isLineCompleteStage,
   lotHasStage,
   mayOpenStation,
   occupiedStageIds,
+  stageIsBefore,
   type ProcessEventLike,
 } from "@/lib/entry/process-sequence";
 import { buildLineStatus } from "@/lib/entry/line-status";
@@ -247,6 +249,8 @@ export default function BatchMatrixEntry({
   } | null>(null);
 
   const userTouchedQty = useRef(false);
+  const conversionApplyKey = useRef<string | null>(null);
+  const conversionLanded = useRef<string | null>(null);
   const userPickedStation = useRef(false);
   const lastLineJump = useRef<string | null>(null);
   const prefillAppliedKey = useRef<string | null>(null);
@@ -284,19 +288,39 @@ export default function BatchMatrixEntry({
     fetch(`/api/batch-conversions?batch=${encodeURIComponent(target)}`, { credentials: "same-origin" })
       .then(async (res) => {
         if (!res.ok || cancelled) return;
-        const data = (await res.json()) as { chain?: Array<{ batch: string; sizeFr?: string }> };
+        const data = (await res.json()) as {
+          chain?: Array<{
+            batch: string;
+            size?: string;
+            via?: {
+              fromBatch?: string;
+              fromSize?: string;
+              toSize?: string;
+              stageId?: string;
+              changedQty?: number;
+              convertedOn?: string;
+              reason?: string;
+            } | null;
+          }>;
+        };
         if (cancelled || !data.chain || data.chain.length < 2) {
           setLineageConversion(null);
           return;
         }
         const idx = data.chain.findIndex((n) => n.batch === target);
         if (idx > 0) {
+          const node = data.chain[idx];
           const parent = data.chain[idx - 1];
+          const via = node.via;
           setLineageConversion({
-            fromBatch: parent.batch,
+            fromBatch: via?.fromBatch || parent.batch,
             toBatch: target,
-            fromSize: parent.sizeFr ? `${parent.sizeFr}Fr` : sizeOfLot(parent.batch),
-            toSize: sizeOfLot(target),
+            fromSize: via?.fromSize || parent.size || sizeOfLot(parent.batch),
+            toSize: via?.toSize || node.size || sizeOfLot(target),
+            stageId: via?.stageId || null,
+            changedQty: via?.changedQty ?? null,
+            convertedOn: via?.convertedOn ?? null,
+            reason: via?.reason ?? null,
           });
         } else {
           setLineageConversion(null);
@@ -316,6 +340,15 @@ export default function BatchMatrixEntry({
   useEffect(() => {
     if (!conversionFlow?.toBatch) return;
     const targetLot = conversionFlow.toBatch;
+    const applyKey = [
+      targetLot,
+      conversionFlow.stageId ?? "",
+      conversionFlow.changedQty ?? "",
+      conversionFlow.toSize ?? "",
+      conversionFlow.convertedOn ?? "",
+    ].join("|");
+    if (conversionApplyKey.current === applyKey) return;
+    conversionApplyKey.current = applyKey;
     setEditing(null);
     setBatchId(targetLot);
     const p = parseBatchId(targetLot);
@@ -331,29 +364,30 @@ export default function BatchMatrixEntry({
     }
     if (conversionFlow.stageId) {
       setStageId(conversionFlow.stageId);
-      const cat = ((schema ? stationById(schema, conversionFlow.stageId)?.category : undefined) ?? "assembly") as MacroId;
+      const cat = ((schema ? stationById(schema, conversionFlow.stageId)?.category : undefined) ?? stageCategoryOf(conversionFlow.stageId) ?? "assembly") as MacroId;
       setMacro(cat);
       userPickedStation.current = true;
       lastLineJump.current = `${targetLot}|${conversionFlow.stageId}`;
     }
-    setChecked((prevChecked) => {
-      if (prevChecked > 0) return prevChecked;
-      const targetQty =
-        conversionFlow.originalAccepted != null && conversionFlow.originalAccepted > 0
-          ? conversionFlow.originalAccepted
-          : conversionFlow.originalChecked ?? 0;
-      return targetQty > 0 ? targetQty : 0;
-    });
-    setAccept((prevAccept) => {
-      if (prevAccept > 0) return prevAccept;
-      const targetQty =
-        conversionFlow.originalAccepted != null && conversionFlow.originalAccepted > 0
-          ? conversionFlow.originalAccepted
-          : conversionFlow.originalChecked ?? 0;
-      return targetQty > 0 ? targetQty : 0;
-    });
-    userTouchedQty.current = true;
+    const qty = conversionFlow.changedQty ?? 0;
+    if (qty > 0) {
+      setChecked(qty);
+      setAccept(qty);
+      userTouchedQty.current = true;
+    }
   }, [conversionFlow, setEditing, schema]);
+
+  // A converted lot opened from Data Entry still starts with the quantity that moved.
+  useEffect(() => {
+    if (conversionFlow) return;
+    const qty = lineageConversion?.changedQty ?? 0;
+    const start = lineageConversion?.stageId?.trim();
+    if (!start || qty <= 0) return;
+    if (stageId !== start) return;
+    if (userTouchedQty.current || checked > 0) return;
+    setChecked(qty);
+    setAccept(qty);
+  }, [conversionFlow, lineageConversion, stageId, checked]);
 
   // Load shift records & local draft on mount
   useEffect(() => {
@@ -677,22 +711,23 @@ export default function BatchMatrixEntry({
   );
 
   const processSchema = useMemo(() => schema ?? resolveEntrySchema(null), [schema]);
-  const occupied = useMemo(() => {
-    const base = occupiedStageIds((events ?? []) as ProcessEventLike[], batchId, saved);
-    if (activeConversionFlow?.fromBatch) {
-      const parent = occupiedStageIds(
-        (events ?? []) as ProcessEventLike[],
-        activeConversionFlow.fromBatch,
-        saved,
-      );
-      for (const id of parent) base.add(id);
-    }
-    return base;
-  }, [events, batchId, saved, activeConversionFlow]);
+  const entryFromStageId = activeConversionFlow?.stageId?.trim() || null;
+
+  // The converted lot has its own rows. Parent stages are not this lot's
+  // progress — they only tell us where entry is allowed to start.
+  const occupied = useMemo(
+    () => occupiedStageIds((events ?? []) as ProcessEventLike[], batchId, saved),
+    [events, batchId, saved],
+  );
+
+  const inheritedStages = useMemo(
+    () => (entryFromStageId ? inheritedStageIds(processSchema, entryFromStageId) : []),
+    [processSchema, entryFromStageId],
+  );
 
   const lineStatus = useMemo(
-    () => buildLineStatus({ lot: batchId, schema: processSchema, occupied }),
-    [batchId, processSchema, occupied],
+    () => buildLineStatus({ lot: batchId, schema: processSchema, occupied, entryFromStageId }),
+    [batchId, processSchema, occupied, entryFromStageId],
   );
 
   const completedStageIds = useMemo(
@@ -707,15 +742,32 @@ export default function BatchMatrixEntry({
     : "";
 
   useEffect(() => {
-    if (inspectAll) return;
     if (editingId) return;
+    // Land once on the station where the size changed, including for a GM.
+    // After that, a GM can still open earlier stations to inspect them.
+    if (entryFromStageId && stageIsBefore(stageId, entryFromStageId)) {
+      const landKey = `${trackedLot}|${entryFromStageId}`;
+      if (conversionLanded.current !== landKey) {
+        conversionLanded.current = landKey;
+        const cat = stationById(processSchema, entryFromStageId)?.category;
+        if (cat) setMacro(cat as MacroId);
+        setStageId(entryFromStageId);
+        userPickedStation.current = true;
+        lastLineJump.current = landKey;
+        return;
+      }
+    }
+    if (inspectAll) return;
     const sig = `${trackedLot}|${lineStatus.nextStationId ?? ""}`;
     const prevLot = lastLineJump.current?.split("|")[0] ?? null;
     const lotChanged = prevLot !== trackedLot;
     if (lotChanged) {
-      if (activeConversionFlow && (stageId || activeConversionFlow.stageId)) {
+      if (entryFromStageId) {
+        const cat = stationById(processSchema, entryFromStageId)?.category;
+        if (cat) setMacro(cat as MacroId);
+        setStageId(entryFromStageId);
         userPickedStation.current = true;
-        lastLineJump.current = `${trackedLot}|${stageId || activeConversionFlow.stageId}`;
+        lastLineJump.current = `${trackedLot}|${entryFromStageId}`;
         return;
       }
       userPickedStation.current = false;
@@ -732,7 +784,7 @@ export default function BatchMatrixEntry({
     setStageId(lineStatus.nextStationId);
     // stageId is read for the no-op guard only; jumping is keyed on the lot + next station.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackedLot, lineStatus.nextStationId, lineStatus.nextLaneId, editingId, inspectAll, activeConversionFlow, stageId]);
+  }, [trackedLot, lineStatus.nextStationId, lineStatus.nextLaneId, editingId, inspectAll, entryFromStageId, processSchema, stageId]);
 
   const lockedMacroIds = useMemo(() => {
     if (editingId || inspectAll) return [];
@@ -748,9 +800,10 @@ export default function BatchMatrixEntry({
           station: first.stageId,
           schema: processSchema,
           occupied,
+          entryFromStageId,
         }).ok;
       });
-  }, [processSchema, batchId, occupied, editingId, inspectAll]);
+  }, [processSchema, batchId, occupied, editingId, inspectAll, entryFromStageId]);
 
   const lockedStageIds = useMemo(() => {
     if (editingId || inspectAll) return [];
@@ -763,9 +816,10 @@ export default function BatchMatrixEntry({
             station: id,
             schema: processSchema,
             occupied,
+            entryFromStageId,
           }).ok,
       );
-  }, [processSchema, macro, batchId, occupied, editingId, inspectAll]);
+  }, [processSchema, macro, batchId, occupied, editingId, inspectAll, entryFromStageId]);
 
   const verdict = useMemo(
     () =>
@@ -791,7 +845,7 @@ export default function BatchMatrixEntry({
         },
         ledgerSummary,
         today(),
-        { schema: processSchema, occupied },
+        { schema: processSchema, occupied, entryFromStageId },
       ),
     [
       batchId,
@@ -814,6 +868,7 @@ export default function BatchMatrixEntry({
       ledgerSummary,
       processSchema,
       occupied,
+      entryFromStageId,
     ],
   );
 
@@ -1139,6 +1194,7 @@ export default function BatchMatrixEntry({
       occupied,
       editing: !!editingIdRef.current,
       inspectAll,
+      entryFromStageId,
     });
     if (!allowed.ok) {
       const go = await confirmModal({
@@ -1195,11 +1251,7 @@ export default function BatchMatrixEntry({
       return true;
     }
 
-    const local =
-      latestLocalRowForLotStation(saved, batchId, sid) ||
-      (activeConversionFlow?.fromBatch
-        ? latestLocalRowForLotStation(saved, activeConversionFlow.fromBatch, sid)
-        : null);
+    const local = latestLocalRowForLotStation(saved, batchId, sid);
     if (local && (local.checked > 0 || local.accept > 0 || local.hold > 0 || local.reject > 0)) {
       loadRecordIntoForm({
         batchId: local.batchId,
@@ -1222,20 +1274,11 @@ export default function BatchMatrixEntry({
         passReason: local.passReason,
         editingId: local.id,
       });
-      const isParent = local.batchId !== batchId;
-      setPrefillNote(
-        isParent
-          ? `Showing ${local.processName || sid} as recorded for parent lot ${local.batchId}.`
-          : `Showing ${local.processName || sid} as recorded for this lot.`
-      );
+      setPrefillNote(`Showing ${local.processName || sid} as recorded for this lot.`);
       return true;
     }
 
-    const row =
-      latestLedgerRowForLotStation((events ?? []) as AuditEventLike[], batchId, sid) ||
-      (activeConversionFlow?.fromBatch
-        ? latestLedgerRowForLotStation((events ?? []) as AuditEventLike[], activeConversionFlow.fromBatch, sid)
-        : null);
+    const row = latestLedgerRowForLotStation((events ?? []) as AuditEventLike[], batchId, sid);
     if (row && (row.checked > 0 || row.accepted > 0 || row.rejected > 0 || row.rework > 0)) {
       const h = hydrateFromAuditRow(row, "edit");
       const targetLot = h.batchId;
@@ -1259,12 +1302,7 @@ export default function BatchMatrixEntry({
         editingId: h.editingId,
       });
       const label = stationById(processSchema, sid)?.label ?? sid;
-      const isParent = targetLot !== batchId;
-      setPrefillNote(
-        isParent
-          ? `Showing ${label} as recorded for parent lot ${targetLot}.`
-          : `Showing ${label} as recorded for this lot.`
-      );
+      setPrefillNote(`Showing ${label} as recorded for this lot.`);
       return true;
     }
 
@@ -1400,6 +1438,8 @@ export default function BatchMatrixEntry({
               fromBatch: activeConversionFlow.fromBatch,
               toSize: activeConversionFlow.toSize,
               toBatch: rec.batchId,
+              changedQty: activeConversionFlow.changedQty ?? rec.checked,
+              stageId: activeConversionFlow.stageId || rec.stageId,
               convertedOn: rec.date,
               reason: activeConversionFlow.reason || "Customer / process",
             }),
@@ -1621,6 +1661,7 @@ export default function BatchMatrixEntry({
         lockedStageIds={lockedStageIds}
         lineStatus={lineStatus}
         completedStageIds={completedStageIds}
+        inheritedStageIds={inheritedStages}
         inspectAll={inspectAll}
       />
 

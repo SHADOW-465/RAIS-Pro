@@ -7,6 +7,7 @@ import BatchIdField from "@/components/entry/BatchIdField";
 import LotProgress from "@/components/LotProgress";
 import type { CatheterCategory, CatheterType } from "@/lib/entry/disposafe-matrix";
 import { parseBatchId } from "@/lib/entry/batch-id";
+import { STAGE_LABELS, resolveStageId } from "@/core/ontology/plant-catalog";
 import {
   CATHETER_CATEGORIES,
   CATHETER_TYPES,
@@ -31,6 +32,8 @@ export interface ConversionFlowInfo {
   originalChecked?: number | null;
   originalAccepted?: number | null;
   originalRejected?: number | null;
+  /** Pieces that changed size. This is the quantity the converted lot starts with. */
+  changedQty?: number | null;
   stageId?: string | null;
 }
 
@@ -217,7 +220,7 @@ export default function BatchIdentityZone({
                   {conversionFlow.fromSize}
                 </span>
               )}
-              {conversionFlow.originalAccepted != null && (
+              {(conversionFlow.changedQty ?? 0) > 0 && (
                 <span
                   style={{
                     fontSize: 10.5,
@@ -228,10 +231,26 @@ export default function BatchIdentityZone({
                     padding: "1px 6px",
                     borderRadius: 3,
                   }}
-                  title="Accepted quantity matched from original batch history"
+                  title="Pieces that changed size. The rest stay on the original lot."
                 >
-                  <span style={{ color: "var(--text-3)", fontSize: 9.5, fontWeight: 700 }}>QTY </span>
-                  {conversionFlow.originalAccepted.toLocaleString()}
+                  <span style={{ color: "var(--text-3)", fontSize: 9.5, fontWeight: 700 }}>CHANGED </span>
+                  {conversionFlow.changedQty!.toLocaleString()}
+                </span>
+              )}
+              {conversionFlow.stageId && (
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--text-2)",
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    padding: "1px 6px",
+                    borderRadius: 3,
+                  }}
+                  title="Entry on the converted lot starts at this station"
+                >
+                  {STAGE_LABELS[resolveStageId(conversionFlow.stageId) ?? ""] ?? conversionFlow.stageId}
                 </span>
               )}
 

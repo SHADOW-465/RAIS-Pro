@@ -20,6 +20,8 @@ function create(
     {
       fromBatch: from,
       toSize,
+      changedQty: 200,
+      stageId: "visual",
       convertedOn: on,
       reason: "Customer size change",
       createdBy: "gm",
@@ -48,7 +50,33 @@ test("records an immutable lineage edge, never a rename", () => {
   expect(row.toBatch).toBe("26I21-16");
   expect(row.fromSize).toBe("14Fr");
   expect(row.toSize).toBe("16Fr");
+  expect(row.changedQty).toBe(200);
+  expect(row.stageId).toBe("visual");
   expect(row.id).toBe("bc_26I21-14_26I21-16");
+});
+
+test("stores the partial quantity and the station where the size changes", () => {
+  const row = create("26I21-14", "16Fr", { changedQty: 80, stageId: "Balloon Inspection" });
+  expect(row.changedQty).toBe(80);
+  expect(row.stageId).toBe("balloon");
+});
+
+test("rejects a missing or non-positive changed quantity", () => {
+  try {
+    create("26I21-14", "16Fr", { changedQty: 0 });
+    throw new Error("expected throw");
+  } catch (e) {
+    expect((e as ConversionError).code).toBe("qty-invalid");
+  }
+});
+
+test("rejects a station the plant line does not have", () => {
+  try {
+    create("26I21-14", "16Fr", { stageId: "not-a-station" });
+    throw new Error("expected throw");
+  } catch (e) {
+    expect((e as ConversionError).code).toBe("stage-required");
+  }
 });
 
 test("canonicalises odd spellings of the source lot", () => {

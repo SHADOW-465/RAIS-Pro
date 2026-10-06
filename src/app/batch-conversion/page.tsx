@@ -29,6 +29,14 @@ import {
   type LineageNode,
 } from "@/lib/lineage";
 import { canonicalBatchId, formatBatchIdInput, isValidBatchId } from "@/lib/entry/batch-id";
+import {
+  resolveEntrySchema,
+  schemaCategories,
+  stationsIn,
+  type ResolvedEntrySchema,
+} from "@/lib/entry/entry-schema";
+import { sameStage } from "@/lib/entry/process-sequence";
+import { STAGE_LABELS, resolveStageId } from "@/core/ontology/plant-catalog";
 
 type EntryMode = "matrix" | "history";
 
@@ -70,6 +78,9 @@ export default function BatchConversionPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [fromBatch, setFromBatch] = useState("");
   const [toSize, setToSize] = useState("");
+  const [changeStageId, setChangeStageId] = useState("");
+  const [changedQtyInput, setChangedQtyInput] = useState("");
+  const [schema, setSchema] = useState<ResolvedEntrySchema | null>(null);
   const [convertedOn, setConvertedOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -81,8 +92,7 @@ export default function BatchConversionPage() {
   const [hydrate, setHydrate] = useState<EntryHydrate | null>(null);
   const [entryReady, setEntryReady] = useState(false);
   const pushedLot = useRef<string | null>(null);
-  // Captures values passed via URL so they can be replayed once fromBatch resolves.
-  const urlParamsRef = useRef<{ stageId?: string; checked?: number; accepted?: number; hold?: number; reject?: number } | null>(null);
+  const hydrateKey = useRef<string | null>(null);
 
   const knownLots = useMemo(() => {
     const set = new Set<string>();
@@ -125,33 +135,61 @@ export default function BatchConversionPage() {
     return sizeOfLot(fromBatch);
   }, [fromBatchGroup, fromBatch]);
 
-  const historyAvailableQty = useMemo(() => {
-    if (!fromBatchGroup) return 0;
-    return fromBatchGroup.acceptedQty > 0
-      ? fromBatchGroup.acceptedQty
-      : fromBatchGroup.checkedQty;
-  }, [fromBatchGroup]);
+  const changedQty = /^\d+$/.test(changedQtyInput) ? Number(changedQtyInput) : 0;
+
+  const stageOptions = useMemo(() => {
+    const resolved = schema ?? resolveEntrySchema(null);
+    const options: { value: string; label: string; group?: string }[] = [];
+    for (const cat of schemaCategories(resolved)) {
+      const group = cat.label.replace(/\s*\(.*\)$/, "");
+      for (const station of stationsIn(resolved, cat.id)) {
+        options.push({
+          value: station.stageId,
+          label: station.label.replace(/\s*\(.*\)$/, ""),
+          group,
+        });
+      }
+    }
+    return options;
+  }, [schema]);
+
+  const stageBucket = useMemo(() => {
+    if (!fromBatchGroup || !changeStageId) return null;
+    return fromBatchGroup.stages.find((s) => sameStage(s.stageId, changeStageId)) ?? null;
+  }, [fromBatchGroup, changeStageId]);
+
+  const stageAvailable = stageBucket
+    ? stageBucket.acceptedQty > 0
+      ? stageBucket.acceptedQty
+      : stageBucket.checkedQty
+    : fromBatchGroup && changeStageId
+      ? 0
+      : null;
+
+  const stageLabel =
+    stageOptions.find((o) => o.value === changeStageId)?.label ||
+    (changeStageId ? STAGE_LABELS[resolveStageId(changeStageId) ?? ""] ?? changeStageId : "");
+
+  const qtyError =
+    changeStageId && changedQty > 0 && stageAvailable === 0
+      ? `The original lot has no quantity at ${stageLabel}. Pick a station it has already reached.`
+      : stageAvailable != null && stageAvailable > 0 && changedQty > stageAvailable
+        ? `Only ${stageAvailable.toLocaleString()} can change size at ${stageLabel}.`
+        : null;
 
   const previewId = toSize ? proposedConvertedBatchId(fromBatch, toSize) : null;
   const convertedName = previewId && previewId !== (fromBatch && formatBatchIdInput(fromBatch))
     ? previewId
     : null;
-  const conversionReady = Boolean(convertedName && fromSize && toSize && fromSize !== toSize);
+  const conversionReady = Boolean(
+    convertedName && fromSize && toSize && fromSize !== toSize && changeStageId && changedQty > 0 && !qtyError,
+  );
   const flowLabel =
     fromBatch && convertedName ? conversionFlowLabel(formatBatchIdInput(fromBatch), convertedName) : null;
 
   const conversionFlow: ConversionFlowInfo | null = useMemo(() => {
     if (!fromBatch) return null;
     const proposed = convertedName || (toSize ? proposedConvertedBatchId(fromBatch, toSize) : null);
-    const urlParams = urlParamsRef.current;
-    const resolvedChecked =
-      urlParams?.checked ?? (fromBatchGroup?.checkedQty ?? null);
-    const resolvedAccepted =
-      urlParams?.accepted ?? (fromBatchGroup?.acceptedQty ?? null);
-    const resolvedRejected =
-      urlParams?.reject ?? (fromBatchGroup?.rejectedQty ?? null);
-    const resolvedStageId =
-      urlParams?.stageId ?? fromBatchGroup?.stages?.[fromBatchGroup.stages.length - 1]?.stageId ?? null;
     return {
       fromBatch: formatBatchIdInput(fromBatch),
       toBatch: proposed,
@@ -159,12 +197,12 @@ export default function BatchConversionPage() {
       toSize: toSize ? (toSize.endsWith("Fr") ? toSize : `${toSize}Fr`) : null,
       convertedOn,
       reason,
-      originalChecked: resolvedChecked,
-      originalAccepted: resolvedAccepted,
-      originalRejected: resolvedRejected,
-      stageId: resolvedStageId,
+      changedQty: changedQty > 0 ? changedQty : null,
+      stageId: changeStageId || null,
+      originalChecked: stageAvailable,
+      originalAccepted: stageAvailable,
     };
-  }, [fromBatch, convertedName, toSize, fromSize, convertedOn, reason, fromBatchGroup]);
+  }, [fromBatch, convertedName, toSize, fromSize, convertedOn, reason, changedQty, changeStageId, stageAvailable]);
 
   const convertedLotIds = useMemo(() => new Set(conversions.map((c) => c.toBatch)), [conversions]);
   const historyEvents = useMemo(() => {
@@ -235,6 +273,23 @@ export default function BatchConversionPage() {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/entry-template", { cache: "no-store", credentials: "same-origin" })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        const tpl = res.ok ? data.template : null;
+        if (cancelled) return;
+        setSchema(resolveEntrySchema(tpl?.stages?.length ? tpl : null));
+      })
+      .catch(() => {
+        if (!cancelled) setSchema(resolveEntrySchema(null));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Read URL search params (e.g. from Data Entry "Convert batch" button)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -243,15 +298,15 @@ export default function BatchConversionPage() {
     const sz = params.get("toSize");
     const d = params.get("date") || params.get("convertedOn");
     const r = params.get("reason");
-    const sid = params.get("stageId") ?? undefined;
+    const sid = params.get("stageId") ?? "";
     const chk = params.get("checked") ? Number(params.get("checked")) : undefined;
     const acc = params.get("accepted") ? Number(params.get("accepted")) : undefined;
-    const hld = params.get("hold") ? Number(params.get("hold")) : undefined;
-    const rej = params.get("reject") ? Number(params.get("reject")) : undefined;
+    const qtyParam = params.get("changedQty") ? Number(params.get("changedQty")) : undefined;
+    const seededQty = qtyParam ?? acc ?? chk;
 
-    // Stash these so the auto-hydrate effect can merge them in once fromBatch resolves.
-    if (sid || chk || acc || hld || rej) {
-      urlParamsRef.current = { stageId: sid, checked: chk, accepted: acc, hold: hld, reject: rej };
+    if (sid) setChangeStageId(sid);
+    if (seededQty && Number.isFinite(seededQty) && seededQty > 0) {
+      setChangedQtyInput(String(Math.trunc(seededQty)));
     }
 
     if (from) setFromBatch(formatBatchIdInput(from));
@@ -262,34 +317,22 @@ export default function BatchConversionPage() {
   }, []);
 
   useEffect(() => {
-    const target = convertedName || (fromBatch ? formatBatchIdInput(fromBatch) : null);
-    if (!target) return;
-    const historyProductType =
-      fromBatchGroup?.stages[0]?.rows[0]?.productType ?? null;
-
-    // URL params carry stageId + explicit quantities when navigating from Data Entry.
-    // History quantities are used as fallback when URL params are absent.
-    const urlParams = urlParamsRef.current;
-    const resolvedChecked =
-      urlParams?.checked ?? (historyAvailableQty > 0 ? historyAvailableQty : undefined);
-    const resolvedAccepted =
-      urlParams?.accepted ?? resolvedChecked;
-    const resolvedHold = urlParams?.hold ?? 0;
-    const resolvedRejected = urlParams?.reject ?? 0;
-    const resolvedStageId = urlParams?.stageId;
-
+    if (!conversionReady || !convertedName || !changeStageId || changedQty <= 0) return;
+    const key = `${convertedName}|${changeStageId}|${changedQty}|${convertedOn}|${toSize}`;
+    if (hydrateKey.current === key) return;
+    hydrateKey.current = key;
     openEntryFor({
-      batchId: target,
+      batchId: convertedName,
       date: convertedOn,
-      size: toSize ? (toSize.endsWith("Fr") ? toSize : `${toSize}Fr`) : (fromSize || null),
-      checked: resolvedChecked,
-      accepted: resolvedAccepted,
-      hold: resolvedHold,
-      rejected: resolvedRejected,
-      productType: historyProductType,
-      stageId: resolvedStageId,
+      size: toSize.endsWith("Fr") ? toSize : `${toSize}Fr`,
+      checked: changedQty,
+      accepted: changedQty,
+      hold: 0,
+      rejected: 0,
+      productType: fromBatchGroup?.stages[0]?.rows[0]?.productType ?? null,
+      stageId: changeStageId,
     });
-  }, [convertedName, fromBatch, convertedOn, toSize, fromSize, historyAvailableQty, fromBatchGroup, openEntryFor]);
+  }, [conversionReady, convertedName, changeStageId, changedQty, convertedOn, toSize, fromBatchGroup, openEntryFor]);
 
   useEffect(() => {
     if (!focusBatch) {
@@ -327,6 +370,8 @@ export default function BatchConversionPage() {
         body: JSON.stringify({
           fromBatch,
           toSize,
+          changedQty,
+          stageId: changeStageId,
           convertedOn,
           reason,
         }),
@@ -339,16 +384,17 @@ export default function BatchConversionPage() {
       const row = data.conversion!;
       setFormOk(`${conversionFlowLabel(row.fromBatch, row.toBatch)}. Stored as ${historyNameForLot(row.toBatch, [row])}.`);
       setFocusBatch(row.toBatch);
-      const urlParams = urlParamsRef.current;
+      setChangeStageId(row.stageId);
+      setChangedQtyInput(String(row.changedQty));
       openEntryFor({
         batchId: row.toBatch,
         date: row.convertedOn,
         size: row.toSize,
-        checked: urlParams?.checked ?? historyAvailableQty,
-        accepted: urlParams?.accepted ?? historyAvailableQty,
-        hold: urlParams?.hold ?? 0,
-        rejected: urlParams?.reject ?? 0,
-        stageId: urlParams?.stageId,
+        checked: row.changedQty,
+        accepted: row.changedQty,
+        hold: 0,
+        rejected: 0,
+        stageId: row.stageId,
       });
       await refresh();
     } catch (err) {
@@ -389,7 +435,9 @@ export default function BatchConversionPage() {
           className="muted"
           style={{ fontSize: "var(--text-md)", margin: 0, maxWidth: "68ch", lineHeight: "var(--leading-body)" }}
         >
-          Record the size change, then log quantities on the converted lot the same way as Data Entry.
+          Record how many pieces changed size, and the station where that happens.
+          The converted lot is entered from that station through the end of the line.
+          Earlier stations stay on the original lot.
         </p>
       </header>
 
@@ -413,7 +461,7 @@ export default function BatchConversionPage() {
               Conversion details
             </h2>
             <p className="muted" style={{ fontSize: 12, margin: "2px 0 0" }}>
-              Original ID stays. Converted ID keeps the start-date stem.
+              Only the quantity you enter moves to the new size. The rest stays on the original lot.
             </p>
           </div>
           {flowLabel && (
@@ -553,6 +601,56 @@ export default function BatchConversionPage() {
           </button>
         </form>
 
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: 10,
+            alignItems: "end",
+            marginTop: 12,
+          }}
+        >
+          <label style={labelStyle}>
+            Changes at
+            <Select
+              value={changeStageId}
+              onChange={(v) => {
+                setChangeStageId(v);
+                setFormOk(null);
+                setFormError(null);
+              }}
+              options={stageOptions}
+              placeholder="Station"
+              ariaLabel="Station where the size changes"
+              variant="pill"
+              size="sm"
+            />
+          </label>
+          <label style={labelStyle}>
+            Quantity changed
+            <input
+              value={changedQtyInput}
+              onChange={(e) => {
+                setChangedQtyInput(e.target.value.replace(/[^\d]/g, ""));
+                setFormOk(null);
+                setFormError(null);
+              }}
+              inputMode="numeric"
+              placeholder="0"
+              aria-label="Quantity changed"
+              style={inputStyle}
+              required
+            />
+          </label>
+          <p className="muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.45, color: qtyError ? "var(--warning)" : undefined }}>
+            {qtyError
+              ? qtyError
+              : stageAvailable != null && stageAvailable > 0
+                ? `${stageLabel} on the original lot has ${stageAvailable.toLocaleString()} available. Enter how many of those changed size. The rest stay on the original lot.`
+                : "Pick the station where the size changes. Entry on the new lot starts there and continues to the end."}
+          </p>
+        </div>
+
         {fromBatchGroup && (
           <div
             style={{
@@ -631,6 +729,8 @@ export default function BatchConversionPage() {
                 <tr>
                   <th style={thLeft}>Original</th>
                   <th style={thLeft}>Converted</th>
+                  <th style={th}>Changed</th>
+                  <th style={thLeft}>At</th>
                   <th style={th}>On</th>
                   <th style={thLeft}>Reason</th>
                 </tr>
@@ -644,22 +744,20 @@ export default function BatchConversionPage() {
                       setToSize(c.toSize);
                       setConvertedOn(c.convertedOn);
                       setReason(c.reason);
+                      setChangeStageId(c.stageId || "");
+                      setChangedQtyInput(c.changedQty > 0 ? String(c.changedQty) : "");
                       const targetGroup = batchGroups.find(
                         (g) =>
                           g.batch.trim().toUpperCase() === c.fromBatch.trim().toUpperCase() ||
                           canonicalBatchId(g.batch) === canonicalBatchId(c.fromBatch),
                       );
-                      const historyQty = targetGroup
-                        ? targetGroup.acceptedQty > 0
-                          ? targetGroup.acceptedQty
-                          : targetGroup.checkedQty
-                        : 0;
                       openEntryFor({
                         batchId: c.toBatch,
                         date: c.convertedOn,
                         size: c.toSize,
-                        checked: historyQty,
-                        accepted: historyQty,
+                        checked: c.changedQty > 0 ? c.changedQty : 0,
+                        accepted: c.changedQty > 0 ? c.changedQty : 0,
+                        stageId: c.stageId || undefined,
                         productType: targetGroup?.stages[0]?.rows[0]?.productType,
                       });
                     }}
@@ -672,6 +770,10 @@ export default function BatchConversionPage() {
                     <td style={tdMono}>
                       {historyNameForLot(c.toBatch, [c])}
                       <span style={sizeBit}>{c.toSize}</span>
+                    </td>
+                    <td style={tdMuted}>{c.changedQty > 0 ? c.changedQty.toLocaleString() : "—"}</td>
+                    <td style={tdMuted}>
+                      {c.stageId ? STAGE_LABELS[resolveStageId(c.stageId) ?? ""] ?? c.stageId : "—"}
                     </td>
                     <td style={tdMuted}>{c.convertedOn}</td>
                     <td style={tdMuted}>{c.reason}</td>
@@ -715,8 +817,8 @@ export default function BatchConversionPage() {
         </>
       ) : (
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          Enter the original lot and the new size, then record the conversion. The Data Entry form
-          for the converted lot opens underneath — line status, stations, identity, and quantities.
+          Enter the original lot, the new size, the station where the size changes, and how many
+          pieces changed. The form underneath then asks only from that station through the end of the line.
         </p>
       )}
     </AppShell>

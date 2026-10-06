@@ -5,6 +5,7 @@ import {
   sizeOfLot,
 } from "./ids";
 import { parseBatchId } from "@/lib/entry/batch-id";
+import { resolveStageId } from "@/core/ontology/plant-catalog";
 import {
   ConversionError,
   type BatchConversion,
@@ -58,6 +59,15 @@ export function planConversion(
 
   if (!ISO_DAY.test(input.convertedOn ?? "")) {
     throw new ConversionError("invalid-date", "Conversion date must be YYYY-MM-DD.");
+  }
+
+  const changedQty = input.changedQty;
+  if (!Number.isInteger(changedQty) || changedQty <= 0) {
+    throw new ConversionError("qty-invalid", "Enter the exact quantity that changed size.");
+  }
+  const stageId = resolveStageId(input.stageId);
+  if (!stageId) {
+    throw new ConversionError("stage-required", "Choose the station where the size changes.");
   }
 
   const fromBatch = canonLot(input.fromBatch);
@@ -116,6 +126,8 @@ export function planConversion(
     toBatch,
     fromSize,
     toSize,
+    changedQty,
+    stageId,
     convertedOn: input.convertedOn,
     reason,
     createdAt: new Date().toISOString(),

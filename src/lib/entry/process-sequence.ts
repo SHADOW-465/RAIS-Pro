@@ -3,7 +3,7 @@
 // until the lot has a recorded quantity at the process before it.
 
 import { canonicalBatchId } from "@/lib/entry/batch-id";
-import { resolveStageId, stageCategoryOf } from "@/core/ontology/plant-catalog";
+import { resolveStageId, stageCategoryOf, stageSortKey } from "@/core/ontology/plant-catalog";
 import {
   previousAcceptedStageId,
   schemaCategories,
@@ -63,6 +63,33 @@ export function sameStage(a: string, b: string): boolean {
   return Boolean(ca && cb && ca === cb);
 }
 
+/** True when `stageId` sits strictly earlier on the plant line than `pivot`. */
+export function stageIsBefore(stageId: string, pivot: string): boolean {
+  if (!stageId || !pivot || sameStage(stageId, pivot)) return false;
+  const a = stageSortKey(stageId);
+  const b = stageSortKey(pivot);
+  if (a >= 99 || b >= 99) return false;
+  return a < b;
+}
+
+/**
+ * Stations a converted lot does not re-enter. Everything strictly before
+ * `entryFromStageId` already happened on the original lot.
+ */
+export function inheritedStageIds(
+  schema: ResolvedEntrySchema,
+  entryFromStageId: string,
+): string[] {
+  const ids = new Set<string>();
+  for (const station of schema.stations) {
+    if (stageIsBefore(station.stageId, entryFromStageId)) ids.add(station.stageId);
+  }
+  for (const id of ["eye-punching", "hanging", "secondary"]) {
+    if (stageIsBefore(id, entryFromStageId)) ids.add(id);
+  }
+  return [...ids];
+}
+
 /**
  * Stations this lot has already run — ledger (Excel or typed) plus unsynced
  * local shift rows. Any positive quantity counts; the gate is "was this
@@ -110,6 +137,23 @@ function labelOf(schema: ResolvedEntrySchema, stageId: string): string {
   return stationById(schema, stageId)?.label?.replace(/\s*\(.*\)$/, "") || stageId;
 }
 
+function gapBeforeConversion(
+  schema: ResolvedEntrySchema,
+  entryFromStageId: string,
+  lot: string,
+): ProcessGap {
+  const label = labelOf(schema, entryFromStageId);
+  const lotBit = lot.trim() ? `Lot ${lot.trim().toUpperCase()}` : "This converted lot";
+  return {
+    code: "process-incomplete",
+    missingLane: stationById(schema, entryFromStageId)?.category || stageCategoryOf(entryFromStageId) || "assembly",
+    missingStationId: entryFromStageId,
+    missingStationLabel: label,
+    message: `${lotBit} changed size at ${label}. Earlier stations stay on the original lot.`,
+    action: `Enter this lot from ${label} through the end of the line.`,
+  };
+}
+
 function gapForStation(
   schema: ResolvedEntrySchema,
   stationId: string,
@@ -140,6 +184,8 @@ export function missingProcessStep(opts: {
   schema: ResolvedEntrySchema | null | undefined;
   occupied: Set<string>;
   editing?: boolean;
+  /** Converted lot: entry starts here. Stations before it are already on the original lot. */
+  entryFromStageId?: string | null;
 }): ProcessGap | null {
   const { lot, station, schema, occupied, editing } = opts;
   if (editing) return null;
@@ -147,14 +193,27 @@ export function missingProcessStep(opts: {
   const target = stationById(schema, station);
   if (!target) return null;
 
+  const entryFrom = (opts.entryFromStageId ?? "").trim();
+  if (entryFrom && stageIsBefore(station, entryFrom)) {
+    return gapBeforeConversion(schema, entryFrom, lot);
+  }
+
+  // Prior stations on a converted lot count as satisfied so the gate
+  // starts at the change station and then follows the line from there.
+  const gateOccupied = new Set(occupied);
+  if (entryFrom) {
+    for (const id of inheritedStageIds(schema, entryFrom)) gateOccupied.add(id);
+  }
+
   const lanes = schemaCategories(schema).map((c) => c.id);
   const targetLaneIdx = lanes.indexOf(target.category);
   if (targetLaneIdx > 0) {
     for (let i = 0; i < targetLaneIdx; i++) {
       const lane = lanes[i];
-      if (lotHasLane(occupied, schema, lane)) continue;
+      if (lotHasLane(gateOccupied, schema, lane)) continue;
       const first = stationsIn(schema, lane)[0];
       if (!first) continue;
+      if (entryFrom && stageIsBefore(first.stageId, entryFrom)) continue;
       return gapForStation(schema, first.stageId, lot);
     }
   }
@@ -165,7 +224,7 @@ export function missingProcessStep(opts: {
     if (
       prevStation &&
       prevStation.category === target.category &&
-      !lotHasStage(occupied, prev)
+      !lotHasStage(gateOccupied, prev)
     ) {
       return gapForStation(schema, prevStation.stageId, lot);
     }
@@ -193,14 +252,20 @@ export function mayOpenStation(opts: {
   occupied: Set<string>;
   editing?: boolean;
   inspectAll?: boolean;
+  entryFromStageId?: string | null;
 }): { ok: true } | { ok: false; gap: ProcessGap } {
   if (opts.editing || opts.inspectAll) return { ok: true };
   if (lotHasStage(opts.occupied, opts.station)) return { ok: true };
+  const entryFrom = (opts.entryFromStageId ?? "").trim();
+  if (entryFrom && opts.schema && stageIsBefore(opts.station, entryFrom)) {
+    return { ok: false, gap: gapBeforeConversion(opts.schema, entryFrom, opts.lot) };
+  }
   const gap = missingProcessStep({
     lot: opts.lot,
     station: opts.station,
     schema: opts.schema,
     occupied: opts.occupied,
+    entryFromStageId: entryFrom || null,
   });
   if (!gap) return { ok: true };
   return { ok: false, gap };

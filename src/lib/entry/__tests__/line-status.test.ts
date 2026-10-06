@@ -147,6 +147,34 @@ describe("buildLineStatus", () => {
     expect(s.isComplete).toBe(true);
   });
 
+  test("a converted lot that changes at Visual starts there and waives earlier lanes", () => {
+    const s = buildLineStatus({
+      lot: LOT,
+      schema: SCHEMA,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(s.nextStationId).toBe("visual");
+    expect(s.nextLaneId).toBe("assembly");
+    expect(s.lanes[0].waived).toBe(true);
+    expect(s.lanes[1].waived).toBe(true);
+    expect(laneCaption(s.lanes[0])).toBe("On original lot");
+    expect(laneCaption(s.lanes[1])).toBe("On original lot");
+    expect(s.headline).toMatch(/enter from Visual Inspection/);
+    expect(s.isComplete).toBe(false);
+  });
+
+  test("after Visual is entered, the converted lot continues at Balloon", () => {
+    const s = buildLineStatus({
+      lot: LOT,
+      schema: SCHEMA,
+      occupied: occ("visual"),
+      entryFromStageId: "visual",
+    });
+    expect(s.nextStationId).toBe("balloon");
+    expect(s.headline).toMatch(/Balloon/);
+  });
+
   test("a finished lot has no next station", () => {
     const occupied = occ(
       "production",
