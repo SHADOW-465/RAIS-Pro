@@ -127,7 +127,7 @@ export default function WorkbooksPage() {
   };
 
   const loadWorkbooks = () => {
-    fetch("/api/workbooks")
+    fetch("/api/workbooks", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.error) throw new Error(data.error);
@@ -218,7 +218,7 @@ export default function WorkbooksPage() {
       return;
     }
     setLoadingDetail(true);
-    fetch(`/api/mods?modId=${encodeURIComponent(selected)}`)
+    fetch(`/api/mods?modId=${encodeURIComponent(selected)}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.error) throw new Error(data.error);

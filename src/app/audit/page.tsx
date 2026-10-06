@@ -15,6 +15,7 @@ import {
   sizesFor,
 } from "@/lib/entry/disposafe-matrix";
 import { useEvents } from "@/components/app/EventsContext";
+import { useLineage } from "@/components/app/LineageContext";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import DatePicker from "@/components/ui/DatePicker";
 import { useConfirm } from "@/components/ui/ConfirmContext";
@@ -50,7 +51,7 @@ import { canonicalBatchId } from "@/lib/entry/batch-id";
 import LotProgress from "@/components/LotProgress";
 import EntryRevisionHistory from "@/components/entry/EntryRevisionHistory";
 import BatchIdChip from "@/components/entry/BatchIdChip";
-import { historyNameForLot, type BatchConversion } from "@/lib/lineage";
+import { historyNameForLot } from "@/lib/lineage";
 import { usePersona } from "@/components/app/PersonaContext";
 import Select from "@/components/ui/Select";
 import { sortStageIds, stageCategoryOf, STAGE_CATEGORIES } from "@/core/ontology/plant-catalog";
@@ -252,6 +253,7 @@ function laneForStage(stageId: string): string {
 
 export default function AuditPage() {
   const { events: contextEvents, isLoading: loading, refreshEvents } = useEvents();
+  const { conversions } = useLineage();
   const { t } = useTweaks();
   const events = (contextEvents ?? []) as any[];
   const { canEraseLedger } = usePersona();
@@ -270,26 +272,6 @@ export default function AuditPage() {
   const [typeStoredFilter, setTypeStoredFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "batch-asc" | "batch-desc" | "volume-desc" | "rejection-desc">("newest");
   const [page, setPage] = useState(0);
-  const [conversions, setConversions] = useState<BatchConversion[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/batch-conversions", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!active || !data) return;
-        const list = Array.isArray(data.conversions)
-          ? data.conversions
-          : Array.isArray(data)
-            ? data
-            : [];
-        setConversions(list);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const batchLabel = useCallback(
     (b: string) => (b && b !== "(no batch)" ? historyNameForLot(b, conversions) : b),

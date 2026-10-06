@@ -5,8 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireSession } from "@/lib/auth/guard";
 import { ConversionError } from "@/lib/lineage/types";
 import { getLineageStore } from "@/lib/lineage/store";
+import { LIVE_CACHE } from "@/lib/http/live-cache";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const auth = await requireSession(req);
@@ -16,10 +18,10 @@ export async function GET(req: NextRequest) {
   const batch = req.nextUrl.searchParams.get("batch");
   if (batch) {
     const chain = await store.chainFor(batch);
-    return NextResponse.json({ chain });
+    return NextResponse.json({ chain }, { headers: LIVE_CACHE });
   }
   const conversions = await store.list();
-  return NextResponse.json({ conversions });
+  return NextResponse.json({ conversions }, { headers: LIVE_CACHE });
 }
 
 export async function POST(req: NextRequest) {
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
       reason: body.reason ?? "",
       createdBy: auth.actor.username,
     });
-    return NextResponse.json({ conversion }, { status: 201 });
+    return NextResponse.json({ conversion }, { status: 201, headers: LIVE_CACHE });
   } catch (err: unknown) {
     if (err instanceof ConversionError) {
       return NextResponse.json({ error: err.message, code: err.code }, { status: 400 });

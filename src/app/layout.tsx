@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { TweaksProvider } from "@/components/editorial/TweaksContext";
 import { EventsProvider } from "@/components/app/EventsContext";
+import { LineageProvider } from "@/components/app/LineageContext";
 import { RegistryProvider } from "@/components/app/RegistryContext";
 import { PersonaProvider } from "@/components/app/PersonaContext";
 import { ActiveMetricProvider } from "@/components/app/ActiveMetricContext";
@@ -44,11 +45,13 @@ export default function RootLayout({
         <TweaksProvider>
           <PersonaProvider>
             <EventsProvider>
-              <RegistryProvider>
-                <ActiveMetricProvider>
-                  <ConfirmProvider>{children}</ConfirmProvider>
-                </ActiveMetricProvider>
-              </RegistryProvider>
+              <LineageProvider>
+                <RegistryProvider>
+                  <ActiveMetricProvider>
+                    <ConfirmProvider>{children}</ConfirmProvider>
+                  </ActiveMetricProvider>
+                </RegistryProvider>
+              </LineageProvider>
             </EventsProvider>
           </PersonaProvider>
         </TweaksProvider>

@@ -6,6 +6,7 @@ import { usePersona } from "@/components/app/PersonaContext";
 import { useConfirm } from "@/components/ui/ConfirmContext";
 import DatePicker from "@/components/ui/DatePicker";
 import type { PlantNotification } from "@/lib/notifications/types";
+import { NOTIFICATIONS_CHANGED, notifyNotificationsChanged } from "@/lib/client/live-signals";
 import {
   classifyAlert,
   groupAlerts,
@@ -33,7 +34,7 @@ export default function AlertsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const res = await fetch(`/api/notifications?status=${status}`);
+    const res = await fetch(`/api/notifications?status=${status}`, { cache: "no-store" });
     if (!res.ok) return;
     const data = await res.json();
     setItems(data.notifications ?? []);
@@ -42,6 +43,9 @@ export default function AlertsPage() {
 
   useEffect(() => {
     void refresh();
+    const onChange = () => void refresh();
+    window.addEventListener(NOTIFICATIONS_CHANGED, onChange);
+    return () => window.removeEventListener(NOTIFICATIONS_CHANGED, onChange);
   }, [refresh]);
 
   const ranged = useMemo(
@@ -82,6 +86,7 @@ export default function AlertsPage() {
         notify(body.error ?? "Action failed", "error");
         return;
       }
+      notifyNotificationsChanged();
       await refresh();
     } finally {
       setBusyId(null);

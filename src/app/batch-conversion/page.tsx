@@ -5,6 +5,7 @@ import AppShell from "@/components/app/AppShell";
 import BatchMatrixEntry from "@/components/BatchMatrixEntry";
 import EntryHistory from "@/components/EntryHistory";
 import { useEvents } from "@/components/app/EventsContext";
+import { useLineage } from "@/components/app/LineageContext";
 import { usePersona } from "@/components/app/PersonaContext";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import Select from "@/components/ui/Select";
@@ -73,9 +74,8 @@ function reuseLot(batchId: string, date: string, size: string | null): EntryHydr
 export default function BatchConversionPage() {
   const { canWrite } = usePersona();
   const { events } = useEvents();
+  const { conversions, error: loadError, refreshConversions, noteConversion } = useLineage();
   const { t } = useTweaks();
-  const [conversions, setConversions] = useState<BatchConversion[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [fromBatch, setFromBatch] = useState("");
   const [toSize, setToSize] = useState("");
   const [changeStageId, setChangeStageId] = useState("");
@@ -258,21 +258,6 @@ export default function BatchConversionPage() {
     [],
   );
 
-  const refresh = useCallback(async () => {
-    setLoadError(null);
-    const res = await fetch("/api/batch-conversions", { credentials: "same-origin" });
-    if (!res.ok) {
-      setLoadError(res.status === 401 ? "Sign in required." : "Could not load conversions.");
-      return;
-    }
-    const data = (await res.json()) as { conversions?: BatchConversion[] };
-    setConversions(data.conversions ?? []);
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
   useEffect(() => {
     let cancelled = false;
     fetch("/api/entry-template", { cache: "no-store", credentials: "same-origin" })
@@ -343,6 +328,7 @@ export default function BatchConversionPage() {
     (async () => {
       const res = await fetch(`/api/batch-conversions?batch=${encodeURIComponent(focusBatch)}`, {
         credentials: "same-origin",
+        cache: "no-store",
       });
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as { chain?: LineageNode[] };
@@ -382,6 +368,7 @@ export default function BatchConversionPage() {
         return;
       }
       const row = data.conversion!;
+      noteConversion(row);
       setFormOk(`${conversionFlowLabel(row.fromBatch, row.toBatch)}. Stored as ${historyNameForLot(row.toBatch, [row])}.`);
       setFocusBatch(row.toBatch);
       setChangeStageId(row.stageId);
@@ -396,7 +383,7 @@ export default function BatchConversionPage() {
         rejected: 0,
         stageId: row.stageId,
       });
-      await refresh();
+      await refreshConversions();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not record conversion.");
     } finally {

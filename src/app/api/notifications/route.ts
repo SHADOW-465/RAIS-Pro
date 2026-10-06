@@ -11,6 +11,9 @@ import {
 import type { NotificationType } from "@/lib/notifications/types";
 import { issueGrant } from "@/lib/entry/edit-grants";
 import type { EditRequestPayload } from "@/lib/notifications/types";
+import { LIVE_CACHE } from "@/lib/http/live-cache";
+
+export const dynamic = "force-dynamic";
 // Authority now comes from the session actor's capabilities (see guard.ts).
 
 export const runtime = "nodejs";
@@ -27,7 +30,10 @@ export async function GET(req: NextRequest) {
     status: status as "open" | "all" | "closed" | "acked" | "approved" | "denied",
     type: type || undefined,
   });
-  return NextResponse.json({ notifications: list, openCount: await openCount() });
+  return NextResponse.json(
+    { notifications: list, openCount: await openCount() },
+    { headers: LIVE_CACHE },
+  );
 }
 
 export async function POST(req: NextRequest) {

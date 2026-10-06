@@ -4,13 +4,14 @@
 import React, { useState, useEffect } from "react";
 import AppShell from "@/components/app/AppShell";
 import { useEvents } from "@/components/app/EventsContext";
+import { useLineage } from "@/components/app/LineageContext";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import BatchMatrixEntry from "@/components/BatchMatrixEntry";
 import EntryHistory from "@/components/EntryHistory";
 import Tabs from "@/components/ui/Tabs";
 import type { AuditEntryRow, AuditEventLike } from "@/lib/analytics/audit-sessions";
 import { hydrateFromAuditRow, type EntryHydrate } from "@/lib/entry/hydrate-entry";
-import { historyNameForLot, type BatchConversion } from "@/lib/lineage";
+import { historyNameForLot } from "@/lib/lineage";
 
 type EntryMode = "matrix" | "history";
 
@@ -21,6 +22,7 @@ const TAB_HINT: Record<EntryMode, string> = {
 
 export default function DataEntryPage() {
   const { events, isLoading } = useEvents();
+  const { conversions } = useLineage();
   // The topbar Day / Week / Month / FY control had no effect on this screen.
   // It now files History under period headers â€” the grouping the operator
   // wanted, without touching what the ledger stores.
@@ -34,26 +36,6 @@ export default function DataEntryPage() {
   const [initialStatus, setInitialStatus] = useState<"all" | "open" | "complete">("all");
   /** Batch ID from ?batch= URL param â€” pre-fills search and auto-expands in History. */
   const [initialBatch, setInitialBatch] = useState<string | undefined>(undefined);
-  const [conversions, setConversions] = useState<BatchConversion[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    fetch("/api/batch-conversions", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!active || !data) return;
-        const list = Array.isArray(data.conversions)
-          ? data.conversions
-          : Array.isArray(data)
-            ? data
-            : [];
-        setConversions(list);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const batchLabel = React.useCallback(
     (b: string) => (b && b !== "(no batch)" ? historyNameForLot(b, conversions) : b),

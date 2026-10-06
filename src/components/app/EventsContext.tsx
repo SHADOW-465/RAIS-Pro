@@ -11,6 +11,7 @@ import React, {
 } from "react";
 import type { Event } from "@/lib/store/types";
 import { usePersona } from "@/components/app/PersonaContext";
+import { createTrailingRefresh } from "@/lib/client/trailing-refresh";
 
 interface EventsContextType {
   events: Event[] | null;
@@ -37,54 +38,51 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<Event[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isValidating, setIsValidating] = useState(false);
-  const inflight = useRef<Promise<void> | null>(null);
   const hasData = useRef(false);
 
   /** Session required before private APIs: auth on and no user yet. */
   const blockedByAuth = authReady && authEnabled && !authUser;
   const canFetch = authReady && !blockedByAuth;
+  const canFetchRef = useRef(canFetch);
+  canFetchRef.current = canFetch;
 
-  const refreshEvents = useCallback(async () => {
-    if (!canFetch) {
+  const load = useCallback(async () => {
+    if (!canFetchRef.current) {
       setEvents([]);
       setIsLoading(false);
       setIsValidating(false);
       return;
     }
-    if (inflight.current) return inflight.current;
-
-    const run = (async () => {
-      if (hasData.current) setIsValidating(true);
-      else setIsLoading(true);
-      try {
-        const res = await fetch("/api/events", {
-          credentials: "same-origin",
-          headers: { Accept: "application/json" },
-        });
-        // Expected when signed out; do not throw a console error.
-        if (res.status === 401) {
-          setEvents([]);
-          hasData.current = false;
-          return;
-        }
-        if (!res.ok) throw new Error(`events ${res.status}`);
-        const data = await res.json();
-        const next = (data.events ?? []) as Event[];
-        setEvents(next);
-        hasData.current = true;
-      } catch (err) {
-        console.error("Failed to fetch events:", err);
-        setEvents((prev) => (prev != null ? prev : []));
-      } finally {
-        setIsLoading(false);
-        setIsValidating(false);
-        inflight.current = null;
+    if (hasData.current) setIsValidating(true);
+    else setIsLoading(true);
+    try {
+      const res = await fetch("/api/events", {
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      if (res.status === 401) {
+        setEvents([]);
+        hasData.current = false;
+        return;
       }
-    })();
+      if (!res.ok) throw new Error(`events ${res.status}`);
+      const data = await res.json();
+      const next = (data.events ?? []) as Event[];
+      setEvents(next);
+      hasData.current = true;
+    } catch (err) {
+      console.error("Failed to fetch events:", err);
+      setEvents((prev) => (prev != null ? prev : []));
+      throw err;
+    } finally {
+      setIsLoading(false);
+      setIsValidating(false);
+    }
+  }, []);
 
-    inflight.current = run;
-    return run;
-  }, [canFetch]);
+  const refreshRef = useRef(createTrailingRefresh(() => load()));
+  const refreshEvents = useCallback(() => refreshRef.current(), []);
 
   // Load (or clear) whenever auth readiness / session changes — including post-login.
   useEffect(() => {
@@ -96,13 +94,13 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
       setIsValidating(false);
       return;
     }
-    void refreshEvents();
+    void refreshEvents().catch(() => {});
   }, [authReady, blockedByAuth, authUser?.username, refreshEvents]);
 
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === "visible" && hasData.current && canFetch) {
-        void refreshEvents();
+        void refreshEvents().catch(() => {});
       }
     };
     document.addEventListener("visibilitychange", onVis);

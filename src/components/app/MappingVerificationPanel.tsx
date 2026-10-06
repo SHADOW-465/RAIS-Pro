@@ -192,7 +192,7 @@ export default function MappingVerificationPanel({
         [mod.modId]: { learned: pData.learnedMappings ?? 0, novelAdded },
       }));
       // Plant Schema / Data Entry template read the catalog — refresh now.
-      await refreshRegistry().catch(() => {});
+      await refreshRegistry({ force: true }).catch(() => {});
       onPublished?.(mod.modId, mod.version);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Verification failed");

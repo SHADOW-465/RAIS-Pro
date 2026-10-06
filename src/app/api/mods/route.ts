@@ -10,6 +10,9 @@ import { getModStore } from "@/core/ontology/store/mod-store";
 import { getCatalogStore } from "@/core/ontology/store/catalog-store";
 import { validateModDocument } from "@/core/ontology/validate/mod-validator";
 import { learnFromMod } from "@/core/ontology/builder/learn";
+import { LIVE_CACHE } from "@/lib/http/live-cache";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,10 +21,10 @@ export async function GET(req: NextRequest) {
       const versionParam = req.nextUrl.searchParams.get("version");
       const row = await getModStore().get(modId, versionParam ? Number(versionParam) : undefined);
       if (!row) return NextResponse.json({ error: `No MOD ${modId}` }, { status: 404 });
-      return NextResponse.json({ mod: row });
+      return NextResponse.json({ mod: row }, { headers: LIVE_CACHE });
     }
     const company = process.env.MOID_COMPANY_ID || "default";
-    return NextResponse.json({ mods: await getModStore().list(company) });
+    return NextResponse.json({ mods: await getModStore().list(company) }, { headers: LIVE_CACHE });
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to load MODs" }, { status: 500 });
   }

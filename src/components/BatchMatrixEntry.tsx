@@ -85,12 +85,14 @@ import { formatLedgerBlockReason } from "@/lib/entry/format-ingest-error";
 import { readPrefill, clearPrefill } from "@/lib/agent/prefill";
 import type { EntryHydrate } from "@/lib/entry/hydrate-entry";
 import { useEvents } from "@/components/app/EventsContext";
+import { useLineage } from "@/components/app/LineageContext";
+import { notifyNotificationsChanged } from "@/lib/client/live-signals";
 import { usePersona } from "@/components/app/PersonaContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { loadDraft, saveDraft } from "@/lib/entry/draft";
 import { buildBatchProgress, progressFor } from "@/lib/analytics/batch-progress";
 import { buildEntryRows, type AuditEventLike } from "@/lib/analytics/audit-sessions";
-import { sizeOfLot } from "@/lib/lineage";
+import { sizeOfLot, type BatchConversion } from "@/lib/lineage";
 
 // Modular Child Components
 import EntryContextBar from "@/components/entry/EntryContextBar";
@@ -177,6 +179,7 @@ export default function BatchMatrixEntry({
   conversionFlow?: ConversionFlowInfo | null;
 }) {
   const { events, refreshEvents } = useEvents();
+  const { noteConversion, refreshConversions } = useLineage();
   const { canWrite, canEraseLedger, persona } = usePersona();
   const { schemaRev } = useRegistry();
   const passCtxRef = useRef<string | null>(null);
@@ -285,7 +288,10 @@ export default function BatchMatrixEntry({
       return;
     }
     let cancelled = false;
-    fetch(`/api/batch-conversions?batch=${encodeURIComponent(target)}`, { credentials: "same-origin" })
+    fetch(`/api/batch-conversions?batch=${encodeURIComponent(target)}`, {
+      credentials: "same-origin",
+      cache: "no-store",
+    })
       .then(async (res) => {
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as {
@@ -1371,11 +1377,12 @@ export default function BatchMatrixEntry({
 
   async function postNotification(body: Record<string, unknown>) {
     try {
-      await fetch("/api/notifications", {
+      const res = await fetch("/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (res.ok) notifyNotificationsChanged();
     } catch {
       /* non-blocking */
     }
@@ -1430,9 +1437,10 @@ export default function BatchMatrixEntry({
 
       if (activeConversionFlow?.fromBatch && activeConversionFlow?.toSize) {
         try {
-          await fetch("/api/batch-conversions", {
+          const posted = await fetch("/api/batch-conversions", {
             method: "POST",
             credentials: "same-origin",
+            cache: "no-store",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               fromBatch: activeConversionFlow.fromBatch,
@@ -1444,6 +1452,11 @@ export default function BatchMatrixEntry({
               reason: activeConversionFlow.reason || "Customer / process",
             }),
           });
+          if (posted.ok) {
+            const body = (await posted.json().catch(() => null)) as { conversion?: BatchConversion } | null;
+            if (body?.conversion) noteConversion(body.conversion);
+            await refreshConversions().catch(() => {});
+          }
         } catch {
           /* non-blocking */
         }

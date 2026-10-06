@@ -24,6 +24,9 @@ import { requireSession } from "@/lib/auth/guard";
 import { resolveRole } from "@/lib/auth/roles";
 import { scopeEventsForRole } from "@/lib/access/scope";
 import type { EventFilter } from "@/lib/store/types";
+import { LIVE_CACHE } from "@/lib/http/live-cache";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const auth = await requireSession(req);
@@ -49,14 +52,17 @@ export async function GET(req: NextRequest) {
     const role = await resolveRole(auth.actor.role);
     const data = scopeEventsForRole(all, role?.scope);
 
-    return NextResponse.json({
-      events: data,
-      count: data.length,
-      backend,
-      // So a screen can say "your line" rather than quietly showing a smaller
-      // plant. A number that is scoped and does not say so is a wrong number.
-      scopedToStages: role?.scope?.stages?.length ? role.scope.stages : undefined,
-    });
+    return NextResponse.json(
+      {
+        events: data,
+        count: data.length,
+        backend,
+        // So a screen can say "your line" rather than quietly showing a smaller
+        // plant. A number that is scoped and does not say so is a wrong number.
+        scopedToStages: role?.scope?.stages?.length ? role.scope.stages : undefined,
+      },
+      { headers: LIVE_CACHE },
+    );
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? "Failed to load events" }, { status: 500 });
   }

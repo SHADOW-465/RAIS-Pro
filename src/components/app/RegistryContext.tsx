@@ -23,6 +23,7 @@ import React, {
   useRef,
 } from "react";
 import { usePersona } from "@/components/app/PersonaContext";
+import { createTrailingRefresh } from "@/lib/client/trailing-refresh";
 
 export type RefreshRegistryOpts = { force?: boolean };
 
@@ -51,16 +52,15 @@ export function RegistryProvider({ children }: { children: React.ReactNode }) {
   const [configured, setConfigured] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isValidating, setIsValidating] = useState(false);
-  const inflight = useRef<Promise<void> | null>(null);
-  const inflightGen = useRef(0);
   const hasData = useRef(false);
-  const fetchGen = useRef(0);
 
   const blockedByAuth = authReady && authEnabled && !authUser;
   const canFetch = authReady && !blockedByAuth;
+  const canFetchRef = useRef(canFetch);
+  canFetchRef.current = canFetch;
 
-  const refreshRegistry = useCallback(async (opts?: RefreshRegistryOpts) => {
-    if (!canFetch) {
+  const load = useCallback(async () => {
+    if (!canFetchRef.current) {
       setRegistry(null);
       setPolicy(DEFAULT_POLICY);
       setSchemaRev(null);
@@ -69,52 +69,42 @@ export function RegistryProvider({ children }: { children: React.ReactNode }) {
       setIsValidating(false);
       return;
     }
-    if (inflight.current && !opts?.force) return inflight.current;
-
-    const myGen = ++fetchGen.current;
-    inflightGen.current = myGen;
-    const run = (async () => {
-      if (hasData.current) setIsValidating(true);
-      else setIsLoading(true);
-      try {
-        const res = await fetch("/api/schema", {
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-        if (myGen !== fetchGen.current) return;
-        if (res.status === 401) {
-          // Signed out with auth on — expected; keep empty, no console noise.
-          setRegistry(null);
-          setPolicy(DEFAULT_POLICY);
-          setSchemaRev(null);
-          setConfigured(false);
-          hasData.current = false;
-          return;
-        }
-        if (!res.ok) throw new Error(`schema ${res.status}`);
-        const data = await res.json();
-        if (myGen !== fetchGen.current) return;
-        setRegistry(data.registry ?? null);
-        setPolicy(parsePolicy(data.policy));
-        setSchemaRev(data.catalog?.updatedAt ?? data.catalog?.lastMergedFrom ?? null);
-        setConfigured(!!data.configured);
-        hasData.current = true;
-      } catch (err) {
-        if (myGen !== fetchGen.current) return;
-        console.error("Failed to fetch active registry:", err);
-        setRegistry((prev: any | null) => (prev != null ? prev : null));
-      } finally {
-        if (myGen === fetchGen.current) {
-          setIsLoading(false);
-          setIsValidating(false);
-        }
-        if (inflightGen.current === myGen) inflight.current = null;
+    if (hasData.current) setIsValidating(true);
+    else setIsLoading(true);
+    try {
+      const res = await fetch("/api/schema", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (res.status === 401) {
+        setRegistry(null);
+        setPolicy(DEFAULT_POLICY);
+        setSchemaRev(null);
+        setConfigured(false);
+        hasData.current = false;
+        return;
       }
-    })();
+      if (!res.ok) throw new Error(`schema ${res.status}`);
+      const data = await res.json();
+      setRegistry(data.registry ?? null);
+      setPolicy(parsePolicy(data.policy));
+      setSchemaRev(data.catalog?.updatedAt ?? data.catalog?.lastMergedFrom ?? null);
+      setConfigured(!!data.configured);
+      hasData.current = true;
+    } catch (err) {
+      console.error("Failed to fetch active registry:", err);
+      setRegistry((prev: any | null) => (prev != null ? prev : null));
+      throw err;
+    } finally {
+      setIsLoading(false);
+      setIsValidating(false);
+    }
+  }, []);
 
-    inflight.current = run;
-    return run;
-  }, [canFetch]);
+  const refreshRef = useRef(createTrailingRefresh(() => load()));
+  const refreshRegistry = useCallback(async (_opts?: RefreshRegistryOpts) => {
+    await refreshRef.current();
+  }, []);
 
   useEffect(() => {
     if (!authReady) return;
@@ -128,7 +118,7 @@ export function RegistryProvider({ children }: { children: React.ReactNode }) {
       setIsValidating(false);
       return;
     }
-    void refreshRegistry();
+    void refreshRegistry().catch(() => {});
   }, [authReady, blockedByAuth, authUser?.username, refreshRegistry]);
 
   const value = useMemo(

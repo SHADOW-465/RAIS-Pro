@@ -17,6 +17,7 @@
 // reverse edge would be an import cycle.
 
 import { NextResponse, type NextRequest } from "next/server";
+import { LIVE_CACHE } from "@/lib/http/live-cache";
 import { requireCapability } from "@/lib/auth/guard";
 import {
   BUILTIN_ROLES,
@@ -77,7 +78,10 @@ export async function GET(req: NextRequest) {
   for (const u of users) {
     if (u.active) counts[u.role] = (counts[u.role] ?? 0) + 1;
   }
-  return NextResponse.json({ roles, activeUserCounts: counts, actingRole: auth.actor.role });
+  return NextResponse.json(
+    { roles, activeUserCounts: counts, actingRole: auth.actor.role },
+    { headers: LIVE_CACHE },
+  );
 }
 
 export async function POST(req: NextRequest) {

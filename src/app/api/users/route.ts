@@ -17,6 +17,9 @@ import {
 } from "@/lib/auth/users";
 import { PERSONA_ORDER, type RoleId } from "@/lib/persona";
 import { listRoles, resolveRole } from "@/lib/auth/roles";
+import { LIVE_CACHE } from "@/lib/http/live-cache";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const auth = await requireCapability(req, "configure");
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest) {
   for (const role of PERSONA_ORDER) {
     if (await presetLoginAllowed(role)) sharedLoginsActive.push(role);
   }
-  return NextResponse.json({ users, sharedLoginsActive });
+  return NextResponse.json({ users, sharedLoginsActive }, { headers: LIVE_CACHE });
 }
 
 export async function POST(req: NextRequest) {

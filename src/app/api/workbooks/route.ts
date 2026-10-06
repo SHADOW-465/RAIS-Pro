@@ -19,8 +19,10 @@ import { getKnowledgeStore } from "@/core/ontology/store/knowledge-store";
 import { loadCatalog } from "@/core/ontology/load-catalog";
 import { diffAgainstCatalog } from "@/core/ontology/catalog-diff";
 import { availableBackends } from "@/lib/ai";
+import { LIVE_CACHE } from "@/lib/http/live-cache";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function companyId(): string {
   return process.env.MOID_COMPANY_ID || "default";
@@ -43,7 +45,7 @@ export async function GET() {
       ...s,
       mod: latestByLineage.get(s.snapshotId) ?? null, // lineage id = first snapshot hash
     }));
-    return NextResponse.json({ workbooks });
+    return NextResponse.json({ workbooks }, { headers: LIVE_CACHE });
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to list workbooks" }, { status: 500 });
   }

@@ -10,6 +10,7 @@ import type {
   EditRequestPayload,
 } from "@/lib/notifications/types";
 import { issueGrant } from "@/lib/entry/edit-grants";
+import { NOTIFICATIONS_CHANGED, notifyNotificationsChanged } from "@/lib/client/live-signals";
 
 type Tab = "open" | "history";
 
@@ -27,7 +28,7 @@ export default function NotificationsPanel() {
   const refresh = useCallback(async () => {
     try {
       const status = tab === "open" ? "open" : "closed";
-      const res = await fetch(`/api/notifications?status=${status}`);
+      const res = await fetch(`/api/notifications?status=${status}`, { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
       setItems(data.notifications ?? []);
@@ -40,7 +41,12 @@ export default function NotificationsPanel() {
   useEffect(() => {
     void refresh();
     const id = window.setInterval(() => void refresh(), 15_000);
-    return () => window.clearInterval(id);
+    const onChange = () => void refresh();
+    window.addEventListener(NOTIFICATIONS_CHANGED, onChange);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener(NOTIFICATIONS_CHANGED, onChange);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -92,6 +98,7 @@ export default function NotificationsPanel() {
         delete next[id];
         return next;
       });
+      notifyNotificationsChanged();
       await refresh();
     } finally {
       setBusyId(null);
