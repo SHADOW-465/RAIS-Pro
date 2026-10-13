@@ -23,3 +23,13 @@ Raw labels such as BM now resolve to a Plant Schema code when a catalog alias or
 ## Issue 7 — KPI scope and date basis
 
 Every KPI now says which population and which date it uses. Dashboard and analysis screens say the header scope and lot date (Assembly – lot date with the default). Reports say Whole plant – entry date. Accepted on both is passed forward at each section exit and does not include hold. A station uses that station and lot date. Open lots stay unfiltered and say Dipping, Secondary, and Assembly – all dates. Workbook tiles say This workbook – all dates. Chat KPIs say Whole plant – lot date. Charts that said YTD now use the same scope phrase. Tests 1163 passed. Production build passed.
+
+## Diagnostics — empty-day comparison
+
+Cause: the AI Diagnostics headline subtracted the previous calendar bucket. An empty day stores its rate as NaN, so the line read "a NaN% pt reduction vs 09 Oct". The trend arrow (e7dc34b) already compared to the last day with production.
+
+Fix: the headline uses that same last-production pair. Percent and delta text omit the comparison when the number is not finite.
+
+Tests: 1170 passed, including a zero-production previous day, no prior production, and undefined inputs. Production build passed.
+
+Commit: e544c66.
