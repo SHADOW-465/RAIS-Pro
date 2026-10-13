@@ -8,7 +8,8 @@ import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/co
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { usePolicy } from "@/components/app/RegistryContext";
 import { 
-  Card, 
+  Card,
+  ScopeBasis, 
   LineChart, 
   GaugeChart,
   rupee
@@ -129,6 +130,7 @@ export default function CopqPage() {
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Inspect financial impact assessments of shopfloor rejects and review project return-on-investment targets.
           </p>
+          <ScopeBasis />
         </div>
 
         {isLoading && (

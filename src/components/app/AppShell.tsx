@@ -629,11 +629,11 @@ export default function AppShell({
         dashboardTitle: "Live Staging Ledger",
         executiveSummary: `Overall rejection rate is ${pct(rate)}. Visual Inspection contributes the highest rejection volume.`,
         kpis: [
-          { label: "Rejection Rate", value: pct(rate), unit: "", trend: 0, context: "YTD average" },
-          { label: "Total Rejections", value: num(rejected), unit: "", trend: 0, context: "YTD total" },
-          { label: "First Pass Yield (FPY)", value: pct(fpyVal), unit: "", trend: 0, context: "YTD FPY" },
-          { label: "COPQ (This Month)", value: rupee(copqRes?.value ?? 0), trend: 0, context: "Month total" },
-          { label: "Savings Opportunity", value: rupee(savings ?? 0), trend: 0, context: "Annual Potential" },
+          { label: "Rejection Rate", value: pct(rate), unit: "", trend: 0, context: "Whole plant – lot date" },
+          { label: "Total Rejections", value: num(rejected), unit: "", trend: 0, context: "Whole plant – lot date" },
+          { label: "First Pass Yield (FPY)", value: pct(fpyVal), unit: "", trend: 0, context: "Whole plant – lot date" },
+          { label: "COPQ (This Month)", value: rupee(copqRes?.value ?? 0), trend: 0, context: "Whole plant – lot date" },
+          { label: "Savings Opportunity", value: rupee(savings ?? 0), trend: 0, context: "Whole plant – lot date" },
         ],
         charts: [],
         insights: [

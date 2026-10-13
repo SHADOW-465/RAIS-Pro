@@ -19,3 +19,7 @@ Empty days stay on the chart but are marked no production and are not drawn as a
 ## Issue 6 — defect codes, process flow, remedies
 
 Raw labels such as BM now resolve to a Plant Schema code when a catalog alias or a learned defect-alias matches. That happens when a screen reads the ledger and when a new entry is saved. Existing ledger rows are not rewritten. A label that matches nothing stays on the Pareto marked unresolved, and the coverage percent counts only the matches. The catheter flow includes secondary stages such as Eye Punching, and a step with no rows in the date range says so. Defect remedies have a migration file and an API. The migration is not applied. Until it is, the page keeps this browser's book and imports it once the table exists. Tests 1162 passed. Production build passed.
+
+## Issue 7 — KPI scope and date basis
+
+Every KPI now says which population and which date it uses. Dashboard and analysis screens say the header scope and lot date (Assembly – lot date with the default). Reports say Whole plant – entry date. Accepted on both is passed forward at each section exit and does not include hold. A station uses that station and lot date. Open lots stay unfiltered and say Dipping, Secondary, and Assembly – all dates. Workbook tiles say This workbook – all dates. Chat KPIs say Whole plant – lot date. Charts that said YTD now use the same scope phrase. Tests 1163 passed. Production build passed.

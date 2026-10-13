@@ -20,6 +20,7 @@ const PRINT_CSS = `
 .ar-doc .ar-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0 4px; }
 .ar-doc .ar-kpi { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--surface); min-width: 0; }
 .ar-doc .ar-kpi-l { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.ar-doc .ar-kpi-s { margin-top: 2px; font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
 .ar-doc .ar-kpi-v { font-family: var(--font-mono); font-size: 22px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
 .ar-doc .ar-kpi-v.unavail { font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text-2); }
 .ar-doc table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -176,7 +177,7 @@ function StageTable({ rows, denomNote }: { rows: StageAnalysisRow[]; denomNote: 
   return (
     <table>
       <caption>
-        Stage comparison. Rejected contribution = {denomNote}. Accepted quantity is not a confirmed plant-wide formula.
+        Stage comparison. Rejected contribution = {denomNote}. Accepted is passed forward at this gate. Hold is excluded.
       </caption>
       <thead>
         <tr>
@@ -351,24 +352,29 @@ export default function AuditReportDocument({ model }: { model: ReportViewModel 
           <div className="ar-kpis">
             <div className="ar-kpi">
               <div className="ar-kpi-l">Checked</div>
+              <div className="ar-kpi-s">Whole plant – entry date</div>
               <div className="ar-kpi-v">{metricText(model.fundamentals.checked, "number")}</div>
             </div>
             <div className="ar-kpi">
               <div className="ar-kpi-l">Rejected</div>
+              <div className="ar-kpi-s">Whole plant – entry date</div>
               <div className="ar-kpi-v">{metricText(model.fundamentals.rejected, "number")}</div>
             </div>
             <div className="ar-kpi">
               <div className="ar-kpi-l">Rejection rate</div>
+              <div className="ar-kpi-s">Whole plant – entry date</div>
               <div className="ar-kpi-v">{metricText(model.fundamentals.rejectionRate, "ratio")}</div>
             </div>
             <div className="ar-kpi">
               <div className="ar-kpi-l">Accepted</div>
+              <div className="ar-kpi-s">Whole plant – entry date</div>
               <div className={`ar-kpi-v ${model.fundamentals.accepted.kind === "unavailable" ? "unavail" : ""}`}>
                 {metricText(model.fundamentals.accepted, "number")}
               </div>
             </div>
             <div className="ar-kpi">
               <div className="ar-kpi-l">First-pass yield</div>
+              <div className="ar-kpi-s">Whole plant – entry date</div>
               <div className="ar-kpi-v">{metricText(model.fundamentals.fpy, "ratio")}</div>
             </div>
           </div>

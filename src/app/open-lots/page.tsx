@@ -131,15 +131,16 @@ export default function OpenLotsPage() {
                 gap: 12,
               }}
             >
-              <Kpi label="Lots open" value={String(report.openCount)} detail="Started, not all 3 processes" primary />
+              <Kpi label="Lots open" basis="Dipping, Secondary, and Assembly – all dates" value={String(report.openCount)} detail="Started, not all 3 processes" primary />
               <Kpi
                 label="Stalled"
+                basis="Dipping, Secondary, and Assembly – all dates"
                 value={String(report.stalledCount)}
                 detail="No gate in 3+ days"
                 tone={report.stalledCount > 0 ? "warn" : "good"}
               />
-              <Kpi label="Line complete" value={String(report.lineCompleteCount)} detail="Dipping + Secondary + Assembly" />
-              <Kpi label="Units waiting" value={fmt(report.unitsWaiting)} detail="Accepted qty sitting mid-line" />
+              <Kpi label="Line complete" basis="Dipping, Secondary, and Assembly – all dates" value={String(report.lineCompleteCount)} detail="Dipping + Secondary + Assembly" />
+              <Kpi label="Units waiting" basis="Dipping, Secondary, and Assembly – all dates" value={fmt(report.unitsWaiting)} detail="Accepted qty sitting mid-line" />
             </div>
 
             {report.completedTrend.length > 0 && (

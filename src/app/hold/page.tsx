@@ -9,6 +9,7 @@ import { useTweaks } from "@/components/editorial/TweaksContext";
 import {
   Card,
   Kpi,
+  ScopeBasis,
   LineChart,
   MultiLine,
   BarsH,
@@ -23,6 +24,7 @@ import {
   type Scope,
   STAGE_LABELS,
   useApplyInvestigationFromUrl,
+  lotScopeLabel,
 } from "@/lib/analytics";
 
 const fmtPcs = (n: number) => Math.round(n).toLocaleString("en-IN");
@@ -90,6 +92,7 @@ export default function HoldQuantityPage() {
               : ""}
             {t.dateFrom && t.dateTo ? ` · ${t.dateFrom} → ${t.dateTo}` : ""}.
           </p>
+          <ScopeBasis />
         </div>
 
         {isLoading && <PageLoader message="Reading HOLD events from the ledger…" minHeight="40vh" />}
@@ -147,23 +150,27 @@ export default function HoldQuantityPage() {
             >
               <Kpi
                 label="Total HOLD"
+                basis={lotScopeLabel(t, STAGE_LABELS)}
                 value={fmtPcs(report.totalHold)}
                 detail={`${report.lotCount} lot${report.lotCount === 1 ? "" : "s"} with hold`}
                 primary
               />
               <Kpi
                 label="Lots on hold"
+                basis={lotScopeLabel(t, STAGE_LABELS)}
                 value={String(report.lotCount)}
                 detail="Lots with HOLD > 0 in this range"
               />
               <Kpi
                 label="Hold rate"
+                basis={lotScopeLabel(t, STAGE_LABELS)}
                 value={fmtPct(report.holdRate)}
                 detail={`${fmtPcs(report.totalHold)} of ${fmtPcs(report.totalChecked)} checked`}
                 tone={report.holdRate > 0.1 ? "warn" : "good"}
               />
               <Kpi
                 label="Highest stage"
+                basis={lotScopeLabel(t, STAGE_LABELS)}
                 value={report.topStage ? fmtPcs(report.topStage.hold) : "—"}
                 detail={report.topStage ? report.topStage.label : "No HOLD in range"}
               />

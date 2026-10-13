@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import type { SeriesPoint, StageRow, DefectRow, StageTrendPoint } from "@/lib/analytics";
-import Icon from "@/components/editorial/Icon";
+import { lotScopeLabel } from "@/lib/analytics/scope-label";
+import { STAGE_LABELS } from "@/core/ontology/plant-catalog";
 import { useTweaks } from "@/components/editorial/TweaksContext";
+import Icon from "@/components/editorial/Icon";
 import {
   useContainerWidth,
   getBaseSpacing,
@@ -638,6 +640,16 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
   );
 }
 
+/** Scope and date basis for every number on a lot-date screen. */
+export function ScopeBasis() {
+  const { t } = useTweaks();
+  return (
+    <p className="muted" style={{ fontFamily: "var(--font-mono)", fontSize: 12, margin: "6px 0 0" }}>
+      {lotScopeLabel(t, STAGE_LABELS)}
+    </p>
+  );
+}
+
 export function Empty({ label }: { label: string }) {
   return <div className="muted" style={{ padding: "28px 8px", fontSize: 12, textAlign: "center" }}>{label}</div>;
 }
@@ -653,6 +665,7 @@ export function Kpi({
   value,
   detail,
   sub,
+  basis,
   tone,
   primary,
   spark,
@@ -666,6 +679,8 @@ export function Kpi({
    */
   detail?: string;
   sub?: string;
+  /** Scope and date basis, e.g. "Assembly – lot date". */
+  basis?: string;
   tone?: "good" | "warn" | "bad";
   primary?: boolean;
   spark?: SeriesPoint[];
@@ -721,6 +736,19 @@ export function Kpi({
         <div className="kpi-label">
           {label}
         </div>
+        {basis && (
+          <div
+            style={{
+              marginTop: 2,
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              color: "var(--text-3)",
+              lineHeight: 1.3,
+            }}
+          >
+            {basis}
+          </div>
+        )}
         <div
           className={wordValue ? undefined : "num"}
           title={value}

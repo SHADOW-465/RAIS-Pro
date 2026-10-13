@@ -25,6 +25,7 @@ import {
   ProcessFlow,
   GaugeChart,
   AuditVerificationTable,
+  ScopeBasis,
   StageSizeHeatmap,
   pct,
   rupee,
@@ -96,6 +97,7 @@ import {
   toSourceRows,
   STAGE_LABELS,
   openWip,
+  lotScopeLabel,
 } from "@/lib/analytics";
 import { gateAccepted, notYetAtNextGate } from "@/lib/entry/passed-forward";
 import { decide } from "@/core/decision/engine";
@@ -113,6 +115,7 @@ export default function Dashboard() {
   const [layoutEditing, setLayoutEditing] = useState(false);
   const [layoutDirty, setLayoutDirty] = useState(false);
   const activeRegistry = registry || EMPTY_REGISTRY;
+  const scopeLabel = lotScopeLabel(t, STAGE_LABELS);
   const [selectedSize, setSelectedSize] = useState("Fr16");
   const [targetRej, setTargetRej] = useState<number>(0.03);
   const [modalOpen, setModalOpen] = useState(false);
@@ -251,8 +254,8 @@ export default function Dashboard() {
     const worstSize = orderedSizes.length > 0 ? [...orderedSizes].sort((a, b) => b.rejRate - a.rejRate)[0] : null;
     const sizeWiseInsight = worstSize
       ? worstSize.rejRate > 0
-        ? `Catheter size ${worstSize.size} shows the highest quality deviation with a rejection rate of ${(worstSize.rejRate * 100).toFixed(2)}% YTD.`
-        : "All catheter sizes operate within control parameters with 0.00% rejection rate YTD."
+        ? `Catheter size ${worstSize.size} shows the highest quality deviation with a rejection rate of ${(worstSize.rejRate * 100).toFixed(2)}% (${scopeLabel}).`
+        : `All catheter sizes operate within control parameters with 0.00% rejection rate (${scopeLabel}).`
       : "No size-wise rejection data available for the active period.";
 
     const sizeTrendInsight = szTrend.length > 0
@@ -303,7 +306,7 @@ export default function Dashboard() {
         to: scope.dateTo,
       } satisfies Pick<InvestigationState, "grain" | "from" | "to">,
     };
-  }, [events, scope, t.grain, selectedSize, activeRegistry]);
+  }, [events, scope, t.grain, selectedSize, activeRegistry, scopeLabel]);
 
   // The active view is the GLOBAL stage scope from the header (TweaksContext).
   const activeView = t.stageView;
@@ -680,10 +683,12 @@ export default function Dashboard() {
             <DashboardBoard userKey={layoutUser} editing={layoutEditing} onDirtyChange={setLayoutDirty}>
               {/* Section 1: Executive KPIs */}
               <DashItem id="kpis" span={12}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
+              <ScopeBasis />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)", marginTop: 8 }}>
                 <Kpi
                   primary
                   label="Overall Rejection"
+                  basis={scopeLabel}
                   value={pct(m.rate)}
                   detail={`${num(m.rejected)} rejected · ${num(m.checked)} checked`}
                   sub={stats.rateDiff}
@@ -699,6 +704,7 @@ export default function Dashboard() {
                 <Kpi
                   primary
                   label="Overall Accepted"
+                  basis={scopeLabel}
                   value={pct(m.acceptedRate)}
                   detail={`${num(m.accepted)} passed forward · hold ${num(m.hold)} · not yet at next gate ${num(m.notYetAtNext)}`}
                   sub={stats.acceptedDiff}
@@ -713,6 +719,7 @@ export default function Dashboard() {
                 />
                 <Kpi
                   label="Top Rejecting Stage"
+                  basis={scopeLabel}
                   value={worstStageByRejs}
                   detail={
                     worstStageRow
@@ -732,6 +739,7 @@ export default function Dashboard() {
                 />
                 <Kpi
                   label="Top Defect"
+                  basis={scopeLabel}
                   value={m.defects[0]?.label ?? "—"}
                   detail={
                     m.defects[0]
@@ -758,6 +766,7 @@ export default function Dashboard() {
                 <Kpi
                   primary
                   label="COPQ (₹)"
+                  basis={scopeLabel}
                   value={rupee(m.copq)}
                   detail={m.rejected > 0 ? `${num(m.rejected)} rejected units` : undefined}
                   sub={stats.copqDiff || "Cost of poor quality"}
@@ -809,8 +818,8 @@ export default function Dashboard() {
               <DashItem id="by-stage" span={4}>
                 <Card
                   title="Rejection By Stage"
-                  sub="YTD Rejection Shares"
-                  onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected), metricKind: "rejected" })}
+                  sub={scopeLabel}
+                  onClick={() => openModal(`Stage-wise Rejection (${scopeLabel})`, "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected), metricKind: "rejected" })}
                 >
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
                     <div style={{ flex: 1, minHeight: 180, display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 0" }}>
@@ -834,7 +843,7 @@ export default function Dashboard() {
               <DashItem id="pareto" span={4}>
                 <Card
                   title="Top Defects (Pareto)"
-                  sub="YTD Rejections"
+                  sub={scopeLabel}
                   onClick={() => openModal(
                     "Defect Pareto (All Stages)",
                     "Six Sigma Pareto analysis highlighting the vital few defect categories responsible for most rejects.",
@@ -947,9 +956,9 @@ export default function Dashboard() {
               {m.sizes.length > 0 && (
                 <DashItem id="size-ytd" span={m.sizeTrend.length > 0 ? 4 : 12}>
                   <Card
-                    title="Rejection by Size (YTD)"
-                    sub={m.worstSize ? `Worst: ${m.worstSize.size}` : "YTD"}
-                    onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center", gap: 16 }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => `${n.toFixed(1)}%`} /><div style={{ paddingTop: 16, borderTop: "1px solid var(--border)" }}><SizeColorLegend sizes={m.sizes.map((s) => s.size)} /></div></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—", metricKind: "size" })}
+                    title="Rejection by Size"
+                    sub={m.worstSize ? `Worst: ${m.worstSize.size} · ${scopeLabel}` : scopeLabel}
+                    onClick={() => openModal(`Size-wise Rejection (${scopeLabel})`, m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center", gap: 16 }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => `${n.toFixed(1)}%`} /><div style={{ paddingTop: 16, borderTop: "1px solid var(--border)" }}><SizeColorLegend sizes={m.sizes.map((s) => s.size)} /></div></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—", metricKind: "size" })}
                   >
                     <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => `${n.toFixed(1)}%`} />
                   </Card>
@@ -1154,7 +1163,7 @@ export default function Dashboard() {
                               {rupee(m.savings)}
                             </div>
                             <div className="small" style={{ marginTop: 2, color: "var(--text-3)" }}>
-                              YTD scrap reduction potential.
+                              {scopeLabel}. Scrap reduction if rejection met the target.
                             </div>
                           </div>
                         </div>
@@ -1514,10 +1523,16 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
   const d = useMemo(() => {
     const snap: Scope = { ...scope, stageIds: [stageId] };
     const tr: Scope = { ...trendScope, stageIds: [stageId] };
+    const row = byStage(events, snap, registry).find((s) => s.stageId === stageId);
+    const accepted = row ? gateAccepted(row) : 0;
+    const checked = totalChecked(events, snap, registry).value;
     return {
       rate: rejectionRate(events, snap, registry).value,
-      checked: totalChecked(events, snap, registry).value,
+      checked,
       rejected: totalRejected(events, snap).value,
+      accepted,
+      hold: row?.rework ?? 0,
+      acceptedRate: checked > 0 ? accepted / checked : 0,
       fpy: fpy(events, snap, registry).value,
       trend: trend(events, tr, "rejectionRate", registry),
       defects: byDefect(events, snap, registry),
@@ -1538,19 +1553,21 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
         <Kpi
           primary
           label={`${label} — Rejection Rate`}
+          basis={`${label} – lot date`}
           value={pct(d.rate)}
           detail={`${num(d.rejected)} rejected · ${num(d.checked)} checked`}
           tone={d.rate > targetRej ? "bad" : "good"}
           spark={d.trend}
           onClick={() => openModal(`${label} — Rejection Rate`, `${label} rejection rate is ${pct(d.rate)} (${num(d.rejected)} of ${num(d.checked)} checked) for the selected range.`, <div style={{ minHeight: 280, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection", "rejection"] }), value: pct(d.rate), metricKind: "rejection_rate" })}
         />
-        <Kpi label="Quantity Checked" value={num(d.checked)} detail="units entered this gate" />
-        <Kpi label="Total Rejected" value={num(d.rejected)} detail={d.checked > 0 ? `${pct(d.rate)} of checked` : undefined} tone="bad" />
+        <Kpi label="Quantity Checked" basis={`${label} – lot date`} value={num(d.checked)} detail="units entered this gate" />
+        <Kpi label="Total Rejected" basis={`${label} – lot date`} value={num(d.rejected)} detail={d.checked > 0 ? `${pct(d.rate)} of checked` : undefined} tone="bad" />
         <Kpi
           label="Overall Accepted"
-          value={pct(d.checked > 0 ? (d.checked - d.rejected) / d.checked : 1 - d.rate)}
-          detail={`${num(Math.max(0, d.checked - d.rejected))} accepted · ${num(d.checked)} checked`}
-          tone={(d.checked > 0 ? (d.checked - d.rejected) / d.checked : 1 - d.rate) >= 1 - targetRej ? "good" : "bad"}
+          basis={`${label} – lot date`}
+          value={pct(d.acceptedRate)}
+          detail={`${num(d.accepted)} passed forward · hold ${num(d.hold)}`}
+          tone={d.acceptedRate >= 1 - targetRej ? "good" : "bad"}
         />
       </div>
 

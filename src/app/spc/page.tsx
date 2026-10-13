@@ -8,7 +8,8 @@ import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/co
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { usePolicy } from "@/components/app/RegistryContext";
 import { 
-  Card, 
+  Card,
+  ScopeBasis, 
   LineChart,
   pct,
   ChartTip,
@@ -332,6 +333,7 @@ export default function SpcPage() {
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Monitor statistical process control limits (UCL, LCL) and track quality shift deviations.
           </p>
+          <ScopeBasis />
         </div>
 
         {isLoading && (
