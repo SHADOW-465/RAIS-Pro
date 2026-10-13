@@ -81,6 +81,7 @@ import {
   auditSummary,
   qualityStatus,
   acceptedBreakdown,
+  lastProductivePair,
   sizeTrend,
   periodsIn,
   periodKey,
@@ -420,7 +421,8 @@ export default function Dashboard() {
   const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
 
   const stats = useMemo(() => {
-    if (!m || !m.tr || m.tr.length < 2) {
+    const pair = m?.tr ? lastProductivePair(m.tr) : null;
+    if (!m || !pair) {
       return {
         rateDiff: "vs Prior Period",
         rejDiff: "vs Prior Period",
@@ -429,8 +431,7 @@ export default function Dashboard() {
         copqDiff: "vs Prior Period",
       };
     }
-    const cur = m.tr[m.tr.length - 1];
-    const prev = m.tr[m.tr.length - 2];
+    const [cur, prev] = pair;
 
     const rateChange = cur.value - prev.value;
     const rateDiffSign = rateChange >= 0 ? "↑" : "↓";
@@ -706,7 +707,7 @@ export default function Dashboard() {
                   onClick={() => openModal(
                     `${grainLabel} Acceptance Rate — Drill-down`,
                     kpiNarrative("accepted", `Overall accepted rate stands at ${pct(m.acceptedRate)} (${num(m.accepted)} of ${num(m.checked)} checked), compared to the target acceptance of ${pct(1 - targetRej)} (${stats.acceptedDiff}).`),
-                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: 1 - p.value }))} target={1 - targetRej} fmt={pct} /></div>,
+                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: p.noProduction ? Number.NaN : 1 - p.value }))} target={1 - targetRej} fmt={pct} /></div>,
                     { rows: rejectionSrc(), value: pct(m.acceptedRate), metricKind: "rejection_rate" },
                   )}
                 />

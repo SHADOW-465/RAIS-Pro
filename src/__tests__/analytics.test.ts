@@ -21,7 +21,7 @@ import type { Event } from "@/lib/store/types";
 import { DEFAULT_POLICY } from "@/core/policy/policy";
 import type { RawSheet } from "@/types/dashboard";
 import {
-  rejectionRate, totalRejected, totalChecked, totalAccepted, fpy, byStage, trend, stageTrend, stageBySize,
+  rejectionRate, totalRejected, totalChecked, totalAccepted, fpy, byStage, trend, stageTrend, stageBySize, lastProductivePair,
   legacySumOfGateRates,
 } from "@/lib/analytics/rejection";
 import { byDefect, bySize } from "@/lib/analytics/defect";
@@ -116,7 +116,20 @@ describe("analytics — rejection selectors", () => {
     expect(t).toHaveLength(12);
     expect(t.find((p) => p.period === "2025-04")!.value).toBe(1054 + 828 + 129);
     expect(t.find((p) => p.period === "2025-05")!.value).toBe(451);
-    expect(t.find((p) => p.period === "2025-06")!.value).toBe(0); // empty month, not dropped
+    const june = t.find((p) => p.period === "2025-06")!;
+    expect(june.noProduction).toBe(true);
+    expect(Number.isNaN(june.value)).toBe(true);
+  });
+
+  test("deltas use the last two periods that have production", () => {
+    const pair = lastProductivePair([
+      { period: "2026-09-20", label: "20 Sep", value: 0.2, checked: 10, rejected: 2 },
+      { period: "2026-09-21", label: "21 Sep", value: 0.1, checked: 20, rejected: 2 },
+      { period: "2026-10-09", label: "09 Oct", value: Number.NaN, checked: 0, rejected: 0, noProduction: true },
+      { period: "2026-10-10", label: "10 Oct", value: Number.NaN, checked: 0, rejected: 0, noProduction: true },
+    ]);
+    expect(pair?.[0].label).toBe("21 Sep");
+    expect(pair?.[1].label).toBe("20 Sep");
   });
 
   test("stageTrend exposes per-stage rate per period", () => {

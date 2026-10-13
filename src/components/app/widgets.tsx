@@ -795,11 +795,12 @@ export function Kpi({
 }
 
 function Spark({ points, tone }: { points: SeriesPoint[]; tone?: "good" | "warn" | "bad" }) {
-  if (!points || points.length < 2) return null;
-  const v = points.map((p) => p.value);
+  const live = (points ?? []).filter((p) => !p.noProduction && Number.isFinite(p.value));
+  if (live.length < 2) return null;
+  const v = live.map((p) => p.value);
   const max = Math.max(...v, 1e-6), min = Math.min(...v, 0);
   const W = 80, H = 16;
-  const d = points.map((p, i) => `${(i / (points.length - 1)) * W},${H - ((p.value - min) / (max - min || 1)) * H}`).join(" ");
+  const d = live.map((p, i) => `${(i / (live.length - 1)) * W},${H - ((p.value - min) / (max - min || 1)) * H}`).join(" ");
   const color = tone === "bad" ? "var(--critical)" : tone === "good" ? "var(--positive)" : "var(--accent)";
   return (
     <svg
@@ -900,7 +901,7 @@ export function LineChart({
   const H = height, padX = 48, padTop = isCompact ? 28 : 22, padBottom = 72;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
-  const v = points.map((p) => p.value);
+  const v = points.filter((p) => !p.noProduction && Number.isFinite(p.value)).map((p) => p.value);
   const dataMax = Math.max(0, ...v);
   let defaultMax = 0.05;
   let isPercent = false;
@@ -947,11 +948,21 @@ export function LineChart({
     setHover(idx);
   };
 
-  const visiblePoints = points.slice(startIdx, endIdx + 1);
-  const pathD = visiblePoints.length > 1
-    ? `M ${x(startIdx)} ${y(points[startIdx].value)} ` + visiblePoints.map((p, idx) => `L ${x(startIdx + idx)} ${y(p.value)}`).join(" ")
-    : "";
-  const fillD = pathD ? `${pathD} L ${x(endIdx)} ${axisY} L ${x(startIdx)} ${axisY} Z` : "";
+  const segments: string[] = [];
+  let pen = "";
+  for (let i = startIdx; i <= endIdx; i++) {
+    const p = points[i];
+    if (p.noProduction || !Number.isFinite(p.value)) {
+      if (pen) segments.push(pen);
+      pen = "";
+      continue;
+    }
+    pen += pen ? ` L ${x(i)} ${y(p.value)}` : `M ${x(i)} ${y(p.value)}`;
+  }
+  if (pen) segments.push(pen);
+  const pathD = segments.join(" ");
+  const contiguous = points.slice(startIdx, endIdx + 1).every((p) => !p.noProduction && Number.isFinite(p.value));
+  const fillD = contiguous && pathD ? `${pathD} L ${x(endIdx)} ${axisY} L ${x(startIdx)} ${axisY} Z` : "";
 
   // Resolve stage label for tooltip if not explicitly passed
   const viewLabels: Record<string, string> = {
@@ -1057,12 +1068,14 @@ export function LineChart({
           {hover != null && (
             <g>
               <line x1={x(hover)} y1={padTop} x2={x(hover)} y2={axisY} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />
-              <line x1={padX} y1={y(points[hover].value)} x2={canvasWidth - padX} y2={y(points[hover].value)} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />
+              {Number.isFinite(points[hover].value) && (
+                <line x1={padX} y1={y(points[hover].value)} x2={canvasWidth - padX} y2={y(points[hover].value)} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />
+              )}
             </g>
           )}
 
           {points.map((p, i) => {
-            if (i < startIdx || i > endIdx) return null;
+            if (i < startIdx || i > endIdx || p.noProduction || !Number.isFinite(p.value)) return null;
             return (
               <circle key={i} cx={x(i)} cy={y(p.value)} r={hover === i ? 5 : (points.length > 25 ? 2.5 : 3)} fill={hover === i ? color : "var(--surface)"} stroke={color} strokeWidth={2} />
             );
@@ -1083,10 +1096,12 @@ export function LineChart({
       {hover != null && (
         <ChartTip
           leftPx={x(hover) - scrollLeft}
-          topPx={y(points[hover].value)}
-          below={y(points[hover].value) < H * 0.32}
-          title={points[hover].label}
-          rows={[
+          topPx={Number.isFinite(points[hover].value) ? y(points[hover].value) : axisY - 12}
+          below={Number.isFinite(points[hover].value) ? y(points[hover].value) < H * 0.32 : false}
+          title={points[hover].noProduction ? `${points[hover].label} — no production` : points[hover].label}
+          rows={points[hover].noProduction ? [
+            { label: "Value", value: "no production" },
+          ] : [
             { label: "Metric", value: activeMetric },
             { label: "Value", value: fmt(points[hover].value), color },
             ...(points[hover].rejected != null ? [{ label: "Rejected", value: num(points[hover].rejected!) }] : []),
@@ -1261,9 +1276,20 @@ export function MultiLine({
 
           {stages.map((s, si) => {
             const visibleData = data.slice(startIdx, endIdx + 1);
-            const pathD = visibleData.length > 1
-              ? `M ${x(startIdx)} ${y(data[startIdx].perStage[s.stageId] ?? 0)} ` + visibleData.map((d, idx) => `L ${x(startIdx + idx)} ${y(d.perStage[s.stageId] ?? 0)}`).join(" ")
-              : "";
+            let pen = "";
+            const segs: string[] = [];
+            for (let i = startIdx; i <= endIdx; i++) {
+              const rate = data[i].perStage[s.stageId];
+              const idle = data[i].counts?.[s.stageId]?.checked === 0 || rate == null;
+              if (idle || !Number.isFinite(rate)) {
+                if (pen) segs.push(pen);
+                pen = "";
+                continue;
+              }
+              pen += pen ? ` L ${x(i)} ${y(rate)}` : `M ${x(i)} ${y(rate)}`;
+            }
+            if (pen) segs.push(pen);
+            const pathD = segs.join(" ");
             return pathD ? (
               <path
                 key={s.stageId}

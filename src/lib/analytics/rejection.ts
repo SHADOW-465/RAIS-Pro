@@ -580,7 +580,15 @@ export function stageAnalysis(
   };
 }
 
-export interface SeriesPoint { period: string; label: string; value: number; rejected?: number; checked?: number }
+export interface SeriesPoint {
+  period: string;
+  label: string;
+  value: number;
+  rejected?: number;
+  checked?: number;
+  /** Calendar bucket with no checked and no rejected quantity. Not a 0% rate. */
+  noProduction?: boolean;
+}
 
 type MetricFn = (events: Event[], scope: Scope, registry?: Registry) => MetricValue;
 const METRICS: Record<string, MetricFn> = { rejectionRate, totalRejected, totalChecked, fpy, totalAccepted };
@@ -596,14 +604,25 @@ export function trend(events: Event[], scope: Scope, metric: keyof typeof METRIC
   const sub = { grain: scope.grain, policy: scope.policy };
   return periods.map((p) => {
     const bucket = periodBucket(ev, scope.grain, p);
+    const rejected = totalRejected(bucket, sub).value;
+    const checked = totalChecked(bucket, sub, registry).value;
+    const noProduction = checked === 0 && rejected === 0;
     return {
       period: p,
       label: periodLabel(p),
-      value: fn(bucket, sub, registry).value,
-      rejected: totalRejected(bucket, sub).value,
-      checked: totalChecked(bucket, sub, registry).value,
+      value: noProduction ? Number.NaN : fn(bucket, sub, registry).value,
+      rejected,
+      checked,
+      noProduction,
     };
   });
+}
+
+/** Last two buckets that actually recorded checked units. Empty days are not a delta base. */
+export function lastProductivePair(points: SeriesPoint[]): [SeriesPoint, SeriesPoint] | null {
+  const live = points.filter((p) => !p.noProduction && (p.checked ?? 0) > 0 && Number.isFinite(p.value));
+  if (live.length < 2) return null;
+  return [live[live.length - 1], live[live.length - 2]];
 }
 
 export interface StageTrendPoint { period: string; label: string; perStage: Record<string, number>; counts?: Record<string, { rejected: number; checked: number }> }
@@ -641,7 +660,7 @@ export function stageTrend(events: Event[], scope: Scope, registry: Registry = D
     const counts: Record<string, { rejected: number; checked: number }> = {};
     for (const s of registry.stages) {
       const a = aggregate(byStageEvents.get(s.stageId) ?? [], policy);
-      perStage[s.stageId] = a.checked > 0 ? a.rejected / a.checked : 0;
+      if (a.checked > 0) perStage[s.stageId] = a.rejected / a.checked;
       counts[s.stageId] = { rejected: a.rejected, checked: a.checked };
     }
     return { period: p, label: periodLabel(p), perStage, counts };

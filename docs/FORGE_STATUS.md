@@ -11,3 +11,7 @@ Accepted is now passed forward at each section's exit gate (`gateAccepted` / `pa
 ## Issue 3 — alert target matches Settings
 
 D-001 compares the rejection rate with the saved `targetRejectionPct` and prints that same percent. A rate under the target no longer produces "exceeds the target". Watch-band rules use `watchRejectionPct`. Stored copies of those rules are rebound at evaluation time, so the database was not edited. Tests 1154 passed. Production build passed.
+
+## Issue 4 — deltas skip empty days
+
+Empty days stay on the chart but are marked no production and are not drawn as a 0% rate. KPI deltas compare the last two periods that have checked units, using the same buckets as the trend. Tests 1155 passed. Production build passed.
