@@ -130,6 +130,16 @@ describe("fillTemplate", () => {
     });
     expect(text).toBe("Rate 12.00% at Visual {{missing}}");
   });
+
+  it("does not print NaN or Infinity when a numeric token is not finite", () => {
+    const text = fillTemplate("Rate {{rejection_rate}} count {{total_rejected}}", {
+      vars: { rejection_rate: Number.NaN, total_rejected: Number.POSITIVE_INFINITY },
+      labels: {},
+      eventIds: [],
+    });
+    expect(text).toBe("Rate — count —");
+    expect(text).not.toMatch(/NaN|Infinity/);
+  });
 });
 
 describe("decide", () => {

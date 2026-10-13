@@ -22,7 +22,7 @@ function prettyLabel(raw: string): string {
 
 export function calculatePareto(data: SeriesPoint[]): ParetoAnalysis | null {
   const sorted = data
-    .filter((p) => p.value > 0)
+    .filter((p) => Number.isFinite(p.value) && p.value > 0)
     .sort((a, b) => b.value - a.value);
   if (sorted.length === 0) return null;
 
@@ -50,9 +50,10 @@ export function calculatePareto(data: SeriesPoint[]): ParetoAnalysis | null {
   const nameList =
     names.length <= 3 ? names.join(", ") : `${names.slice(0, 3).join(", ")}, +${names.length - 3} more`;
   const noun = vitalFewCount === 1 ? "category" : "categories";
-  const criticalAreaText =
-    `The top ${vitalFewCount} defect ${noun} (${nameList}) account for ` +
-    `${vitalFewContribution.toFixed(1)}% of total quality rejects.`;
+  const shareText = Number.isFinite(vitalFewContribution) ? `${vitalFewContribution.toFixed(1)}%` : null;
+  const criticalAreaText = shareText
+    ? `The top ${vitalFewCount} defect ${noun} (${nameList}) account for ${shareText} of total quality rejects.`
+    : "";
 
   return { items, totalDefects, vitalFewCount, vitalFewContribution, criticalAreaText };
 }

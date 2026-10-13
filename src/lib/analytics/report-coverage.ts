@@ -181,9 +181,11 @@ export function reportCoverage(args: {
     resolvedDefectRejectedQty + unresolvedDefectRejectedQty + unclassifiedDefectRejectedQty;
   if (defectDenom > 0) {
     const pct = (resolvedDefectRejectedQty / defectDenom) * 100;
-    statements.push(
-      `${pct.toFixed(1)}% of rejected quantity on rejection events has a resolved defect code`,
-    );
+    if (Number.isFinite(pct)) {
+      statements.push(
+        `${pct.toFixed(1)}% of rejected quantity on rejection events has a resolved defect code`,
+      );
+    }
     if (unresolvedDefectRejectedQty > 0) {
       statements.push(
         `${unresolvedDefectRejectedQty.toLocaleString("en-IN")} rejected units have a raw label with no plant-schema code`,
@@ -193,7 +195,7 @@ export function reportCoverage(args: {
   const sizeRejDenom = sizeTaggedRejectedQty + missingSizeRejectedQty;
   if (sizeRejDenom > 0) {
     const pct = (sizeTaggedRejectedQty / sizeRejDenom) * 100;
-    statements.push(`${pct.toFixed(1)}% of rejected quantity has a size tag`);
+    if (Number.isFinite(pct)) statements.push(`${pct.toFixed(1)}% of rejected quantity has a size tag`);
   }
 
   return {

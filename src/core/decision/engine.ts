@@ -101,6 +101,7 @@ export function fillTemplate(template: string, ctx: CanonicalContext): string {
     if (key in ctx.labels) return ctx.labels[key];
     if (key in ctx.vars) {
       const n = ctx.vars[key];
+      if (typeof n !== "number" || !Number.isFinite(n)) return "—";
       // rates as pct if key ends with _rate; otherwise raw
       if (key.endsWith("_rate") || key === "fpy") return (n * 100).toFixed(1);
       if (Number.isInteger(n)) return String(n);

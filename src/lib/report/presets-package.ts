@@ -10,6 +10,9 @@ import {
   totalRejected,
   fpy,
   copq,
+  finiteNumber,
+  formatPercent,
+  formatRatioPercent,
   type Scope,
 } from "@/lib/analytics";
 import { describeSourceFilter } from "@/lib/analytics/scope";
@@ -25,8 +28,11 @@ const esc = (s: unknown) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
-const num = (n: number) => n.toLocaleString("en-IN");
+const pct = (n: number) => formatRatioPercent(n) ?? "—";
+const num = (n: number) => {
+  const v = finiteNumber(n);
+  return v == null ? "—" : v.toLocaleString("en-IN");
+};
 
 function slug(name: string): string {
   return name
@@ -47,7 +53,7 @@ function blockHtml(block: ReportBlock, events: Event[], scope: Scope): string {
         else if (k === "totalChecked") v = num(totalChecked(events, scope).value);
         else if (k === "totalRejected") v = num(totalRejected(events, scope).value);
         else if (k === "fpy") v = pct(fpy(events, scope).value);
-        else if (k === "copq") v = `₹ ${num(Math.round(copq(events, scope)?.value ?? 0))}`;
+        else if (k === "copq") v = `₹ ${num(Math.round(finiteNumber(copq(events, scope)?.value) ?? 0))}`;
         return `<div class="kpi"><div class="kpi-l">${esc(k)}</div><div class="kpi-v">${esc(v)}</div></div>`;
       });
       return `<section><h2>${esc(block.title)}</h2><div class="kpis">${cells.join("")}</div></section>`;
@@ -64,7 +70,7 @@ function blockHtml(block: ReportBlock, events: Event[], scope: Scope): string {
         rows = byDefect(events, scope).map((d) => ({
           label: d.label || d.defectCode || "Unnamed",
           value: num(d.rejected),
-          sub: `${d.pct.toFixed(1)}%`,
+          sub: formatPercent(d.pct, 1) ?? "—",
         }));
       } else if (block.table === "by-size") {
         rows = bySize(events, scope).map((s) => ({

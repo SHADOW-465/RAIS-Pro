@@ -38,7 +38,7 @@ export async function explainRecommendations(
   // Round numbers for the prompt so the model is not tempted to recompute.
   const varLines = Object.entries(vars)
     .filter(([k]) => !k.includes(".")) // keep prompt small: top-level only
-    .map(([k, v]) => `${k}=${typeof v === "number" ? Number(v.toFixed(4)) : v}`)
+    .map(([k, v]) => `${k}=${typeof v === "number" ? (Number.isFinite(v) ? Number(v.toFixed(4)) : "—") : v}`)
     .join(", ");
 
   try {

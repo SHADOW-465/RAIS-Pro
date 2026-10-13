@@ -621,9 +621,9 @@ export default function AppShell({
       const copqRes = copq(evs, scope);
       const savings = savingsOpportunity(evs, scope);
 
-      const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
-      const rupee = (n: number) => `₹${(n / 100000).toFixed(2)}L`;
-      const num = (n: number) => n.toLocaleString();
+      const pct = (n: number) => (Number.isFinite(n) ? `${(n * 100).toFixed(2)}%` : "—");
+      const rupee = (n: number) => (Number.isFinite(n) ? `₹${(n / 100000).toFixed(2)}L` : "—");
+      const num = (n: number) => (Number.isFinite(n) ? n.toLocaleString() : "—");
 
       const computedConfig: DashboardConfig = {
         dashboardTitle: "Live Staging Ledger",

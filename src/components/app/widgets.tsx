@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import type { SeriesPoint, StageRow, DefectRow, StageTrendPoint } from "@/lib/analytics";
+import { finiteNumber, formatPercent, formatRatioPercent } from "@/lib/analytics/finite";
 import { lotScopeLabel } from "@/lib/analytics/scope-label";
 import { STAGE_LABELS } from "@/core/ontology/plant-catalog";
 import { useTweaks } from "@/components/editorial/TweaksContext";
@@ -14,6 +15,13 @@ import {
   niceYMax,
 } from "@/lib/chart-utils";
 import { sizeColorFor } from "@/lib/entry/size-color";
+
+export const pct = (n: number) => formatRatioPercent(n) ?? "—";
+export const rupee = (n: number) => (Number.isFinite(n) ? `₹ ${(n / 100000).toFixed(2)} Lakhs` : "—");
+export const num = (n: number) => {
+  const v = finiteNumber(n);
+  return v == null ? "—" : v.toLocaleString("en-IN");
+};
 
 /** Shared hover tooltip card used by every time-series chart. Positioned over the
  *  chart container at the hovered point; flips below when the point sits high. */
@@ -1175,7 +1183,9 @@ export function MultiLine({
   }
 
   // Smart default: rates (≤1) render as %, counts render as integers.
-  const fmtVal = fmt ?? ((n: number) => (n <= 1 ? `${(n * 100).toFixed(2)}%` : Math.round(n).toLocaleString("en-IN")));
+  const fmtVal = fmt ?? ((n: number) => (
+    !Number.isFinite(n) ? "—" : n <= 1 ? (formatRatioPercent(n) ?? "—") : Math.round(n).toLocaleString("en-IN")
+  ));
   const H = height, padX = 48, padTop = 38, padBottom = 72;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
@@ -1461,7 +1471,7 @@ export function ProcessFlow({ rows }: { rows: StageRow[] }) {
                 {r.label}
               </div>
               <div className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)", marginTop: 2 }}>
-                Checked: {r.checked.toLocaleString()} | Rej: {r.rejected.toLocaleString()} | Yield: {(r.yield * 100).toFixed(1)}%
+                Checked: {num(r.checked)} | Rej: {num(r.rejected)} | Yield: {formatRatioPercent(r.yield, 1) ?? "—"}
               </div>
             </div>
             <span style={{
@@ -1473,7 +1483,7 @@ export function ProcessFlow({ rows }: { rows: StageRow[] }) {
               padding: "2px 6px",
               borderRadius: 4
             }}>
-              {(r.rejRate * 100).toFixed(1)}%
+              {formatRatioPercent(r.rejRate, 1) ?? "—"}
             </span>
           </div>
           {i < rows.length - 1 && (
@@ -1657,7 +1667,7 @@ export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLab
                 const tone = toneFor(cell.rejRate);
                 return (
                   <td key={sz} style={{ ...ctd, textAlign: "center", background: tone.bg, color: tone.fg, fontWeight: 700, fontFamily: "var(--font-mono)", borderRadius: "var(--radius-sm)" }}>
-                    {(cell.rejRate * 100).toFixed(1)}%
+                    {formatRatioPercent(cell.rejRate, 1) ?? "—"}
                   </td>
                 );
               })}
@@ -1668,10 +1678,6 @@ export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLab
     </div>
   );
 }
-
-export const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
-export const rupee = (n: number) => `₹ ${(n / 100000).toFixed(2)} Lakhs`;
-export const num = (n: number) => n.toLocaleString("en-IN");
 
 /** Donut — composition share (e.g. rejections by stage or defect). Inline SVG arcs. */
 export function Donut({
@@ -1728,7 +1734,7 @@ export function Donut({
               {f(activeHover.value)}
             </text>
             <text x={cx} y={cy + 16} textAnchor="middle" fontSize={9.5} fontWeight={700} fontFamily="var(--font-mono)" fill="var(--accent)">
-              {((activeHover.value / total) * 100).toFixed(1)}%
+              {formatPercent(Number.isFinite(activeHover.value) && Number.isFinite(total) && total > 0 ? (activeHover.value / total) * 100 : null, 1) ?? "—"}
             </text>
           </>
         ) : (
@@ -1745,7 +1751,7 @@ export function Donut({
               <span style={{ width: fontSize - 3, height: fontSize - 3, borderRadius: 2, background: col(i), flexShrink: 0 }} />
               <span style={{ color: "var(--text-2)", minWidth: fontSize * 8 }}>{d.label}</span>
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{f(d.value)}</span>
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-2)" }}>({((d.value / total) * 100).toFixed(1)}%)</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-2)" }}>({formatPercent(Number.isFinite(d.value) && Number.isFinite(total) && total > 0 ? (d.value / total) * 100 : null, 1) ?? "—"})</span>
             </div>
           ))}
         </div>
@@ -1771,7 +1777,9 @@ export function Heatmap({
 }) {
   const [hover, setHover] = useState<{ r: number; c: number } | null>(null);
   if (!rows.length || !cols.length) return <Empty label="No data for the selected range." />;
-  const f = fmt ?? ((n: number) => (n <= 1 ? `${(n * 100).toFixed(2)}%` : Math.round(n).toLocaleString("en-IN")));
+  const f = fmt ?? ((n: number) => (
+    !Number.isFinite(n) ? "—" : n <= 1 ? (formatRatioPercent(n) ?? "—") : Math.round(n).toLocaleString("en-IN")
+  ));
   let max = 1e-9;
   for (const row of matrix) for (const v of row) max = Math.max(max, v);
   const bg = (v: number) => `color-mix(in srgb, var(--accent) ${Math.round(Math.min(v / max, 1) * 82) + 4}%, var(--surface))`;
