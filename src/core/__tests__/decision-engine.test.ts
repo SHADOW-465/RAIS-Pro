@@ -141,15 +141,15 @@ describe("decide", () => {
 
     expect(vars.rejection_rate).toBeCloseTo(0.28, 5);
     const ids = recommendations.map((r) => r.ruleId);
-    expect(ids).toContain("D-001"); // rate > 10%
-    expect(ids).toContain("D-002"); // max stage rate > 5%
-    expect(ids).toContain("D-003"); // top defect share > 15%
+    expect(ids).toContain("D-001"); // rate above the saved target
+    expect(ids).toContain("D-002"); // max stage rate above the watch threshold
+    expect(ids).toContain("D-003"); // top defect share above the saved target
     expect(ids).not.toContain("D-008"); // empty-ledger rule
 
     const d001 = recommendations.find((r) => r.ruleId === "D-001")!;
     expect(d001.severity).toBe("critical");
     expect(d001.ruleVersion).toBe(1);
-    expect(d001.text).toMatch(/exceeds the/);
+    expect(d001.text).toMatch(/exceeds the 10\.0% target/);
     expect(d001.vars.rejection_rate).toBeCloseTo(0.28, 5);
     expect(d001.eventIds.length).toBeGreaterThan(0);
     expect(d001.explanation).toBeNull();
@@ -161,6 +161,26 @@ describe("decide", () => {
     const d003 = recommendations.find((r) => r.ruleId === "D-003")!;
     expect(d003.kind).toBe("capa-draft");
     expect(d003.text).toMatch(/Thin Spot/);
+  });
+
+  it("does not say a rate exceeds the target when it is under the saved target", async () => {
+    const { recommendations } = await decide(highRejectionCorpus(), SCOPE, {
+      registry: REG as any,
+      rules: SEED_DECISION_RULES,
+      targetRate: 0.5,
+      watchRate: 0.05,
+    });
+    expect(recommendations.map((r) => r.ruleId)).not.toContain("D-001");
+  });
+
+  it("prints the saved target in the D-001 sentence", async () => {
+    const { recommendations } = await decide(highRejectionCorpus(), SCOPE, {
+      registry: REG as any,
+      rules: SEED_DECISION_RULES,
+      targetRate: 0.15,
+    });
+    const d001 = recommendations.find((r) => r.ruleId === "D-001")!;
+    expect(d001.text).toMatch(/exceeds the 15\.0% target/);
   });
 
   it("fires empty-ledger rule when no production", async () => {

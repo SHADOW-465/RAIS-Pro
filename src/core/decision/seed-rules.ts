@@ -23,15 +23,14 @@ function rule(
 }
 
 /**
- * Default rule set. Thresholds mirror Settings defaults
- * (target rejection 10%, watch 5%) and the heuristic cockpit lines
- * Phase 5 already rendered — now with versioned lineage.
+ * Thresholds are the saved calculation policy (targetRejectionPct / watchRejectionPct).
+ * The numeric `value` is unused when valueRef is set.
  */
 export const SEED_DECISION_RULES: DecisionRuleT[] = [
   rule(
     "D-001",
     1,
-    { all: [{ var: "rejection_rate", op: "gt", value: 0.1 }], any: null },
+    { all: [{ var: "rejection_rate", op: "gt", value: 0, valueRef: "target_rate" }], any: null },
     {
       kind: "alert",
       severity: "critical",
@@ -45,7 +44,7 @@ export const SEED_DECISION_RULES: DecisionRuleT[] = [
     1,
     {
       all: [
-        { var: "max_stage_rate", op: "gt", value: 0.05 },
+        { var: "max_stage_rate", op: "gt", value: 0, valueRef: "watch_rate" },
         { var: "total_checked", op: "gt", value: 0 },
       ],
       any: null,
@@ -63,7 +62,7 @@ export const SEED_DECISION_RULES: DecisionRuleT[] = [
     1,
     {
       all: [
-        { var: "top_defect_share", op: "gt", value: 0.15 },
+        { var: "top_defect_share", op: "gt", value: 0, valueRef: "target_rate" },
         { var: "total_rejected", op: "gt", value: 0 },
       ],
       any: null,
@@ -81,7 +80,7 @@ export const SEED_DECISION_RULES: DecisionRuleT[] = [
     1,
     {
       all: [
-        { var: "max_size_rate", op: "gt", value: 0.05 },
+        { var: "max_size_rate", op: "gt", value: 0, valueRef: "watch_rate" },
         { var: "has_size_data", op: "eq", value: 1 },
       ],
       any: null,
@@ -99,7 +98,7 @@ export const SEED_DECISION_RULES: DecisionRuleT[] = [
     1,
     {
       all: [
-        { var: "fpy", op: "lt", value: 0.9 },
+        { var: "fpy", op: "lt", value: 0, valueRef: "fpy_floor" },
         { var: "total_checked", op: "gt", value: 0 },
       ],
       any: null,
@@ -118,7 +117,7 @@ export const SEED_DECISION_RULES: DecisionRuleT[] = [
     {
       all: [
         { var: "copq", op: "gt", value: 0 },
-        { var: "rejection_rate", op: "gt", value: 0.05 },
+        { var: "rejection_rate", op: "gt", value: 0, valueRef: "watch_rate" },
       ],
       any: null,
     },
@@ -137,7 +136,7 @@ export const SEED_DECISION_RULES: DecisionRuleT[] = [
     {
       all: [
         { var: "total_checked", op: "gt", value: 0 },
-        { var: "rejection_rate", op: "lte", value: 0.05 },
+        { var: "rejection_rate", op: "lte", value: 0, valueRef: "watch_rate" },
       ],
       any: null,
     },

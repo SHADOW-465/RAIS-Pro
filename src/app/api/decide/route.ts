@@ -10,6 +10,7 @@ import { canonicalizeEvents } from "@/lib/analytics/canonical";
 import { decide } from "@/core/decision/engine";
 import { explainRecommendations } from "@/core/decision/explain";
 import { getModStore } from "@/core/ontology/store/mod-store";
+import { getPolicyStore } from "@/core/policy/policy-store";
 import type { Scope } from "@/lib/analytics/scope";
 
 export async function POST(req: NextRequest) {
@@ -50,7 +51,18 @@ export async function POST(req: NextRequest) {
       registry = undefined;
     }
 
-    const result = await decide(data, scope, { registry });
+    let policy;
+    try {
+      policy = (await getPolicyStore().current(company)).policy;
+    } catch {
+      policy = undefined;
+    }
+    const scoped = policy ? { ...scope, policy } : scope;
+    const result = await decide(data, scoped, {
+      registry,
+      targetRate: policy ? policy.targetRejectionPct / 100 : undefined,
+      watchRate: policy ? policy.watchRejectionPct / 100 : undefined,
+    });
     let recommendations = result.recommendations;
 
     if (explain) {

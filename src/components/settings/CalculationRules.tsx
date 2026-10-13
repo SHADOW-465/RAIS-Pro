@@ -490,7 +490,7 @@ export default function CalculationRules() {
 
   const changedCount = IMPACT.filter((r) => r.changed).length;
   const stages = (registry?.stages ?? []) as { stageId: string; label?: string }[];
-  const ladderMax = Math.max(15, draft.targetRejectionPct * 1.4, draft.watchRejectionPct * 1.4, 1);
+  const ladderMax = Math.max(draft.targetRejectionPct * 1.6, draft.watchRejectionPct * 1.6, 1);
   const watchPct = Math.min(100, (draft.watchRejectionPct / ladderMax) * 100);
   const targetPct = Math.min(100, (draft.targetRejectionPct / ladderMax) * 100);
   const busy = saving || settingDefault;
