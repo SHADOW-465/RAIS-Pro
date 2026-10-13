@@ -1,7 +1,7 @@
 // GM defect remedies — description + action per defect code, plus notes on
 // graph spikes and dips. Client localStorage, same pattern as capa-store.
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { DEFECTS, canonicalDefectCode } from "@/core/ontology/plant-catalog";
 
 export interface DefectRemedy {
@@ -59,6 +59,76 @@ function write(next: RemedyBook): void {
 }
 
 let cache: RemedyBook = read();
+let serverMode: "unknown" | "db" | "local" = "unknown";
+let revision = 0;
+
+function publish(next: RemedyBook): void {
+  revision += 1;
+  write(next);
+  cache = read();
+}
+
+async function push(body: Record<string, unknown>): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (serverMode === "local") return;
+  try {
+    const res = await fetch("/api/remedies", {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 401 || res.status === 403) return;
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.source !== "db") {
+      serverMode = "local";
+      return;
+    }
+    serverMode = "db";
+  } catch {
+    serverMode = "local";
+  }
+}
+
+let pulling: Promise<void> | null = null;
+
+async function pull(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const seen = revision;
+  try {
+    const res = await fetch("/api/remedies", { credentials: "same-origin", cache: "no-store" });
+    if (!res.ok) {
+      serverMode = "local";
+      return;
+    }
+    const data = await res.json();
+    if (revision !== seen) return;
+    if (!data || data.source !== "db" || !data.book) {
+      serverMode = "local";
+      return;
+    }
+    serverMode = "db";
+    const remote = data.book as RemedyBook;
+    const local = read();
+    const remoteEmpty = Object.keys(remote.defects ?? {}).length === 0 && (remote.trends ?? []).length === 0;
+    const localHas = Object.keys(local.defects).length > 0 || local.trends.length > 0;
+    if (remoteEmpty && localHas) {
+      await push({ importLocal: true, book: local });
+      return;
+    }
+    publish({
+      defects: remote.defects && typeof remote.defects === "object" ? remote.defects : {},
+      trends: Array.isArray(remote.trends) ? remote.trends : [],
+    });
+  } catch {
+    serverMode = "local";
+  }
+}
+
+function ensurePull(): void {
+  if (typeof window === "undefined") return;
+  if (!pulling) pulling = pull();
+}
 
 function subscribe(cb: () => void): () => void {
   const handler = () => {
@@ -74,7 +144,11 @@ function subscribe(cb: () => void): () => void {
 }
 
 export function useRemedyBook(): RemedyBook {
-  return useSyncExternalStore(subscribe, () => cache, () => EMPTY);
+  const book = useSyncExternalStore(subscribe, () => cache, () => EMPTY);
+  useEffect(() => {
+    ensurePull();
+  }, []);
+  return book;
 }
 
 export function catalogDefects(): { code: string; label: string; stages: string[] }[] {
@@ -114,8 +188,8 @@ export function saveDefectRemedy(
     updatedBy: updatedBy.trim() || "GM",
   };
   const book = read();
-  write({ ...book, defects: { ...book.defects, [key]: rec } });
-  cache = read();
+  publish({ ...book, defects: { ...book.defects, [key]: rec } });
+  void push({ code: key, description: rec.description, remedy: rec.remedy });
   return rec;
 }
 
@@ -134,15 +208,15 @@ export function saveTrendNote(
     updatedBy: note.updatedBy.trim() || "GM",
   };
   const rest = book.trends.filter((t) => t.id !== rec.id);
-  write({ ...book, trends: [rec, ...rest] });
-  cache = read();
+  publish({ ...book, trends: [rec, ...rest] });
+  void push({ trend: rec });
   return rec;
 }
 
 export function removeTrendNote(id: string): void {
   const book = read();
-  write({ ...book, trends: book.trends.filter((t) => t.id !== id) });
-  cache = read();
+  publish({ ...book, trends: book.trends.filter((t) => t.id !== id) });
+  void push({ removeTrendId: id });
 }
 
 export const RANK_WORDS = ["Primary", "Secondary", "Tertiary"] as const;

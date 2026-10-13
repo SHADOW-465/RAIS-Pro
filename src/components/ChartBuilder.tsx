@@ -253,7 +253,7 @@ export function ChartBody({ events, spec, base }: { events: Event[]; spec: Chart
     rows = byDefect(events, scope, reg).map((d) => ({
       label: d.label || d.defectCode || "Unnamed",
       value: d.rejected,
-      sub: `${d.pct.toFixed(1)}% of rejects`,
+      sub: `${d.pct.toFixed(1)}% of rejects${d.unresolved ? " · unresolved code" : ""}`,
     }));
   }
 

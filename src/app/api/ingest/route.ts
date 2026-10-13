@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/guard";
 import { emitMany, type StageDayRecord } from "@/lib/ingest/emit";
+import { registryForNewEntries } from "@/lib/ingest/defect-registry";
 import { checkRecord } from "@/lib/entry/validate-entry";
 import { massBalanceIssues } from "@/lib/ingest/mass-balance";
 import { getStores } from "@/lib/store";
@@ -233,7 +234,10 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    const events = emitMany(toWrite, activeRegistry);
+    // New entries resolve defect labels against the plant schema. This does
+    // not read or rewrite events already in the ledger.
+    const emitRegistry = await registryForNewEntries(activeRegistry);
+    const events = emitMany(toWrite, emitRegistry);
 
     // Upsert reconcile: when a re-ingest changes a value, supersede the prior
     // event for the same stage·day·size·batch·kind so totals UPDATE instead of

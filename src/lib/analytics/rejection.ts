@@ -13,9 +13,17 @@ import {
 import { DEFAULT_POLICY, type CalculationPolicyT } from "@/core/policy/policy";
 import { pickEntryGate, stageSortKey, stageCategoryOf } from "@/core/ontology/plant-catalog";
 import { gateAccepted, notYetAtNextGate } from "@/lib/entry/passed-forward";
+import type { DefectAliasRef } from "./defect-alias";
 
 /** Structural catalog type — the caller's MOD catalog (or a test fixture). */
-export type Registry = { stages: any[]; defects: any[]; sizes: any[]; fiscalYearStartMonth: number };
+export type Registry = {
+  stages: any[];
+  defects: any[];
+  sizes: any[];
+  fiscalYearStartMonth: number;
+  /** Learned defect-alias rows from Plant Schema. Optional; catalog aliases still resolve. */
+  defectAliases?: DefectAliasRef[];
+};
 
 /** No catalog given → derive the stage list from the events themselves
  *  (first-appearance order). Never a hardcoded company (MOD v2 Phase 5). */

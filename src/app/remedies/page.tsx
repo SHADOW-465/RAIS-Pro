@@ -123,9 +123,10 @@ export default function RemediesPage() {
             Defect remedies
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0, maxWidth: "72ch" }}>
-            Feed an explanation and a remedy for every defect. The dashboard Top Defects
-            showcase then names Primary, Secondary, and Tertiary from live ranking, using
-            those feeds. Spikes and dips on graphs get their own notes.
+            Feed an explanation and a remedy for every defect. The plant book is the
+            source. This browser's copy is used when that book is not available yet,
+            and it is imported once the plant book is empty. The dashboard Top Defects
+            showcase then names Primary, Secondary, and Tertiary from live ranking.
           </p>
         </div>
 

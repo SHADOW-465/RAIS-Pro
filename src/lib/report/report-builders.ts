@@ -12,6 +12,7 @@ import { plantAcceptedQuantity } from "@/lib/analytics/accepted";
 import { defectAnalysis } from "@/lib/analytics/defect";
 import { sizeAnalysis } from "@/lib/analytics/size";
 import { reportCoverage } from "@/lib/analytics/report-coverage";
+import { defectAliasesOf } from "@/lib/analytics/defect-alias";
 import { eventEntryDate } from "./date-basis";
 import { monthsInInclusiveRange, monthLabel, monthShortLabel } from "./financial-year";
 import {
@@ -257,6 +258,7 @@ export function buildReport(
     outOfRange,
     dateFrom: resolved.dateFrom,
     dateTo: resolved.dateTo,
+    defectAliases: defectAliasesOf(registry),
   });
 
   const wantsFund = resolved.reportType === "fy-audit-pack" || resolved.reportType === "fundamentals";
