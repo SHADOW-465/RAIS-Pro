@@ -130,6 +130,27 @@ describe("buildSchemaTree", () => {
     expect(unmatched.children.map((c) => c.label)).toEqual(["CUMMULATIVE"]);
   });
 
+  it("strips STAGE: before matching a stage alias, and does not orphan it", () => {
+    const prefixed = buildSchemaTree({
+      ...input,
+      mappings: [
+        ...input.mappings!,
+        { kind: "stage-alias", key: "VISUAL INSPECTION", canonicalId: "STAGE:visual" },
+        { kind: "column-mapping", key: "Checked Qty", canonicalId: "checked" },
+        { kind: "stage-alias", key: "eye punching", canonicalId: "STAGE:visual" },
+      ],
+    });
+    expect(prefixed.find((n) => n.id === "unmatched")!.children.map((c) => c.label)).toEqual(["CUMMULATIVE"]);
+    const mappings = prefixed.find((n) => n.id === "column-mappings")!;
+    expect(mappings.badge).toBeUndefined();
+    expect(mappings.children.map((c) => c.label)).toEqual(["Checked Qty"]);
+    const suspicious = prefixed.find((n) => n.id === "suspicious")!;
+    expect(suspicious.badge).toBe("suspicious");
+    expect(suspicious.children.map((c) => c.label)).toEqual(["eye punching"]);
+    const underVisual = byId(prefixed, "cat:assembly/stage:visual/aliases/alias:stage-alias:eye punching")!;
+    expect(underVisual.badge).toBe("suspicious");
+  });
+
   it("surfaces a stage whose category is unrecognised rather than dropping it", () => {
     const odd = buildSchemaTree({
       ...input,

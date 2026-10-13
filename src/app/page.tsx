@@ -613,7 +613,7 @@ export default function Dashboard() {
       active="dashboard"
       wide
       trustScore={m?.trust.pct ?? null}
-      statusCounts={{ anomalies: 0, alerts: 0, capa: 0, overdue: 0 }}
+      statusCounts={{ capa: 0, overdue: 0 }}
       dateRange={m?.latestPeriodLabel}
       toolbarExtra={
         m && activeView === "cumulative" ? (
@@ -1002,9 +1002,9 @@ export default function Dashboard() {
               <DashItem id="audit" span={m.copqTrend.length > 0 ? 7 : 12}>
                 <Card
                   title="Audit &amp; Verification"
-                  onClick={() => openModal("Audit & Verification", "Counted off the ledger in the current scope — no targets, no estimates.", <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable summary={m.audit} /></div>)}
+                  onClick={() => openModal("Audit & Verification", "Integrity is V-004 and V-014 on this scope. Confidence basis is a separate count.", <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable summary={m.audit} integrity={{ state: m.status.state, critical: m.status.integrityIssues.filter((i) => i.severity === "critical").length, open: m.status.integrityIssues.length }} /></div>)}
                 >
-                  <AuditVerificationTable summary={m.audit} />
+                  <AuditVerificationTable summary={m.audit} integrity={{ state: m.status.state, critical: m.status.integrityIssues.filter((i) => i.severity === "critical").length, open: m.status.integrityIssues.length }} />
                   <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
                     <button
                       onClick={(e) => { e.stopPropagation(); router.push("/audit"); }}

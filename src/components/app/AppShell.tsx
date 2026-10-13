@@ -26,6 +26,7 @@ import {
 import type { DashboardConfig } from "@/types/dashboard";
 import { resolveScope, DEFAULT_STAGE_CATEGORIES, stageCategoryOf, dateBounds } from "@/lib/analytics/scope";
 import { trustScore as computeTrustScore } from "@/lib/analytics/trust";
+import { qualityStatus } from "@/lib/analytics/status";
 
 import { NAV_ROUTES, type NavKey } from "@/lib/nav-keys";
 export type { NavKey };
@@ -1163,7 +1164,21 @@ export default function AppShell({
     setTweak("theme", isDark ? "light" : "dark");
   };
 
-  const sc = statusCounts ?? {};
+  // Footer health is the integrity scan for the header scope — the same
+  // V-004 / V-014 check Data Schema shows. Callers cannot zero it out.
+  const integrityHealth = useMemo(() => {
+    const ev = events ?? [];
+    if (ev.length === 0) return { anomalies: 0, alerts: 0 };
+    const q = qualityStatus(ev, resolveScope(ev, t, policy));
+    const critical = q.integrityIssues.filter((i) => i.severity === "critical").length;
+    return { anomalies: q.integrityIssues.length, alerts: critical };
+  }, [events, t, policy]);
+  const sc = {
+    capa: statusCounts?.capa ?? 0,
+    overdue: statusCounts?.overdue ?? 0,
+    anomalies: integrityHealth.anomalies,
+    alerts: integrityHealth.alerts,
+  };
 
   // Grouped View options. "Stations" only lists stages that:
   //   1) have ledger data, AND

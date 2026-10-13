@@ -1435,6 +1435,7 @@ export function ProcessFlow({ rows }: { rows: StageRow[] }) {
 
 export function AuditVerificationTable({
   summary,
+  integrity,
 }: {
   summary: {
     sourceFiles: number;
@@ -1444,35 +1445,57 @@ export function AuditVerificationTable({
     manualOverrides: number;
     unresolvedValues: number;
   };
+  /** V-004 / V-014 for the same scope as the rest of the page. */
+  integrity?: {
+    state: string;
+    critical: number;
+    open: number;
+  };
 }) {
-  // Every row is a count off the ledger. Nothing here is a target or an
-  // estimate, so nothing is styled as "passing" — a count is just a count.
+  // Integrity is the health signal. Confidence basis is a separate count and
+  // must not read as "the ledger is OK" while mass-balance issues are open.
   const n = (v: number) => v.toLocaleString();
+  const blocked = integrity?.state === "blocked";
   const items = [
-    { label: "Source files", value: n(summary.sourceFiles), ok: false, warn: false },
+    ...(integrity
+      ? [
+          {
+            label: "Ledger integrity",
+            value: blocked ? "Blocked" : integrity.state === "ok" ? "OK" : integrity.state,
+            ok: false,
+            warn: !blocked && integrity.open > 0,
+            bad: blocked,
+          },
+          {
+            label: "Critical issues",
+            value: n(integrity.critical),
+            ok: false,
+            warn: false,
+            bad: integrity.critical > 0,
+          },
+          {
+            label: "Open integrity issues",
+            value: n(integrity.open),
+            ok: false,
+            warn: integrity.open > 0 && integrity.critical === 0,
+            bad: integrity.critical > 0,
+          },
+        ]
+      : []),
+    { label: "Source files", value: n(summary.sourceFiles), ok: false, warn: false, bad: false },
     {
-      label: "Values verified",
-      value: summary.totalValues === 0 ? "—" : `${summary.verifiedPct}%`,
+      label: "Confidence basis",
+      value: summary.totalValues === 0 ? "—" : `${summary.verifiedPct}% exact or rule`,
       ok: false,
       warn: false,
-    },
-    {
-      label: "Resolved / total",
-      value: summary.totalValues === 0 ? "—" : `${n(summary.verifiedValues)} / ${n(summary.totalValues)}`,
-      ok: false,
-      warn: false,
-    },
-    {
-      label: "Unresolved values",
-      value: n(summary.unresolvedValues),
-      ok: false,
-      warn: summary.unresolvedValues > 0,
+      bad: false,
     },
     {
       label: "Corrections",
       value: n(summary.manualOverrides),
       ok: false,
       warn: false,
+      bad: false,
     },
   ];
 
@@ -1488,7 +1511,7 @@ export function AuditVerificationTable({
                 textAlign: "right",
                 fontFamily: "var(--font-mono)",
                 fontWeight: 700,
-                color: item.ok ? "var(--positive)" : item.warn ? "var(--warning)" : "var(--text)"
+                color: item.bad ? "var(--critical)" : item.ok ? "var(--positive)" : item.warn ? "var(--warning)" : "var(--text)"
               }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <span>{item.value}</span>
