@@ -113,17 +113,13 @@ function buildFundamentals(
   const rejected = totalRejected(included, scope);
   const rate = rejectionRate(included, scope, registry);
   const yieldMetric = fpy(included, scope, registry);
-  const accepted = plantAcceptedQuantity(included, scope);
+  const accepted = plantAcceptedQuantity(included, scope, registry);
   const monthly = monthlyFundamentals(included, resolved, registry);
   return {
     checked: metricNumber(checked.value, checked.sourceEventIds),
     rejected: metricNumber(rejected.value, rejected.sourceEventIds),
     rejectionRate: metricRatio(rate.value, rate.sourceEventIds),
-    accepted: {
-      kind: "unavailable",
-      display: accepted.display,
-      policyGap: accepted.policyGap,
-    },
+    accepted: metricNumber(accepted.value, accepted.sourceEventIds),
     fpy: metricRatio(yieldMetric.value, yieldMetric.sourceEventIds),
     monthly,
     patterns: fundamentalsPatterns(monthly, stages.rows, defects.rows, sizes.rows),
@@ -279,9 +275,9 @@ export function buildReport(
 
   const limitations: string[] = [];
   limitations.push(CALCULATION_BASIS);
-  if (fundamentals?.accepted.kind === "unavailable") {
-    limitations.push(fundamentals.accepted.policyGap);
-  }
+  limitations.push(
+    "Accepted is passed forward at each section's exit gate. Hold is excluded. Sections are separate populations, so their exit quantities add.",
+  );
   limitations.push(
     "A second custom-range date basis has not been confirmed. This report uses Date of Entry only.",
   );
@@ -317,7 +313,7 @@ export function buildReport(
     validation: validateReportModel({
       includedCount: included.length,
       coverage,
-      acceptedUnavailable: true,
+      acceptedUnavailable: false,
       missingEntryDateCount: missingEntryDate.length,
     }),
     limitations,

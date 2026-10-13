@@ -80,6 +80,7 @@ import {
   trustScore,
   auditSummary,
   qualityStatus,
+  acceptedBreakdown,
   sizeTrend,
   periodsIn,
   periodKey,
@@ -95,6 +96,7 @@ import {
   STAGE_LABELS,
   openWip,
 } from "@/lib/analytics";
+import { gateAccepted, notYetAtNextGate } from "@/lib/entry/passed-forward";
 import { decide } from "@/core/decision/engine";
 import { SEED_DECISION_RULES } from "@/core/decision/seed-rules";
 import type { RecommendationT } from "@/shared/models/decision";
@@ -256,8 +258,9 @@ export default function Dashboard() {
       ? `Quality levels for size ${selectedSize} over time.`
       : `No trend data available for size ${selectedSize} in the active period.`;
 
-    const accepted = Math.max(0, checked - rejected);
-    const acceptedRate = checked > 0 ? (checked - rejected) / checked : Math.max(0, 1 - rate);
+    const acceptedParts = acceptedBreakdown(events, scope, activeRegistry);
+    const accepted = acceptedParts.accepted;
+    const acceptedRate = checked > 0 ? accepted / checked : 0;
 
     return {
       rate,
@@ -265,6 +268,8 @@ export default function Dashboard() {
       checked,
       accepted,
       acceptedRate,
+      hold: acceptedParts.hold,
+      notYetAtNext: acceptedParts.notYetAtNext,
       fpy: fpyVal,
       stages: orderedStages,
       defects,
@@ -694,7 +699,7 @@ export default function Dashboard() {
                   primary
                   label="Overall Accepted"
                   value={pct(m.acceptedRate)}
-                  detail={`${num(m.accepted)} accepted · ${num(m.checked)} checked`}
+                  detail={`${num(m.accepted)} passed forward · hold ${num(m.hold)} · not yet at next gate ${num(m.notYetAtNext)}`}
                   sub={stats.acceptedDiff}
                   tone={m.acceptedRate >= (1 - targetRej) ? "good" : "bad"}
                   spark={m.tr.map(p => ({ ...p, value: 1 - p.value }))}
@@ -1281,7 +1286,7 @@ function BriefRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-type FunnelRow = { stageId: string; label: string; checked: number; rejected: number; rejRate: number; contributionPct: number };
+type FunnelRow = { stageId: string; label: string; checked: number; rejected: number; good?: number; rework?: number; rejRate: number; contributionPct: number };
 
 /** The sequential gate chain drawn as a funnel: each gate is a block showing its
  *  own checked/rejected, a survivor bar proportional to units entering the line,
@@ -1296,11 +1301,14 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
 }) {
   const denom = Math.max(entryChecked, 1);
   const last = stages[stages.length - 1];
-  const finalGood = last ? Math.max(last.checked - last.rejected, 0) : 0;
+  const finalGood = last ? gateAccepted(last) : 0;
   return (
     <div style={{ display: "flex", alignItems: "stretch", gap: 0, overflowX: "auto", padding: "4px 0" }}>
       {stages.map((s, i) => {
-        const passed = Math.max(s.checked - s.rejected, 0);
+        const passed = gateAccepted(s);
+        const hold = s.rework ?? 0;
+        const next = stages[i + 1];
+        const notYet = next ? notYetAtNextGate(passed, next.checked) : 0;
         const over = s.rejRate > targetRej;
         return (
           <div key={s.stageId} style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 150 }}>
@@ -1334,6 +1342,9 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
               <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: over ? "var(--critical, #b42318)" : "var(--text-2)" }}>
                 −{num(s.rejected)} rejected ({pct(s.rejRate)})
               </span>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-3)" }}>
+                {num(passed)} passed forward · hold {num(hold)}
+              </span>
               {/* survivor bar: this gate's throughput as a share of line entry */}
               <span style={{ display: "block", height: 5, borderRadius: 3, background: "var(--border)", overflow: "hidden" }}>
                 <span style={{
@@ -1346,6 +1357,9 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
             {i < stages.length - 1 && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 6px", flexShrink: 0 }}>
                 <span style={{ fontSize: 11, color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(passed)} →</span>
+                {notYet > 0 && (
+                  <span style={{ fontSize: 10, color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(notYet)} not yet</span>
+                )}
               </div>
             )}
           </div>
@@ -1354,7 +1368,7 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", paddingLeft: 12, flexShrink: 0, borderLeft: "1px dashed var(--border)", marginLeft: 10 }}>
         <span className="ui-label">Final good</span>
         <span className="num" style={{ fontSize: "var(--text-xl)", fontWeight: 600, color: "var(--text)" }}>{num(finalGood)}</span>
-        <span className="small" style={{ color: "var(--text-2)" }}>FPY {pct(fpy)}</span>
+        <span className="small" style={{ color: "var(--text-2)" }}>Passed forward · hold excluded · FPY {pct(fpy)}</span>
       </div>
     </div>
   );
