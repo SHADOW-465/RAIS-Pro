@@ -26,6 +26,7 @@ import {
 import type { DashboardConfig } from "@/types/dashboard";
 import { resolveScope, DEFAULT_STAGE_CATEGORIES, stageCategoryOf, dateBounds } from "@/lib/analytics/scope";
 import { trustScore as computeTrustScore } from "@/lib/analytics/trust";
+import { qualityStatus } from "@/lib/analytics/status";
 
 import { NAV_ROUTES, type NavKey } from "@/lib/nav-keys";
 export type { NavKey };
@@ -620,19 +621,19 @@ export default function AppShell({
       const copqRes = copq(evs, scope);
       const savings = savingsOpportunity(evs, scope);
 
-      const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
-      const rupee = (n: number) => `₹${(n / 100000).toFixed(2)}L`;
-      const num = (n: number) => n.toLocaleString();
+      const pct = (n: number) => (Number.isFinite(n) ? `${(n * 100).toFixed(2)}%` : "—");
+      const rupee = (n: number) => (Number.isFinite(n) ? `₹${(n / 100000).toFixed(2)}L` : "—");
+      const num = (n: number) => (Number.isFinite(n) ? n.toLocaleString() : "—");
 
       const computedConfig: DashboardConfig = {
         dashboardTitle: "Live Staging Ledger",
         executiveSummary: `Overall rejection rate is ${pct(rate)}. Visual Inspection contributes the highest rejection volume.`,
         kpis: [
-          { label: "Rejection Rate", value: pct(rate), unit: "", trend: 0, context: "YTD average" },
-          { label: "Total Rejections", value: num(rejected), unit: "", trend: 0, context: "YTD total" },
-          { label: "First Pass Yield (FPY)", value: pct(fpyVal), unit: "", trend: 0, context: "YTD FPY" },
-          { label: "COPQ (This Month)", value: rupee(copqRes?.value ?? 0), trend: 0, context: "Month total" },
-          { label: "Savings Opportunity", value: rupee(savings ?? 0), trend: 0, context: "Annual Potential" },
+          { label: "Rejection Rate", value: pct(rate), unit: "", trend: 0, context: "Whole plant – lot date" },
+          { label: "Total Rejections", value: num(rejected), unit: "", trend: 0, context: "Whole plant – lot date" },
+          { label: "First Pass Yield (FPY)", value: pct(fpyVal), unit: "", trend: 0, context: "Whole plant – lot date" },
+          { label: "COPQ (This Month)", value: rupee(copqRes?.value ?? 0), trend: 0, context: "Whole plant – lot date" },
+          { label: "Savings Opportunity", value: rupee(savings ?? 0), trend: 0, context: "Whole plant – lot date" },
         ],
         charts: [],
         insights: [
@@ -1163,7 +1164,21 @@ export default function AppShell({
     setTweak("theme", isDark ? "light" : "dark");
   };
 
-  const sc = statusCounts ?? {};
+  // Footer health is the integrity scan for the header scope — the same
+  // V-004 / V-014 check Data Schema shows. Callers cannot zero it out.
+  const integrityHealth = useMemo(() => {
+    const ev = events ?? [];
+    if (ev.length === 0) return { anomalies: 0, alerts: 0 };
+    const q = qualityStatus(ev, resolveScope(ev, t, policy));
+    const critical = q.integrityIssues.filter((i) => i.severity === "critical").length;
+    return { anomalies: q.integrityIssues.length, alerts: critical };
+  }, [events, t, policy]);
+  const sc = {
+    capa: statusCounts?.capa ?? 0,
+    overdue: statusCounts?.overdue ?? 0,
+    anomalies: integrityHealth.anomalies,
+    alerts: integrityHealth.alerts,
+  };
 
   // Grouped View options. "Stations" only lists stages that:
   //   1) have ledger data, AND

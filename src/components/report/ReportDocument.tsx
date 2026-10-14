@@ -73,6 +73,12 @@ export const REPORT_PRINT_CSS = `
   text-transform: uppercase;
   color: var(--text-3);
 }
+.rp-doc .rp-kpi-tile .rp-kpi-basis {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
 .rp-doc .rp-kpi-tile .rp-kpi-value {
   font-family: var(--font-mono);
   font-size: 22px;
@@ -171,6 +177,7 @@ function KpiBand({ kpis, events, scope }: { kpis: KpiId[]; events: Event[]; scop
       {kpis.map((id) => (
         <div key={id} className="rp-kpi-tile">
           <div className="rp-kpi-label">{KPI_LABEL[id]}</div>
+          <div className="rp-kpi-basis">Whole plant – entry date</div>
           <div className="rp-kpi-value">{kpiValue(id, events, scope)}</div>
         </div>
       ))}

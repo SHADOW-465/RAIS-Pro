@@ -14,6 +14,7 @@
 // See docs/2026-08-15-schema-tree-design.md.
 
 import { isSectionMarker, resolveSections, type CatalogSection } from "@/lib/schema/sections";
+import { resolveStageId } from "@/core/ontology/plant-catalog";
 
 export type SchemaNodeKind =
   | "category"
@@ -30,9 +31,11 @@ export type SchemaNodeKind =
   | "sizes-folder"
   | "size"
   | "unmatched-folder"
+  | "mappings-folder"
+  | "suspicious-folder"
   | "mapping";
 
-export type SchemaNodeBadge = "shared" | "quality-gate" | "misspelling" | "orphan";
+export type SchemaNodeBadge = "shared" | "quality-gate" | "misspelling" | "orphan" | "suspicious";
 
 /** What a node points at, for the detail panel and for mutations. */
 export interface SchemaNodeRef {
@@ -115,8 +118,25 @@ const NO_ALIAS_CATEGORY = "primary";
  *  into the catalog in the first place. */
 function isMisspelling(key: string, canonicalId: string): boolean {
   const k = key.replace(/[\s_-]/g, "").toUpperCase();
-  const c = canonicalId.replace(/[\s_-]/g, "").toUpperCase();
+  const c = mappingTargetId(canonicalId).replace(/[\s_-]/g, "").toUpperCase();
   return k !== c;
+}
+
+/** Stored aliases use `STAGE:visual` / `DEFECT:BM`. The catalog id is the part after the prefix. */
+export function mappingTargetId(canonicalId: string): string {
+  return canonicalId.replace(/^(STAGE|DEFECT|SIZE):/i, "").trim();
+}
+
+/**
+ * The alias key names a real stage, and that stage is not the one it points at.
+ * "eye punching -> visual" is this. A month name pointing at visual is not —
+ * the key does not name a stage.
+ */
+export function isSuspiciousStageAlias(key: string, canonicalId: string): boolean {
+  const named = resolveStageId(key);
+  if (!named) return false;
+  const target = resolveStageId(mappingTargetId(canonicalId)) ?? mappingTargetId(canonicalId);
+  return named !== target;
 }
 
 /**
@@ -172,12 +192,16 @@ function aliasFolder(
 ): SchemaNode[] {
   const folderId = `${parentId}/aliases`;
   const nodes: SchemaNode[] = mappings
-    .filter((m) => kinds.includes(m.kind) && m.canonicalId === canonicalId)
+    .filter((m) => kinds.includes(m.kind) && mappingTargetId(m.canonicalId) === canonicalId)
     .map((m) => ({
       id: `${folderId}/alias:${m.kind}:${m.key}`,
       kind: "alias" as const,
       label: m.key,
-      badge: isMisspelling(m.key, m.canonicalId) ? ("misspelling" as const) : undefined,
+      badge: isSuspiciousStageAlias(m.key, m.canonicalId)
+        ? ("suspicious" as const)
+        : isMisspelling(m.key, m.canonicalId)
+          ? ("misspelling" as const)
+          : undefined,
       ref: { mappingKind: m.kind, mappingKey: m.key },
       children: [],
     }));
@@ -362,18 +386,60 @@ export function buildSchemaTree(input: SchemaTreeInput): SchemaNode[] {
     })),
   });
 
-  // ── Mappings that point at nothing we render ────────────────────────────
+  // ── Mappings vs orphans ─────────────────────────────────────────────────
+  // Column mappings are learned header→field links. They are not orphans.
+  // A stage/defect alias is matched once `STAGE:` / `DEFECT:` is stripped.
+  // An alias whose key names a different stage than its target is suspicious,
+  // even when the target itself exists.
   const stageIds = new Set(stages.map((s) => s.stageId));
   const defectCodes = new Set(defects.map((d) => d.defectCode));
+  const mappingRows = mappings.filter((m) => m.kind === "column-mapping");
+  const suspicious = mappings.filter(
+    (m) => m.kind === "stage-alias" && isSuspiciousStageAlias(m.key, m.canonicalId) && stageIds.has(mappingTargetId(m.canonicalId)),
+  );
   const unmatched = mappings.filter((m) => {
-    if (m.kind === "stage-alias" && stageIds.has(m.canonicalId)) {
-      // Surfaced under its stage — unless that whole category hides aliases,
-      // in which case it is deliberately hidden, not unmatched.
+    if (m.kind === "column-mapping") return false;
+    if (m.kind === "stage-alias" && stageIds.has(mappingTargetId(m.canonicalId))) return false;
+    if (m.kind === "defect-alias" && defectCodes.has(mappingTargetId(m.canonicalId))) return false;
+    if (m.kind === "header-pattern" && (stageIds.has(mappingTargetId(m.canonicalId)) || defectCodes.has(mappingTargetId(m.canonicalId)))) {
       return false;
     }
-    if (m.kind === "defect-alias" && defectCodes.has(m.canonicalId)) return false;
     return true;
   });
+  if (mappingRows.length > 0) {
+    out.push({
+      id: "column-mappings",
+      kind: "mappings-folder",
+      label: "Column mappings",
+      count: mappingRows.length,
+      children: mappingRows.map((m) => ({
+        id: `column-mappings/${m.kind}:${m.key}`,
+        kind: "mapping" as const,
+        label: m.key,
+        sublabel: `${m.kind} → ${m.canonicalId}`,
+        ref: { mappingKind: m.kind, mappingKey: m.key },
+        children: [],
+      })),
+    });
+  }
+  if (suspicious.length > 0) {
+    out.push({
+      id: "suspicious",
+      kind: "suspicious-folder",
+      label: "Suspicious aliases",
+      count: suspicious.length,
+      badge: "suspicious",
+      children: suspicious.map((m) => ({
+        id: `suspicious/${m.kind}:${m.key}`,
+        kind: "mapping" as const,
+        label: m.key,
+        sublabel: `${m.kind} → ${mappingTargetId(m.canonicalId)} (key names ${resolveStageId(m.key)})`,
+        badge: "suspicious" as const,
+        ref: { mappingKind: m.kind, mappingKey: m.key },
+        children: [],
+      })),
+    });
+  }
   if (unmatched.length > 0) {
     out.push({
       id: "unmatched",

@@ -404,6 +404,7 @@ export default function WorkbooksPage() {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
                       <Kpi
                         label="Events"
+                        basis="This workbook – all dates"
                         value={String(fileStats.n)}
                         sub="from this file"
                         onClick={() => openModal(
@@ -415,6 +416,7 @@ export default function WorkbooksPage() {
                       />
                       <Kpi
                         label="Checked"
+                        basis="This workbook – all dates"
                         value={fileStats.chk.toLocaleString()}
                         sub="sum"
                         onClick={() => openModal(
@@ -426,6 +428,7 @@ export default function WorkbooksPage() {
                       />
                       <Kpi
                         label="Rejected"
+                        basis="This workbook – all dates"
                         value={fileStats.rej.toLocaleString()}
                         sub="sum"
                         tone="bad"
@@ -438,6 +441,7 @@ export default function WorkbooksPage() {
                       />
                       <Kpi
                         label="Rej. rate"
+                        basis="This workbook – all dates"
                         value={pct(fileStats.rate)}
                         sub="from ledger"
                         tone={fileStats.rate > 0.05 ? "bad" : "good"}

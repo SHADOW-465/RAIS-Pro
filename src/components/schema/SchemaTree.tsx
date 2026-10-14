@@ -120,6 +120,11 @@ const BADGE: Record<SchemaNodeBadge, { label: string; color: string; title: stri
     color: "var(--critical)",
     title: "Resolves to nothing, or is scoped to no stage — invisible downstream.",
   },
+  suspicious: {
+    label: "suspicious",
+    color: "var(--warning)",
+    title: "This alias names one stage and points at a different one.",
+  },
 };
 
 function Badge({ badge }: { badge: SchemaNodeBadge }) {

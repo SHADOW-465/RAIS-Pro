@@ -10,6 +10,7 @@ import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/co
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import {
   Card,
+  ScopeBasis,
   LineChart,
   BarsH,
   Empty,
@@ -32,6 +33,8 @@ import {
   byDefect,
   useApplyInvestigationFromUrl,
   toSourceRows,
+  STAGE_LABELS,
+  lotScopeLabel,
 } from "@/lib/analytics";
 
 export default function SizeAnalysisPage() {
@@ -163,6 +166,7 @@ export default function SizeAnalysisPage() {
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Inspect quality variation and rejection patterns across catheter sizes Fr10 through Fr24.
           </p>
+          <ScopeBasis />
         </div>
 
         {isLoading && (
@@ -218,15 +222,15 @@ export default function SizeAnalysisPage() {
                 <SizeColorLegend sizes={m.heatCols} />
               </Card>
 
-              {/* Top Tier: Size-wise YTD Loss & Interactive Trend Explorer (2 Equal Columns) */}
+              {/* Size rejection for the header scope, plus the selected-size trend. */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(480px, 1fr))", gap: 20 }}>
                 {hasLeft && (
                   <Card
-                    title={`Size-wise Rejection (YTD) (${grainLabel})`}
-                    sub="Cumulative rejection loss across all catheter calibers (Fr10–Fr24)"
+                    title={`Size-wise Rejection (${grainLabel})`}
+                    sub={lotScopeLabel(t, STAGE_LABELS)}
                     onClick={() =>
                       openModal(
-                        `Size-wise Rejection (YTD) (${grainLabel})`,
+                        `Size-wise Rejection (${lotScopeLabel(t, STAGE_LABELS)})`,
                         ytdModalInsight,
                         <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                           <BarsH

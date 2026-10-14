@@ -6,10 +6,49 @@ import { type Scope, scopeEvents, periodBucket, periodLabel, periodsIn } from ".
 import type { SeriesPoint } from "./rejection";
 
 import { DERIVED_REGISTRY, type Registry } from "./rejection";
+import { defectAliasesOf, resolveDefectCode } from "./defect-alias";
 
 function defectLabel(code: string | null, raw: string, registry: Registry = DERIVED_REGISTRY): string {
   if (!code) return raw; // unresolved label shown verbatim (→ V-007 finding elsewhere)
   return registry.defects.find((d) => d.defectCode === code)?.label ?? code;
+}
+
+function classifiedDefect(
+  e: Event,
+  registry: Registry,
+  flagLabel: boolean,
+): { code: string | null; raw: string; unresolved: boolean; label: string; key: string; kind: DefectKind } {
+  const raw = String((e as { defectCodeRaw?: string }).defectCodeRaw ?? "").trim();
+  const stored = ((e as { defectCode?: string | null }).defectCode ?? null) || null;
+  const hit = resolveDefectCode(stored, raw, defectAliasesOf(registry));
+  if (hit.code) {
+    return {
+      code: hit.code,
+      raw,
+      unresolved: false,
+      label: defectLabel(hit.code, raw, registry),
+      key: `code:${hit.code}`,
+      kind: "resolved",
+    };
+  }
+  if (raw) {
+    return {
+      code: null,
+      raw,
+      unresolved: true,
+      label: flagLabel ? `${raw} · unresolved` : raw,
+      key: `raw:${raw}`,
+      kind: "unresolved-raw",
+    };
+  }
+  return {
+    code: null,
+    raw: "",
+    unresolved: false,
+    label: "Unclassified",
+    key: "unclassified",
+    kind: "unclassified",
+  };
 }
 
 export interface DefectRow {
@@ -18,20 +57,20 @@ export interface DefectRow {
   rejected: number;
   pct: number;
   cumPct: number;
+  /** Raw label matched no plant-schema code. The quantity is still counted. */
+  unresolved: boolean;
 }
 
 /** Defect Pareto: rejected qty by defect, desc, with cumulative %. */
 export function byDefect(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): DefectRow[] {
   const ev = scopeEvents(events, scope).filter((e) => e.eventType === "rejection");
   if (ev.length === 0) return [];
-  const sums = new Map<string, { code: string | null; raw: string; qty: number }>();
+  const sums = new Map<string, { code: string | null; label: string; qty: number; unresolved: boolean }>();
   for (const e of ev) {
-    const code = (e as any).defectCode as string | null;
-    const raw = (e as any).defectCodeRaw as string;
-    const key = code ?? `raw:${raw}`;
-    const cur = sums.get(key) ?? { code, raw, qty: 0 };
-    cur.qty += (e as any).quantity as number;
-    sums.set(key, cur);
+    const c = classifiedDefect(e, registry, true);
+    const cur = sums.get(c.key) ?? { code: c.code, label: c.label, qty: 0, unresolved: c.unresolved };
+    cur.qty += (e as { quantity?: number }).quantity ?? 0;
+    sums.set(c.key, cur);
   }
   const total = [...sums.values()].reduce((a, s) => a + s.qty, 0);
   let cum = 0;
@@ -40,7 +79,7 @@ export function byDefect(events: Event[], scope: Scope, registry: Registry = DER
     .map((s) => {
       const pct = total > 0 ? (s.qty / total) * 100 : 0;
       cum += pct;
-      return { defectCode: s.code, label: defectLabel(s.code, s.raw, registry), rejected: s.qty, pct, cumPct: cum };
+      return { defectCode: s.code, label: s.label, rejected: s.qty, pct, cumPct: cum, unresolved: s.unresolved };
     });
 }
 
@@ -80,8 +119,8 @@ export function defectTrend(events: Event[], scope: Scope, topN = 5, registry: R
     const perDefect: Record<string, number> = {};
     for (const lbl of top) perDefect[lbl] = 0;
     for (const e of bucket) {
-      const lbl = defectLabel((e as any).defectCode, (e as any).defectCodeRaw, registry);
-      if (lbl in perDefect) perDefect[lbl] += (e as any).quantity as number;
+      const lbl = classifiedDefect(e, registry, true).label;
+      if (lbl in perDefect) perDefect[lbl] += (e as { quantity?: number }).quantity ?? 0;
     }
     return { period: p, label: periodLabel(p), perDefect };
   });
@@ -119,25 +158,12 @@ export function defectAnalysis(
   registry: Registry = DERIVED_REGISTRY,
 ): DefectAnalysis {
   const ev = scopeEvents(events, scope).filter((e) => e.eventType === "rejection");
-  const sums = new Map<string, { code: string | null; raw: string; qty: number; kind: DefectKind }>();
+  const sums = new Map<string, { code: string | null; raw: string; qty: number; kind: DefectKind; label: string }>();
   for (const e of ev) {
-    const code = (e as { defectCode?: string | null }).defectCode ?? null;
-    const raw = String((e as { defectCodeRaw?: string }).defectCodeRaw ?? "").trim();
-    let key: string;
-    let kind: DefectKind;
-    if (code) {
-      key = `code:${code}`;
-      kind = "resolved";
-    } else if (raw) {
-      key = `raw:${raw}`;
-      kind = "unresolved-raw";
-    } else {
-      key = "unclassified";
-      kind = "unclassified";
-    }
-    const cur = sums.get(key) ?? { code, raw, qty: 0, kind };
+    const c = classifiedDefect(e, registry, false);
+    const cur = sums.get(c.key) ?? { code: c.code, raw: c.raw, qty: 0, kind: c.kind, label: c.label };
     cur.qty += (e as { quantity?: number }).quantity ?? 0;
-    sums.set(key, cur);
+    sums.set(c.key, cur);
   }
   const total = [...sums.values()].reduce((a, s) => a + s.qty, 0);
   let cum = 0;
@@ -146,10 +172,7 @@ export function defectAnalysis(
     .map((s, i) => {
       const pct = total > 0 ? (s.qty / total) * 100 : 0;
       cum += pct;
-      const label =
-        s.kind === "unclassified"
-          ? "Unclassified"
-          : defectLabel(s.code, s.raw, registry);
+      const label = s.kind === "resolved" ? defectLabel(s.code, s.raw, registry) : s.label;
       return {
         defectCode: s.code,
         label,

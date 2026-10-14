@@ -16,6 +16,8 @@ import {
 } from "@/lib/analytics/rejection";
 import { byDefect, bySize } from "@/lib/analytics/defect";
 import { copq } from "@/lib/analytics/cost";
+import { policyOf } from "@/lib/analytics/scope";
+import { finiteNumber, formatPercentDigits } from "@/lib/analytics/finite";
 
 export interface CanonicalContext {
   /** Numeric vars for predicates (and evidence). */
@@ -25,8 +27,6 @@ export interface CanonicalContext {
   /** Union of sourceEventIds from the metrics that produced the vars. */
   eventIds: string[];
 }
-
-const TARGET_RATE = 0.1;
 
 /**
  * Build the canonical variable map for a scope.
@@ -39,9 +39,11 @@ export function computeCanonicalVars(
   events: Event[],
   scope: Scope,
   registry: Registry = DERIVED_REGISTRY,
-  opts: { targetRate?: number } = {},
+  opts: { targetRate?: number; watchRate?: number } = {},
 ): CanonicalContext {
-  const targetRate = opts.targetRate ?? TARGET_RATE;
+  const policy = policyOf(scope);
+  const targetRate = opts.targetRate ?? policy.targetRejectionPct / 100;
+  const watchRate = opts.watchRate ?? policy.watchRejectionPct / 100;
   const rate = rejectionRate(events, scope, registry);
   const rejected = totalRejected(events, scope);
   const checked = totalChecked(events, scope, registry);
@@ -58,14 +60,17 @@ export function computeCanonicalVars(
     total_checked: checked.value,
     copq: copqRes?.value ?? 0,
     target_rate: targetRate,
+    watch_rate: watchRate,
+    fpy_floor: Math.max(0, 1 - targetRate),
     has_size_data: sizes.length > 0 ? 1 : 0,
   };
 
   const labels: Record<string, string> = {
-    target_rate_pct: (targetRate * 100).toFixed(1),
-    rejection_rate_pct: (rate.value * 100).toFixed(2),
-    fpy_pct: (yieldM.value * 100).toFixed(1),
-    copq: Math.round(vars.copq).toLocaleString("en-IN"),
+    target_rate_pct: formatPercentDigits(targetRate, 1) ?? "—",
+    watch_rate_pct: formatPercentDigits(watchRate, 1) ?? "—",
+    rejection_rate_pct: formatPercentDigits(rate.value, 2) ?? "—",
+    fpy_pct: formatPercentDigits(yieldM.value, 1) ?? "—",
+    copq: finiteNumber(vars.copq) == null ? "—" : Math.round(vars.copq).toLocaleString("en-IN"),
   };
 
   const eventIdSet = new Set<string>([
@@ -90,7 +95,7 @@ export function computeCanonicalVars(
   vars.max_stage_rate = maxStageRate;
   labels.max_stage_id = maxStageId;
   labels.max_stage_label = maxStageLabel || "—";
-  labels.max_stage_rate_pct = (maxStageRate * 100).toFixed(1);
+  labels.max_stage_rate_pct = formatPercentDigits(maxStageRate, 1) ?? "—";
 
   let topShare = 0;
   let topCode = "";
@@ -108,7 +113,7 @@ export function computeCanonicalVars(
   vars.top_defect_share = topShare;
   labels.top_defect_code = topCode;
   labels.top_defect_label = topLabel || "—";
-  labels.top_defect_share_pct = (topShare * 100).toFixed(1);
+  labels.top_defect_share_pct = formatPercentDigits(topShare, 1) ?? "—";
 
   let maxSizeRate = 0;
   let maxSize = "";
@@ -121,7 +126,7 @@ export function computeCanonicalVars(
   }
   vars.max_size_rate = maxSizeRate;
   labels.max_size = maxSize || "—";
-  labels.max_size_rate_pct = (maxSizeRate * 100).toFixed(1);
+  labels.max_size_rate_pct = formatPercentDigits(maxSizeRate, 1) ?? "—";
 
   return { vars, labels, eventIds: [...eventIdSet] };
 }

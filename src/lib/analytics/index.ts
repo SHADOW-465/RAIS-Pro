@@ -2,6 +2,7 @@
 export * from "./scope";
 export * from "./canonical";
 export * from "./rejection";
+export * from "./finite";
 export * from "./defect";
 export * from "./size";
 export * from "./cost";
@@ -18,4 +19,5 @@ export * from "./hold";
 export * from "./open-lots";
 export * from "./accepted";
 export * from "./report-coverage";
+export * from "./scope-label";
 

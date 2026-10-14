@@ -11,7 +11,8 @@ import FloatingDetailModal from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
   Card, 
-  ProcessFlow
+  ProcessFlow,
+  ScopeBasis,
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
 import {
@@ -20,7 +21,9 @@ import {
   periodKey,
   periodLabel,
   resolveScope,
-  type Scope
+  type Scope,
+  lotScopeLabel,
+  STAGE_LABELS,
 } from "@/lib/analytics";
 import { FBC_PROCESS } from "./fbc-process-data";
 import type { StageRow } from "@/lib/analytics";
@@ -54,14 +57,20 @@ export default function ProcessFlowPage() {
     const allPeriods = periodsIn(events, t.grain);
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
-    const stages = byStage(events, scope, activeRegistry);
-    const stageRank = new Map(sortStageIds(stages.map((s) => s.stageId)).map((id, i) => [id, i]));
-    const orderedStages = [...stages].sort(
-      (a, b) => (stageRank.get(a.stageId) ?? 99) - (stageRank.get(b.stageId) ?? 99),
-    );
+    const order = (rows: StageRow[]) => {
+      const stageRank = new Map(sortStageIds(rows.map((s) => s.stageId)).map((id, i) => [id, i]));
+      return [...rows].sort(
+        (a, b) => (stageRank.get(a.stageId) ?? 99) - (stageRank.get(b.stageId) ?? 99),
+      );
+    };
+    const stages = order(byStage(events, scope, activeRegistry));
+    // The flow chart is the whole line. Header KPIs stay on the selected section,
+    // so Eye Punching (secondary) is visible here even when the header is Assembly.
+    const flowStages = order(byStage(events, { ...scope, stageIds: undefined }, activeRegistry));
 
     return {
-      stages: orderedStages,
+      stages,
+      flowStages,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
   }, [events, scope, t.grain, activeRegistry]);
@@ -76,6 +85,7 @@ export default function ProcessFlowPage() {
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Inspect cumulative yield, checked volumes, and bottleneck stages across the catheter assembly line.
           </p>
+          <ScopeBasis />
         </div>
 
         {isLoading && (
@@ -105,11 +115,11 @@ export default function ProcessFlowPage() {
 
         {m && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
-            <Card title="Inspection Stages (Quality Gates)" onClick={() => openModal("Inspection Stages", "The four rejection inspection gates with their current yields for the selected period.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>)}>
+            <Card title="Inspection Stages (Quality Gates)" sub={lotScopeLabel(t, STAGE_LABELS)} onClick={() => openModal("Inspection Stages", "The four rejection inspection gates with their current yields for the selected period.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>)}>
               <ProcessFlow rows={m.stages} />
             </Card>
-            <Card title="FBC Process Flow — DS/ANX/02:00" sub="* = critical operation">
-              <FbcProcessFlow stages={m.stages} />
+            <Card title="FBC Process Flow — DS/ANX/02:00" sub="Whole plant – lot date. Includes secondary stages such as Eye Punching. * = critical operation">
+              <FbcProcessFlow stages={m.flowStages} />
             </Card>
           </div>
         )}
@@ -155,7 +165,7 @@ function FbcProcessFlow({ stages }: { stages: StageRow[] }) {
                 color: hasData ? (data!.rejRate > 0.05 ? "var(--critical)" : "var(--positive)") : "var(--text-3)",
                 background: hasData ? (data!.rejRate > 0.05 ? "var(--critical-weak)" : "var(--positive-weak)") : "transparent",
               }}>
-                {hasData ? `${(data!.rejRate * 100).toFixed(1)}%` : "no data"}
+                {hasData ? `${(data!.rejRate * 100).toFixed(1)}%` : "no records in this date range"}
               </span>
             ) : (
               <span className="muted" style={{ fontSize: 10 }}>process</span>

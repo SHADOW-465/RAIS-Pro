@@ -24,6 +24,19 @@ import React, {
 } from "react";
 import { usePersona } from "@/components/app/PersonaContext";
 import { createTrailingRefresh } from "@/lib/client/trailing-refresh";
+import type { DefectAliasRef } from "@/lib/analytics/defect-alias";
+
+function defectAliasesFrom(mappings: unknown): DefectAliasRef[] {
+  if (!Array.isArray(mappings)) return [];
+  const out: DefectAliasRef[] = [];
+  for (const row of mappings) {
+    if (!row || typeof row !== "object") continue;
+    const m = row as { kind?: string; key?: string; canonicalId?: string };
+    if (m.kind !== "defect-alias" || !m.key || !m.canonicalId) continue;
+    out.push({ key: String(m.key), canonicalId: String(m.canonicalId) });
+  }
+  return out;
+}
 
 export type RefreshRegistryOpts = { force?: boolean };
 
@@ -86,7 +99,10 @@ export function RegistryProvider({ children }: { children: React.ReactNode }) {
       }
       if (!res.ok) throw new Error(`schema ${res.status}`);
       const data = await res.json();
-      setRegistry(data.registry ?? null);
+      const defectAliases = defectAliasesFrom(data.mappings);
+      setRegistry(
+        data.registry ? { ...data.registry, defectAliases } : null,
+      );
       setPolicy(parsePolicy(data.policy));
       setSchemaRev(data.catalog?.updatedAt ?? data.catalog?.lastMergedFrom ?? null);
       setConfigured(!!data.configured);

@@ -3,6 +3,7 @@
 
 import { resolveGuide, isGuideFallback } from "@/lib/guide/resolve-guide";
 import { parseDatePhrase } from "@/lib/analytics/date-phrase";
+import { formatPercent } from "@/lib/analytics/finite";
 import type { Event } from "@/lib/store/types";
 import type { RoleId } from "@/lib/persona";
 import {
@@ -484,7 +485,8 @@ function formatExplainReply(ctx: AgentCtx): TurnResult {
     );
   }
   if (m.topDriver) {
-    lines.push(`Main driver: **${m.topDriver.label}** (${m.topDriver.sharePct.toFixed(0)}% of it).`);
+    const share = formatPercent(m.topDriver.sharePct, 0);
+    if (share) lines.push(`Main driver: **${m.topDriver.label}** (${share} of it).`);
   }
   if (m.insight) lines.push(m.insight);
 

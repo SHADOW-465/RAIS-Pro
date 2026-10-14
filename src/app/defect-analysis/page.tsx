@@ -10,6 +10,7 @@ import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/co
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import {
   Card,
+  ScopeBasis,
   MultiLine,
   Donut,
   Heatmap,
@@ -134,6 +135,7 @@ export default function DefectAnalysisPage() {
             Analyze defect distribution using Six Sigma Pareto categorization and historical reason codes.
             Scope a single gate via the View switcher in the top bar.
           </p>
+          <ScopeBasis />
         </div>
 
         {isLoading && (

@@ -25,6 +25,7 @@ import {
   ProcessFlow,
   GaugeChart,
   AuditVerificationTable,
+  ScopeBasis,
   StageSizeHeatmap,
   pct,
   rupee,
@@ -80,6 +81,11 @@ import {
   trustScore,
   auditSummary,
   qualityStatus,
+  acceptedBreakdown,
+  dashboardKpiDeltas,
+  formatPercent,
+  formatRatioPercent,
+  overallRejectionHeadline,
   sizeTrend,
   periodsIn,
   periodKey,
@@ -94,7 +100,9 @@ import {
   toSourceRows,
   STAGE_LABELS,
   openWip,
+  lotScopeLabel,
 } from "@/lib/analytics";
+import { gateAccepted, notYetAtNextGate } from "@/lib/entry/passed-forward";
 import { decide } from "@/core/decision/engine";
 import { SEED_DECISION_RULES } from "@/core/decision/seed-rules";
 import type { RecommendationT } from "@/shared/models/decision";
@@ -110,6 +118,7 @@ export default function Dashboard() {
   const [layoutEditing, setLayoutEditing] = useState(false);
   const [layoutDirty, setLayoutDirty] = useState(false);
   const activeRegistry = registry || EMPTY_REGISTRY;
+  const scopeLabel = lotScopeLabel(t, STAGE_LABELS);
   const [selectedSize, setSelectedSize] = useState("Fr16");
   const [targetRej, setTargetRej] = useState<number>(0.03);
   const [modalOpen, setModalOpen] = useState(false);
@@ -246,18 +255,20 @@ export default function Dashboard() {
     const cTrend = copqTrend(events, trendScope);
 
     const worstSize = orderedSizes.length > 0 ? [...orderedSizes].sort((a, b) => b.rejRate - a.rejRate)[0] : null;
-    const sizeWiseInsight = worstSize
-      ? worstSize.rejRate > 0
-        ? `Catheter size ${worstSize.size} shows the highest quality deviation with a rejection rate of ${(worstSize.rejRate * 100).toFixed(2)}% YTD.`
-        : "All catheter sizes operate within control parameters with 0.00% rejection rate YTD."
-      : "No size-wise rejection data available for the active period.";
+    const worstSizeRate = worstSize ? formatRatioPercent(worstSize.rejRate) : null;
+    const sizeWiseInsight = !worstSize || !worstSizeRate
+      ? "No size-wise rejection data available for the active period."
+      : worstSize.rejRate > 0
+        ? `Catheter size ${worstSize.size} shows the highest quality deviation with a rejection rate of ${worstSizeRate} (${scopeLabel}).`
+        : `All catheter sizes operate within control parameters with ${worstSizeRate} rejection rate (${scopeLabel}).`;
 
     const sizeTrendInsight = szTrend.length > 0
       ? `Quality levels for size ${selectedSize} over time.`
       : `No trend data available for size ${selectedSize} in the active period.`;
 
-    const accepted = Math.max(0, checked - rejected);
-    const acceptedRate = checked > 0 ? (checked - rejected) / checked : Math.max(0, 1 - rate);
+    const acceptedParts = acceptedBreakdown(events, scope, activeRegistry);
+    const accepted = acceptedParts.accepted;
+    const acceptedRate = checked > 0 ? accepted / checked : 0;
 
     return {
       rate,
@@ -265,6 +276,8 @@ export default function Dashboard() {
       checked,
       accepted,
       acceptedRate,
+      hold: acceptedParts.hold,
+      notYetAtNext: acceptedParts.notYetAtNext,
       fpy: fpyVal,
       stages: orderedStages,
       defects,
@@ -297,7 +310,7 @@ export default function Dashboard() {
         to: scope.dateTo,
       } satisfies Pick<InvestigationState, "grain" | "from" | "to">,
     };
-  }, [events, scope, t.grain, selectedSize, activeRegistry]);
+  }, [events, scope, t.grain, selectedSize, activeRegistry, scopeLabel]);
 
   // The active view is the GLOBAL stage scope from the header (TweaksContext).
   const activeView = t.stageView;
@@ -337,18 +350,14 @@ export default function Dashboard() {
   const exec = useMemo(() => {
     if (!m || m.checked === 0) return [];
 
-    let rateDiff = "";
-    if (m.tr && m.tr.length >= 2) {
-      const last = m.tr[m.tr.length - 1].value;
-      const prev = m.tr[m.tr.length - 2].value;
-      const diff = last - prev;
-      const dir = diff >= 0 ? "increase" : "reduction";
-      rateDiff = `, a ${Math.abs(diff * 100).toFixed(2)}% pt ${dir} vs ${m.tr[m.tr.length - 2].label}`;
-    }
+    const visualShare = formatPercent(
+      m.stages.find((s) => s.stageId === "visual")?.contributionPct,
+      1,
+    ) ?? "0.0%";
 
     const lines = [
-      `Overall rejection rate is ${pct(m.rate)}${rateDiff}.`,
-      `Visual Inspection contributes ${m.stages.find(s => s.stageId === "visual")?.contributionPct.toFixed(1) ?? "0.0"}% of total rejections.`,
+      overallRejectionHeadline(m.rate, m.tr),
+      `Visual Inspection contributes ${visualShare} of total rejections.`,
     ];
 
     // Only assert defect drivers when per-defect data actually exists. Showing
@@ -397,12 +406,14 @@ export default function Dashboard() {
       const varBits = Object.entries(r.vars)
         .slice(0, 3)
         .map(([k, v]) => {
+          if (typeof v !== "number" || !Number.isFinite(v)) return null;
           const asPct =
-            typeof v === "number" &&
             v <= 1 &&
             (k.includes("rate") || k === "fpy" || k.includes("share"));
-          return `${k}=${asPct ? `${(v * 100).toFixed(1)}%` : v}`;
+          const shown = asPct ? formatRatioPercent(v, 1) : String(v);
+          return shown ? `${k}=${shown}` : null;
         })
+        .filter((bit): bit is string => !!bit)
         .join(" · ");
       return {
         text: r.text,
@@ -414,58 +425,16 @@ export default function Dashboard() {
 
   const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
 
-  const stats = useMemo(() => {
-    if (!m || !m.tr || m.tr.length < 2) {
-      return {
-        rateDiff: "vs Prior Period",
-        rejDiff: "vs Prior Period",
-        acceptedDiff: "vs Prior Period",
-        fpyDiff: "vs Prior Period",
-        copqDiff: "vs Prior Period",
-      };
-    }
-    const cur = m.tr[m.tr.length - 1];
-    const prev = m.tr[m.tr.length - 2];
-
-    const rateChange = cur.value - prev.value;
-    const rateDiffSign = rateChange >= 0 ? "↑" : "↓";
-    const rateDiffText = `${rateDiffSign} ${(Math.abs(rateChange) * 100).toFixed(2)}% vs ${prev.label}`;
-
-    const rejChange = m.rejected - (prev.value * (m.checked || 1));
-    const rejDiffSign = rejChange >= 0 ? "↑" : "↓";
-    const rejDiffText = `${rejDiffSign} vs ${prev.label}`;
-
-    const acceptedCur = 1 - cur.value;
-    const acceptedPrev = 1 - prev.value;
-    const acceptedChange = acceptedCur - acceptedPrev;
-    const acceptedDiffSign = acceptedChange >= 0 ? "↑" : "↓";
-    const acceptedDiffText = `${acceptedDiffSign} ${(Math.abs(acceptedChange) * 100).toFixed(2)}% vs ${prev.label}`;
-
-    const fpyCur = m.fpy;
-    const fpyPrev = 1 - prev.value;
-    const fpyChange = fpyCur - fpyPrev;
-    const fpyDiffSign = fpyChange >= 0 ? "↑" : "↓";
-    const fpyDiffText = `${fpyDiffSign} ${(Math.abs(fpyChange) * 100).toFixed(2)}% vs ${prev.label}`;
-
-    let copqDiffText = `vs ${prev.label}`;
-    if (m.copqTrend.length >= 2) {
-      const lastVal = m.copqTrend[m.copqTrend.length - 1].value;
-      const prevVal = m.copqTrend[m.copqTrend.length - 2].value;
-      if (prevVal > 0) {
-        const diff = ((lastVal - prevVal) / prevVal) * 100;
-        const dir = diff >= 0 ? "↑" : "↓";
-        copqDiffText = `${dir} ${Math.abs(diff).toFixed(1)}% vs ${prev.label}`;
-      }
-    }
-
-    return {
-      rateDiff: rateDiffText,
-      rejDiff: rejDiffText,
-      acceptedDiff: acceptedDiffText,
-      fpyDiff: fpyDiffText,
-      copqDiff: copqDiffText,
-    };
-  }, [m]);
+  const stats = useMemo(
+    () => dashboardKpiDeltas(m ? {
+      ratePoints: m.tr,
+      rejected: m.rejected,
+      checked: m.checked,
+      fpy: m.fpy,
+      copqTrend: m.copqTrend,
+    } : null),
+    [m],
+  );
 
   // `.find(rejected > 0)`, not `[0]`: a stage that rejected nothing is not the
   // "top rejecting stage". Sorting alone named the first gate in a scope where
@@ -501,7 +470,8 @@ export default function Dashboard() {
       // printed defect rates over 100% whenever that was a low-volume gate.
       checkedSum = m.checked;
     }
-    return checkedSum > 0 ? defect.rejected / checkedSum : 0;
+    const rate = checkedSum > 0 ? defect.rejected / checkedSum : 0;
+    return Number.isFinite(rate) ? rate : 0;
   };
 
   /** C3: reshape `exec`'s bullet lines into "Executive Brief" form — a bolded
@@ -512,10 +482,12 @@ export default function Dashboard() {
    *  `exec` is sparse (<3 lines) so it never looks broken with little data. */
   const execBrief = useMemo(() => {
     if (!m || exec.length < 3) return null;
-    const primaryDriver = worstStageRow
-      ? `${worstStageRow.label} (${pct(worstStageRow.rejRate)} rejection rate, ${worstStageRow.contributionPct.toFixed(1)}% of total)`
-      : m.defects.length > 0
-        ? `${m.defects[0].label} (${m.defects[0].pct.toFixed(1)}% of all rejections)`
+    const stageShare = worstStageRow ? formatPercent(worstStageRow.contributionPct, 1) : null;
+    const defectShare = m.defects[0] ? formatPercent(m.defects[0].pct, 1) : null;
+    const primaryDriver = worstStageRow && stageShare
+      ? `${worstStageRow.label} (${pct(worstStageRow.rejRate)} rejection rate, ${stageShare} of total)`
+      : m.defects.length > 0 && defectShare
+        ? `${m.defects[0].label} (${defectShare} of all rejections)`
         : null;
     return {
       headline: exec[0],
@@ -538,13 +510,16 @@ export default function Dashboard() {
     const topSize = [...m.sizes].sort((a, b) => b.rejRate - a.rejRate)[0];
     const whyParts: string[] = [];
     if (topStage && topStage.rejected > 0) {
-      whyParts.push(`${topStage.label} (${topStage.contributionPct.toFixed(1)}% of total rejections)`);
+      const share = formatPercent(topStage.contributionPct, 1);
+      if (share) whyParts.push(`${topStage.label} (${share} of total rejections)`);
     }
     if (topDefect && topDefect.rejected > 0) {
-      whyParts.push(`${topDefect.label} defects (${topDefect.pct.toFixed(1)}% of rejections)`);
+      const share = formatPercent(topDefect.pct, 1);
+      if (share) whyParts.push(`${topDefect.label} defects (${share} of rejections)`);
     }
-    if (topSize && topSize.rejRate > 0) {
-      whyParts.push(`size ${topSize.size} (${(topSize.rejRate * 100).toFixed(1)}% rejection rate)`);
+    if (topSize && Number.isFinite(topSize.rejRate) && topSize.rejRate > 0) {
+      const rate = formatRatioPercent(topSize.rejRate, 1);
+      if (rate) whyParts.push(`size ${topSize.size} (${rate} rejection rate)`);
     }
     lines.push(
       whyParts.length > 0
@@ -560,7 +535,7 @@ export default function Dashboard() {
 
     let action = "Upload quality records to generate action items.";
     if (metric === "bottleneck" && topStage && topStage.rejected > 0) {
-      action = `Audit quality gates and operator logs at ${topStage.label} stage (rejection rate: ${(topStage.rejRate * 100).toFixed(1)}%).`;
+      action = `Audit quality gates and operator logs at ${topStage.label} stage (rejection rate: ${formatRatioPercent(topStage.rejRate, 1) ?? "—"}).`;
     } else if (metric === "copq") {
       action = `Achieving target quality limits offers up to ${rupee(m.savings)} in annual recoverable opportunity — prioritize the highest-rejection stage first.`;
     } else if (recommendations.length > 0) {
@@ -587,10 +562,10 @@ export default function Dashboard() {
       `Annual savings opportunity: ${rupee(m.savings)}.`,
     ];
     if (worstStageRow) {
-      lines.push(`Worst stage: ${worstStageRow.label} — ${pct(worstStageRow.rejRate)} rejection rate, ${worstStageRow.contributionPct.toFixed(1)}% of total rejections.`);
+      lines.push(`Worst stage: ${worstStageRow.label} — ${pct(worstStageRow.rejRate)} rejection rate, ${formatPercent(worstStageRow.contributionPct, 1) ?? "—"} of total rejections.`);
     }
     if (m.defects.length > 0) {
-      lines.push(`Top defect driver: ${m.defects[0].label} (${m.defects[0].pct.toFixed(1)}% of rejections).`);
+      lines.push(`Top defect driver: ${m.defects[0].label} (${formatPercent(m.defects[0].pct, 1) ?? "—"} of rejections).`);
     }
     return lines.join("\n");
   }, [m, targetRej, worstStageRow]);
@@ -613,7 +588,7 @@ export default function Dashboard() {
       active="dashboard"
       wide
       trustScore={m?.trust.pct ?? null}
-      statusCounts={{ anomalies: 0, alerts: 0, capa: 0, overdue: 0 }}
+      statusCounts={{ capa: 0, overdue: 0 }}
       dateRange={m?.latestPeriodLabel}
       toolbarExtra={
         m && activeView === "cumulative" ? (
@@ -674,10 +649,12 @@ export default function Dashboard() {
             <DashboardBoard userKey={layoutUser} editing={layoutEditing} onDirtyChange={setLayoutDirty}>
               {/* Section 1: Executive KPIs */}
               <DashItem id="kpis" span={12}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
+              <ScopeBasis />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)", marginTop: 8 }}>
                 <Kpi
                   primary
                   label="Overall Rejection"
+                  basis={scopeLabel}
                   value={pct(m.rate)}
                   detail={`${num(m.rejected)} rejected · ${num(m.checked)} checked`}
                   sub={stats.rateDiff}
@@ -693,20 +670,22 @@ export default function Dashboard() {
                 <Kpi
                   primary
                   label="Overall Accepted"
+                  basis={scopeLabel}
                   value={pct(m.acceptedRate)}
-                  detail={`${num(m.accepted)} accepted · ${num(m.checked)} checked`}
+                  detail={`${num(m.accepted)} passed forward · hold ${num(m.hold)} · not yet at next gate ${num(m.notYetAtNext)}`}
                   sub={stats.acceptedDiff}
                   tone={m.acceptedRate >= (1 - targetRej) ? "good" : "bad"}
                   spark={m.tr.map(p => ({ ...p, value: 1 - p.value }))}
                   onClick={() => openModal(
                     `${grainLabel} Acceptance Rate — Drill-down`,
                     kpiNarrative("accepted", `Overall accepted rate stands at ${pct(m.acceptedRate)} (${num(m.accepted)} of ${num(m.checked)} checked), compared to the target acceptance of ${pct(1 - targetRej)} (${stats.acceptedDiff}).`),
-                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: 1 - p.value }))} target={1 - targetRej} fmt={pct} /></div>,
+                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: p.noProduction ? Number.NaN : 1 - p.value }))} target={1 - targetRej} fmt={pct} /></div>,
                     { rows: rejectionSrc(), value: pct(m.acceptedRate), metricKind: "rejection_rate" },
                   )}
                 />
                 <Kpi
                   label="Top Rejecting Stage"
+                  basis={scopeLabel}
                   value={worstStageByRejs}
                   detail={
                     worstStageRow
@@ -726,17 +705,18 @@ export default function Dashboard() {
                 />
                 <Kpi
                   label="Top Defect"
+                  basis={scopeLabel}
                   value={m.defects[0]?.label ?? "—"}
                   detail={
                     m.defects[0]
                       ? `${num(m.defects[0].rejected)} rejected`
                       : undefined
                   }
-                  sub={m.defects[0] ? `${m.defects[0].pct.toFixed(1)}% of all rejections` : "—"}
+                  sub={m.defects[0] ? `${formatPercent(m.defects[0].pct, 1) ?? "—"} of all rejections` : "—"}
                   tone="warn"
                   onClick={() => m.defects[0] && openModal(
                     `Top Defect — ${m.defects[0].label}`,
-                    `The top defect category is ${m.defects[0].label}, accounting for ${m.defects[0].rejected.toLocaleString()} rejects (${m.defects[0].pct.toFixed(1)}% of all rejections).`,
+                    `The top defect category is ${m.defects[0].label}, accounting for ${num(m.defects[0].rejected)} rejects (${formatPercent(m.defects[0].pct, 1) ?? "—"} of all rejections).`,
                     <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "" }} showTable={true} /></div>,
                     {
                       rows: srcRows({ defectCode: m.defects[0].label, types: ["rejection"] }),
@@ -752,6 +732,7 @@ export default function Dashboard() {
                 <Kpi
                   primary
                   label="COPQ (₹)"
+                  basis={scopeLabel}
                   value={rupee(m.copq)}
                   detail={m.rejected > 0 ? `${num(m.rejected)} rejected units` : undefined}
                   sub={stats.copqDiff || "Cost of poor quality"}
@@ -776,8 +757,8 @@ export default function Dashboard() {
               <DashItem id="trend" span={4}>
                 <Card
                   title="Rejection Trend"
-                  sub={`Target (${(targetRej * 100).toFixed(0)}%) & Mean`}
-                  onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" })}
+                  sub={`Target (${formatRatioPercent(targetRej, 0) ?? "—"}) & Mean`}
+                  onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${formatRatioPercent(targetRej, 0) ?? "—"} and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" })}
                 >
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
                     <div style={{ flex: 1, minHeight: 180, display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -789,7 +770,7 @@ export default function Dashboard() {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${(targetRej * 100).toFixed(0)}% and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" });
+                          openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${formatRatioPercent(targetRej, 0) ?? "—"} and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" });
                         }}
                         style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}
                       >
@@ -803,8 +784,8 @@ export default function Dashboard() {
               <DashItem id="by-stage" span={4}>
                 <Card
                   title="Rejection By Stage"
-                  sub="YTD Rejection Shares"
-                  onClick={() => openModal("Stage-wise Rejection (YTD)", "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected), metricKind: "rejected" })}
+                  sub={scopeLabel}
+                  onClick={() => openModal(`Stage-wise Rejection (${scopeLabel})`, "Total rejections share by process stages.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><Donut data={m.stages.map((s) => ({ label: s.label, value: s.rejected }))} size={220} fontSize={13.5} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: num(m.rejected), metricKind: "rejected" })}
                 >
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
                     <div style={{ flex: 1, minHeight: 180, display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 0" }}>
@@ -828,7 +809,7 @@ export default function Dashboard() {
               <DashItem id="pareto" span={4}>
                 <Card
                   title="Top Defects (Pareto)"
-                  sub="YTD Rejections"
+                  sub={scopeLabel}
                   onClick={() => openModal(
                     "Defect Pareto (All Stages)",
                     "Six Sigma Pareto analysis highlighting the vital few defect categories responsible for most rejects.",
@@ -884,13 +865,13 @@ export default function Dashboard() {
                             }}>
                               <span style={{ color: "var(--text-3)", fontWeight: 600 }}>{i + 1}</span>
                               <span style={{ fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.label}>{d.label}</span>
-                              <span className="num" style={{ textAlign: "right", fontWeight: 600, color: "var(--text)" }}>{(rejRate * 100).toFixed(1)}%</span>
+                              <span className="num" style={{ textAlign: "right", fontWeight: 600, color: "var(--text)" }}>{formatRatioPercent(rejRate, 1) ?? "—"}</span>
                               <div style={{ display: "flex", alignItems: "center", paddingLeft: 6 }}>
                                 <div style={{ width: "100%", height: 5, background: "var(--surface-3)", borderRadius: 3, overflow: "hidden", border: "1px solid var(--border)" }}>
-                                  <div style={{ width: `${d.pct}%`, height: "100%", background: colors[i % colors.length], borderRadius: 3 }} />
+                                  <div style={{ width: `${Number.isFinite(d.pct) ? d.pct : 0}%`, height: "100%", background: colors[i % colors.length], borderRadius: 3 }} />
                                 </div>
                               </div>
-                              <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-2)" }}>{d.pct.toFixed(0)}%</span>
+                              <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-2)" }}>{formatPercent(d.pct, 0) ?? "—"}</span>
                             </div>
                           );
                         })
@@ -930,7 +911,7 @@ export default function Dashboard() {
                       "Stage x Size Concentration",
                       "Rejection rate for every stage x size combination present in the selected period — darker/warmer cells indicate where quality problems concentrate.",
                       <div style={{ minHeight: 200 }}><StageSizeHeatmap cells={m.stageSize} /></div>,
-                      { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? `${(Math.max(...m.stageSize.map(c => c.rejRate)) * 100).toFixed(1)}%` : "—", metricKind: "rejection_rate" },
+                      { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? (formatRatioPercent(Math.max(...m.stageSize.map((c) => Number.isFinite(c.rejRate) ? c.rejRate : 0)), 1) ?? "—") : "—", metricKind: "rejection_rate" },
                     )}
                   >
                     <StageSizeHeatmap cells={m.stageSize} />
@@ -941,11 +922,11 @@ export default function Dashboard() {
               {m.sizes.length > 0 && (
                 <DashItem id="size-ytd" span={m.sizeTrend.length > 0 ? 4 : 12}>
                   <Card
-                    title="Rejection by Size (YTD)"
-                    sub={m.worstSize ? `Worst: ${m.worstSize.size}` : "YTD"}
-                    onClick={() => openModal("Size-wise Rejection (YTD)", m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center", gap: 16 }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => `${n.toFixed(1)}%`} /><div style={{ paddingTop: 16, borderTop: "1px solid var(--border)" }}><SizeColorLegend sizes={m.sizes.map((s) => s.size)} /></div></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? `${(Math.max(...m.sizes.map(s => s.rejRate)) * 100).toFixed(1)}%` : "—", metricKind: "size" })}
+                    title="Rejection by Size"
+                    sub={m.worstSize ? `Worst: ${m.worstSize.size} · ${scopeLabel}` : scopeLabel}
+                    onClick={() => openModal(`Size-wise Rejection (${scopeLabel})`, m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center", gap: 16 }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => formatPercent(n, 1) ?? "—"} /><div style={{ paddingTop: 16, borderTop: "1px solid var(--border)" }}><SizeColorLegend sizes={m.sizes.map((s) => s.size)} /></div></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? (formatRatioPercent(Math.max(...m.sizes.map((s) => Number.isFinite(s.rejRate) ? s.rejRate : 0)), 1) ?? "—") : "—", metricKind: "size" })}
                   >
-                    <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => `${n.toFixed(1)}%`} />
+                    <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: Number.isFinite(s.rejRate) ? s.rejRate * 100 : 0, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => formatPercent(n, 1) ?? "—"} />
                   </Card>
                 </DashItem>
               )}
@@ -1002,9 +983,9 @@ export default function Dashboard() {
               <DashItem id="audit" span={m.copqTrend.length > 0 ? 7 : 12}>
                 <Card
                   title="Audit &amp; Verification"
-                  onClick={() => openModal("Audit & Verification", "Counted off the ledger in the current scope — no targets, no estimates.", <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable summary={m.audit} /></div>)}
+                  onClick={() => openModal("Audit & Verification", "Integrity is V-004 and V-014 on this scope. Confidence basis is a separate count.", <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable summary={m.audit} integrity={{ state: m.status.state, critical: m.status.integrityIssues.filter((i) => i.severity === "critical").length, open: m.status.integrityIssues.length }} /></div>)}
                 >
-                  <AuditVerificationTable summary={m.audit} />
+                  <AuditVerificationTable summary={m.audit} integrity={{ state: m.status.state, critical: m.status.integrityIssues.filter((i) => i.severity === "critical").length, open: m.status.integrityIssues.length }} />
                   <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
                     <button
                       onClick={(e) => { e.stopPropagation(); router.push("/audit"); }}
@@ -1148,7 +1129,7 @@ export default function Dashboard() {
                               {rupee(m.savings)}
                             </div>
                             <div className="small" style={{ marginTop: 2, color: "var(--text-3)" }}>
-                              YTD scrap reduction potential.
+                              {scopeLabel}. Scrap reduction if rejection met the target.
                             </div>
                           </div>
                         </div>
@@ -1281,7 +1262,7 @@ function BriefRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-type FunnelRow = { stageId: string; label: string; checked: number; rejected: number; rejRate: number; contributionPct: number };
+type FunnelRow = { stageId: string; label: string; checked: number; rejected: number; good?: number; rework?: number; rejRate: number; contributionPct: number };
 
 /** The sequential gate chain drawn as a funnel: each gate is a block showing its
  *  own checked/rejected, a survivor bar proportional to units entering the line,
@@ -1296,11 +1277,14 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
 }) {
   const denom = Math.max(entryChecked, 1);
   const last = stages[stages.length - 1];
-  const finalGood = last ? Math.max(last.checked - last.rejected, 0) : 0;
+  const finalGood = last ? gateAccepted(last) : 0;
   return (
     <div style={{ display: "flex", alignItems: "stretch", gap: 0, overflowX: "auto", padding: "4px 0" }}>
       {stages.map((s, i) => {
-        const passed = Math.max(s.checked - s.rejected, 0);
+        const passed = gateAccepted(s);
+        const hold = s.rework ?? 0;
+        const next = stages[i + 1];
+        const notYet = next ? notYetAtNextGate(passed, next.checked) : 0;
         const over = s.rejRate > targetRej;
         return (
           <div key={s.stageId} style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 150 }}>
@@ -1334,6 +1318,9 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
               <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: over ? "var(--critical, #b42318)" : "var(--text-2)" }}>
                 −{num(s.rejected)} rejected ({pct(s.rejRate)})
               </span>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-3)" }}>
+                {num(passed)} passed forward · hold {num(hold)}
+              </span>
               {/* survivor bar: this gate's throughput as a share of line entry */}
               <span style={{ display: "block", height: 5, borderRadius: 3, background: "var(--border)", overflow: "hidden" }}>
                 <span style={{
@@ -1346,6 +1333,9 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
             {i < stages.length - 1 && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 6px", flexShrink: 0 }}>
                 <span style={{ fontSize: 11, color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(passed)} →</span>
+                {notYet > 0 && (
+                  <span style={{ fontSize: 10, color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(notYet)} not yet</span>
+                )}
               </div>
             )}
           </div>
@@ -1354,7 +1344,7 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", paddingLeft: 12, flexShrink: 0, borderLeft: "1px dashed var(--border)", marginLeft: 10 }}>
         <span className="ui-label">Final good</span>
         <span className="num" style={{ fontSize: "var(--text-xl)", fontWeight: 600, color: "var(--text)" }}>{num(finalGood)}</span>
-        <span className="small" style={{ color: "var(--text-2)" }}>FPY {pct(fpy)}</span>
+        <span className="small" style={{ color: "var(--text-2)" }}>Passed forward · hold excluded · FPY {pct(fpy)}</span>
       </div>
     </div>
   );
@@ -1377,7 +1367,7 @@ function AttentionRail({ m, targetRej, base, onGo }: {
   if (worstStage && worstStage.rejected > 0) {
     items.push({
       label: "Worst gate",
-      text: `${worstStage.label} holds ${worstStage.contributionPct.toFixed(0)}% of all rejections (${pct(worstStage.rejRate)} rate${worstStage.rejRate > targetRej ? ", over target" : ""}).`,
+      text: `${worstStage.label} holds ${formatPercent(worstStage.contributionPct, 0) ?? "—"} of all rejections (${pct(worstStage.rejRate)} rate${Number.isFinite(worstStage.rejRate) && worstStage.rejRate > targetRej ? ", over target" : ""}).`,
       path: "/stage-analysis",
       state: {
         ...base,
@@ -1390,7 +1380,7 @@ function AttentionRail({ m, targetRej, base, onGo }: {
   if (topDefect && topDefect.rejected > 0) {
     items.push({
       label: "Top defect",
-      text: `${topDefect.label} accounts for ${topDefect.pct.toFixed(0)}% of rejections (${num(topDefect.rejected)} units).`,
+      text: `${topDefect.label} accounts for ${formatPercent(topDefect.pct, 0) ?? "—"} of rejections (${num(topDefect.rejected)} units).`,
       path: "/defect-analysis",
       state: {
         ...base,
@@ -1452,10 +1442,12 @@ function QualityStatusStrip({ status }: { status: QualityStatusT }) {
         : status.state === "watch"
           ? "Watch"
           : "Within target";
-  const prior =
-    status.priorRate != null
-      ? `Prior period ${(status.priorRate * 100).toFixed(2)}% · Target ${(status.targetLimit * 100).toFixed(1)}%`
-      : `Target ${(status.targetLimit * 100).toFixed(1)}% · Watch ${(status.watchLimit * 100).toFixed(1)}%`;
+  const priorRateText = formatRatioPercent(status.priorRate);
+  const targetText = formatRatioPercent(status.targetLimit, 1) ?? "—";
+  const watchText = formatRatioPercent(status.watchLimit, 1) ?? "—";
+  const prior = priorRateText
+    ? `Prior period ${priorRateText} · Target ${targetText}`
+    : `Target ${targetText} · Watch ${watchText}`;
   return (
     <div
       style={{
@@ -1499,10 +1491,16 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
   const d = useMemo(() => {
     const snap: Scope = { ...scope, stageIds: [stageId] };
     const tr: Scope = { ...trendScope, stageIds: [stageId] };
+    const row = byStage(events, snap, registry).find((s) => s.stageId === stageId);
+    const accepted = row ? gateAccepted(row) : 0;
+    const checked = totalChecked(events, snap, registry).value;
     return {
       rate: rejectionRate(events, snap, registry).value,
-      checked: totalChecked(events, snap, registry).value,
+      checked,
       rejected: totalRejected(events, snap).value,
+      accepted,
+      hold: row?.rework ?? 0,
+      acceptedRate: checked > 0 ? accepted / checked : 0,
       fpy: fpy(events, snap, registry).value,
       trend: trend(events, tr, "rejectionRate", registry),
       defects: byDefect(events, snap, registry),
@@ -1523,19 +1521,21 @@ function StationView({ events, stageId, label, scope, trendScope, grainLabel, ta
         <Kpi
           primary
           label={`${label} — Rejection Rate`}
+          basis={`${label} – lot date`}
           value={pct(d.rate)}
           detail={`${num(d.rejected)} rejected · ${num(d.checked)} checked`}
           tone={d.rate > targetRej ? "bad" : "good"}
           spark={d.trend}
           onClick={() => openModal(`${label} — Rejection Rate`, `${label} rejection rate is ${pct(d.rate)} (${num(d.rejected)} of ${num(d.checked)} checked) for the selected range.`, <div style={{ minHeight: 280, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={d.trend} target={targetRej} fmt={pct} mean /></div>, { rows: srcRows({ stageId, types: ["production", "inspection", "rejection"] }), value: pct(d.rate), metricKind: "rejection_rate" })}
         />
-        <Kpi label="Quantity Checked" value={num(d.checked)} detail="units entered this gate" />
-        <Kpi label="Total Rejected" value={num(d.rejected)} detail={d.checked > 0 ? `${pct(d.rate)} of checked` : undefined} tone="bad" />
+        <Kpi label="Quantity Checked" basis={`${label} – lot date`} value={num(d.checked)} detail="units entered this gate" />
+        <Kpi label="Total Rejected" basis={`${label} – lot date`} value={num(d.rejected)} detail={d.checked > 0 ? `${pct(d.rate)} of checked` : undefined} tone="bad" />
         <Kpi
           label="Overall Accepted"
-          value={pct(d.checked > 0 ? (d.checked - d.rejected) / d.checked : 1 - d.rate)}
-          detail={`${num(Math.max(0, d.checked - d.rejected))} accepted · ${num(d.checked)} checked`}
-          tone={(d.checked > 0 ? (d.checked - d.rejected) / d.checked : 1 - d.rate) >= 1 - targetRej ? "good" : "bad"}
+          basis={`${label} – lot date`}
+          value={pct(d.acceptedRate)}
+          detail={`${num(d.accepted)} passed forward · hold ${num(d.hold)}`}
+          tone={d.acceptedRate >= 1 - targetRej ? "good" : "bad"}
         />
       </div>
 

@@ -12,9 +12,18 @@ import {
 } from "./scope";
 import { DEFAULT_POLICY, type CalculationPolicyT } from "@/core/policy/policy";
 import { pickEntryGate, stageSortKey, stageCategoryOf } from "@/core/ontology/plant-catalog";
+import { gateAccepted, notYetAtNextGate } from "@/lib/entry/passed-forward";
+import type { DefectAliasRef } from "./defect-alias";
 
 /** Structural catalog type — the caller's MOD catalog (or a test fixture). */
-export type Registry = { stages: any[]; defects: any[]; sizes: any[]; fiscalYearStartMonth: number };
+export type Registry = {
+  stages: any[];
+  defects: any[];
+  sizes: any[];
+  fiscalYearStartMonth: number;
+  /** Learned defect-alias rows from Plant Schema. Optional; catalog aliases still resolve. */
+  defectAliases?: DefectAliasRef[];
+};
 
 /** No catalog given → derive the stage list from the events themselves
  *  (first-appearance order). Never a hardcoded company (MOD v2 Phase 5). */
@@ -369,15 +378,45 @@ export function totalChecked(events: Event[], scope: Scope, registry: Registry =
 }
 
 /**
- * Total Accepted quantity = checked - rejected (non-negative).
+ * Accepted quantity for a scope: passedForward at each section's exit gate.
+ * Sections are separate populations, so their exit quantities add. Hold is
+ * not included. `notYetAtNext` is units a gate passed forward that the next
+ * gate in that section has not checked.
  */
+export function acceptedBreakdown(
+  events: Event[],
+  scope: Scope,
+  registry: Registry = DERIVED_REGISTRY,
+): { accepted: number; hold: number; notYetAtNext: number } {
+  const rows = byStage(events, scope, registry);
+  const groups = new Map<string, StageRow[]>();
+  for (const row of rows) {
+    const section = stageCategoryOf(row.stageId) ?? row.stageId;
+    const list = groups.get(section) ?? [];
+    list.push(row);
+    groups.set(section, list);
+  }
+  let accepted = 0;
+  let hold = 0;
+  let notYetAtNext = 0;
+  for (const list of groups.values()) {
+    for (let i = 0; i < list.length; i++) {
+      const row = list[i];
+      hold += row.rework;
+      const passed = gateAccepted(row);
+      if (i === list.length - 1) accepted += passed;
+      else notYetAtNext += notYetAtNextGate(passed, list[i + 1].checked);
+    }
+  }
+  return { accepted, hold, notYetAtNext };
+}
+
+/** Total accepted = passedForward at each section exit. See acceptedBreakdown. */
 export function totalAccepted(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): MetricValue {
   const ev = scopeEvents(events, scope);
-  const checked = totalChecked(events, scope, registry);
-  const rejected = totalRejected(events, scope);
   return {
-    value: Math.max(0, checked.value - rejected.value),
-    sourceEventIds: [...checked.sourceEventIds, ...rejected.sourceEventIds],
+    value: acceptedBreakdown(events, scope, registry).accepted,
+    sourceEventIds: ids(ev, (e) => isAcc(e) || isProd(e)),
   };
 }
 
@@ -429,6 +468,9 @@ export interface StageAnalysisRow {
   label: string;
   checked: number;
   rejected: number;
+  /** Passed forward at this gate. Hold is not included. */
+  accepted: number | null;
+  hold: number | null;
   rejRate: number | null;
   yield: number | null;
   contributionPct: number | null;
@@ -486,6 +528,8 @@ export function stageAnalysis(
         label: s.label ?? s.stageId,
         checked: 0,
         rejected: 0,
+        accepted: null,
+        hold: null,
         rejRate: null,
         yield: null,
         contributionPct: null,
@@ -499,6 +543,8 @@ export function stageAnalysis(
       label: r.label || r.stageId,
       checked: r.checked,
       rejected: r.rejected,
+      accepted: gateAccepted(r),
+      hold: r.rework,
       rejRate: r.checked > 0 ? r.rejRate : r.rejected > 0 ? null : 0,
       yield: r.checked > 0 ? r.yield : null,
       contributionPct: totalRejectedQty > 0 ? r.contributionPct : totalRejectedQty === 0 && r.rejected === 0 ? 0 : null,
@@ -514,6 +560,8 @@ export function stageAnalysis(
       label: "Unmapped / unknown stage",
       checked: 0,
       rejected: unmappedRejected,
+      accepted: null,
+      hold: null,
       rejRate: null,
       yield: null,
       contributionPct: totalRejectedQty > 0 ? (unmappedRejected / totalRejectedQty) * 100 : null,
@@ -540,7 +588,15 @@ export function stageAnalysis(
   };
 }
 
-export interface SeriesPoint { period: string; label: string; value: number; rejected?: number; checked?: number }
+export interface SeriesPoint {
+  period: string;
+  label: string;
+  value: number;
+  rejected?: number;
+  checked?: number;
+  /** Calendar bucket with no checked and no rejected quantity. Not a 0% rate. */
+  noProduction?: boolean;
+}
 
 type MetricFn = (events: Event[], scope: Scope, registry?: Registry) => MetricValue;
 const METRICS: Record<string, MetricFn> = { rejectionRate, totalRejected, totalChecked, fpy, totalAccepted };
@@ -556,14 +612,25 @@ export function trend(events: Event[], scope: Scope, metric: keyof typeof METRIC
   const sub = { grain: scope.grain, policy: scope.policy };
   return periods.map((p) => {
     const bucket = periodBucket(ev, scope.grain, p);
+    const rejected = totalRejected(bucket, sub).value;
+    const checked = totalChecked(bucket, sub, registry).value;
+    const noProduction = checked === 0 && rejected === 0;
     return {
       period: p,
       label: periodLabel(p),
-      value: fn(bucket, sub, registry).value,
-      rejected: totalRejected(bucket, sub).value,
-      checked: totalChecked(bucket, sub, registry).value,
+      value: noProduction ? Number.NaN : fn(bucket, sub, registry).value,
+      rejected,
+      checked,
+      noProduction,
     };
   });
+}
+
+/** Last two buckets that actually recorded checked units. Empty days are not a delta base. */
+export function lastProductivePair(points: SeriesPoint[]): [SeriesPoint, SeriesPoint] | null {
+  const live = points.filter((p) => !p.noProduction && (p.checked ?? 0) > 0 && Number.isFinite(p.value));
+  if (live.length < 2) return null;
+  return [live[live.length - 1], live[live.length - 2]];
 }
 
 export interface StageTrendPoint { period: string; label: string; perStage: Record<string, number>; counts?: Record<string, { rejected: number; checked: number }> }
@@ -601,7 +668,7 @@ export function stageTrend(events: Event[], scope: Scope, registry: Registry = D
     const counts: Record<string, { rejected: number; checked: number }> = {};
     for (const s of registry.stages) {
       const a = aggregate(byStageEvents.get(s.stageId) ?? [], policy);
-      perStage[s.stageId] = a.checked > 0 ? a.rejected / a.checked : 0;
+      if (a.checked > 0) perStage[s.stageId] = a.rejected / a.checked;
       counts[s.stageId] = { rejected: a.rejected, checked: a.checked };
     }
     return { period: p, label: periodLabel(p), perStage, counts };

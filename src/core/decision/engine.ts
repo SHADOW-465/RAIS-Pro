@@ -13,19 +13,73 @@ import type {
 } from "@/shared/models/decision";
 import { computeCanonicalVars, type CanonicalContext } from "./canonical-vars";
 import { getDecisionRuleStore } from "./rule-store";
+import { policyOf } from "@/lib/analytics/scope";
 
-function evalPredicate(pred: { var: string; op: string; value: number }, vars: Record<string, number>): boolean {
+function thresholdOf(
+  pred: { var: string; op: string; value: number; valueRef?: string | null },
+  vars: Record<string, number>,
+): number | undefined {
+  if (pred.valueRef) {
+    const ref = vars[pred.valueRef];
+    if (ref === undefined || Number.isNaN(ref)) return undefined;
+    return ref;
+  }
+  return pred.value;
+}
+
+function evalPredicate(
+  pred: { var: string; op: string; value: number; valueRef?: string | null },
+  vars: Record<string, number>,
+): boolean {
   const left = vars[pred.var];
-  if (left === undefined || Number.isNaN(left)) return false;
+  const right = thresholdOf(pred, vars);
+  if (left === undefined || Number.isNaN(left) || right === undefined) return false;
   switch (pred.op) {
-    case "gt": return left > pred.value;
-    case "gte": return left >= pred.value;
-    case "lt": return left < pred.value;
-    case "lte": return left <= pred.value;
-    case "eq": return left === pred.value;
-    case "neq": return left !== pred.value;
+    case "gt": return left > right;
+    case "gte": return left >= right;
+    case "lt": return left < right;
+    case "lte": return left <= right;
+    case "eq": return left === right;
+    case "neq": return left !== right;
     default: return false;
   }
+}
+
+/** Stored copies of the seed rules still carry a numeric threshold. Bind those
+ *  to the saved policy so a 12% rate cannot be described as exceeding 15%. */
+function bindPolicyThresholds(rule: DecisionRuleT, targetRate: number, watchRate: number): DecisionRuleT {
+  const bind = (p: RulePredicateT): RulePredicateT => {
+    if (p.valueRef) return p;
+    if (rule.ruleId === "D-001" && p.var === "rejection_rate") {
+      return { ...p, value: targetRate, valueRef: "target_rate" };
+    }
+    if (
+      (rule.ruleId === "D-002" && p.var === "max_stage_rate") ||
+      (rule.ruleId === "D-004" && p.var === "max_size_rate")
+    ) {
+      return { ...p, value: watchRate, valueRef: "watch_rate" };
+    }
+    if (rule.ruleId === "D-003" && p.var === "top_defect_share") {
+      return { ...p, value: targetRate, valueRef: "target_rate" };
+    }
+    if (rule.ruleId === "D-005" && p.var === "fpy") {
+      return { ...p, value: Math.max(0, 1 - targetRate), valueRef: "fpy_floor" };
+    }
+    if ((rule.ruleId === "D-006" || rule.ruleId === "D-007") && p.var === "rejection_rate") {
+      return { ...p, value: watchRate, valueRef: "watch_rate" };
+    }
+    return p;
+  };
+  return {
+    ...rule,
+    definition: {
+      ...rule.definition,
+      when: {
+        all: rule.definition.when.all?.map(bind) ?? null,
+        any: rule.definition.when.any?.map(bind) ?? null,
+      },
+    },
+  };
 }
 
 function whenMatches(rule: DecisionRuleT, vars: Record<string, number>): boolean {
@@ -47,6 +101,7 @@ export function fillTemplate(template: string, ctx: CanonicalContext): string {
     if (key in ctx.labels) return ctx.labels[key];
     if (key in ctx.vars) {
       const n = ctx.vars[key];
+      if (typeof n !== "number" || !Number.isFinite(n)) return "—";
       // rates as pct if key ends with _rate; otherwise raw
       if (key.endsWith("_rate") || key === "fpy") return (n * 100).toFixed(1);
       if (Number.isInteger(n)) return String(n);
@@ -82,12 +137,17 @@ export async function decide(
     registry?: Registry;
     rules?: DecisionRuleT[];
     targetRate?: number;
+    watchRate?: number;
     /** Cap how many recommendations to return (default 8). */
     limit?: number;
   } = {},
 ): Promise<{ recommendations: RecommendationT[]; vars: Record<string, number>; labels: Record<string, string> }> {
-  const rules = opts.rules ?? (await getDecisionRuleStore().listActive());
-  const ctx = computeCanonicalVars(events, scope, opts.registry, { targetRate: opts.targetRate });
+  const policy = policyOf(scope);
+  const targetRate = opts.targetRate ?? policy.targetRejectionPct / 100;
+  const watchRate = opts.watchRate ?? policy.watchRejectionPct / 100;
+  const loaded = opts.rules ?? (await getDecisionRuleStore().listActive());
+  const rules = loaded.map((r) => bindPolicyThresholds(r, targetRate, watchRate));
+  const ctx = computeCanonicalVars(events, scope, opts.registry, { targetRate, watchRate });
 
   const hits: RecommendationT[] = [];
   for (const rule of rules) {

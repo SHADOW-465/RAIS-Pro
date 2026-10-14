@@ -7,6 +7,7 @@
 
 import { type Scope, scopeEvents, periodBucket, periodKey, periodsIn, policyOf } from "./scope";
 import { rejectionRate } from "./rejection";
+import { finiteNumber, formatRatioPercent } from "./finite";
 import {
   scopeIntegrityIssues,
   type IntegrityIssue,
@@ -93,7 +94,9 @@ export function qualityStatus(
   const targetLimit = opts.targetLimit ?? getTargetLimit(scope);
   const watchLimit = opts.watchLimit ?? getWatchLimit(scope);
   const rate = rejectionRate(events, scope).value;
-  const pct = (rate * 100).toFixed(2);
+  const rateLabel = formatRatioPercent(rate) ?? "—";
+  const targetLabel = formatRatioPercent(targetLimit, 1) ?? "—";
+  const watchLabel = formatRatioPercent(watchLimit, 1) ?? "—";
 
   const integrityIssues = scopeIntegrityIssues(events, scope, opts);
   const critical = integrityIssues.filter((i) => i.severity === "critical");
@@ -116,20 +119,23 @@ export function qualityStatus(
   }
 
   let priorClause = "";
-  if (priorRate != null) {
+  if (priorRate != null && finiteNumber(priorRate) != null && finiteNumber(rate) != null) {
     const deltaPp = (rate - priorRate) * 100;
-    const dir = deltaPp > 0.005 ? "up" : deltaPp < -0.005 ? "down" : "flat";
-    priorClause =
-      dir === "flat"
-        ? ` Unchanged vs prior period (${(priorRate * 100).toFixed(2)}%).`
-        : ` ${dir === "up" ? "Up" : "Down"} ${Math.abs(deltaPp).toFixed(2)} pp vs prior period (${(priorRate * 100).toFixed(2)}%).`;
+    const priorLabel = formatRatioPercent(priorRate);
+    if (Number.isFinite(deltaPp) && priorLabel) {
+      const dir = deltaPp > 0.005 ? "up" : deltaPp < -0.005 ? "down" : "flat";
+      priorClause =
+        dir === "flat"
+          ? ` Unchanged vs prior period (${priorLabel}).`
+          : ` ${dir === "up" ? "Up" : "Down"} ${Math.abs(deltaPp).toFixed(2)} pp vs prior period (${priorLabel}).`;
+    }
   }
 
   if (rate > targetLimit) {
     return {
       state: "at-risk",
       reason:
-        `Rejection rate ${pct}% exceeds the ${(targetLimit * 100).toFixed(1)}% target — needs immediate attention.` +
+        `Rejection rate ${rateLabel} exceeds the ${targetLabel} target — needs immediate attention.` +
         priorClause,
       integrityIssues,
       rate,
@@ -143,7 +149,7 @@ export function qualityStatus(
     return {
       state: "watch",
       reason:
-        `Rejection rate ${pct}% is above the ${(watchLimit * 100).toFixed(1)}% watch threshold — monitor closely.` +
+        `Rejection rate ${rateLabel} is above the ${watchLabel} watch threshold — monitor closely.` +
         priorClause,
       integrityIssues,
       rate,
@@ -155,7 +161,7 @@ export function qualityStatus(
 
   return {
     state: "ok",
-    reason: `Rejection rate ${pct}% is within target.` + priorClause,
+    reason: `Rejection rate ${rateLabel} is within target.` + priorClause,
     integrityIssues,
     rate,
     priorRate,

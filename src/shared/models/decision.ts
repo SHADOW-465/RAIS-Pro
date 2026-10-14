@@ -14,7 +14,10 @@ export const PredicateOp = z.enum(["gt", "gte", "lt", "lte", "eq", "neq"]);
 export const RulePredicate = z.object({
   var: z.string().min(1),
   op: PredicateOp,
+  /** Used only when valueRef is absent. */
   value: z.number(),
+  /** Compare against another canonical var, e.g. "target_rate". Wins over value. */
+  valueRef: z.string().min(1).nullable().optional(),
 });
 
 export const RuleWhen = z.object({

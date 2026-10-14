@@ -8,7 +8,8 @@ import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/co
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { usePolicy } from "@/components/app/RegistryContext";
 import { 
-  Card, 
+  Card,
+  ScopeBasis, 
   LineChart, 
   GaugeChart,
   rupee
@@ -24,6 +25,8 @@ import {
   scopeEvents,
   type Scope,
   copqTrend,
+  finiteNumber,
+  kpiRelativeDeltaText,
   toSourceRows,
 } from "@/lib/analytics";
 
@@ -96,21 +99,21 @@ export default function CopqPage() {
     const savings = savingsOpportunity(events, scope);
     const cTrend = copqTrend(events, trendScope);
 
-    // Dynamic Period-over-Period Delta
+    // A zero or non-finite base is not a percent change.
     let copqDiff = "vs Prior Period";
     if (cTrend.length >= 2) {
-      const lastVal = cTrend[cTrend.length - 1].value;
-      const prevVal = cTrend[cTrend.length - 2].value;
-      if (prevVal > 0) {
-        const diff = ((lastVal - prevVal) / prevVal) * 100;
-        const dir = diff >= 0 ? "↑" : "↓";
-        copqDiff = `vs ${cTrend[cTrend.length - 2].label}: ${dir} ${Math.abs(diff).toFixed(1)}%`;
-      }
+      const prevPoint = cTrend[cTrend.length - 2];
+      copqDiff = kpiRelativeDeltaText(
+        cTrend[cTrend.length - 1].value,
+        prevPoint.value,
+        prevPoint.label,
+        1,
+      ) ?? `vs ${prevPoint.label}`;
     }
 
     return {
-      copq: copqRes?.value ?? 0,
-      savings: savings ?? 0,
+      copq: finiteNumber(copqRes?.value) ?? 0,
+      savings: finiteNumber(savings) ?? 0,
       copqTrend: cTrend,
       copqDiff,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
@@ -129,6 +132,7 @@ export default function CopqPage() {
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Inspect financial impact assessments of shopfloor rejects and review project return-on-investment targets.
           </p>
+          <ScopeBasis />
         </div>
 
         {isLoading && (

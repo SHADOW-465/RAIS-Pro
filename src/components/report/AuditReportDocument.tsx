@@ -20,6 +20,7 @@ const PRINT_CSS = `
 .ar-doc .ar-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0 4px; }
 .ar-doc .ar-kpi { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--surface); min-width: 0; }
 .ar-doc .ar-kpi-l { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.ar-doc .ar-kpi-s { margin-top: 2px; font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
 .ar-doc .ar-kpi-v { font-family: var(--font-mono); font-size: 22px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
 .ar-doc .ar-kpi-v.unavail { font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text-2); }
 .ar-doc table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -176,7 +177,7 @@ function StageTable({ rows, denomNote }: { rows: StageAnalysisRow[]; denomNote: 
   return (
     <table>
       <caption>
-        Stage comparison. Rejected contribution = {denomNote}. Accepted quantity is not a confirmed plant-wide formula.
+        Stage comparison. Rejected contribution = {denomNote}. Accepted is passed forward at this gate. Hold is excluded.
       </caption>
       <thead>
         <tr>
@@ -201,7 +202,7 @@ function StageTable({ rows, denomNote }: { rows: StageAnalysisRow[]; denomNote: 
               {r.status === "no-qualifying-records" ? " — no qualifying records" : ""}
             </td>
             <td className="num">{r.status === "no-qualifying-records" ? "—" : num(r.checked)}</td>
-            <td>Needs company confirmation</td>
+            <td className="num">{r.accepted == null ? "—" : num(r.accepted)}</td>
             <td className="num">{r.status === "no-qualifying-records" ? "—" : num(r.rejected)}</td>
             <td className="num">{r.rejRate == null ? "—" : pctRatio(r.rejRate)}</td>
             <td className="num">{r.yield == null ? "—" : pctRatio(r.yield)}</td>
@@ -250,7 +251,7 @@ function SizeTable({ rows, rejNote, chkNote }: { rows: SizeAnalysisRow[]; rejNot
   return (
     <table>
       <caption>
-        Size comparison. Rejected contribution = {rejNote}. Checked contribution = {chkNote}. Accepted quantity needs company confirmation.
+        Size comparison. Rejected contribution = {rejNote}. Checked contribution = {chkNote}. Accepted is passed forward at each stage exit and is not split by size.
       </caption>
       <thead>
         <tr>
@@ -270,7 +271,7 @@ function SizeTable({ rows, rejNote, chkNote }: { rows: SizeAnalysisRow[]; rejNot
             <td className="num">{r.rank ?? "—"}</td>
             <td>{r.size}{r.unclassified ? " (missing size)" : ""}</td>
             <td className="num">{num(r.checked)}</td>
-            <td>Needs company confirmation</td>
+            <td className="num">—</td>
             <td className="num">{num(r.rejected)}</td>
             <td className="num">{r.rejRate == null ? "—" : pctRatio(r.rejRate)}</td>
             <td className="num">{r.rejectedContributionPct == null ? "—" : pct100(r.rejectedContributionPct)}</td>
@@ -351,30 +352,35 @@ export default function AuditReportDocument({ model }: { model: ReportViewModel 
           <div className="ar-kpis">
             <div className="ar-kpi">
               <div className="ar-kpi-l">Checked</div>
+              <div className="ar-kpi-s">Whole plant – entry date</div>
               <div className="ar-kpi-v">{metricText(model.fundamentals.checked, "number")}</div>
             </div>
             <div className="ar-kpi">
               <div className="ar-kpi-l">Rejected</div>
+              <div className="ar-kpi-s">Whole plant – entry date</div>
               <div className="ar-kpi-v">{metricText(model.fundamentals.rejected, "number")}</div>
             </div>
             <div className="ar-kpi">
               <div className="ar-kpi-l">Rejection rate</div>
+              <div className="ar-kpi-s">Whole plant – entry date</div>
               <div className="ar-kpi-v">{metricText(model.fundamentals.rejectionRate, "ratio")}</div>
             </div>
             <div className="ar-kpi">
               <div className="ar-kpi-l">Accepted</div>
+              <div className="ar-kpi-s">Whole plant – entry date</div>
               <div className={`ar-kpi-v ${model.fundamentals.accepted.kind === "unavailable" ? "unavail" : ""}`}>
                 {metricText(model.fundamentals.accepted, "number")}
               </div>
             </div>
             <div className="ar-kpi">
               <div className="ar-kpi-l">First-pass yield</div>
+              <div className="ar-kpi-s">Whole plant – entry date</div>
               <div className="ar-kpi-v">{metricText(model.fundamentals.fpy, "ratio")}</div>
             </div>
           </div>
           <p className="ar-note">
             First-pass yield is rolled-throughput yield Π(1 − stage rate) from the existing plant formula.
-            Accepted is not derived as checked minus rejected.
+            Accepted is passed forward at each section exit. Hold is excluded and is not part of this number.
           </p>
 
           <h3>Monthly trend</h3>

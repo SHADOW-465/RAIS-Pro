@@ -27,6 +27,7 @@ import {
   type Grain,
 } from "@/lib/analytics";
 import type { Event } from "@/lib/store/types";
+import { gateAccepted } from "@/lib/entry/passed-forward";
 
 type MetricId = "rejectionRate" | "totalRejected" | "totalChecked" | "totalAccepted" | "fpy";
 type GroupId = "time" | "stage" | "size" | "defect";
@@ -219,7 +220,7 @@ export function ChartBody({ events, spec, base }: { events: Event[]; spec: Chart
     switch (spec.metric) {
       case "totalChecked": return checked;
       case "totalRejected": return rejected;
-      case "totalAccepted":
+      case "totalAccepted": return Math.max(0, checked - rejected);
       case "fpy": return Math.max(0, checked - rejected);
       default: return checked > 0 ? rejected / checked : 0;
     }
@@ -232,8 +233,10 @@ export function ChartBody({ events, spec, base }: { events: Event[]; spec: Chart
       // Files that never named their stages leave `label` empty — fall back to
       // the id, or the bar (and the filter chip) renders with no name at all.
       label: s.label || s.stageId,
-      value: pick(s.checked, s.rejected),
-      sub: spec.metric === "totalAccepted" || (spec.metric as string) === "fpy"
+      value: spec.metric === "totalAccepted" ? gateAccepted(s) : pick(s.checked, s.rejected),
+      sub: spec.metric === "totalAccepted"
+        ? `${gateAccepted(s).toLocaleString("en-IN")} passed forward · hold ${(s.rework ?? 0).toLocaleString("en-IN")}`
+        : (spec.metric as string) === "fpy"
         ? `${Math.max(0, s.checked - s.rejected).toLocaleString("en-IN")} of ${s.checked.toLocaleString("en-IN")}`
         : `${s.rejected.toLocaleString("en-IN")} of ${s.checked.toLocaleString("en-IN")}`,
     }));
@@ -250,7 +253,7 @@ export function ChartBody({ events, spec, base }: { events: Event[]; spec: Chart
     rows = byDefect(events, scope, reg).map((d) => ({
       label: d.label || d.defectCode || "Unnamed",
       value: d.rejected,
-      sub: `${d.pct.toFixed(1)}% of rejects`,
+      sub: `${d.pct.toFixed(1)}% of rejects${d.unresolved ? " · unresolved code" : ""}`,
     }));
   }
 

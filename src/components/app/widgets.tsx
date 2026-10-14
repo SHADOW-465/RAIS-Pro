@@ -2,8 +2,11 @@
 
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import type { SeriesPoint, StageRow, DefectRow, StageTrendPoint } from "@/lib/analytics";
-import Icon from "@/components/editorial/Icon";
+import { finiteNumber, formatPercent, formatRatioPercent } from "@/lib/analytics/finite";
+import { lotScopeLabel } from "@/lib/analytics/scope-label";
+import { STAGE_LABELS } from "@/core/ontology/plant-catalog";
 import { useTweaks } from "@/components/editorial/TweaksContext";
+import Icon from "@/components/editorial/Icon";
 import {
   useContainerWidth,
   getBaseSpacing,
@@ -12,6 +15,13 @@ import {
   niceYMax,
 } from "@/lib/chart-utils";
 import { sizeColorFor } from "@/lib/entry/size-color";
+
+export const pct = (n: number) => formatRatioPercent(n) ?? "—";
+export const rupee = (n: number) => (Number.isFinite(n) ? `₹ ${(n / 100000).toFixed(2)} Lakhs` : "—");
+export const num = (n: number) => {
+  const v = finiteNumber(n);
+  return v == null ? "—" : v.toLocaleString("en-IN");
+};
 
 /** Shared hover tooltip card used by every time-series chart. Positioned over the
  *  chart container at the hovered point; flips below when the point sits high. */
@@ -638,6 +648,16 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
   );
 }
 
+/** Scope and date basis for every number on a lot-date screen. */
+export function ScopeBasis() {
+  const { t } = useTweaks();
+  return (
+    <p className="muted" style={{ fontFamily: "var(--font-mono)", fontSize: 12, margin: "6px 0 0" }}>
+      {lotScopeLabel(t, STAGE_LABELS)}
+    </p>
+  );
+}
+
 export function Empty({ label }: { label: string }) {
   return <div className="muted" style={{ padding: "28px 8px", fontSize: 12, textAlign: "center" }}>{label}</div>;
 }
@@ -653,6 +673,7 @@ export function Kpi({
   value,
   detail,
   sub,
+  basis,
   tone,
   primary,
   spark,
@@ -666,6 +687,8 @@ export function Kpi({
    */
   detail?: string;
   sub?: string;
+  /** Scope and date basis, e.g. "Assembly – lot date". */
+  basis?: string;
   tone?: "good" | "warn" | "bad";
   primary?: boolean;
   spark?: SeriesPoint[];
@@ -721,6 +744,19 @@ export function Kpi({
         <div className="kpi-label">
           {label}
         </div>
+        {basis && (
+          <div
+            style={{
+              marginTop: 2,
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              color: "var(--text-3)",
+              lineHeight: 1.3,
+            }}
+          >
+            {basis}
+          </div>
+        )}
         <div
           className={wordValue ? undefined : "num"}
           title={value}
@@ -795,11 +831,12 @@ export function Kpi({
 }
 
 function Spark({ points, tone }: { points: SeriesPoint[]; tone?: "good" | "warn" | "bad" }) {
-  if (!points || points.length < 2) return null;
-  const v = points.map((p) => p.value);
+  const live = (points ?? []).filter((p) => !p.noProduction && Number.isFinite(p.value));
+  if (live.length < 2) return null;
+  const v = live.map((p) => p.value);
   const max = Math.max(...v, 1e-6), min = Math.min(...v, 0);
   const W = 80, H = 16;
-  const d = points.map((p, i) => `${(i / (points.length - 1)) * W},${H - ((p.value - min) / (max - min || 1)) * H}`).join(" ");
+  const d = live.map((p, i) => `${(i / (live.length - 1)) * W},${H - ((p.value - min) / (max - min || 1)) * H}`).join(" ");
   const color = tone === "bad" ? "var(--critical)" : tone === "good" ? "var(--positive)" : "var(--accent)";
   return (
     <svg
@@ -900,7 +937,7 @@ export function LineChart({
   const H = height, padX = 48, padTop = isCompact ? 28 : 22, padBottom = 72;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
-  const v = points.map((p) => p.value);
+  const v = points.filter((p) => !p.noProduction && Number.isFinite(p.value)).map((p) => p.value);
   const dataMax = Math.max(0, ...v);
   let defaultMax = 0.05;
   let isPercent = false;
@@ -947,11 +984,21 @@ export function LineChart({
     setHover(idx);
   };
 
-  const visiblePoints = points.slice(startIdx, endIdx + 1);
-  const pathD = visiblePoints.length > 1
-    ? `M ${x(startIdx)} ${y(points[startIdx].value)} ` + visiblePoints.map((p, idx) => `L ${x(startIdx + idx)} ${y(p.value)}`).join(" ")
-    : "";
-  const fillD = pathD ? `${pathD} L ${x(endIdx)} ${axisY} L ${x(startIdx)} ${axisY} Z` : "";
+  const segments: string[] = [];
+  let pen = "";
+  for (let i = startIdx; i <= endIdx; i++) {
+    const p = points[i];
+    if (p.noProduction || !Number.isFinite(p.value)) {
+      if (pen) segments.push(pen);
+      pen = "";
+      continue;
+    }
+    pen += pen ? ` L ${x(i)} ${y(p.value)}` : `M ${x(i)} ${y(p.value)}`;
+  }
+  if (pen) segments.push(pen);
+  const pathD = segments.join(" ");
+  const contiguous = points.slice(startIdx, endIdx + 1).every((p) => !p.noProduction && Number.isFinite(p.value));
+  const fillD = contiguous && pathD ? `${pathD} L ${x(endIdx)} ${axisY} L ${x(startIdx)} ${axisY} Z` : "";
 
   // Resolve stage label for tooltip if not explicitly passed
   const viewLabels: Record<string, string> = {
@@ -1057,12 +1104,14 @@ export function LineChart({
           {hover != null && (
             <g>
               <line x1={x(hover)} y1={padTop} x2={x(hover)} y2={axisY} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />
-              <line x1={padX} y1={y(points[hover].value)} x2={canvasWidth - padX} y2={y(points[hover].value)} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />
+              {Number.isFinite(points[hover].value) && (
+                <line x1={padX} y1={y(points[hover].value)} x2={canvasWidth - padX} y2={y(points[hover].value)} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="3,3" />
+              )}
             </g>
           )}
 
           {points.map((p, i) => {
-            if (i < startIdx || i > endIdx) return null;
+            if (i < startIdx || i > endIdx || p.noProduction || !Number.isFinite(p.value)) return null;
             return (
               <circle key={i} cx={x(i)} cy={y(p.value)} r={hover === i ? 5 : (points.length > 25 ? 2.5 : 3)} fill={hover === i ? color : "var(--surface)"} stroke={color} strokeWidth={2} />
             );
@@ -1083,10 +1132,12 @@ export function LineChart({
       {hover != null && (
         <ChartTip
           leftPx={x(hover) - scrollLeft}
-          topPx={y(points[hover].value)}
-          below={y(points[hover].value) < H * 0.32}
-          title={points[hover].label}
-          rows={[
+          topPx={Number.isFinite(points[hover].value) ? y(points[hover].value) : axisY - 12}
+          below={Number.isFinite(points[hover].value) ? y(points[hover].value) < H * 0.32 : false}
+          title={points[hover].noProduction ? `${points[hover].label} — no production` : points[hover].label}
+          rows={points[hover].noProduction ? [
+            { label: "Value", value: "no production" },
+          ] : [
             { label: "Metric", value: activeMetric },
             { label: "Value", value: fmt(points[hover].value), color },
             ...(points[hover].rejected != null ? [{ label: "Rejected", value: num(points[hover].rejected!) }] : []),
@@ -1132,7 +1183,9 @@ export function MultiLine({
   }
 
   // Smart default: rates (≤1) render as %, counts render as integers.
-  const fmtVal = fmt ?? ((n: number) => (n <= 1 ? `${(n * 100).toFixed(2)}%` : Math.round(n).toLocaleString("en-IN")));
+  const fmtVal = fmt ?? ((n: number) => (
+    !Number.isFinite(n) ? "—" : n <= 1 ? (formatRatioPercent(n) ?? "—") : Math.round(n).toLocaleString("en-IN")
+  ));
   const H = height, padX = 48, padTop = 38, padBottom = 72;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
@@ -1261,9 +1314,20 @@ export function MultiLine({
 
           {stages.map((s, si) => {
             const visibleData = data.slice(startIdx, endIdx + 1);
-            const pathD = visibleData.length > 1
-              ? `M ${x(startIdx)} ${y(data[startIdx].perStage[s.stageId] ?? 0)} ` + visibleData.map((d, idx) => `L ${x(startIdx + idx)} ${y(d.perStage[s.stageId] ?? 0)}`).join(" ")
-              : "";
+            let pen = "";
+            const segs: string[] = [];
+            for (let i = startIdx; i <= endIdx; i++) {
+              const rate = data[i].perStage[s.stageId];
+              const idle = data[i].counts?.[s.stageId]?.checked === 0 || rate == null;
+              if (idle || !Number.isFinite(rate)) {
+                if (pen) segs.push(pen);
+                pen = "";
+                continue;
+              }
+              pen += pen ? ` L ${x(i)} ${y(rate)}` : `M ${x(i)} ${y(rate)}`;
+            }
+            if (pen) segs.push(pen);
+            const pathD = segs.join(" ");
             return pathD ? (
               <path
                 key={s.stageId}
@@ -1407,7 +1471,7 @@ export function ProcessFlow({ rows }: { rows: StageRow[] }) {
                 {r.label}
               </div>
               <div className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)", marginTop: 2 }}>
-                Checked: {r.checked.toLocaleString()} | Rej: {r.rejected.toLocaleString()} | Yield: {(r.yield * 100).toFixed(1)}%
+                Checked: {num(r.checked)} | Rej: {num(r.rejected)} | Yield: {formatRatioPercent(r.yield, 1) ?? "—"}
               </div>
             </div>
             <span style={{
@@ -1419,7 +1483,7 @@ export function ProcessFlow({ rows }: { rows: StageRow[] }) {
               padding: "2px 6px",
               borderRadius: 4
             }}>
-              {(r.rejRate * 100).toFixed(1)}%
+              {formatRatioPercent(r.rejRate, 1) ?? "—"}
             </span>
           </div>
           {i < rows.length - 1 && (
@@ -1435,6 +1499,7 @@ export function ProcessFlow({ rows }: { rows: StageRow[] }) {
 
 export function AuditVerificationTable({
   summary,
+  integrity,
 }: {
   summary: {
     sourceFiles: number;
@@ -1444,35 +1509,57 @@ export function AuditVerificationTable({
     manualOverrides: number;
     unresolvedValues: number;
   };
+  /** V-004 / V-014 for the same scope as the rest of the page. */
+  integrity?: {
+    state: string;
+    critical: number;
+    open: number;
+  };
 }) {
-  // Every row is a count off the ledger. Nothing here is a target or an
-  // estimate, so nothing is styled as "passing" — a count is just a count.
+  // Integrity is the health signal. Confidence basis is a separate count and
+  // must not read as "the ledger is OK" while mass-balance issues are open.
   const n = (v: number) => v.toLocaleString();
+  const blocked = integrity?.state === "blocked";
   const items = [
-    { label: "Source files", value: n(summary.sourceFiles), ok: false, warn: false },
+    ...(integrity
+      ? [
+          {
+            label: "Ledger integrity",
+            value: blocked ? "Blocked" : integrity.state === "ok" ? "OK" : integrity.state,
+            ok: false,
+            warn: !blocked && integrity.open > 0,
+            bad: blocked,
+          },
+          {
+            label: "Critical issues",
+            value: n(integrity.critical),
+            ok: false,
+            warn: false,
+            bad: integrity.critical > 0,
+          },
+          {
+            label: "Open integrity issues",
+            value: n(integrity.open),
+            ok: false,
+            warn: integrity.open > 0 && integrity.critical === 0,
+            bad: integrity.critical > 0,
+          },
+        ]
+      : []),
+    { label: "Source files", value: n(summary.sourceFiles), ok: false, warn: false, bad: false },
     {
-      label: "Values verified",
-      value: summary.totalValues === 0 ? "—" : `${summary.verifiedPct}%`,
+      label: "Confidence basis",
+      value: summary.totalValues === 0 ? "—" : `${summary.verifiedPct}% exact or rule`,
       ok: false,
       warn: false,
-    },
-    {
-      label: "Resolved / total",
-      value: summary.totalValues === 0 ? "—" : `${n(summary.verifiedValues)} / ${n(summary.totalValues)}`,
-      ok: false,
-      warn: false,
-    },
-    {
-      label: "Unresolved values",
-      value: n(summary.unresolvedValues),
-      ok: false,
-      warn: summary.unresolvedValues > 0,
+      bad: false,
     },
     {
       label: "Corrections",
       value: n(summary.manualOverrides),
       ok: false,
       warn: false,
+      bad: false,
     },
   ];
 
@@ -1488,7 +1575,7 @@ export function AuditVerificationTable({
                 textAlign: "right",
                 fontFamily: "var(--font-mono)",
                 fontWeight: 700,
-                color: item.ok ? "var(--positive)" : item.warn ? "var(--warning)" : "var(--text)"
+                color: item.bad ? "var(--critical)" : item.ok ? "var(--positive)" : item.warn ? "var(--warning)" : "var(--text)"
               }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <span>{item.value}</span>
@@ -1580,7 +1667,7 @@ export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLab
                 const tone = toneFor(cell.rejRate);
                 return (
                   <td key={sz} style={{ ...ctd, textAlign: "center", background: tone.bg, color: tone.fg, fontWeight: 700, fontFamily: "var(--font-mono)", borderRadius: "var(--radius-sm)" }}>
-                    {(cell.rejRate * 100).toFixed(1)}%
+                    {formatRatioPercent(cell.rejRate, 1) ?? "—"}
                   </td>
                 );
               })}
@@ -1591,10 +1678,6 @@ export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLab
     </div>
   );
 }
-
-export const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
-export const rupee = (n: number) => `₹ ${(n / 100000).toFixed(2)} Lakhs`;
-export const num = (n: number) => n.toLocaleString("en-IN");
 
 /** Donut — composition share (e.g. rejections by stage or defect). Inline SVG arcs. */
 export function Donut({
@@ -1651,7 +1734,7 @@ export function Donut({
               {f(activeHover.value)}
             </text>
             <text x={cx} y={cy + 16} textAnchor="middle" fontSize={9.5} fontWeight={700} fontFamily="var(--font-mono)" fill="var(--accent)">
-              {((activeHover.value / total) * 100).toFixed(1)}%
+              {formatPercent(Number.isFinite(activeHover.value) && Number.isFinite(total) && total > 0 ? (activeHover.value / total) * 100 : null, 1) ?? "—"}
             </text>
           </>
         ) : (
@@ -1668,7 +1751,7 @@ export function Donut({
               <span style={{ width: fontSize - 3, height: fontSize - 3, borderRadius: 2, background: col(i), flexShrink: 0 }} />
               <span style={{ color: "var(--text-2)", minWidth: fontSize * 8 }}>{d.label}</span>
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{f(d.value)}</span>
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-2)" }}>({((d.value / total) * 100).toFixed(1)}%)</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-2)" }}>({formatPercent(Number.isFinite(d.value) && Number.isFinite(total) && total > 0 ? (d.value / total) * 100 : null, 1) ?? "—"})</span>
             </div>
           ))}
         </div>
@@ -1694,7 +1777,9 @@ export function Heatmap({
 }) {
   const [hover, setHover] = useState<{ r: number; c: number } | null>(null);
   if (!rows.length || !cols.length) return <Empty label="No data for the selected range." />;
-  const f = fmt ?? ((n: number) => (n <= 1 ? `${(n * 100).toFixed(2)}%` : Math.round(n).toLocaleString("en-IN")));
+  const f = fmt ?? ((n: number) => (
+    !Number.isFinite(n) ? "—" : n <= 1 ? (formatRatioPercent(n) ?? "—") : Math.round(n).toLocaleString("en-IN")
+  ));
   let max = 1e-9;
   for (const row of matrix) for (const v of row) max = Math.max(max, v);
   const bg = (v: number) => `color-mix(in srgb, var(--accent) ${Math.round(Math.min(v / max, 1) * 82) + 4}%, var(--surface))`;

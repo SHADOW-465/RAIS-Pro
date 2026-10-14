@@ -9,6 +9,7 @@ import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/co
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
   Card,
+  ScopeBasis,
   LineChart,
   MultiLine,
   BarsH,
@@ -34,6 +35,7 @@ import {
   useApplyInvestigationFromUrl,
   toSourceRows,
   STAGE_LABELS,
+  lotScopeLabel,
 } from "@/lib/analytics";
 
 export default function StageAnalysisPage() {
@@ -135,6 +137,7 @@ export default function StageAnalysisPage() {
             {t.stageView !== "cumulative" ? ` · focused on ${STAGE_LABELS[t.stageView] ?? t.stageView}` : " across manufacturing stages"}
             {t.dateFrom && t.dateTo ? ` · ${t.dateFrom} → ${t.dateTo}` : ""}.
           </p>
+          <ScopeBasis />
         </div>
 
         {isLoading && (
@@ -293,11 +296,11 @@ export default function StageAnalysisPage() {
                     </Card>
 
                     <Card
-                      title="Stage Contribution (YTD)"
-                      sub="Rejection loss proportion by station"
+                      title="Stage Contribution"
+                      sub={lotScopeLabel(t, STAGE_LABELS)}
                       onClick={() =>
                         openModal(
-                          "Stage Contribution (YTD)",
+                          `Stage Contribution (${lotScopeLabel(t, STAGE_LABELS)})`,
                           "Visual Inspection represents the single largest quality loss stage, contributing over half of all shopfloor rejects.",
                           <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                             <BarsH

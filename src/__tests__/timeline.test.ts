@@ -47,13 +47,14 @@ describe("periodsIn gap fill", () => {
 });
 
 describe("trend over sparse data", () => {
-  it("emits a zero-valued point for empty periods instead of dropping them", () => {
+  it("keeps empty periods and marks them no production instead of 0%", () => {
     const events = [
       ev("2025-04-10", 100), ev("2025-04-10", 5, "rejected"),
       ev("2025-06-10", 200), ev("2025-06-10", 8, "rejected"),
     ];
     const pts = trend(events, { grain: "month" }, "rejectionRate", REG);
     expect(pts.map((p) => p.period)).toEqual(["2025-04", "2025-05", "2025-06"]);
-    expect(pts[1].value).toBe(0); // May exists, empty
+    expect(pts[1].noProduction).toBe(true);
+    expect(Number.isNaN(pts[1].value)).toBe(true);
   });
 });

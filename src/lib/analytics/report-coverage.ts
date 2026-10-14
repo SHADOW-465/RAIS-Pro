@@ -5,6 +5,7 @@ import type { Event } from "@/lib/store/types";
 import { eventEntryDate } from "@/lib/report/date-basis";
 import { monthsInInclusiveRange, monthLabel } from "@/lib/report/financial-year";
 import { eventSourceChannel, eventSourceFileLabel, eventBatchId } from "./scope";
+import { resolveDefectCode, type DefectAliasRef } from "./defect-alias";
 
 export interface MonthCoverage {
   key: string;
@@ -79,8 +80,10 @@ export function reportCoverage(args: {
   outOfRange: Event[];
   dateFrom: string;
   dateTo: string;
+  /** Plant Schema aliases. A raw label that matches is counted as resolved. Events are not rewritten. */
+  defectAliases?: DefectAliasRef[];
 }): ReportCoverage {
-  const { included, missingEntryDate, outOfRange, dateFrom, dateTo } = args;
+  const { included, missingEntryDate, outOfRange, dateFrom, dateTo, defectAliases = [] } = args;
   const monthKeys = monthsInInclusiveRange(dateFrom, dateTo);
   const byMonth = new Map<string, number>();
   for (const k of monthKeys) byMonth.set(k, 0);
@@ -129,7 +132,8 @@ export function reportCoverage(args: {
       else unresolvedStageRejectedQty += q;
 
       if (e.eventType === "rejection") {
-        if (defectCode(e)) resolvedDefectRejectedQty += q;
+        const resolved = resolveDefectCode(defectCode(e), defectRaw(e), defectAliases);
+        if (resolved.code) resolvedDefectRejectedQty += q;
         else if (defectRaw(e)) unresolvedDefectRejectedQty += q;
         else unclassifiedDefectRejectedQty += q;
       } else {
@@ -177,14 +181,21 @@ export function reportCoverage(args: {
     resolvedDefectRejectedQty + unresolvedDefectRejectedQty + unclassifiedDefectRejectedQty;
   if (defectDenom > 0) {
     const pct = (resolvedDefectRejectedQty / defectDenom) * 100;
-    statements.push(
-      `${pct.toFixed(1)}% of rejected quantity on rejection events has a resolved defect code`,
-    );
+    if (Number.isFinite(pct)) {
+      statements.push(
+        `${pct.toFixed(1)}% of rejected quantity on rejection events has a resolved defect code`,
+      );
+    }
+    if (unresolvedDefectRejectedQty > 0) {
+      statements.push(
+        `${unresolvedDefectRejectedQty.toLocaleString("en-IN")} rejected units have a raw label with no plant-schema code`,
+      );
+    }
   }
   const sizeRejDenom = sizeTaggedRejectedQty + missingSizeRejectedQty;
   if (sizeRejDenom > 0) {
     const pct = (sizeTaggedRejectedQty / sizeRejDenom) * 100;
-    statements.push(`${pct.toFixed(1)}% of rejected quantity has a size tag`);
+    if (Number.isFinite(pct)) statements.push(`${pct.toFixed(1)}% of rejected quantity has a size tag`);
   }
 
   return {

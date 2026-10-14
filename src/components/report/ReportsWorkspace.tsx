@@ -675,7 +675,7 @@ export default function ReportsWorkspace({
               {msg.text}
             </span>
           ) : model ? (
-            `${model.identity.periodCaption} · ${model.identity.dateFrom} → ${model.identity.dateTo}${dirty ? " · Unsaved" : ""}`
+            `${model.identity.periodCaption} · Whole plant – entry date · ${model.identity.dateFrom} → ${model.identity.dateTo}${dirty ? " · Unsaved" : ""}`
           ) : (
             "Resolve scope to preview"
           )}

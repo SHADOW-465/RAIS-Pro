@@ -689,6 +689,8 @@ const KIND_LABEL: Record<string, string> = {
   "all-defects-folder": "Every defect in the schema",
   "sizes-folder": "Sizes",
   "unmatched-folder": "Patterns resolving to nothing",
+  "mappings-folder": "Learned column mappings — not orphans",
+  "suspicious-folder": "Alias key names a different stage than its target",
 };
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
