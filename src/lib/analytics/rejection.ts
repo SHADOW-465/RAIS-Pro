@@ -12,7 +12,6 @@ import {
 } from "./scope";
 import { DEFAULT_POLICY, type CalculationPolicyT } from "@/core/policy/policy";
 import { pickEntryGate, stageSortKey, stageCategoryOf } from "@/core/ontology/plant-catalog";
-import { gateAccepted, notYetAtNextGate } from "@/lib/entry/passed-forward";
 import type { DefectAliasRef } from "./defect-alias";
 
 /** Structural catalog type — the caller's MOD catalog (or a test fixture). */
@@ -378,45 +377,15 @@ export function totalChecked(events: Event[], scope: Scope, registry: Registry =
 }
 
 /**
- * Accepted quantity for a scope: passedForward at each section's exit gate.
- * Sections are separate populations, so their exit quantities add. Hold is
- * not included. `notYetAtNext` is units a gate passed forward that the next
- * gate in that section has not checked.
+ * Total Accepted quantity = checked - rejected (non-negative).
  */
-export function acceptedBreakdown(
-  events: Event[],
-  scope: Scope,
-  registry: Registry = DERIVED_REGISTRY,
-): { accepted: number; hold: number; notYetAtNext: number } {
-  const rows = byStage(events, scope, registry);
-  const groups = new Map<string, StageRow[]>();
-  for (const row of rows) {
-    const section = stageCategoryOf(row.stageId) ?? row.stageId;
-    const list = groups.get(section) ?? [];
-    list.push(row);
-    groups.set(section, list);
-  }
-  let accepted = 0;
-  let hold = 0;
-  let notYetAtNext = 0;
-  for (const list of groups.values()) {
-    for (let i = 0; i < list.length; i++) {
-      const row = list[i];
-      hold += row.rework;
-      const passed = gateAccepted(row);
-      if (i === list.length - 1) accepted += passed;
-      else notYetAtNext += notYetAtNextGate(passed, list[i + 1].checked);
-    }
-  }
-  return { accepted, hold, notYetAtNext };
-}
-
-/** Total accepted = passedForward at each section exit. See acceptedBreakdown. */
 export function totalAccepted(events: Event[], scope: Scope, registry: Registry = DERIVED_REGISTRY): MetricValue {
   const ev = scopeEvents(events, scope);
+  const checked = totalChecked(events, scope, registry);
+  const rejected = totalRejected(events, scope);
   return {
-    value: acceptedBreakdown(events, scope, registry).accepted,
-    sourceEventIds: ids(ev, (e) => isAcc(e) || isProd(e)),
+    value: Math.max(0, checked.value - rejected.value),
+    sourceEventIds: [...checked.sourceEventIds, ...rejected.sourceEventIds],
   };
 }
 
@@ -468,9 +437,6 @@ export interface StageAnalysisRow {
   label: string;
   checked: number;
   rejected: number;
-  /** Passed forward at this gate. Hold is not included. */
-  accepted: number | null;
-  hold: number | null;
   rejRate: number | null;
   yield: number | null;
   contributionPct: number | null;
@@ -528,8 +494,6 @@ export function stageAnalysis(
         label: s.label ?? s.stageId,
         checked: 0,
         rejected: 0,
-        accepted: null,
-        hold: null,
         rejRate: null,
         yield: null,
         contributionPct: null,
@@ -543,8 +507,6 @@ export function stageAnalysis(
       label: r.label || r.stageId,
       checked: r.checked,
       rejected: r.rejected,
-      accepted: gateAccepted(r),
-      hold: r.rework,
       rejRate: r.checked > 0 ? r.rejRate : r.rejected > 0 ? null : 0,
       yield: r.checked > 0 ? r.yield : null,
       contributionPct: totalRejectedQty > 0 ? r.contributionPct : totalRejectedQty === 0 && r.rejected === 0 ? 0 : null,
@@ -560,8 +522,6 @@ export function stageAnalysis(
       label: "Unmapped / unknown stage",
       checked: 0,
       rejected: unmappedRejected,
-      accepted: null,
-      hold: null,
       rejRate: null,
       yield: null,
       contributionPct: totalRejectedQty > 0 ? (unmappedRejected / totalRejectedQty) * 100 : null,

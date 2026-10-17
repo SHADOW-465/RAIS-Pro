@@ -125,15 +125,15 @@ describe("report builders", () => {
     expect(built.model.fundamentals.checked.value).not.toBeGreaterThanOrEqual(9999);
   });
 
-  it("accepted is passed forward, not an unconfirmed blank", () => {
+  it("accepted is unavailable, not checked minus rejected", () => {
     const built = buildReport(LEDGER, input(), REGISTRY);
     expect(built.ok).toBe(true);
     if (!built.ok) return;
     const acc = built.model.fundamentals?.accepted;
-    expect(acc?.kind).toBe("number");
-    if (acc?.kind !== "number") return;
-    expect(acc.value).toBeGreaterThanOrEqual(0);
-    expect(built.model.limitations.join(" ").toLowerCase()).toMatch(/passed forward/);
+    expect(acc?.kind).toBe("unavailable");
+    if (acc?.kind !== "unavailable") return;
+    expect(acc.display).toBe("Needs company confirmation");
+    expect(acc.policyGap.toLowerCase()).toMatch(/company/);
   });
 
   it("April-to-March monthly sequence includes empty months as no-qualifying-records", () => {

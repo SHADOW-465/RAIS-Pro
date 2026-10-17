@@ -177,7 +177,7 @@ function StageTable({ rows, denomNote }: { rows: StageAnalysisRow[]; denomNote: 
   return (
     <table>
       <caption>
-        Stage comparison. Rejected contribution = {denomNote}. Accepted is passed forward at this gate. Hold is excluded.
+        Stage comparison. Rejected contribution = {denomNote}. Accepted quantity is not a confirmed plant-wide formula.
       </caption>
       <thead>
         <tr>
@@ -202,7 +202,7 @@ function StageTable({ rows, denomNote }: { rows: StageAnalysisRow[]; denomNote: 
               {r.status === "no-qualifying-records" ? " — no qualifying records" : ""}
             </td>
             <td className="num">{r.status === "no-qualifying-records" ? "—" : num(r.checked)}</td>
-            <td className="num">{r.accepted == null ? "—" : num(r.accepted)}</td>
+            <td>Needs company confirmation</td>
             <td className="num">{r.status === "no-qualifying-records" ? "—" : num(r.rejected)}</td>
             <td className="num">{r.rejRate == null ? "—" : pctRatio(r.rejRate)}</td>
             <td className="num">{r.yield == null ? "—" : pctRatio(r.yield)}</td>
@@ -251,7 +251,7 @@ function SizeTable({ rows, rejNote, chkNote }: { rows: SizeAnalysisRow[]; rejNot
   return (
     <table>
       <caption>
-        Size comparison. Rejected contribution = {rejNote}. Checked contribution = {chkNote}. Accepted is passed forward at each stage exit and is not split by size.
+        Size comparison. Rejected contribution = {rejNote}. Checked contribution = {chkNote}. Accepted quantity needs company confirmation.
       </caption>
       <thead>
         <tr>
@@ -271,7 +271,7 @@ function SizeTable({ rows, rejNote, chkNote }: { rows: SizeAnalysisRow[]; rejNot
             <td className="num">{r.rank ?? "—"}</td>
             <td>{r.size}{r.unclassified ? " (missing size)" : ""}</td>
             <td className="num">{num(r.checked)}</td>
-            <td className="num">—</td>
+            <td>Needs company confirmation</td>
             <td className="num">{num(r.rejected)}</td>
             <td className="num">{r.rejRate == null ? "—" : pctRatio(r.rejRate)}</td>
             <td className="num">{r.rejectedContributionPct == null ? "—" : pct100(r.rejectedContributionPct)}</td>
@@ -380,7 +380,7 @@ export default function AuditReportDocument({ model }: { model: ReportViewModel 
           </div>
           <p className="ar-note">
             First-pass yield is rolled-throughput yield Π(1 − stage rate) from the existing plant formula.
-            Accepted is passed forward at each section exit. Hold is excluded and is not part of this number.
+            Accepted is not derived as checked minus rejected.
           </p>
 
           <h3>Monthly trend</h3>

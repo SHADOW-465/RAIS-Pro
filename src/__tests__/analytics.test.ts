@@ -89,13 +89,12 @@ describe("analytics — rejection selectors", () => {
     expect(fpy(events, FY, REG).value).toBeCloseTo((1 - visualRate) * (1 - valveRate), 9);
   });
 
-  test("totalAccepted is passed forward at each section exit, not checked minus every reject", () => {
-    const rows = byStage(events, FY, REG);
+  test("totalAccepted = totalChecked - totalRejected", () => {
+    const checked = totalChecked(events, FY, REG).value;
+    const rejected = totalRejected(events, FY).value;
     const accepted = totalAccepted(events, FY, REG).value;
-    const exit = rows[rows.length - 1];
+    expect(accepted).toBe(checked - rejected);
     expect(accepted).toBeGreaterThan(0);
-    expect(accepted).toBeLessThanOrEqual(exit.checked);
-    expect(accepted).not.toBe(totalChecked(events, FY, REG).value - totalRejected(events, FY).value);
   });
 
   test("byStage splits visual vs valve and computes contribution", () => {
