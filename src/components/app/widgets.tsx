@@ -15,6 +15,7 @@ import {
   niceYMax,
 } from "@/lib/chart-utils";
 import { sizeColorFor } from "@/lib/entry/size-color";
+import { splitSegments, bridgeAt } from "./chart-segments";
 
 export const pct = (n: number) => formatRatioPercent(n) ?? "—";
 export const rupee = (n: number) => (Number.isFinite(n) ? `₹ ${(n / 100000).toFixed(2)} Lakhs` : "—");
@@ -831,12 +832,18 @@ export function Kpi({
 }
 
 function Spark({ points, tone }: { points: SeriesPoint[]; tone?: "good" | "warn" | "bad" }) {
-  const live = (points ?? []).filter((p) => !p.noProduction && Number.isFinite(p.value));
+  const all = points ?? [];
+  const isLive = all.map((p) => !p.noProduction && Number.isFinite(p.value));
+  const live = all.filter((_, i) => isLive[i]);
   if (live.length < 2) return null;
   const v = live.map((p) => p.value);
   const max = Math.max(...v, 1e-6), min = Math.min(...v, 0);
   const W = 80, H = 16;
-  const d = live.map((p, i) => `${(i / (live.length - 1)) * W},${H - ((p.value - min) / (max - min || 1)) * H}`).join(" ");
+  const sx = (i: number) => (i / Math.max(all.length - 1, 1)) * W;
+  const sy = (i: number) => H - ((all[i].value - min) / (max - min || 1)) * H;
+  const seg = splitSegments(isLive);
+  const d = seg.runs.map((r) => r.map((i, k) => `${k ? "L" : "M"} ${sx(i)} ${sy(i)}`).join(" ")).join(" ");
+  const bridgeD = seg.bridges.map(([a, b]) => `M ${sx(a)} ${sy(a)} L ${sx(b)} ${sy(b)}`).join(" ");
   const color = tone === "bad" ? "var(--critical)" : tone === "good" ? "var(--positive)" : "var(--accent)";
   return (
     <svg
@@ -848,15 +855,18 @@ function Spark({ points, tone }: { points: SeriesPoint[]; tone?: "good" | "warn"
         filter: tone ? `drop-shadow(0 2px 5px color-mix(in srgb, ${color} 40%, transparent))` : undefined,
       }}
     >
-      <polyline
+      <path
         className="chart-line-stroke"
-        points={d}
+        d={d}
         fill="none"
         stroke={color}
         strokeWidth={1.75}
         strokeLinejoin="round"
         strokeLinecap="round"
       />
+      {bridgeD && (
+        <path d={bridgeD} fill="none" stroke={color} strokeWidth={1} strokeDasharray="2,2" opacity={0.45} />
+      )}
     </svg>
   );
 }
@@ -984,21 +994,18 @@ export function LineChart({
     setHover(idx);
   };
 
-  const segments: string[] = [];
-  let pen = "";
-  for (let i = startIdx; i <= endIdx; i++) {
-    const p = points[i];
-    if (p.noProduction || !Number.isFinite(p.value)) {
-      if (pen) segments.push(pen);
-      pen = "";
-      continue;
-    }
-    pen += pen ? ` L ${x(i)} ${y(p.value)}` : `M ${x(i)} ${y(p.value)}`;
-  }
-  if (pen) segments.push(pen);
-  const pathD = segments.join(" ");
-  const contiguous = points.slice(startIdx, endIdx + 1).every((p) => !p.noProduction && Number.isFinite(p.value));
-  const fillD = contiguous && pathD ? `${pathD} L ${x(endIdx)} ${axisY} L ${x(startIdx)} ${axisY} Z` : "";
+  const lineLive = points.map((p) => !p.noProduction && Number.isFinite(p.value));
+  const seg = splitSegments(lineLive, startIdx, endIdx);
+  const runPath = (r: number[]) => r.map((i, k) => `${k ? "L" : "M"} ${x(i)} ${y(points[i].value)}`).join(" ");
+  const pathD = seg.runs.map(runPath).join(" ");
+  const bridgeD = seg.bridges.map(([a, b]) => `M ${x(a)} ${y(points[a].value)} L ${x(b)} ${y(points[b].value)}`).join(" ");
+  // Fill follows the real runs only; nothing under dashed bridges.
+  const fillD = seg.runs
+    .filter((r) => r.length > 1)
+    .map((r) => `${runPath(r)} L ${x(r[r.length - 1])} ${axisY} L ${x(r[0])} ${axisY} Z`)
+    .join(" ");
+  const hoverEmpty = hover != null && !lineLive[hover];
+  const hoverBridge = hover != null && hoverEmpty ? bridgeAt(seg.bridges, hover) : null;
 
   // Resolve stage label for tooltip if not explicitly passed
   const viewLabels: Record<string, string> = {
@@ -1099,6 +1106,17 @@ export function LineChart({
               strokeLinecap="round"
             />
           )}
+          {bridgeD && (
+            <path
+              className="chart-gap-bridge"
+              d={bridgeD}
+              fill="none"
+              stroke={color}
+              strokeWidth={Math.max(1, strokeWidth - 0.75)}
+              strokeDasharray="4,4"
+              opacity={0.45}
+            />
+          )}
 
           {/* Hover Crosshairs */}
           {hover != null && (
@@ -1132,11 +1150,11 @@ export function LineChart({
       {hover != null && (
         <ChartTip
           leftPx={x(hover) - scrollLeft}
-          topPx={Number.isFinite(points[hover].value) ? y(points[hover].value) : axisY - 12}
-          below={Number.isFinite(points[hover].value) ? y(points[hover].value) < H * 0.32 : false}
-          title={points[hover].noProduction ? `${points[hover].label} — no production` : points[hover].label}
-          rows={points[hover].noProduction ? [
-            { label: "Value", value: "no production" },
+          topPx={!hoverEmpty ? y(points[hover].value) : hoverBridge ? (y(points[hoverBridge[0]].value) + y(points[hoverBridge[1]].value)) / 2 : axisY - 12}
+          below={!hoverEmpty ? y(points[hover].value) < H * 0.32 : false}
+          title={points[hover].label}
+          rows={hoverEmpty ? [
+            { label: "Value", value: "No production" },
           ] : [
             { label: "Metric", value: activeMetric },
             { label: "Value", value: fmt(points[hover].value), color },
@@ -1313,21 +1331,13 @@ export function MultiLine({
           )}
 
           {stages.map((s, si) => {
-            const visibleData = data.slice(startIdx, endIdx + 1);
-            let pen = "";
-            const segs: string[] = [];
-            for (let i = startIdx; i <= endIdx; i++) {
-              const rate = data[i].perStage[s.stageId];
-              const idle = data[i].counts?.[s.stageId]?.checked === 0 || rate == null;
-              if (idle || !Number.isFinite(rate)) {
-                if (pen) segs.push(pen);
-                pen = "";
-                continue;
-              }
-              pen += pen ? ` L ${x(i)} ${y(rate)}` : `M ${x(i)} ${y(rate)}`;
-            }
-            if (pen) segs.push(pen);
-            const pathD = segs.join(" ");
+            const sLive = data.map((d) => {
+              const rate = d.perStage[s.stageId];
+              return rate != null && Number.isFinite(rate) && d.counts?.[s.stageId]?.checked !== 0;
+            });
+            const sSeg = splitSegments(sLive, startIdx, endIdx);
+            const ry = (i: number) => y(data[i].perStage[s.stageId]);
+            const pathD = sSeg.runs.map((r) => r.map((i, k) => `${k ? "L" : "M"} ${x(i)} ${ry(i)}`).join(" ")).join(" ");
             return pathD ? (
               <path
                 key={s.stageId}
@@ -1342,9 +1352,27 @@ export function MultiLine({
             ) : null;
           })}
 
-          {hover != null && stages.map((s, si) => (
+          {stages.map((s, si) => {
+            const sLive = data.map((d) => {
+              const rate = d.perStage[s.stageId];
+              return rate != null && Number.isFinite(rate) && d.counts?.[s.stageId]?.checked !== 0;
+            });
+            const sSeg = splitSegments(sLive, startIdx, endIdx);
+            const bridgeD = sSeg.bridges
+              .map(([a, b]) => `M ${x(a)} ${y(data[a].perStage[s.stageId])} L ${x(b)} ${y(data[b].perStage[s.stageId])}`)
+              .join(" ");
+            return bridgeD ? (
+              <path key={`b${s.stageId}`} className="chart-gap-bridge" fill="none" stroke={getStageColor(s, si)} strokeWidth={1.2} strokeDasharray="4,4" opacity={0.45} d={bridgeD} />
+            ) : null;
+          })}
+
+          {hover != null && stages.map((s, si) => {
+            const rate = data[hover].perStage[s.stageId];
+            if (rate == null || !Number.isFinite(rate) || data[hover].counts?.[s.stageId]?.checked === 0) return null;
+            return (
             <circle key={`h${s.stageId}`} cx={x(hover)} cy={y(data[hover].perStage[s.stageId] ?? 0)} r={3.5} fill={getStageColor(s, si)} stroke="var(--surface)" strokeWidth={1.5} />
-          ))}
+            );
+          })}
 
           {/* Rotated thinned date labels */}
           {data.map((d, i) => {
@@ -1376,7 +1404,9 @@ export function MultiLine({
             .map((s, si) => {
               const c = data[hover].counts?.[s.stageId];
               const exact = c && c.checked > 0 ? ` · ${num(c.rejected)}/${num(c.checked)}` : "";
-              return { label: s.label.split(" ")[0], value: fmtVal(data[hover].perStage[s.stageId] ?? 0) + exact, color: getStageColor(s, si), raw: data[hover].perStage[s.stageId] ?? 0 };
+              const rate = data[hover].perStage[s.stageId];
+              const idle = rate == null || !Number.isFinite(rate) || c?.checked === 0;
+              return { label: s.label.split(" ")[0], value: idle ? "No production" : fmtVal(rate) + exact, color: getStageColor(s, si), raw: data[hover].perStage[s.stageId] ?? 0 };
             })
             .sort((a, b) => b.raw - a.raw)
             .map(({ label, value, color }) => ({ label, value, color }))}
