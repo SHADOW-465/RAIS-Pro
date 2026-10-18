@@ -5,6 +5,7 @@ import Select from "@/components/ui/Select";
 import Icon from "@/components/editorial/Icon";
 import { BRAND_NAME } from "@/lib/brand";
 import { useActiveMetric } from "@/components/app/ActiveMetricContext";
+import { useTweaks } from "@/components/editorial/TweaksContext";
 import type { RawSheet } from "@/types/dashboard";
 import DefectRemedyShowcase from "@/components/DefectRemedyShowcase";
 import {
@@ -27,8 +28,28 @@ import {
   fileBasename,
   DETAIL_PAGE_SIZE,
 } from "@/lib/analytics/source-trace";
+import { parseBatchId } from "@/lib/entry/batch-id";
+import { sizeColorFor } from "@/lib/entry/size-color";
+import { safeBolden } from "@/components/app/widgets";
+
 
 export type { SourceRow, SourceMetricKind };
+
+export interface SourceBatchItem {
+  batchId: string;
+  sizeFr: string | null;
+  sizeColor: { hex: string; name: string; textOn: "light" | "dark" } | null;
+  dateMin: string;
+  dateMax: string;
+  checkedQty: number;
+  acceptedQty: number;
+  rejectedQty: number;
+  defectQty: number;
+  stages: string[];
+  entryCount: number;
+  defects: { code: string; qty: number }[];
+  defectRate: number;
+}
 
 interface FloatingDetailModalProps {
   isOpen: boolean;
@@ -46,6 +67,10 @@ interface FloatingDetailModalProps {
   periodGrain?: SourcePeriodGrain;
   /** Live Pareto ranking — Primary / Secondary / Tertiary remedies. */
   rankedDefects?: { code: string; label: string }[];
+  /** Open directly to source view rather than chart view */
+  initialShowSource?: boolean;
+  /** Initial source sub-view mode: "batches" | "history" */
+  defaultSourceTab?: "batches" | "history";
 }
 
 /** A single bezier beam from the computed-value anchor to one highlighted target. */
@@ -123,11 +148,19 @@ export default function FloatingDetailModal({
   metricKind = "generic",
   periodGrain: _periodGrain = "month",
   rankedDefects = [],
+  initialShowSource = false,
+  defaultSourceTab = "batches",
 }: FloatingDetailModalProps) {
   void _periodGrain; // retained on the public prop surface; grouping modes removed
+  const { t, setTweak } = useTweaks();
   // No usePolicy() here any more: the rejection formula is locked, so the proof
   // panel renders one shape regardless of policy.
-  const [showSource, setShowSource] = useState(false);
+  const [showSource, setShowSource] = useState(initialShowSource);
+  const [sourceSubView, setSourceSubView] = useState<"batches" | "history" | "spreadsheet">(defaultSourceTab);
+  const [batchSearch, setBatchSearch] = useState("");
+  const [batchSort, setBatchSort] = useState<"defects" | "rate" | "asc" | "desc" | "date">("defects");
+  const [copiedBatches, setCopiedBatches] = useState(false);
+
   const [isInsightExpanded, setIsInsightExpanded] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -280,11 +313,15 @@ export default function FloatingDetailModal({
       setFilters(defaultSourceFilters());
       setSourceSurface("classified");
       setDetailPage(0);
+      setBatchSearch("");
+      setCopiedBatches(false);
       return;
     }
+    setShowSource(initialShowSource);
+    setSourceSubView(defaultSourceTab);
     setFilters(defaultSourceFilters());
     setDetailPage(0);
-  }, [isOpen, metricKind, title]);
+  }, [isOpen, metricKind, title, initialShowSource, defaultSourceTab]);
 
   const detailRows = groups[0]?.rows ?? [];
   // Fold the kind-split rows into one entry per date·batch·size·stage·file (audit style).
@@ -295,10 +332,100 @@ export default function FloatingDetailModal({
     (detailPage + 1) * DETAIL_PAGE_SIZE,
   );
 
+  // Derive distinct batch items with size colors, rejections count, and date span (Option 1)
+  const batchItems = useMemo<SourceBatchItem[]>(() => {
+    const map = new Map<string, SourceBatchItem>();
+    for (const e of entryRows) {
+      const bId = e.batch?.trim() || "Unassigned";
+      let b = map.get(bId);
+      if (!b) {
+        const parsed = parseBatchId(bId);
+        const sizeFr = parsed?.sizeFr || (e.size ? String(e.size).replace(/[^0-9]/g, "") : null);
+        const swatch = sizeFr ? sizeColorFor(sizeFr) : null;
+        b = {
+          batchId: bId,
+          sizeFr: sizeFr || null,
+          sizeColor: swatch,
+          dateMin: e.date,
+          dateMax: e.date,
+          checkedQty: 0,
+          acceptedQty: 0,
+          rejectedQty: 0,
+          defectQty: 0,
+          stages: [],
+          entryCount: 0,
+          defects: [],
+          defectRate: 0,
+        };
+        map.set(bId, b);
+      }
+      b.checkedQty += e.checkedQty;
+      b.acceptedQty += e.acceptedQty;
+      b.rejectedQty += e.rejectedQty;
+      b.entryCount += 1;
+      if (e.date && e.date < b.dateMin) b.dateMin = e.date;
+      if (e.date && e.date > b.dateMax) b.dateMax = e.date;
+      const stageName = e.stage || e.stageId;
+      if (stageName && !b.stages.includes(stageName)) b.stages.push(stageName);
+      for (const d of e.defects) {
+        b.defectQty += d.qty;
+        const ex = b.defects.find((x) => x.code === d.code);
+        if (ex) ex.qty += d.qty;
+        else b.defects.push({ code: d.code, qty: d.qty });
+      }
+    }
+    for (const b of map.values()) {
+      b.defectRate = b.checkedQty > 0 ? (b.rejectedQty / b.checkedQty) * 100 : 0;
+    }
+    return Array.from(map.values());
+  }, [entryRows]);
+
+  const displayBatches = useMemo(() => {
+    const q = batchSearch.trim().toUpperCase();
+    const filtered = batchItems.filter((b) => {
+      if (!q) return true;
+      if (b.batchId.toUpperCase().includes(q)) return true;
+      if (b.sizeFr && `${b.sizeFr}FR`.includes(q)) return true;
+      if (b.stages.some((s) => s.toUpperCase().includes(q))) return true;
+      if (b.defects.some((d) => d.code.toUpperCase().includes(q))) return true;
+      return false;
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (batchSort === "defects") {
+        const da = a.rejectedQty || a.defectQty;
+        const db = b.rejectedQty || b.defectQty;
+        if (db !== da) return db - da;
+        return a.batchId.localeCompare(b.batchId);
+      }
+      if (batchSort === "rate") {
+        if (b.defectRate !== a.defectRate) return b.defectRate - a.defectRate;
+        return (b.rejectedQty || b.defectQty) - (a.rejectedQty || a.defectQty);
+      }
+      if (batchSort === "asc") return a.batchId.localeCompare(b.batchId);
+      if (batchSort === "desc") return b.batchId.localeCompare(a.batchId);
+      if (batchSort === "date") return b.dateMax.localeCompare(a.dateMax);
+      return 0;
+    });
+  }, [batchItems, batchSearch, batchSort]);
+
+  const handleCopyBatches = (ids: string[]) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(ids.join(", "));
+      setCopiedBatches(true);
+      setTimeout(() => setCopiedBatches(false), 2200);
+    }
+  };
+
+  const handleSelectBatch = (batchId: string) => {
+    setFilters((prev) => ({ ...prev, search: batchId }));
+    setSourceSubView("history");
+  };
+
   // Keep the highlighted (beam) row valid + reset to the top entry on any change.
   useEffect(() => {
     setBeamRowIndex(0);
-  }, [detailPage, filters, showSource, sourceSurface]);
+  }, [detailPage, filters, showSource, sourceSurface, sourceSubView]);
 
   const contributingSheets = useMemo(() => {
     const sheets = new Set<string>();
@@ -470,6 +597,24 @@ export default function FloatingDetailModal({
   }, [activeTab]);
 
   const insights = Array.isArray(insight) ? insight : [insight];
+  const validInsights = insights.filter(Boolean);
+
+  const checkedCount = summary.checkedQty;
+  const rejectedCount = summary.rejectedQty || summary.defectQty;
+  const effectiveRate = primaryValue ?? (rejectionProof ? `${(rejectionProof.value * 100).toFixed(2)}%` : null);
+
+  let primaryMetricLabel = "Primary Rate";
+  const titleLower = title.toLowerCase();
+  if (titleLower.includes("rejection")) primaryMetricLabel = "Rejection Rate";
+  else if (titleLower.includes("acceptance")) primaryMetricLabel = "Acceptance Rate";
+  else if (titleLower.includes("copq")) primaryMetricLabel = "COPQ Impact";
+  else if (titleLower.includes("defect")) primaryMetricLabel = "Defect Count";
+  else if (titleLower.includes("yield")) primaryMetricLabel = "Yield Rate";
+  else if (titleLower.includes("spc") || titleLower.includes("control")) primaryMetricLabel = "Process Mean";
+
+  const isRejectionMetric = primaryMetricLabel === "Rejection Rate";
+  const numericRate = rejectionProof ? rejectionProof.value : (primaryValue && primaryValue.includes("%") ? parseFloat(primaryValue) / 100 : null);
+  const isCompliant = isRejectionMetric && numericRate != null ? numericRate <= 0.15 : null;
 
   const setFilter = <K extends keyof SourceTraceFilters>(key: K, value: SourceTraceFilters[K]) => {
     setFilters((f) => ({ ...f, [key]: value }));
@@ -568,27 +713,164 @@ export default function FloatingDetailModal({
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             {hasSource && (
-              <button
-                type="button"
-                onClick={() => setShowSource((s) => !s)}
+              <div
                 style={{
                   display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "8px 18px",
-                  borderRadius: "9999px",
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  border: `1.5px solid ${showSource ? "var(--accent)" : "var(--border-strong)"}`,
-                  background: showSource ? "var(--accent)" : "var(--surface)",
-                  color: showSource ? "var(--text-invert)" : "var(--text)",
-                  boxShadow: "0 4px 14px rgba(0, 0, 0, 0.18)",
+                  gap: 3,
+                  padding: 3,
+                  borderRadius: 9999,
+                  background: "var(--surface)",
+                  border: "1.5px solid var(--border-strong)",
+                  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.12)",
                 }}
               >
-                <Icon name="search" size={12} /> {showSource ? "Hide Source" : "View Source"}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSource(false)}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 9999,
+                    border: "none",
+                    background: !showSource ? "var(--accent)" : "transparent",
+                    color: !showSource ? "var(--text-invert)" : "var(--text-2)",
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <Icon name="trend-up" size={12} /> Graph
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSource(true);
+                    setSourceSubView("batches");
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 9999,
+                    border: "none",
+                    background: showSource && sourceSubView === "batches" ? "var(--accent)" : "transparent",
+                    color: showSource && sourceSubView === "batches" ? "var(--text-invert)" : "var(--text-2)",
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <span>🏷️ Batches ID</span>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: "1px 6px",
+                      borderRadius: 999,
+                      background: showSource && sourceSubView === "batches" ? "rgba(255,255,255,0.25)" : "var(--surface-3)",
+                      color: showSource && sourceSubView === "batches" ? "var(--text-invert)" : "var(--text-3)",
+                    }}
+                  >
+                    {batchItems.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSource(true);
+                    setSourceSubView("history");
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 9999,
+                    border: "none",
+                    background: showSource && sourceSubView === "history" ? "var(--accent)" : "transparent",
+                    color: showSource && sourceSubView === "history" ? "var(--text-invert)" : "var(--text-2)",
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <span>📋 Entry History</span>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: "1px 6px",
+                      borderRadius: 999,
+                      background: showSource && sourceSubView === "history" ? "rgba(255,255,255,0.25)" : "var(--surface-3)",
+                      color: showSource && sourceSubView === "history" ? "var(--text-invert)" : "var(--text-3)",
+                    }}
+                  >
+                    {entryRows.length}
+                  </span>
+                </button>
+                {activeRawSheets.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSource(true);
+                      setSourceSubView("spreadsheet");
+                    }}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 9999,
+                      border: "none",
+                      background: showSource && sourceSubView === "spreadsheet" ? "var(--accent)" : "transparent",
+                      color: showSource && sourceSubView === "spreadsheet" ? "var(--text-invert)" : "var(--text-2)",
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <span>Spreadsheet</span>
+                  </button>
+                )}
+              </div>
             )}
+            {/* Modal Holiday Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setTweak("showCalendarHolidays", !(t.showCalendarHolidays ?? true))}
+              title={(t.showCalendarHolidays ?? true) ? "Holidays & Calendar synchronization active (click to toggle)" : "Click to activate Holidays & Calendar synchronization"}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 9999,
+                border: "1.5px solid",
+                borderColor: (t.showCalendarHolidays ?? true) ? "var(--accent)" : "var(--border-strong)",
+                background: (t.showCalendarHolidays ?? true)
+                  ? "color-mix(in srgb, var(--accent) 14%, var(--surface))"
+                  : "var(--surface)",
+                color: (t.showCalendarHolidays ?? true) ? "var(--accent)" : "var(--text-3)",
+                fontSize: 11.5,
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                transition: "all 0.15s ease",
+                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.12)",
+              }}
+            >
+              <span style={{ fontSize: 10 }}>★</span>
+              <span>{(t.showCalendarHolidays ?? true) ? "Holidays Active" : "Holidays Off"}</span>
+            </button>
+
             <button
               type="button"
               onClick={handleClose}
@@ -609,61 +891,342 @@ export default function FloatingDetailModal({
           </div>
         </div>
 
-        <div ref={containerRef} style={{ position: "relative", flex: 1, overflowY: "auto", padding: "8px 28px 28px" }}>
-          {!showSource ? (
-            <>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 450 }}>{children}</div>
-              {insights.filter(Boolean).length > 0 && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-md)",
-                    background: "var(--surface)",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    onClick={() => setIsInsightExpanded((prev) => !prev)}
+        <div ref={containerRef} style={{ position: "relative", flex: 1, overflowY: "auto", padding: "16px 28px 28px" }}>
+          {/* Executive Scope Metric Ribbon (Universal across Graph, Batches, and History) */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+              gap: 12,
+              marginBottom: 18,
+            }}
+          >
+            {/* 1. Primary Value / Compliance */}
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: "var(--radius-md)",
+                background: "var(--surface)",
+                border: "1px solid var(--border-strong)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+                  {primaryMetricLabel}
+                </span>
+                {isCompliant !== null && (
+                  <span
                     style={{
-                      padding: "10px 14px",
-                      background: "var(--surface-2)",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      cursor: "pointer",
-                      userSelect: "none",
-                      borderBottom: isInsightExpanded ? "1px solid var(--border)" : "none",
+                      fontSize: 8.5,
+                      fontWeight: 800,
+                      padding: "1px 5px",
+                      borderRadius: 999,
+                      background: isCompliant ? "var(--positive-weak)" : "var(--critical-weak)",
+                      color: isCompliant ? "var(--positive)" : "var(--critical)",
+                      fontFamily: "var(--font-mono)",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700 }}>
-                      <Icon name="spark" size={13} style={{ color: "var(--accent)" }} />
-                      <span>AI Advisory Insights</span>
-                    </div>
-                    <Icon name={isInsightExpanded ? "chevron-up" : "chevron-down"} size={14} />
+                    {isCompliant ? "✓ IN SPEC" : "⚠ EXCEEDS"}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text)", lineHeight: 1.2 }}>
+                {effectiveRate ?? (primaryValue || "—")}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
+                {isRejectionMetric ? "Target: 15.00% max" : (summary.dateFrom ? `${summary.dateFrom} window` : "Selected period")}
+              </div>
+            </div>
+
+            {/* 2. Total Entered */}
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: "var(--radius-md)",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+                Total Units Entered
+              </span>
+              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text)", lineHeight: 1.2 }}>
+                {checkedCount > 0 ? checkedCount.toLocaleString("en-IN") : "—"}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
+                {summary.entryStage ? `Gate: ${summary.entryStage}` : "Upstream inspection count"}
+              </div>
+            </div>
+
+            {/* 3. Total Scrapped */}
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: "var(--radius-md)",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+                Total Scrapped Units
+              </span>
+              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--accent)", lineHeight: 1.2 }}>
+                {rejectedCount > 0 ? rejectedCount.toLocaleString("en-IN") : "—"}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
+                {checkedCount > 0 && rejectedCount > 0 ? `${((rejectedCount / checkedCount) * 100).toFixed(2)}% of total entered` : "Verified rejects"}
+              </div>
+            </div>
+
+            {/* 4. Active Batches */}
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: "var(--radius-md)",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+                Active Batches
+              </span>
+              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text)", lineHeight: 1.2 }}>
+                {batchItems.length > 0 ? batchItems.length : (summary.batchCount > 0 ? summary.batchCount : "—")}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
+                {entryRows.length > 0 ? `${entryRows.length} audit entries` : "Recorded in ledger"}
+              </div>
+            </div>
+
+            {/* 5. Leading Driver */}
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: "var(--radius-md)",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+                Leading Driver
+              </span>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={rankedDefects[0]?.label ?? summary.topDriver?.label ?? "Plant-wide Trace"}>
+                {rankedDefects[0]?.label ?? summary.topDriver?.label ?? "Plant-wide Trace"}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
+                {summary.topDriver?.sharePct ? `${summary.topDriver.sharePct.toFixed(1)}% rejection share` : "Primary variance source"}
+              </div>
+            </div>
+          </div>
+
+          {!showSource ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Full-width Horizontal Visualization Canvas */}
+              <div
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-lg)",
+                  padding: "18px 20px 14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  width: "100%",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>Timeline & Trend Analysis</span>
+                    {summary.dateFrom && summary.dateTo && (
+                      <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
+                        ({summary.dateFrom} → {summary.dateTo})
+                      </span>
+                    )}
                   </div>
-                  {isInsightExpanded && (
-                    <div
-                      style={{
-                        padding: "14px 18px",
-                        background: "var(--accent-weak)",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                      }}
-                    >
-                      {insights.filter(Boolean).map((item, i) => (
-                        <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                          <span style={{ color: "var(--accent)", fontWeight: 800, fontSize: 12 }}>›</span>
-                          <span style={{ fontSize: 13, lineHeight: 1.55, color: "var(--text)" }}>{item}</span>
+                  <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
+                    Interactive Forensic Plot · Full Horizon
+                  </div>
+                </div>
+
+                <div style={{ width: "100%", minHeight: 330, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  {children}
+                </div>
+              </div>
+
+              {/* Full-width AI Advisory Insights Bottom Panel */}
+              {validInsights.length > 0 && (
+                <div
+                  style={{
+                    background: "var(--surface)",
+                    border: "1px solid var(--border-strong)",
+                    borderRadius: "var(--radius-lg)",
+                    padding: "16px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.05)",
+                    width: "100%",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: "var(--radius-sm, 6px)",
+                          background: "var(--accent-weak)",
+                          color: "var(--accent)",
+                          display: "grid",
+                          placeItems: "center",
+                        }}
+                      >
+                        <Icon name="spark" size={13} />
+                      </span>
+                      <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>AI Advisory Insights</span>
+                      <span
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 800,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          padding: "2px 7px",
+                          borderRadius: 999,
+                          background: "color-mix(in srgb, var(--accent) 15%, transparent)",
+                          color: "var(--accent)",
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        Ledger Verified
+                      </span>
+                    </div>
+
+                    {hasSource && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSource(true);
+                            setSourceSubView("batches");
+                          }}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: "var(--radius-sm)",
+                            border: "1px solid var(--border)",
+                            background: "var(--surface-2)",
+                            color: "var(--text)",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <span>🏷️ View Batches ({batchItems.length})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSource(true);
+                            setSourceSubView("history");
+                          }}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: "var(--radius-sm)",
+                            border: "1px solid var(--border)",
+                            background: "var(--surface-2)",
+                            color: "var(--text)",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <span>📋 View Audit ({entryRows.length})</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: validInsights.length > 1 ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr",
+                      gap: 10,
+                    }}
+                  >
+                    {validInsights.map((item, i) => {
+                      let label = "";
+                      let text = item;
+                      const colonMatch = item.match(/^([A-Za-z\s/]+):/);
+                      if (colonMatch && colonMatch[1].length <= 25) {
+                        label = colonMatch[1].trim();
+                        text = item.slice(colonMatch[0].length).trim();
+                      }
+
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: "var(--radius-md)",
+                            background: "var(--surface-2)",
+                            border: "1px solid var(--border)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4,
+                          }}
+                        >
+                          {label && (
+                            <div
+                              style={{
+                                fontSize: 9.5,
+                                fontWeight: 800,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                                color: "var(--accent)",
+                                fontFamily: "var(--font-mono)",
+                              }}
+                            >
+                              {label}
+                            </div>
+                          )}
+                          <div style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--text)", fontWeight: 500 }}>
+                            {safeBolden(text)}
+                          </div>
                         </div>
-                      ))}
+                      );
+                    })}
+                  </div>
+
+                  {rankedDefects.length > 0 && (
+                    <div style={{ marginTop: 4 }}>
+                      <DefectRemedyShowcase ranked={rankedDefects} compact />
                     </div>
                   )}
                 </div>
               )}
-              {rankedDefects.length > 0 && <DefectRemedyShowcase ranked={rankedDefects} compact />}
-            </>
+            </div>
           ) : (
             <div
               style={{
@@ -842,131 +1405,468 @@ export default function FloatingDetailModal({
 
               {/* Right: source records */}
               <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-                {activeRawSheets.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSourceSurface((s) => (s === "spreadsheet" ? "classified" : "spreadsheet"))
-                      }
-                      style={modeChip(sourceSurface === "spreadsheet")}
-                    >
-                      {sourceSurface === "spreadsheet" ? "← Classified view" : "Spreadsheet cells"}
-                    </button>
-                  </div>
-                )}
-
-                {/* Filters */}
+                {/* Sub-view mode tabs header bar */}
                 <div
                   style={{
                     display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
                     alignItems: "center",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid var(--border)",
-                    background: "var(--surface)",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    flexWrap: "wrap",
+                    borderBottom: "1px solid var(--border)",
+                    paddingBottom: 10,
                   }}
                 >
-                  <Select
-                    value={filters.stageId}
-                    onChange={(v) => setFilter("stageId", v)}
-                    options={[
-                      { value: "all", label: "All stages" },
-                      ...stageOpts.map((s) => ({ value: s.id, label: s.label })),
-                    ]}
-                    size="sm"
-                    variant="pill"
-                    block={false}
-                    ariaLabel="Filter by stage"
-                  />
-                  {sizeOpts.length > 0 && (
-                    <Select
-                      value={filters.size}
-                      onChange={(v) => setFilter("size", v)}
-                      options={[
-                        { value: "all", label: "All sizes" },
-                        ...sizeOpts.map((s) => ({ value: s, label: s })),
-                      ]}
-                      size="sm"
-                      mono
-                      variant="pill"
-                      block={false}
-                      ariaLabel="Filter by size"
-                    />
-                  )}
-                  <Select
-                    value={filters.kind}
-                    onChange={(v) => setFilter("kind", v as "all" | SourceKind)}
-                    options={[
-                      { value: "all", label: "All kinds" },
-                      { value: "checked", label: "Checked" },
-                      { value: "accepted", label: "Accepted" },
-                      { value: "rejected", label: "Rejected" },
-                      { value: "rework", label: "Rework / hold" },
-                      { value: "defect", label: "Defect" },
-                      { value: "other", label: "Other" },
-                    ]}
-                    size="sm"
-                    variant="pill"
-                    block={false}
-                    ariaLabel="Filter by kind"
-                  />
-                  <input
-                    value={filters.search}
-                    onChange={(e) => setFilter("search", e.target.value)}
-                    placeholder="Search batch, file, defect, cell…"
+                  <div
                     style={{
-                      ...selectStyle,
-                      flex: "1 1 160px",
-                      minWidth: 140,
+                      display: "inline-flex",
+                      gap: 4,
+                      background: "var(--surface-2)",
+                      padding: 3,
+                      borderRadius: 10,
+                      border: "1px solid var(--border)",
                     }}
-                  />
-                  {(filters.stageId !== "all" ||
-                    filters.size !== "all" ||
-                    filters.kind !== "all" ||
-                    filters.search ||
-                    filters.source !== "all") && (
+                  >
                     <button
                       type="button"
-                      onClick={() => setFilters(defaultSourceFilters())}
+                      onClick={() => setSourceSubView("batches")}
                       style={{
-                        fontSize: 11.5,
-                        fontWeight: 600,
+                        padding: "6px 14px",
+                        borderRadius: 8,
                         border: "none",
-                        background: "none",
-                        color: "var(--accent)",
+                        background: sourceSubView === "batches" ? "var(--surface)" : "transparent",
+                        color: sourceSubView === "batches" ? "var(--accent)" : "var(--text-2)",
+                        fontWeight: 700,
+                        fontSize: 12,
                         cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        boxShadow: sourceSubView === "batches" ? "var(--shadow-1)" : "none",
+                        transition: "all 0.15s ease",
                       }}
                     >
-                      Clear
+                      <span>🏷️ Batches ID</span>
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          fontFamily: "var(--font-mono)",
+                          padding: "1px 6px",
+                          borderRadius: 999,
+                          background:
+                            sourceSubView === "batches"
+                              ? "color-mix(in srgb, var(--accent) 15%, transparent)"
+                              : "var(--surface-3)",
+                          color: sourceSubView === "batches" ? "var(--accent)" : "var(--text-3)",
+                        }}
+                      >
+                        {batchItems.length}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSourceSubView("history")}
+                      style={{
+                        padding: "6px 14px",
+                        borderRadius: 8,
+                        border: "none",
+                        background: sourceSubView === "history" ? "var(--surface)" : "transparent",
+                        color: sourceSubView === "history" ? "var(--accent)" : "var(--text-2)",
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        boxShadow: sourceSubView === "history" ? "var(--shadow-1)" : "none",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <span>📋 Data Entry History</span>
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          fontFamily: "var(--font-mono)",
+                          padding: "1px 6px",
+                          borderRadius: 999,
+                          background:
+                            sourceSubView === "history"
+                              ? "color-mix(in srgb, var(--accent) 15%, transparent)"
+                              : "var(--surface-3)",
+                          color: sourceSubView === "history" ? "var(--accent)" : "var(--text-3)",
+                        }}
+                      >
+                        {entryRows.length}
+                      </span>
+                    </button>
+                    {activeRawSheets.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSourceSubView("spreadsheet")}
+                        style={{
+                          padding: "6px 14px",
+                          borderRadius: 8,
+                          border: "none",
+                          background: sourceSubView === "spreadsheet" ? "var(--surface)" : "transparent",
+                          color: sourceSubView === "spreadsheet" ? "var(--accent)" : "var(--text-2)",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          boxShadow: sourceSubView === "spreadsheet" ? "var(--shadow-1)" : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <span>Spreadsheet cells</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {sourceSubView === "batches" && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopyBatches(displayBatches.map((b) => b.batchId))}
+                      style={{
+                        padding: "6px 14px",
+                        borderRadius: 8,
+                        border: "1px solid var(--border-strong)",
+                        background: copiedBatches ? "var(--positive)" : "var(--surface)",
+                        color: copiedBatches ? "#fff" : "var(--text)",
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        fontFamily: "var(--font-mono)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {copiedBatches ? "✓ Copied Batch IDs!" : "📋 Copy All Batch IDs"}
                     </button>
                   )}
                 </div>
 
-                {sourceSurface === "spreadsheet" && activeRawSheets.length > 0 ? (
-                  <SpreadsheetPanel
-                    activeRawSheets={activeRawSheets}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    sheetLabel={sheetLabel}
-                    filteredRows={filteredRows}
-                    tableScrollRef={tableScrollRef}
-                    cellRefs={cellRefs}
-                  />
-                ) : entryRows.length === 0 ? (
-                  <div
-                    className="muted"
-                    style={{
-                      padding: 28,
-                      textAlign: "center",
-                      border: "1px solid var(--border)",
-                      borderRadius: 12,
-                    }}
-                  >
-                    No source records match these filters.
+                {/* Option 1: Batches ID View (like 3rd image) */}
+                {sourceSubView === "batches" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {/* Search & Sort Controls */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        alignItems: "center",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid var(--border)",
+                        background: "var(--surface)",
+                      }}
+                    >
+                      <input
+                        value={batchSearch}
+                        onChange={(e) => setBatchSearch(e.target.value)}
+                        placeholder="Search batch ID, size (e.g. 14Fr), stage, defect…"
+                        style={{
+                          ...selectStyle,
+                          flex: "1 1 200px",
+                          minWidth: 160,
+                        }}
+                      />
+                      <Select
+                        value={batchSort}
+                        onChange={(v) => setBatchSort(v as any)}
+                        options={[
+                          { value: "defects", label: "Sort: Most Rejections" },
+                          { value: "rate", label: "Sort: Highest Rej Rate %" },
+                          { value: "asc", label: "Sort: Batch A–Z" },
+                          { value: "desc", label: "Sort: Batch Z–A" },
+                          { value: "date", label: "Sort: Latest Date" },
+                        ]}
+                        size="sm"
+                        variant="pill"
+                        block={false}
+                        ariaLabel="Sort batches"
+                      />
+                      {batchSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setBatchSearch("")}
+                          style={{
+                            fontSize: 11.5,
+                            fontWeight: 600,
+                            border: "none",
+                            background: "none",
+                            color: "var(--accent)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Stats summary bar */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "0 4px",
+                        fontSize: 12,
+                        color: "var(--text-3)",
+                      }}
+                    >
+                      <span>
+                        Showing <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>{displayBatches.length}</strong> of{" "}
+                        <strong style={{ color: "var(--text)", fontFamily: "var(--font-mono)" }}>{batchItems.length}</strong> batches
+                        {displayBatches.length > 0 && (
+                          <>
+                            {" "}·{" "}
+                            <strong style={{ color: "var(--accent)", fontFamily: "var(--font-mono)" }}>
+                              {displayBatches
+                                .reduce((acc, b) => acc + (b.rejectedQty || b.defectQty), 0)
+                                .toLocaleString("en-IN")}
+                            </strong>{" "}
+                            total rejections
+                          </>
+                        )}
+                      </span>
+                      <span style={{ fontSize: 11, fontStyle: "italic", color: "var(--text-3)" }}>
+                        Click any batch tile to drill into its entry history
+                      </span>
+                    </div>
+
+                    {displayBatches.length === 0 ? (
+                      <div
+                        className="muted"
+                        style={{
+                          padding: 28,
+                          textAlign: "center",
+                          border: "1px solid var(--border)",
+                          borderRadius: 12,
+                          background: "var(--surface)",
+                        }}
+                      >
+                        No batches match “{batchSearch}”.
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+                          gap: 10,
+                          maxHeight: "56vh",
+                          overflowY: "auto",
+                          paddingRight: 4,
+                        }}
+                      >
+                        {displayBatches.map((b) => (
+                          <button
+                            key={b.batchId}
+                            type="button"
+                            onClick={() => handleSelectBatch(b.batchId)}
+                            title={`Click to view data entry history for batch ${b.batchId}`}
+                            style={{
+                              textAlign: "left",
+                              padding: "10px 12px",
+                              borderRadius: 10,
+                              border: "1px solid var(--border-strong)",
+                              borderLeft: b.sizeColor
+                                ? `4px solid ${b.sizeColor.hex}`
+                                : "4px solid var(--border-strong)",
+                              background: "var(--surface)",
+                              color: "var(--text)",
+                              cursor: "pointer",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 6,
+                              boxShadow: "var(--shadow-1)",
+                              transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = "translateY(-1px)";
+                              e.currentTarget.style.boxShadow = "var(--shadow-2)";
+                              e.currentTarget.style.borderColor = "var(--accent)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = "none";
+                              e.currentTarget.style.boxShadow = "var(--shadow-1)";
+                              e.currentTarget.style.borderColor = "var(--border-strong)";
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 800, color: "var(--text)" }}>
+                                {b.batchId}
+                              </span>
+                              {b.sizeFr && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    fontFamily: "var(--font-mono)",
+                                    fontWeight: 700,
+                                    padding: "1px 5px",
+                                    borderRadius: 4,
+                                    background: b.sizeColor
+                                      ? `color-mix(in srgb, ${b.sizeColor.hex} 18%, var(--surface-2))`
+                                      : "var(--surface-2)",
+                                    color:
+                                      b.sizeColor?.hex === "#FFFFFF"
+                                        ? "var(--text)"
+                                        : (b.sizeColor?.hex ?? "var(--text-2)"),
+                                    border: "1px solid var(--border)",
+                                  }}
+                                >
+                                  {b.sizeFr}Fr
+                                </span>
+                              )}
+                            </div>
+
+                            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", fontFamily: "var(--font-mono)" }}>
+                                {(b.rejectedQty || b.defectQty).toLocaleString("en-IN")}{" "}
+                                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--text-3)" }}>rejected</span>
+                              </span>
+                              {b.defectRate > 0 && (
+                                <span style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-3)", fontWeight: 600 }}>
+                                  {b.defectRate.toFixed(1)}%
+                                </span>
+                              )}
+                            </div>
+
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 4,
+                                fontSize: 10,
+                                color: "var(--text-3)",
+                                borderTop: "1px dashed var(--border)",
+                                paddingTop: 5,
+                                marginTop: 2,
+                              }}
+                            >
+                              <span style={{ fontFamily: "var(--font-mono)" }}>
+                                {b.dateMin === b.dateMax ? b.dateMin.slice(5) : `${b.dateMin.slice(5)} → ${b.dateMax.slice(5)}`}
+                              </span>
+                              <span style={{ color: "var(--accent)", fontWeight: 600, display: "inline-flex", alignItems: "center" }}>
+                                History →
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
+                )}
+
+                {/* Option 2: Data Entry History View (like 2nd image) */}
+                {sourceSubView === "history" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {/* Filters */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        alignItems: "center",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid var(--border)",
+                        background: "var(--surface)",
+                      }}
+                    >
+                      <Select
+                        value={filters.stageId}
+                        onChange={(v) => setFilter("stageId", v)}
+                        options={[
+                          { value: "all", label: "All stages" },
+                          ...stageOpts.map((s) => ({ value: s.id, label: s.label })),
+                        ]}
+                        size="sm"
+                        variant="pill"
+                        block={false}
+                        ariaLabel="Filter by stage"
+                      />
+                      {sizeOpts.length > 0 && (
+                        <Select
+                          value={filters.size}
+                          onChange={(v) => setFilter("size", v)}
+                          options={[
+                            { value: "all", label: "All sizes" },
+                            ...sizeOpts.map((s) => ({ value: s, label: s })),
+                          ]}
+                          size="sm"
+                          mono
+                          variant="pill"
+                          block={false}
+                          ariaLabel="Filter by size"
+                        />
+                      )}
+                      <Select
+                        value={filters.kind}
+                        onChange={(v) => setFilter("kind", v as "all" | SourceKind)}
+                        options={[
+                          { value: "all", label: "All kinds" },
+                          { value: "checked", label: "Checked" },
+                          { value: "accepted", label: "Accepted" },
+                          { value: "rejected", label: "Rejected" },
+                          { value: "rework", label: "Rework / hold" },
+                          { value: "defect", label: "Defect" },
+                          { value: "other", label: "Other" },
+                        ]}
+                        size="sm"
+                        variant="pill"
+                        block={false}
+                        ariaLabel="Filter by kind"
+                      />
+                      <input
+                        value={filters.search}
+                        onChange={(e) => setFilter("search", e.target.value)}
+                        placeholder="Search batch, file, defect, cell…"
+                        style={{
+                          ...selectStyle,
+                          flex: "1 1 160px",
+                          minWidth: 140,
+                        }}
+                      />
+                      {(filters.stageId !== "all" ||
+                        filters.size !== "all" ||
+                        filters.kind !== "all" ||
+                        filters.search ||
+                        filters.source !== "all") && (
+                        <button
+                          type="button"
+                          onClick={() => setFilters(defaultSourceFilters())}
+                          style={{
+                            fontSize: 11.5,
+                            fontWeight: 600,
+                            border: "none",
+                            background: "none",
+                            color: "var(--accent)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+
+                    {entryRows.length === 0 ? (
+                      <div
+                        className="muted"
+                        style={{
+                          padding: 28,
+                          textAlign: "center",
+                          border: "1px solid var(--border)",
+                          borderRadius: 12,
+                        }}
+                      >
+                        No source records match these filters.
+                      </div>
                 ) : (
                   <div
                     style={{
@@ -1150,6 +2050,21 @@ export default function FloatingDetailModal({
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Option 3: Spreadsheet Cells View */}
+            {sourceSubView === "spreadsheet" && activeRawSheets.length > 0 && (
+              <SpreadsheetPanel
+                activeRawSheets={activeRawSheets}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                sheetLabel={sheetLabel}
+                filteredRows={filteredRows}
+                tableScrollRef={tableScrollRef}
+                cellRefs={cellRefs}
+              />
+            )}
+          </div>
 
               {/* Single bezier beam → the highlighted target */}
               <svg

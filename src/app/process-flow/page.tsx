@@ -6,7 +6,8 @@ import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
-import { sortStageIds } from "@/core/ontology/plant-catalog";
+import { resolveStageId, sortStageIds } from "@/core/ontology/plant-catalog";
+import { groupByEntryLine } from "@/lib/entry/entry-line";
 import FloatingDetailModal from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
@@ -105,8 +106,13 @@ export default function ProcessFlowPage() {
 
         {m && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+<<<<<<< Updated upstream
             <Card title="Inspection Stages (Quality Gates)" onClick={() => openModal("Inspection Stages", "The four rejection inspection gates with their current yields for the selected period.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>)}>
               <ProcessFlow rows={m.stages} />
+=======
+            <Card title="Process Stages" sub={lotScopeLabel(t, STAGE_LABELS)} onClick={() => openModal("Process Stages", "Each process and its stages, in the same order as Data Entry, with current yields for the selected period.", <div style={{ minHeight: 240 }}><EntryLineFlow rows={m.stages} sectionStageIds={scope.stageIds} /></div>)}>
+              <EntryLineFlow rows={m.stages} sectionStageIds={scope.stageIds} />
+>>>>>>> Stashed changes
             </Card>
             <Card title="FBC Process Flow — DS/ANX/02:00" sub="* = critical operation">
               <FbcProcessFlow stages={m.stages} />
@@ -124,6 +130,47 @@ export default function ProcessFlowPage() {
         {modalContent}
       </FloatingDetailModal>
     </AppShell>
+  );
+}
+
+/** Stages grouped the way Data Entry is: Production Dipping, Secondary, Assembly.
+ *  A station with no records in the period stays listed, quietly. */
+function EntryLineFlow({ rows, sectionStageIds }: { rows: StageRow[]; sectionStageIds?: string[] }) {
+  const allowed = sectionStageIds
+    ? new Set(sectionStageIds.flatMap((id) => [id, resolveStageId(id) ?? id]))
+    : null;
+  const groups = groupByEntryLine(rows)
+    .map((g) => ({ ...g, stations: g.stations.filter((s) => !allowed || allowed.has(s.stageId)) }))
+    .filter((g) => g.stations.length > 0);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {groups.map((g, gi) => (
+        <section key={g.id}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>{gi + 1}</span>
+            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{g.label}</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {g.stations.map((st) =>
+              st.row ? (
+                <ProcessFlow key={st.stageId} rows={[st.row]} />
+              ) : (
+                <div
+                  key={st.stageId}
+                  style={{
+                    border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "10px 12px",
+                    background: "var(--surface-2)", display: "flex", justifyContent: "space-between", alignItems: "center",
+                  }}
+                >
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "var(--text)" }}>{st.label}</span>
+                  <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>no records in this date range</span>
+                </div>
+              ),
+            )}
+          </div>
+        </section>
+      ))}
+    </div>
   );
 }
 

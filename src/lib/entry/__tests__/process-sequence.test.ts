@@ -10,14 +10,20 @@ import {
 const SCHEMA = resolveEntrySchema({
   stages: [
     {
-      stageId: "production",
-      label: "Dipping",
+      stageId: "stripping",
+      label: "Stripping",
       category: "primary",
       columns: [{ key: "checked" }, { key: "accepted" }, { key: "rejected" }],
     },
     {
-      stageId: "secondary",
-      label: "Secondary",
+      stageId: "eye-punching",
+      label: "Eye Punching",
+      category: "secondary",
+      columns: [{ key: "checked" }, { key: "accepted" }],
+    },
+    {
+      stageId: "hanging",
+      label: "Hanging",
       category: "secondary",
       columns: [{ key: "checked" }, { key: "accepted" }],
     },
@@ -76,6 +82,13 @@ describe("occupiedStageIds", () => {
     expect(lotHasStage(occ, "visual")).toBe(false);
   });
 
+  test("a lot that already has Dipping has cleared Stripping — Dipping is no longer typed", () => {
+    const occ = occupiedStageIds([prod("production", 3650)], LOT);
+    expect(lotHasStage(occ, "stripping")).toBe(true);
+    expect(lotHasStage(new Set(["stripping"]), "production")).toBe(false);
+    expect(gap("eye-punching", occ)).toBeNull();
+  });
+
   test("production-dipping alias counts as dipping", () => {
     const occ = occupiedStageIds([prod("production-dipping", 3650)], LOT);
     expect(lotHasStage(occ, "production")).toBe(true);
@@ -95,29 +108,29 @@ describe("occupiedStageIds", () => {
 
 describe("missingProcessStep — Dipping → Secondary → Assembly", () => {
   test("Dipping is the start of the line", () => {
-    expect(gap("production", new Set())).toBeNull();
+    expect(gap("stripping", new Set())).toBeNull();
   });
 
   test("Secondary without Dipping is blocked", () => {
-    const g = gap("secondary", new Set());
-    expect(g?.missingStationId).toBe("production");
+    const g = gap("eye-punching", new Set());
+    expect(g?.missingStationId).toBe("stripping");
     expect(g?.message).toMatch(/Dipping/);
     expect(g?.message).toMatch(/26H01-16/);
   });
 
   test("Secondary is open once Dipping is on the lot", () => {
-    expect(gap("secondary", occupiedStageIds([prod("production")], LOT))).toBeNull();
+    expect(gap("eye-punching", occupiedStageIds([prod("production")], LOT))).toBeNull();
   });
 
   test("Assembly without Secondary is blocked even if Dipping is done", () => {
     const g = gap("visual", occupiedStageIds([prod("production")], LOT));
-    expect(g?.missingStationId).toBe("secondary");
+    expect(g?.missingStationId).toBe("eye-punching");
     expect(g?.message).toMatch(/Secondary/);
   });
 
   test("jumping straight to Assembly with an empty lot is blocked", () => {
     const g = gap("visual", new Set());
-    expect(g?.missingStationId).toBe("production");
+    expect(g?.missingStationId).toBe("stripping");
     expect(g?.message).toMatch(/Complete the line in order/);
   });
 
@@ -154,7 +167,7 @@ describe("missingProcessStep — Dipping → Secondary → Assembly", () => {
       [{ stageId: "production", batchNo: LOT, eventType: "production", quantity: 3650 }],
       LOT,
     );
-    expect(gap("secondary", occ)).toBeNull();
+    expect(gap("eye-punching", occ)).toBeNull();
   });
 
   test("revising an existing row skips the gate", () => {
@@ -181,7 +194,7 @@ describe("missingProcessStep — Dipping → Secondary → Assembly", () => {
       occupied: new Set(),
     });
     expect(open.ok).toBe(false);
-    if (!open.ok) expect(open.gap.missingStationId).toBe("production");
+    if (!open.ok) expect(open.gap.missingStationId).toBe("stripping");
   });
 
   test("GM may open any station to inspect the lot", () => {
@@ -202,11 +215,72 @@ describe("missingProcessStep — Dipping → Secondary → Assembly", () => {
     expect(isLineCompleteStage("production-dipping")).toBe(false);
   });
 
+<<<<<<< Updated upstream
+=======
+  test("a converted lot that changes at Visual skips Dipping and Secondary", () => {
+    const open = missingProcessStep({
+      lot: LOT,
+      station: "visual",
+      schema: SCHEMA,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(open).toBeNull();
+  });
+
+  test("a converted lot still has to enter Balloon after Visual", () => {
+    const g = missingProcessStep({
+      lot: LOT,
+      station: "balloon",
+      schema: SCHEMA,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(g?.missingStationId).toBe("visual");
+  });
+
+  test("stations before the size change are not part of the converted lot", () => {
+    const dipping = mayOpenStation({
+      lot: LOT,
+      station: "stripping",
+      schema: SCHEMA,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(dipping.ok).toBe(false);
+    if (!dipping.ok) {
+      expect(dipping.gap.missingStationId).toBe("visual");
+      expect(dipping.gap.message).toMatch(/original lot/);
+    }
+    const secondary = mayOpenStation({
+      lot: LOT,
+      station: "eye-punching",
+      schema: SCHEMA,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(secondary.ok).toBe(false);
+  });
+
+  test("Balloon is open once the converted lot has Visual", () => {
+    const occupied = occupiedStageIds([prod("visual")], LOT);
+    expect(
+      missingProcessStep({
+        lot: LOT,
+        station: "balloon",
+        schema: SCHEMA,
+        occupied,
+        entryFromStageId: "visual",
+      }),
+    ).toBeNull();
+  });
+
+>>>>>>> Stashed changes
   test("going back to Dipping after Assembly is always allowed", () => {
     const occ = occupiedStageIds(
       [prod("production"), prod("secondary"), prod("visual"), prod("balloon"), prod("final")],
       LOT,
     );
-    expect(gap("production", occ)).toBeNull();
+    expect(gap("stripping", occ)).toBeNull();
   });
 });

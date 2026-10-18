@@ -19,6 +19,8 @@ interface StickySaveBarProps {
   saveDisabled: boolean;
   saving: boolean;
   blockMessage?: string;
+  /** Sit in-flow inside a conversion panel instead of sticking to the viewport. */
+  contained?: boolean;
 }
 
 export default function StickySaveBar({
@@ -38,6 +40,7 @@ export default function StickySaveBar({
   saveDisabled,
   saving,
   blockMessage,
+  contained = false,
 }: StickySaveBarProps) {
   const saveLabel = saving
     ? "Saving to Ledger…"
@@ -48,11 +51,11 @@ export default function StickySaveBar({
   return (
     <div
       style={{
-        position: "sticky",
+        position: contained ? "static" : "sticky",
         bottom: 0,
         zIndex: 20,
-        margin: "24px -16px -16px",
-        padding: "14px 24px",
+        margin: contained ? "16px 0 0" : "24px -16px -16px",
+        padding: contained ? "12px 0 4px" : "14px 24px",
         background: "var(--surface)",
         borderTop: "1.5px solid var(--border-strong)",
         boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.06)",

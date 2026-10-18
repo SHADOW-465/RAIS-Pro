@@ -31,7 +31,7 @@ export const FBC_PROCESS: ProcessStep[] = [
   { code: "P6",  label: "Balloon Dipping & Drying",                critical: true },
   { code: "P7",  label: "Balloon Fixing",                          critical: false },
   { code: "P8",  label: "Finish Dipping & Drying",                 critical: true },
-  { code: "P9",  label: "Stripping",                               critical: false },
+  { code: "P9",  label: "Stripping",                               critical: false, stageId: "stripping" },
   { code: "P10", label: "Hot Water Dipping",                       critical: false },
   { code: "P11", label: "Eye Punching",                            critical: false, stageId: "eye-punching" },
   { code: "P12", label: "Leaching",                                critical: false },

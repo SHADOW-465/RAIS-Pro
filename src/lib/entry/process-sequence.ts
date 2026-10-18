@@ -93,6 +93,14 @@ export function lotHasStage(occupied: Set<string>, stageId: string): boolean {
   for (const id of occupied) {
     if (sameStage(id, stageId)) return true;
   }
+  // Dipping is no longer typed; Stripping is the Production Dipping entry stage.
+  // A lot that already carries Dipping (Excel, or typed before the change) has
+  // cleared that process, the way the lumped Secondary row fills both slots.
+  if (sameStage(stageId, "stripping")) {
+    for (const id of occupied) {
+      if (sameStage(id, "production")) return true;
+    }
+  }
   return false;
 }
 

@@ -15,6 +15,7 @@ import { getModStore } from "@/core/ontology/store/mod-store";
 import {
   plantCatalog,
   mergePlantCatalog,
+  canonicalDefectCode,
   STAGE_CATEGORIES,
   STAGE_CATEGORY,
   type StageCategory,
@@ -26,13 +27,20 @@ import { resolveSections } from "@/lib/schema/sections";
  * plants must pick up. The backfill runs ONCE per tag, so a stage deleted on
  * Data Schema after that stays deleted — the catalog still outlives the code.
  */
-export const SEED_TAG = "plant-catalog@dipping-label-and-sections";
+export const SEED_TAG = "plant-catalog@stripping-stage";
 
 /**
  * `mergePlantCatalog` writes this instead of SEED_TAG. It is a full authored
  * merge — missing stages after that are user deletions, not "never seeded".
  */
 const MERGE_TAG = "plant-catalog";
+
+/**
+ * Stages authored AFTER some plants were fully merged. A catalog tagged MERGE_TAG
+ * or an older SEED_TAG never saw these, so they are inserted once (with their
+ * defect membership) even though the rest of the floor is not re-inserted.
+ */
+const NEWLY_AUTHORED = new Set(["stripping"]);
 
 /** True once the authored floor has been applied; do not re-insert missing stages. */
 export function authoredFloorApplied(tag: string | null | undefined): boolean {
@@ -94,7 +102,9 @@ async function backfillAuthoredStages(
   // next GET. Still run the one-time repairs below, then stamp SEED_TAG.
   const skipInsert = authoredFloorApplied(catalog.lastMergedFrom);
 
-  const authored = plantCatalog().stages;
+  const authoredCatalog = plantCatalog();
+  const authored = authoredCatalog.stages;
+  const authoredDefects = new Map(authoredCatalog.defects.map((d) => [d.defectCode, d]));
   const authoredById = new Map(authored.map((s) => [s.stageId, s]));
   const stored = new Map(catalog.stages.map((s) => [s.stageId, s]));
 
@@ -132,12 +142,26 @@ async function backfillAuthoredStages(
   // Never do this after a full authored merge or the current seed — that is
   // how a deleted stage used to reappear on the next /api/schema GET.
   const out: CompanyCatalog["stages"] = [];
-  if (!skipInsert) {
-    for (const a of authored) {
-      if (stored.has(a.stageId)) continue;
-      out.push(a);
-      changed = true;
-    }
+  for (const a of authored) {
+    if (stored.has(a.stageId)) continue;
+    if (skipInsert && !NEWLY_AUTHORED.has(a.stageId)) continue;
+    out.push(a);
+    changed = true;
+  }
+
+  // A newly inserted stage is only enterable with its defects: membership lives
+  // on the defect (`stages`), so teach the stored defects about the new stage.
+  let defects = catalog.defects;
+  if (out.length > 0) {
+    const added = new Set(out.map((s) => s.stageId));
+    defects = catalog.defects.map((d) => {
+      const code = canonicalDefectCode(d.defectCode) ?? d.defectCode;
+      const authoredDef = authoredDefects.get(code);
+      const extra = (authoredDef?.stages ?? []).filter(
+        (id) => added.has(id) && !d.stages.includes(id),
+      );
+      return extra.length ? { ...d, stages: [...d.stages, ...extra] } : d;
+    });
   }
   const merged = changed
     ? [...repaired, ...out].sort((x, y) => {
@@ -156,6 +180,7 @@ async function backfillAuthoredStages(
   return getCatalogStore().put(company, {
     ...catalog,
     stages: merged,
+    defects,
     sections,
     lastMergedFrom: SEED_TAG,
   });

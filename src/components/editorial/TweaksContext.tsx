@@ -44,6 +44,11 @@ export interface Tweaks {
    * primary/secondary in by default would silently change every KPI.
    */
   stageCategories: StageCategory[];
+  /**
+   * Universal dashboard toggle for calendar holidays, weekly off (Sunday),
+   * and break annotations across timeline charts.
+   */
+  showCalendarHolidays: boolean;
 }
 
 export const TWEAK_DEFAULTS: Tweaks = {
@@ -59,6 +64,7 @@ export const TWEAK_DEFAULTS: Tweaks = {
   excelFiles: [],
   batchIds: [],
   stageCategories: [...DEFAULT_STAGE_CATEGORIES],
+  showCalendarHolidays: true,
 };
 
 interface Ctx {
@@ -79,14 +85,32 @@ function initialTheme(): Theme {
   return TWEAK_DEFAULTS.theme;
 }
 
+function initialShowCalendarHolidays(): boolean {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("showCalendarHolidays");
+    if (saved === "false") return false;
+    if (saved === "true") return true;
+  }
+  return true;
+}
+
 export function TweaksProvider({ children }: { children: ReactNode }) {
-  const [t, setT] = useState<Tweaks>(() => ({ ...TWEAK_DEFAULTS, theme: initialTheme() }));
+  const [t, setT] = useState<Tweaks>(() => ({
+    ...TWEAK_DEFAULTS,
+    theme: initialTheme(),
+    showCalendarHolidays: initialShowCalendarHolidays(),
+  }));
 
   // Sync theme changes with the document attribute + persisted preference.
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", t.theme);
     localStorage.setItem("theme", t.theme);
   }, [t.theme]);
+
+  // Persist universal holiday setting across page reloads.
+  useEffect(() => {
+    localStorage.setItem("showCalendarHolidays", String(t.showCalendarHolidays));
+  }, [t.showCalendarHolidays]);
 
   const setTweak = useCallback(
     <K extends keyof Tweaks>(key: K, value: Tweaks[K]) =>

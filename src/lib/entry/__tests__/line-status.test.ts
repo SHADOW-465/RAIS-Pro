@@ -5,8 +5,8 @@ import { buildLineStatus, laneCaption } from "../line-status";
 const SCHEMA = resolveEntrySchema({
   stages: [
     {
-      stageId: "production",
-      label: "Production Dipping",
+      stageId: "stripping",
+      label: "Stripping",
       category: "primary",
       columns: [{ key: "checked" }],
     },
@@ -81,7 +81,7 @@ describe("buildLineStatus", () => {
     expect(s.isBlank).toBe(true);
     expect(s.isNew).toBe(false);
     expect(s.nextLaneId).toBe("primary");
-    expect(s.nextStationId).toBe("production");
+    expect(s.nextStationId).toBe("stripping");
     expect(s.headline).toMatch(/New lots start at Production Dipping/);
     expect(captions("", new Set()).map((c) => c.caption)).toEqual([
       "Not started",
@@ -94,8 +94,8 @@ describe("buildLineStatus", () => {
     const s = buildLineStatus({ lot: LOT, schema: SCHEMA, occupied: new Set() });
     expect(s.isNew).toBe(true);
     expect(s.lot).toBe(LOT);
-    expect(s.nextStationId).toBe("production");
-    expect(s.headline).toBe("New lot 26H01-16 — start at Production Dipping.");
+    expect(s.nextStationId).toBe("stripping");
+    expect(s.headline).toBe("New lot 26H01-16 — start at Stripping.");
     expect(laneCaption(s.lanes[0])).toBe("Not started");
   });
 
@@ -119,6 +119,65 @@ describe("buildLineStatus", () => {
     expect(s.headline).toMatch(/Production Dipping completed/);
   });
 
+<<<<<<< Updated upstream
+=======
+  test("Eye Punching is 1/2 Secondary; Hanging is 2/2", () => {
+    const ep = occ("production", "eye-punching");
+    const s1 = buildLineStatus({ lot: LOT, schema: SCHEMA, occupied: ep });
+    expect(s1.lanes[1].done).toBe(1);
+    expect(s1.lanes[1].total).toBe(2);
+    expect(s1.lanes[1].complete).toBe(false);
+    expect(s1.nextStationId).toBe("hanging");
+    expect(laneCaption(s1.lanes[1])).toBe("1/2 complete");
+
+    const both = occ("production", "eye-punching", "hanging");
+    const s2 = buildLineStatus({ lot: LOT, schema: SCHEMA, occupied: both });
+    expect(s2.lanes[1].done).toBe(2);
+    expect(s2.lanes[1].complete).toBe(true);
+    expect(laneCaption(s2.lanes[1])).toBe("2/2 completed");
+    expect(s2.nextStationId).toBe("visual");
+  });
+
+  test("builtin seed schema still counts Eye Punching + Hanging as Secondary 2/2", () => {
+    const seed = resolveEntrySchema(null);
+    const occupied = occ("production", "stripping", "eye-punching", "hanging", "visual", "balloon", "valve-integrity", "final");
+    const s = buildLineStatus({ lot: LOT, schema: seed, occupied });
+    const secondary = s.lanes.find((l) => l.id === "secondary")!;
+    expect(secondary.total).toBe(2);
+    expect(secondary.done).toBe(2);
+    expect(secondary.complete).toBe(true);
+    expect(s.isComplete).toBe(true);
+  });
+
+  test("a converted lot that changes at Visual starts there and waives earlier lanes", () => {
+    const s = buildLineStatus({
+      lot: LOT,
+      schema: SCHEMA,
+      occupied: new Set(),
+      entryFromStageId: "visual",
+    });
+    expect(s.nextStationId).toBe("visual");
+    expect(s.nextLaneId).toBe("assembly");
+    expect(s.lanes[0].waived).toBe(true);
+    expect(s.lanes[1].waived).toBe(true);
+    expect(laneCaption(s.lanes[0])).toBe("On original lot");
+    expect(laneCaption(s.lanes[1])).toBe("On original lot");
+    expect(s.headline).toMatch(/enter from Visual Inspection/);
+    expect(s.isComplete).toBe(false);
+  });
+
+  test("after Visual is entered, the converted lot continues at Balloon", () => {
+    const s = buildLineStatus({
+      lot: LOT,
+      schema: SCHEMA,
+      occupied: occ("visual"),
+      entryFromStageId: "visual",
+    });
+    expect(s.nextStationId).toBe("balloon");
+    expect(s.headline).toMatch(/Balloon/);
+  });
+
+>>>>>>> Stashed changes
   test("a finished lot has no next station", () => {
     const occupied = occ(
       "production",

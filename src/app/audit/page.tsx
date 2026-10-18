@@ -43,6 +43,11 @@ import {
 } from "@/lib/analytics/batch-progress";
 import LotProgress from "@/components/LotProgress";
 import EntryRevisionHistory from "@/components/entry/EntryRevisionHistory";
+<<<<<<< Updated upstream
+=======
+import BatchIdChip from "@/components/entry/BatchIdChip";
+import { attachConversionHalves, historyNameForLot, type AuditBatchGroupWithConvert } from "@/lib/lineage";
+>>>>>>> Stashed changes
 import { usePersona } from "@/components/app/PersonaContext";
 import Select from "@/components/ui/Select";
 import { sortStageIds } from "@/core/ontology/plant-catalog";
@@ -79,7 +84,115 @@ function compactRange(from: string, to: string): string {
   return `${fmt(from, !sameMonth)}–${fmt(to, true)}`;
 }
 
+<<<<<<< Updated upstream
 const AUDIT_ROW_COLS = "16px minmax(96px, 1.1fr) minmax(94px, 0.9fr) 150px 78px 78px 78px 62px";
+=======
+const AUDIT_ROW_COLS = "16px minmax(96px, 1.1fr) minmax(90px, 0.9fr) minmax(280px, 2.5fr) 78px 78px 78px 62px";
+
+function TrackPills({ lineStatus }: { lineStatus: LineStatus }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", minWidth: 0 }}>
+      {lineStatus.lanes.map((lane) => {
+        const isPrimary = lane.id === "primary";
+        const isSecondary = lane.id === "secondary";
+        const isAssembly = lane.id === "assembly";
+        const shortName = isPrimary ? "Primary Dipping" : isSecondary ? "Secondary" : isAssembly ? "Assembly" : lane.label;
+        const isDone = lane.complete;
+        const isStarted = lane.started && !lane.complete;
+
+        const countText = isDone
+          ? isPrimary
+            ? "completed"
+            : `${lane.done}/${lane.total} completed`
+          : isStarted
+            ? `${lane.done}/${lane.total}`
+            : "—";
+
+        const tagColor = isDone
+          ? "var(--positive)"
+          : isStarted
+            ? "var(--status-warn, #d97706)"
+            : "var(--text-3)";
+        const tagBg = isDone
+          ? "var(--positive-weak)"
+          : isStarted
+            ? "var(--warning-weak)"
+            : "var(--surface-2)";
+
+        return (
+          <span
+            key={lane.id}
+            title={`${lane.label}: ${isDone ? "Completed" : isStarted ? `${lane.done}/${lane.total} complete` : "Not started"}`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3.5,
+              fontSize: "11px",
+              padding: "1.5px 6px",
+              borderRadius: "4px",
+              background: tagBg,
+              color: tagColor,
+              border: `1px solid color-mix(in srgb, ${tagColor} 26%, transparent)`,
+              whiteSpace: "nowrap",
+              lineHeight: 1.25,
+              fontFamily: "var(--font-sans)",
+            }}
+          >
+            <span style={{ fontSize: 8 }}>{isDone ? "✓" : isStarted ? "●" : "○"}</span>
+            <span style={{ fontWeight: 600 }}>{shortName}</span>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                fontWeight: isDone || isStarted ? 700 : 400,
+                opacity: 0.95,
+              }}
+            >
+              {countText}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+>>>>>>> Stashed changes
+
+function BatchProcessTrack({
+  lineStatus,
+  progress,
+  convertLineStatus,
+}: {
+  lineStatus?: LineStatus | null;
+  progress?: ReturnType<typeof progressFor>;
+  convertLineStatus?: LineStatus | null;
+}) {
+  if (lineStatus && lineStatus.lanes.length > 0 && convertLineStatus && convertLineStatus.lanes.length > 0) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
+        <TrackPills lineStatus={lineStatus} />
+        <span
+          aria-hidden
+          style={{
+            width: 1,
+            alignSelf: "stretch",
+            minHeight: 18,
+            background: "color-mix(in srgb, var(--accent) 45%, var(--border))",
+          }}
+        />
+        <TrackPills lineStatus={convertLineStatus} />
+      </div>
+    );
+  }
+  if (!lineStatus || lineStatus.lanes.length === 0) {
+    return progress && progress.doneCount > 0 ? (
+      <LotProgress progress={progress} showLabels={false} />
+    ) : (
+      <span style={{ color: "var(--text-3)", fontSize: "var(--text-xs)" }}>—</span>
+    );
+  }
+  return <TrackPills lineStatus={lineStatus} />;
+}
 
 /** "31 Jul, 09:56" — the wall-clock moment a row was written. */
 function fmtStamp(iso: string): string {
@@ -340,6 +453,7 @@ export default function AuditPage() {
         return statusFilter === "complete" ? complete : !complete;
       });
     }
+<<<<<<< Updated upstream
     return [...groups].sort((a, b) => {
       if (sortOrder === "newest") return b.dateTo.localeCompare(a.dateTo) || a.batch.localeCompare(b.batch);
       if (sortOrder === "oldest") return a.dateFrom.localeCompare(b.dateFrom) || a.batch.localeCompare(b.batch);
@@ -350,6 +464,21 @@ export default function AuditPage() {
       return 0;
     });
   }, [entryRows, statusFilter, sortOrder, batchProgress]);
+=======
+    const sorted = [...groups].sort((a, b) => {
+      const aLabel = batchLabel(a.batch) || a.batch;
+      const bLabel = batchLabel(b.batch) || b.batch;
+      if (sortOrder === "newest") return b.dateTo.localeCompare(a.dateTo) || aLabel.localeCompare(bLabel);
+      if (sortOrder === "oldest") return a.dateFrom.localeCompare(b.dateFrom) || aLabel.localeCompare(bLabel);
+      if (sortOrder === "batch-asc") return aLabel.localeCompare(bLabel);
+      if (sortOrder === "batch-desc") return bLabel.localeCompare(aLabel);
+      if (sortOrder === "volume-desc") return b.checkedQty - a.checkedQty || aLabel.localeCompare(bLabel);
+      if (sortOrder === "rejection-desc") return b.rejectedQty - a.rejectedQty || aLabel.localeCompare(bLabel);
+      return 0;
+    });
+    return attachConversionHalves(sorted, conversions);
+  }, [entryRows, statusFilter, sortOrder, batchProgress, batchLabel, conversions]);
+>>>>>>> Stashed changes
 
   /**
    * Erase a displayed row from the ledger. This is the ONLY erase path in the
@@ -813,6 +942,7 @@ export default function AuditPage() {
                 <span style={{ textAlign: "right" }}>Rejected</span>
                 <span style={{ textAlign: "right" }}>Rate</span>
               </div>
+<<<<<<< Updated upstream
               {(pageSlice as AuditBatchGroup[]).map((g) => (
                 <BatchAccordion
                   key={g.batch}
@@ -826,6 +956,58 @@ export default function AuditPage() {
                   erasingId={erasing}
                   focus={focusIssue}
                 />
+=======
+              {groupByPeriod(pageSlice as AuditBatchGroup[], t.grain || "month").map((p) => (
+                <div key={p.period}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "baseline",
+                      gap: 10,
+                      padding: "10px 16px 6px",
+                      borderBottom: "1px solid var(--border)",
+                      background: "var(--surface)",
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 1,
+                    }}
+                  >
+                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text)" }}>
+                      {p.label}
+                    </span>
+                    <span className="small" style={{ color: "var(--text-3)" }}>
+                      {p.batchCount} {p.batchCount === 1 ? "lot" : "lots"} · {p.rowCount}{" "}
+                      {p.rowCount === 1 ? "entry" : "entries"}
+                    </span>
+                  </div>
+                  {p.groups.map((raw) => {
+                    const g = raw as AuditBatchGroupWithConvert;
+                    return (
+                    <BatchAccordion
+                      key={g.batch}
+                      group={g}
+                      open={openBatch === g.batch}
+                      activeStage={stageTab[g.batch] ?? g.stages[0]?.stageId ?? ""}
+                      onToggle={() => selectBatch(g.batch)}
+                      onStage={(sid) => setStageTab((t) => ({ ...t, [g.batch]: sid }))}
+                      progress={progressFor(batchProgress, g.batch)}
+                      lineStatus={lineStatusMap.get(g.batch) ?? null}
+                      convertLineStatus={
+                        g.conversion
+                          ? lineStatusMap.get(g.conversion.toBatch) ??
+                            lineStatusMap.get(canonicalBatchId(g.conversion.toBatch) || g.conversion.toBatch) ??
+                            null
+                          : null
+                      }
+                      onErase={canEraseLedger ? eraseRow : undefined}
+                      erasingId={erasing}
+                      focus={focusIssue}
+                      batchLabel={batchLabel}
+                    />
+                    );
+                  })}
+                </div>
+>>>>>>> Stashed changes
               ))}
             </div>
           ) : viewMode === "sessions" ? (
@@ -868,16 +1050,26 @@ function BatchAccordion({
   onToggle,
   onStage,
   progress,
+<<<<<<< Updated upstream
+=======
+  lineStatus,
+  convertLineStatus,
+>>>>>>> Stashed changes
   onErase,
   erasingId,
   focus,
 }: {
-  group: AuditBatchGroup;
+  group: AuditBatchGroupWithConvert;
   open: boolean;
   activeStage: string;
   onToggle: () => void;
   onStage: (stageId: string) => void;
   progress?: BatchProgress | null;
+<<<<<<< Updated upstream
+=======
+  lineStatus?: LineStatus | null;
+  convertLineStatus?: LineStatus | null;
+>>>>>>> Stashed changes
   /** Present only when the current role may erase ledger rows (GM). */
   onErase?: (row: AuditEntryRow) => void;
   erasingId?: string | null;
@@ -926,6 +1118,7 @@ function BatchAccordion({
       >
         <Chevron open={open} tone={hasReject ? "critical" : "accent"} />
 
+<<<<<<< Updated upstream
         <span
           style={{
             fontFamily: "var(--font-mono)",
@@ -947,12 +1140,37 @@ function BatchAccordion({
             </span>
           )}
         </span>
+=======
+        <BatchIdChip
+          batchId={g.batch}
+          label={noBatch ? "No batch" : batchLabel ? batchLabel(g.batch) : g.batch}
+          conversionHref={
+            noBatch
+              ? null
+              : g.conversion
+                ? `/batch-conversion?fromBatch=${encodeURIComponent(g.batch)}&stageId=${encodeURIComponent(g.conversion.stageId)}&changedQty=${g.conversion.changedQty}&view=source`
+                : `/batch-conversion?fromBatch=${encodeURIComponent(g.batch)}&view=source`
+          }
+          warnSuffix={
+            impossible ? (
+              <span
+                title="Accepted is higher than checked — a gate is missing from this lot, so these two figures are measured over different lots. Open the batch to see which gate."
+                style={{ marginLeft: 6, color: "var(--warning)", fontFamily: "var(--font-sans)" }}
+              >
+                &#9888;
+              </span>
+            ) : null
+          }
+          style={{ overflow: "hidden" }}
+        />
+>>>>>>> Stashed changes
 
         <span className="small" style={{ fontSize: "var(--text-xs)", whiteSpace: "nowrap" }}>
           {dateLine}
         </span>
 
         <span style={{ minWidth: 0 }}>
+<<<<<<< Updated upstream
           {progress && progress.doneCount > 0 ? (
             <LotProgress progress={progress} showLabels={false} />
           ) : (
@@ -960,6 +1178,13 @@ function BatchAccordion({
               {g.stages.length} stage{g.stages.length === 1 ? "" : "s"}
             </span>
           )}
+=======
+          <BatchProcessTrack
+            lineStatus={lineStatus}
+            progress={progress}
+            convertLineStatus={convertLineStatus}
+          />
+>>>>>>> Stashed changes
         </span>
 
         <Num value={g.checkedQty} />
@@ -1044,7 +1269,15 @@ function BatchAccordion({
             })}
           </div>
 
-          <div key={stage.stageId} className="audit-reveal">
+          <div
+            key={stage.stageId}
+            className="audit-reveal"
+            style={
+              g.conversion
+                ? { display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 12, alignItems: "start" }
+                : undefined
+            }
+          >
             <EntryGrid
               rows={stage.rows}
               stageName={stageLabel(stage.stageId)}
@@ -1054,6 +1287,60 @@ function BatchAccordion({
               erasingId={erasingId}
               focus={focus}
             />
+            {g.conversion && (
+              <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                  <BatchIdChip
+                    batchId={g.conversion.toBatch}
+                    label={historyNameForLot(g.conversion.toBatch, [g.conversion])}
+                    conversionHref={`/batch-conversion?fromBatch=${encodeURIComponent(g.batch)}&stageId=${encodeURIComponent(g.conversion.stageId)}&changedQty=${g.conversion.changedQty}&view=converted`}
+                    showDataEntry
+                  />
+                </div>
+                <a
+                  href={`/batch-conversion?fromBatch=${encodeURIComponent(g.batch)}&stageId=${encodeURIComponent(g.conversion.stageId)}&changedQty=${g.conversion.changedQty}&view=converted`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    textDecoration: "none",
+                    background: "color-mix(in srgb, var(--accent) 12%, var(--surface))",
+                    border: "1px solid color-mix(in srgb, var(--accent) 40%, var(--border))",
+                    color: "var(--accent)",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    fontFamily: "var(--font-sans)",
+                  }}
+                >
+                  <span>Convert quantity</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, color: "var(--text)" }}>
+                    {g.conversion.changedQty.toLocaleString()}
+                  </span>
+                </a>
+                <EntryGrid
+                  rows={
+                    (g.convertGroup?.stages.find((s) => s.stageId === stage.stageId) ??
+                      g.convertGroup?.stages.find((s) => s.stageId === g.conversion?.stageId))?.rows ?? []
+                  }
+                  stageName={`${stageLabel(
+                    g.convertGroup?.stages.find((s) => s.stageId === stage.stageId)?.stageId ??
+                      g.conversion.stageId,
+                  )} · convert`}
+                  stageId={
+                    g.convertGroup?.stages.find((s) => s.stageId === stage.stageId)?.stageId ??
+                    g.conversion.stageId
+                  }
+                  batch={g.conversion.toBatch}
+                  onErase={onErase}
+                  erasingId={erasingId}
+                  focus={focus}
+                  batchLabel={batchLabel}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
