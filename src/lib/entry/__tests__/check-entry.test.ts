@@ -240,7 +240,7 @@ describe("checkEntry — same counts under a different lot code", () => {
 describe("checkEntry — process sequence", () => {
   const schema = resolveEntrySchema({
     stages: [
-      { stageId: "production", label: "Dipping", category: "primary", columns: [{ key: "checked" }] },
+      { stageId: "stripping", label: "Stripping", category: "primary", columns: [{ key: "checked" }] },
       { stageId: "secondary", label: "Secondary", category: "secondary", columns: [{ key: "checked" }] },
       { stageId: "visual", label: "Visual Inspection", category: "assembly", columns: [{ key: "checked" }, { key: "accepted" }] },
       { stageId: "balloon", label: "Balloon Inspection", category: "assembly", columns: [{ key: "checked" }, { key: "accepted" }] },

@@ -44,6 +44,11 @@ export interface Tweaks {
    * primary/secondary in by default would silently change every KPI.
    */
   stageCategories: StageCategory[];
+  /**
+   * Universal dashboard toggle for calendar holidays, weekly off (Sunday),
+   * and break annotations across timeline charts.
+   */
+  showCalendarHolidays: boolean;
 }
 
 export const TWEAK_DEFAULTS: Tweaks = {
@@ -59,6 +64,7 @@ export const TWEAK_DEFAULTS: Tweaks = {
   excelFiles: [],
   batchIds: [],
   stageCategories: [...DEFAULT_STAGE_CATEGORIES],
+  showCalendarHolidays: true,
 };
 
 interface Ctx {
@@ -79,6 +85,21 @@ function initialTheme(): Theme {
   return TWEAK_DEFAULTS.theme;
 }
 
+/** Saved holiday preference, or null when none/unreadable. Read only after
+ *  mount: localStorage does not exist on the server, so reading it while React
+ *  builds its first state makes the client's first render differ from the
+ *  server's HTML (hydration error). */
+function savedShowCalendarHolidays(): boolean | null {
+  try {
+    const saved = localStorage.getItem("showCalendarHolidays");
+    if (saved === "false") return false;
+    if (saved === "true") return true;
+  } catch {
+    /* storage blocked */
+  }
+  return null;
+}
+
 export function TweaksProvider({ children }: { children: ReactNode }) {
   const [t, setT] = useState<Tweaks>(() => ({ ...TWEAK_DEFAULTS, theme: initialTheme() }));
 
@@ -88,9 +109,25 @@ export function TweaksProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("theme", t.theme);
   }, [t.theme]);
 
+  // Load the persisted holiday setting once, after hydration.
+  useEffect(() => {
+    const saved = savedShowCalendarHolidays();
+    if (saved !== null) setT((prev) => ({ ...prev, showCalendarHolidays: saved }));
+  }, []);
+
   const setTweak = useCallback(
-    <K extends keyof Tweaks>(key: K, value: Tweaks[K]) =>
-      setT((prev) => ({ ...prev, [key]: value })),
+    <K extends keyof Tweaks>(key: K, value: Tweaks[K]) => {
+      // Persist on an explicit change only — never from an effect, which would
+      // overwrite the saved choice with the default before it is loaded.
+      if (key === "showCalendarHolidays") {
+        try {
+          localStorage.setItem("showCalendarHolidays", String(value));
+        } catch {
+          /* storage blocked */
+        }
+      }
+      setT((prev) => ({ ...prev, [key]: value }));
+    },
     [],
   );
 

@@ -29,6 +29,7 @@ interface QuantityReconciliationZoneProps {
     unexplained: number;
     state: "empty" | "complete" | "short" | "over";
   } | null;
+  idPrefix?: string;
 }
 
 export default function QuantityReconciliationZone({
@@ -51,7 +52,9 @@ export default function QuantityReconciliationZone({
   prefillNote,
   impliedRejectFromBalance,
   defectCoverage,
+  idPrefix = "",
 }: QuantityReconciliationZoneProps) {
+  const fid = (id: string) => (idPrefix ? `${idPrefix}-${id}` : id);
   const isPrimary = macro === "primary";
   const isSecondary = macro === "secondary";
   const qtyLabel = isPrimary ? "Quantity Produced" : isSecondary ? "Quantity" : "Checked Qty";
@@ -60,6 +63,7 @@ export default function QuantityReconciliationZone({
   const sumParts = (showAccept ? accept : 0) + holdPart + (showReject ? reject : 0);
   const isBalanced = showReject ? checked > 0 && checked === sumParts : true;
   const difference = sumParts - checked;
+  const wip = showReject ? Math.max(0, checked - sumParts) : 0;
 
   return (
     <section
@@ -175,7 +179,7 @@ export default function QuantityReconciliationZone({
             }}
           >
             <label
-              htmlFor="qty-checked"
+              htmlFor={fid("qty-checked")}
               style={{
                 display: "block",
                 fontSize: 12,
@@ -188,7 +192,7 @@ export default function QuantityReconciliationZone({
               {qtyLabel}
             </label>
             <QtyInput
-              id="qty-checked"
+              id={fid("qty-checked")}
               value={checked || null}
               onChange={(n) => onSetQty("checked", n)}
               aria-label={qtyLabel}
@@ -220,7 +224,7 @@ export default function QuantityReconciliationZone({
             }}
           >
             <label
-              htmlFor="qty-trolleys"
+              htmlFor={fid("qty-trolleys")}
               style={{
                 display: "block",
                 fontSize: 12,
@@ -233,7 +237,7 @@ export default function QuantityReconciliationZone({
               Trolleys
             </label>
             <QtyInput
-              id="qty-trolleys"
+              id={fid("qty-trolleys")}
               value={trolleys || null}
               onChange={(n) => onSetQty("trolleys", n)}
               aria-label="Trolleys"
@@ -265,7 +269,7 @@ export default function QuantityReconciliationZone({
             }}
           >
             <label
-              htmlFor="bin-location"
+              htmlFor={fid("bin-location")}
               style={{
                 display: "block",
                 fontSize: 12,
@@ -278,7 +282,7 @@ export default function QuantityReconciliationZone({
               Bin Location
             </label>
             <input
-              id="bin-location"
+              id={fid("bin-location")}
               type="text"
               value={bin}
               onChange={(e) => onSetBin(e.target.value)}
@@ -311,7 +315,7 @@ export default function QuantityReconciliationZone({
             }}
           >
             <label
-              htmlFor="qty-accept"
+              htmlFor={fid("qty-accept")}
               style={{
                 display: "block",
                 fontSize: 12,
@@ -324,7 +328,7 @@ export default function QuantityReconciliationZone({
               Accepted (Good)
             </label>
             <QtyInput
-              id="qty-accept"
+              id={fid("qty-accept")}
               value={accept || null}
               onChange={(n) => onSetQty("accept", n)}
               aria-label="Accepted quantity"
@@ -356,7 +360,7 @@ export default function QuantityReconciliationZone({
             }}
           >
             <label
-              htmlFor="qty-hold"
+              htmlFor={fid("qty-hold")}
               style={{
                 display: "block",
                 fontSize: 12,
@@ -369,7 +373,7 @@ export default function QuantityReconciliationZone({
               Hold / Rework
             </label>
             <QtyInput
-              id="qty-hold"
+              id={fid("qty-hold")}
               value={hold || null}
               onChange={(n) => onSetQty("hold", n)}
               aria-label="Hold or rework quantity"
@@ -401,7 +405,7 @@ export default function QuantityReconciliationZone({
             }}
           >
             <label
-              htmlFor="qty-reject"
+              htmlFor={fid("qty-reject")}
               style={{
                 display: "block",
                 fontSize: 12,
@@ -414,7 +418,7 @@ export default function QuantityReconciliationZone({
               Rejected
             </label>
             <QtyInput
-              id="qty-reject"
+              id={fid("qty-reject")}
               value={reject || null}
               onChange={(n) => onSetQty("reject", n)}
               aria-label="Rejected quantity"
@@ -436,6 +440,49 @@ export default function QuantityReconciliationZone({
                 color: reject > 0 ? "var(--critical)" : "var(--text-3)",
               }}
             />
+          </div>
+        )}
+
+        {showReject && (
+          <div
+            style={{
+              background: "var(--surface-2)",
+              padding: "12px 14px",
+              borderRadius: "var(--radius-md, 8px)",
+              border: "1px dashed var(--border-strong)",
+            }}
+          >
+            <div
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--text-2)",
+                marginBottom: 6,
+                textAlign: "center",
+              }}
+            >
+              WIP (remainder)
+            </div>
+            <div
+              aria-label="Work in process remainder"
+              style={{
+                width: "100%",
+                height: 46,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 19,
+                fontWeight: 700,
+                fontFamily: "var(--font-mono)",
+                background: "var(--surface)",
+                border: "1.5px solid var(--border)",
+                borderRadius: "var(--radius-sm, 6px)",
+                color: wip > 0 ? "var(--text)" : "var(--text-3)",
+              }}
+            >
+              {wip.toLocaleString()}
+            </div>
           </div>
         )}
       </div>

@@ -16,6 +16,10 @@ import {
 } from "@/lib/chart-utils";
 import { sizeColorFor } from "@/lib/entry/size-color";
 import { splitSegments, bridgeAt } from "./chart-segments";
+import {
+  resolveCalendarSeries,
+  type CalendarPointContext,
+} from "@/lib/calendar-holidays";
 
 export const pct = (n: number) => formatRatioPercent(n) ?? "—";
 export const rupee = (n: number) => (Number.isFinite(n) ? `₹ ${(n / 100000).toFixed(2)} Lakhs` : "—");
@@ -597,7 +601,7 @@ function AnimatedValue({ value }: { value: string }) {
   return <span>{displayValue}</span>;
 }
 
-export function Card({ title, sub, children, span, onClick }: { title?: string; sub?: string; children: React.ReactNode; span?: number; onClick?: () => void }) {
+export function Card({ title, sub, extra, children, span, onClick }: { title?: string; sub?: string; extra?: React.ReactNode; children: React.ReactNode; span?: number; onClick?: () => void }) {
   return (
     <div
       onClick={onClick}
@@ -620,20 +624,21 @@ export function Card({ title, sub, children, span, onClick }: { title?: string; 
     >
       {title && (
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", marginBottom: "var(--space-3)", gap: "4px 12px" }}>
-          <span
-            className="h3"
-            style={{
-              flex: "1 1 auto",
-              minWidth: 0,
-              fontSize: "var(--text-md)",
-              fontWeight: 600,
-              letterSpacing: "-0.01em",
-              color: "var(--text)",
-              textTransform: "none",
-            }}
-          >
-            {title}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "1 1 auto", minWidth: 0 }}>
+            <span
+              className="h3"
+              style={{
+                fontSize: "var(--text-md)",
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
+                color: "var(--text)",
+                textTransform: "none",
+              }}
+            >
+              {title}
+            </span>
+            {extra}
+          </div>
           {sub && (
             <span
               className="mono"
@@ -935,16 +940,26 @@ export function LineChart({
   const [hover, setHover] = useState<number | null>(null);
   const [yMode, setYMode] = useState<"auto" | number>("auto");
 
-  const { t } = useTweaks();
+  const { t, setTweak } = useTweaks();
   const { ref: containerRef, width: containerWidth } = useContainerWidth(660);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const calendarContexts = useMemo(() => resolveCalendarSeries(points ?? []), [points]);
+  const hasDayGrain = useMemo(() => calendarContexts.some((c) => c.isDayGrain), [calendarContexts]);
+  const [localShowCalendar, setLocalShowCalendar] = useState<boolean | null>(null);
+  const showCalendar = localShowCalendar !== null ? localShowCalendar : (t.showCalendarHolidays ?? true);
+
+  useEffect(() => {
+    setLocalShowCalendar(null);
+  }, [t.showCalendarHolidays]);
 
   if (!points || points.length === 0) {
     return <Empty label="No trend points available for the selected range." />;
   }
 
   const isCompact = compact ?? (containerWidth > 0 && containerWidth < 520);
-  const H = height, padX = 48, padTop = isCompact ? 28 : 22, padBottom = 72;
+  const padBottom = hasDayGrain ? (isCompact ? 72 : 84) : 56;
+  const H = height + (hasDayGrain ? 24 : 0), padX = 48, padTop = isCompact ? 28 : 22;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
   const v = points.filter((p) => !p.noProduction && Number.isFinite(p.value)).map((p) => p.value);
@@ -1034,6 +1049,40 @@ export function LineChart({
         padding: isCompact ? "1px 2px" : "2px",
         boxShadow: "0 1px 4px rgba(0,0,0,0.06)"
       }}>
+        {hasDayGrain && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const next = !showCalendar;
+                setLocalShowCalendar(next);
+                setTweak("showCalendarHolidays", next);
+              }}
+              title={showCalendar ? "Holidays & calendar synchronization active (click to toggle)" : "Click to highlight holidays & calendar days"}
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: isCompact ? 10 : 11,
+                fontWeight: 700,
+                padding: isCompact ? "1px 4px" : "2px 6px",
+                borderRadius: "var(--radius-sm, 3px)",
+                border: "1px solid",
+                borderColor: showCalendar ? "var(--accent)" : "var(--border)",
+                background: showCalendar ? "color-mix(in srgb, var(--accent) 14%, var(--surface))" : "transparent",
+                color: showCalendar ? "var(--accent)" : "var(--text-3)",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+                lineHeight: 1.3,
+              }}
+            >
+              <span style={{ fontSize: 9 }}>★</span>
+              <span>HOLIDAYS</span>
+            </button>
+            <span style={{ width: 1, alignSelf: "stretch", background: "var(--border)", margin: isCompact ? "1px 2px" : "2px 4px" }} />
+          </>
+        )}
         <YScaleBar isPercent={isPercent} dataMax={dataMax} mode={yMode} onChange={setYMode} compact={isCompact} />
         <span style={{ width: 1, alignSelf: "stretch", background: "var(--border)", margin: isCompact ? "1px 2px" : "2px 4px" }} />
         <ZoomButton compact={isCompact} onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(4.0, z * 1.3)); }} title="Zoom In">+</ZoomButton>
@@ -1059,6 +1108,157 @@ export function LineChart({
           style={{ display: "block", overflow: "visible" }}
           onMouseMove={handleMouseMove}
         >
+          {/* Calendar Day Timeline: Holiday & Break Highlights */}
+          {showCalendar && points.map((p, i) => {
+            if (i < startIdx || i > endIdx) return null;
+            const cal = calendarContexts[i];
+            if (!cal || !cal.isDayGrain) return null;
+
+            const colW = spacing;
+            const colX = x(i) - colW / 2;
+
+            if (cal.status === "holiday_off" && cal.isHoliday) {
+              return (
+                <g key={`cal-${i}`}>
+                  <rect
+                    x={colX}
+                    y={padTop}
+                    width={colW}
+                    height={plotH}
+                    fill="var(--accent)"
+                    opacity={0.12}
+                  />
+                  <line
+                    x1={colX}
+                    y1={padTop}
+                    x2={colX + colW}
+                    y2={padTop}
+                    stroke="var(--accent)"
+                    strokeWidth={3}
+                  />
+                  {spacing >= 22 && (
+                    <text
+                      x={x(i)}
+                      y={padTop + 11}
+                      textAnchor="middle"
+                      fontSize={8}
+                      fontFamily="var(--font-mono)"
+                      fontWeight={800}
+                      fill="var(--accent)"
+                      letterSpacing={0.5}
+                    >
+                      ★ HOLIDAY
+                    </text>
+                  )}
+                </g>
+              );
+            }
+
+            if (cal.status === "holiday_off" && cal.isSunday) {
+              return (
+                <g key={`cal-${i}`}>
+                  <rect
+                    x={colX}
+                    y={padTop}
+                    width={colW}
+                    height={plotH}
+                    fill="currentColor"
+                    opacity={0.035}
+                  />
+                  <line
+                    x1={x(i)}
+                    y1={padTop}
+                    x2={x(i)}
+                    y2={axisY}
+                    stroke="var(--border)"
+                    strokeWidth={0.75}
+                    strokeDasharray="2,3"
+                  />
+                  {spacing >= 20 && (
+                    <text
+                      x={x(i)}
+                      y={padTop + 11}
+                      textAnchor="middle"
+                      fontSize={7.5}
+                      fontFamily="var(--font-mono)"
+                      fontWeight={700}
+                      fill="var(--text-3)"
+                    >
+                      SUN
+                    </text>
+                  )}
+                </g>
+              );
+            }
+
+            if (cal.status === "unplanned_break") {
+              return (
+                <g key={`cal-${i}`}>
+                  <rect
+                    x={colX}
+                    y={padTop}
+                    width={colW}
+                    height={plotH}
+                    fill="var(--warning, #f59e0b)"
+                    opacity={0.07}
+                  />
+                  <line
+                    x1={colX}
+                    y1={padTop}
+                    x2={colX + colW}
+                    y2={padTop}
+                    stroke="var(--warning, #f59e0b)"
+                    strokeWidth={1.5}
+                    strokeDasharray="3,2"
+                  />
+                  {spacing >= 26 && (
+                    <text
+                      x={x(i)}
+                      y={padTop + 11}
+                      textAnchor="middle"
+                      fontSize={7.5}
+                      fontFamily="var(--font-mono)"
+                      fontWeight={700}
+                      fill="var(--warning, #f59e0b)"
+                    >
+                      BREAK
+                    </text>
+                  )}
+                </g>
+              );
+            }
+
+            if (cal.status === "holiday_working") {
+              return (
+                <g key={`cal-${i}`}>
+                  <rect
+                    x={colX}
+                    y={padTop}
+                    width={colW}
+                    height={plotH}
+                    fill="var(--positive, #16a34a)"
+                    opacity={0.06}
+                  />
+                  {spacing >= 26 && (
+                    <text
+                      x={x(i)}
+                      y={padTop + 11}
+                      textAnchor="middle"
+                      fontSize={7.5}
+                      fontFamily="var(--font-mono)"
+                      fontWeight={700}
+                      fill="var(--positive, #16a34a)"
+                    >
+                      OT SHIFT
+                    </text>
+                  )}
+                </g>
+              );
+            }
+
+            return null;
+          })}
+
           {/* Horizontal gridlines */}
           {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
             <line key={i} x1={padX} y1={padTop + plotH * p} x2={canvasWidth - padX} y2={padTop + plotH * p} stroke="var(--border)" strokeWidth={0.5} />
@@ -1135,34 +1335,154 @@ export function LineChart({
             );
           })}
 
-          {/* Vertical thinned rotated date labels */}
+          {/* Vertical thinned rotated date labels with calendar synchronization */}
           {points.map((p, i) => {
             if (i < startIdx || i > endIdx) return null;
             const show = shouldShowLabel(p.label, i, points.map(pt => pt.label), spacing, t.grain);
             if (!show) return null;
+            const cal = calendarContexts[i];
+            const isHol = showCalendar && cal?.isHoliday;
+            const isSun = showCalendar && cal?.isSunday;
+            const isBreak = showCalendar && cal?.status === "unplanned_break";
+
+            let labelFill = "var(--text-2)";
+            if (isHol) labelFill = "var(--accent)";
+            else if (isSun) labelFill = "var(--text)";
+            else if (isBreak) labelFill = "var(--text-3)";
+
             return (
-              <text key={`xl${i}`} x={x(i)} y={axisY + 10} fontSize={11.5} fontWeight={600} textAnchor="end" fill="var(--text-2)" fontFamily="var(--font-sans)" transform={`rotate(-90 ${x(i)} ${axisY + 10})`}>{p.label}</text>
+              <text
+                key={`xl${i}`}
+                x={x(i)}
+                y={axisY + 12}
+                fontSize={10.5}
+                fontWeight={isHol || isSun ? 700 : 500}
+                textAnchor="end"
+                fill={labelFill}
+                fontFamily="var(--font-sans)"
+                transform={`rotate(-45 ${x(i)} ${axisY + 12})`}
+              >
+                {isHol && (
+                  <tspan fill="var(--accent)" fontWeight={800}>
+                    ★{" "}
+                  </tspan>
+                )}
+                {p.label}
+                {cal?.weekdayShort && (
+                  <tspan
+                    fill={isHol ? "var(--accent)" : isSun ? "var(--warning, #f59e0b)" : "var(--text-3)"}
+                    fontWeight={isHol || isSun ? 800 : 400}
+                  >
+                    {` · ${cal.weekdayShort}`}
+                  </tspan>
+                )}
+              </text>
             );
           })}
         </svg>
       </div>
 
-      {hover != null && (
-        <ChartTip
-          leftPx={x(hover) - scrollLeft}
-          topPx={!hoverEmpty ? y(points[hover].value) : hoverBridge ? (y(points[hoverBridge[0]].value) + y(points[hoverBridge[1]].value)) / 2 : axisY - 12}
-          below={!hoverEmpty ? y(points[hover].value) < H * 0.32 : false}
-          title={points[hover].label}
-          rows={hoverEmpty ? [
-            { label: "Value", value: "No production" },
-          ] : [
+      {hover != null && (() => {
+        const cal = calendarContexts[hover];
+        const isLive = !hoverEmpty;
+        const tipTitle = cal?.isDayGrain && cal.formattedDate
+          ? `${cal.formattedDate} (${cal.weekdayFull})`
+          : points[hover].label;
+
+        const tipRows: { label: string; value: string; color?: string }[] = [];
+
+        // 1. Calendar status row
+        if (cal?.isDayGrain) {
+          tipRows.push({
+            label: "Calendar",
+            value: cal.statusLabel,
+            color: cal.statusColor,
+          });
+        }
+
+        // 2. Production status / Break details
+        if (hoverEmpty) {
+          tipRows.push({
+            label: "Production",
+            value: "No production recorded",
+            color: "var(--text-3)",
+          });
+          if (cal?.breakInfo && cal.breakInfo.runLength > 1) {
+            tipRows.push({
+              label: "Break Run",
+              value: `${cal.breakInfo.runLength} consecutive days (${cal.breakInfo.startLabel}–${cal.breakInfo.endLabel})`,
+              color: "var(--warning, #f59e0b)",
+            });
+            if (cal.breakInfo.includedHolidays.length > 0) {
+              tipRows.push({
+                label: "Holidays",
+                value: cal.breakInfo.includedHolidays.join(", "),
+                color: "var(--accent)",
+              });
+            }
+          } else if (cal?.statusDescription) {
+            tipRows.push({
+              label: "Note",
+              value: cal.statusDescription,
+            });
+          }
+        } else {
+          tipRows.push(
             { label: "Metric", value: activeMetric },
             { label: "Value", value: fmt(points[hover].value), color },
             ...(points[hover].rejected != null ? [{ label: "Rejected", value: num(points[hover].rejected!) }] : []),
             ...(points[hover].checked ? [{ label: "Checked", value: num(points[hover].checked!) }] : []),
             { label: "Stage", value: activeStage }
-          ]}
-        />
+          );
+          if (cal?.isHoliday || cal?.isSunday) {
+            tipRows.push({
+              label: "Shift Note",
+              value: cal.statusDescription,
+              color: "var(--positive, #16a34a)",
+            });
+          }
+        }
+
+        return (
+          <ChartTip
+            leftPx={x(hover) - scrollLeft}
+            topPx={isLive ? y(points[hover].value) : hoverBridge ? (y(points[hoverBridge[0]].value) + y(points[hoverBridge[1]].value)) / 2 : axisY - 12}
+            below={isLive ? y(points[hover].value) < H * 0.32 : false}
+            title={tipTitle}
+            rows={tipRows}
+          />
+        );
+      })()}
+
+      {/* Calendar Day Timeline Micro-Legend */}
+      {hasDayGrain && showCalendar && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          padding: "10px 8px 4px",
+          fontSize: 10.5,
+          fontFamily: "var(--font-sans)",
+          color: "var(--text-3)",
+          overflowX: "auto",
+        }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--accent)" }} />
+            <strong style={{ color: "var(--accent)" }}>★ Holiday</strong>
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: "currentColor", opacity: 0.25, border: "1px dashed var(--border-strong)" }} />
+            <span>Weekly Off (Sunday)</span>
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: "color-mix(in srgb, var(--warning, #f59e0b) 35%, transparent)", border: "1px dashed var(--warning, #f59e0b)" }} />
+            <span>Working Day Break</span>
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 12, height: 1, borderTop: `1.5px dashed ${color}` }} />
+            <span>Bridged Gap</span>
+          </span>
+        </div>
       )}
     </div>
   );
@@ -1192,9 +1512,43 @@ export function MultiLine({
   const [hover, setHover] = useState<number | null>(null);
   const [yMode, setYMode] = useState<"auto" | number>("auto");
 
-  const { t } = useTweaks();
+  const { t, setTweak } = useTweaks();
   const { ref: containerRef, width: containerWidth } = useContainerWidth(660);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const calendarContexts = useMemo(
+    () =>
+      resolveCalendarSeries(
+        data?.map((d) => {
+          let checked = 0;
+          let rejected = 0;
+          if (d.counts) {
+            for (const c of Object.values(d.counts)) {
+              checked += c.checked || 0;
+              rejected += c.rejected || 0;
+            }
+          }
+          const hasPerStage = Object.keys(d.perStage || {}).length > 0;
+          const isLive = d.counts ? checked > 0 || rejected > 0 : hasPerStage;
+          return {
+            period: d.period,
+            label: d.label,
+            checked: d.counts ? checked : (hasPerStage ? 1 : 0),
+            rejected: d.counts ? rejected : 0,
+            value: isLive ? 1 : 0,
+            noProduction: !isLive,
+          };
+        }) ?? []
+      ),
+    [data]
+  );
+  const hasDayGrain = useMemo(() => calendarContexts.some((c) => c.isDayGrain), [calendarContexts]);
+  const [localShowCalendar, setLocalShowCalendar] = useState<boolean | null>(null);
+  const showCalendar = localShowCalendar !== null ? localShowCalendar : (t.showCalendarHolidays ?? true);
+
+  useEffect(() => {
+    setLocalShowCalendar(null);
+  }, [t.showCalendarHolidays]);
 
   if (!data || data.length === 0) {
     return <Empty label="No trend data available for the selected range." />;
@@ -1204,7 +1558,9 @@ export function MultiLine({
   const fmtVal = fmt ?? ((n: number) => (
     !Number.isFinite(n) ? "—" : n <= 1 ? (formatRatioPercent(n) ?? "—") : Math.round(n).toLocaleString("en-IN")
   ));
-  const H = height, padX = 48, padTop = 38, padBottom = 72;
+  const isCompact = containerWidth > 0 && containerWidth < 620;
+  const padBottom = hasDayGrain ? (isCompact ? 72 : 84) : 56;
+  const H = height + (hasDayGrain ? 24 : 0), padX = 48, padTop = 38;
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
 
@@ -1270,8 +1626,6 @@ export function MultiLine({
     ? Math.max(...stages.map((s) => data[hover].perStage[s.stageId] ?? 0))
     : 0;
 
-  const isCompact = containerWidth > 0 && containerWidth < 620;
-
   return (
     <div ref={containerRef} style={{ position: "relative", width: "100%", minWidth: 0 }} onMouseLeave={() => setHover(null)}>
       {/* Zoom Controls */}
@@ -1289,6 +1643,40 @@ export function MultiLine({
         padding: isCompact ? "1px 2px" : "2px",
         boxShadow: "0 1px 4px rgba(0,0,0,0.06)"
       }}>
+        {hasDayGrain && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const next = !showCalendar;
+                setLocalShowCalendar(next);
+                setTweak("showCalendarHolidays", next);
+              }}
+              title={showCalendar ? "Holidays & calendar synchronization active (click to toggle)" : "Click to highlight holidays & calendar days"}
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: isCompact ? 10 : 11,
+                fontWeight: 700,
+                padding: isCompact ? "1px 4px" : "2px 6px",
+                borderRadius: "var(--radius-sm, 3px)",
+                border: "1px solid",
+                borderColor: showCalendar ? "var(--accent)" : "var(--border)",
+                background: showCalendar ? "color-mix(in srgb, var(--accent) 14%, var(--surface))" : "transparent",
+                color: showCalendar ? "var(--accent)" : "var(--text-3)",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+                lineHeight: 1.3,
+              }}
+            >
+              <span style={{ fontSize: 9 }}>★</span>
+              <span>HOLIDAYS</span>
+            </button>
+            <span style={{ width: 1, alignSelf: "stretch", background: "var(--border)", margin: isCompact ? "1px 2px" : "2px 4px" }} />
+          </>
+        )}
         <YScaleBar isPercent={isPercent} dataMax={maxVal} mode={yMode} onChange={setYMode} compact={isCompact} />
         <span style={{ width: 1, alignSelf: "stretch", background: "var(--border)", margin: isCompact ? "1px 2px" : "2px 4px" }} />
         <ZoomButton compact={isCompact} onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(4.0, z * 1.3)); }} title="Zoom In">+</ZoomButton>
@@ -1314,6 +1702,91 @@ export function MultiLine({
           style={{ width: canvasWidth, height: H, display: "block" }}
           onMouseMove={handleMouseMove}
         >
+          {/* Calendar Day Timeline: Holiday & Break Highlights */}
+          {showCalendar && data.map((d, i) => {
+            if (i < startIdx || i > endIdx) return null;
+            const cal = calendarContexts[i];
+            if (!cal || !cal.isDayGrain) return null;
+
+            const colW = spacing;
+            const colX = x(i) - colW / 2;
+
+            if (cal.isHoliday) {
+              return (
+                <g key={`mcal-${i}`}>
+                  <rect
+                    x={colX}
+                    y={padTop}
+                    width={colW}
+                    height={plotH}
+                    fill="var(--accent)"
+                    opacity={0.10}
+                  />
+                  <line
+                    x1={colX}
+                    y1={padTop}
+                    x2={colX + colW}
+                    y2={padTop}
+                    stroke="var(--accent)"
+                    strokeWidth={2.5}
+                  />
+                  {spacing >= 22 && (
+                    <text
+                      x={x(i)}
+                      y={padTop + 11}
+                      textAnchor="middle"
+                      fontSize={8}
+                      fontFamily="var(--font-mono)"
+                      fontWeight={800}
+                      fill="var(--accent)"
+                    >
+                      ★ HOLIDAY
+                    </text>
+                  )}
+                </g>
+              );
+            }
+
+            if (cal.isSunday) {
+              return (
+                <g key={`mcal-${i}`}>
+                  <rect
+                    x={colX}
+                    y={padTop}
+                    width={colW}
+                    height={plotH}
+                    fill="currentColor"
+                    opacity={0.035}
+                  />
+                  <line
+                    x1={x(i)}
+                    y1={padTop}
+                    x2={x(i)}
+                    y2={axisY}
+                    stroke="var(--border)"
+                    strokeWidth={0.75}
+                    strokeDasharray="2,3"
+                  />
+                  {spacing >= 20 && (
+                    <text
+                      x={x(i)}
+                      y={padTop + 11}
+                      textAnchor="middle"
+                      fontSize={7.5}
+                      fontFamily="var(--font-mono)"
+                      fontWeight={700}
+                      fill="var(--text-3)"
+                    >
+                      SUN
+                    </text>
+                  )}
+                </g>
+              );
+            }
+
+            return null;
+          })}
+
           {[0, 0.25, 0.5, 0.75, 1].map((p, i) => (
             <line key={i} x1={padX} y1={padTop + plotH * p} x2={canvasWidth - padX} y2={padTop + plotH * p} stroke="var(--border)" strokeWidth={0.5} />
           ))}
@@ -1374,13 +1847,46 @@ export function MultiLine({
             );
           })}
 
-          {/* Rotated thinned date labels */}
+          {/* Rotated thinned date labels with calendar day synchronization */}
           {data.map((d, i) => {
             if (i < startIdx || i > endIdx) return null;
             const show = shouldShowLabel(d.label, i, data.map(pt => pt.label), spacing, t.grain);
             if (!show) return null;
+            const cal = calendarContexts[i];
+            const isHol = showCalendar && cal?.isHoliday;
+            const isSun = showCalendar && cal?.isSunday;
+
+            let labelFill = "var(--text-2)";
+            if (isHol) labelFill = "var(--accent)";
+            else if (isSun) labelFill = "var(--text)";
+
             return (
-              <text key={`xl${i}`} x={x(i)} y={axisY + 10} fontSize={11.5} fontWeight={600} textAnchor="end" fill="var(--text-2)" fontFamily="var(--font-sans)" transform={`rotate(-90 ${x(i)} ${axisY + 10})`}>{d.label}</text>
+              <text
+                key={`xl${i}`}
+                x={x(i)}
+                y={axisY + 12}
+                fontSize={10.5}
+                fontWeight={isHol || isSun ? 700 : 500}
+                textAnchor="end"
+                fill={labelFill}
+                fontFamily="var(--font-sans)"
+                transform={`rotate(-45 ${x(i)} ${axisY + 12})`}
+              >
+                {isHol && (
+                  <tspan fill="var(--accent)" fontWeight={800}>
+                    ★{" "}
+                  </tspan>
+                )}
+                {d.label}
+                {cal?.weekdayShort && (
+                  <tspan
+                    fill={isHol ? "var(--accent)" : isSun ? "var(--warning, #f59e0b)" : "var(--text-3)"}
+                    fontWeight={isHol || isSun ? 800 : 400}
+                  >
+                    {` · ${cal.weekdayShort}`}
+                  </tspan>
+                )}
+              </text>
             );
           })}
 
@@ -1394,13 +1900,15 @@ export function MultiLine({
         </svg>
       </div>
 
-      {hover != null && (
-        <ChartTip
-          leftPx={x(hover) - scrollLeft}
-          topPx={y(maxValAtHover)}
-          below={y(maxValAtHover) < H * 0.32}
-          title={data[hover].label}
-          rows={[...stages]
+      {hover != null && (() => {
+        const cal = calendarContexts[hover];
+        const tipTitle = cal?.isDayGrain && cal.formattedDate
+          ? `${cal.formattedDate} (${cal.weekdayFull})`
+          : data[hover].label;
+
+        const tipRows = [
+          ...(cal?.isDayGrain ? [{ label: "Calendar", value: cal.statusLabel, color: cal.statusColor }] : []),
+          ...([...stages]
             .map((s, si) => {
               const c = data[hover].counts?.[s.stageId];
               const exact = c && c.checked > 0 ? ` · ${num(c.rejected)}/${num(c.checked)}` : "";
@@ -1409,9 +1917,19 @@ export function MultiLine({
               return { label: s.label.split(" ")[0], value: idle ? "No production" : fmtVal(rate) + exact, color: getStageColor(s, si), raw: data[hover].perStage[s.stageId] ?? 0 };
             })
             .sort((a, b) => b.raw - a.raw)
-            .map(({ label, value, color }) => ({ label, value, color }))}
-        />
-      )}
+            .map(({ label, value, color }) => ({ label, value, color })))
+        ];
+
+        return (
+          <ChartTip
+            leftPx={x(hover) - scrollLeft}
+            topPx={y(maxValAtHover)}
+            below={y(maxValAtHover) < H * 0.32}
+            title={tipTitle}
+            rows={tipRows}
+          />
+        );
+      })()}
     </div>
   );
 }

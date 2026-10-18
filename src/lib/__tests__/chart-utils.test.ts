@@ -11,3 +11,8 @@ test("zero / empty data still has a readable floor", () => {
 test("a 2% peak rounds to 2.5%", () => {
   expect(niceYMax(0.02)).toBeCloseTo(0.025, 8);
 });
+
+test("a 22% peak (0.22) gets a 25% axis, eliminating 50% dead space", () => {
+  expect(niceYMax(0.22)).toBeCloseTo(0.25, 8);
+});
+

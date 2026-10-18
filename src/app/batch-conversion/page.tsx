@@ -19,13 +19,16 @@ import {
   type AuditEventLike,
   type AuditEntryRow,
 } from "@/lib/analytics/audit-sessions";
-import { hydrateFromAuditRow, type EntryHydrate } from "@/lib/entry/hydrate-entry";
+import { hydrateFromAuditRow, hydrateFromBatchGroup, type EntryHydrate } from "@/lib/entry/hydrate-entry";
 import { type ConversionFlowInfo } from "@/components/entry/BatchIdentityZone";
+import ConversionEntryPanel from "@/components/entry/ConversionEntryPanel";
 import {
   proposedConvertedBatchId,
   sizeOfLot,
   conversionFlowLabel,
   historyNameForLot,
+  eligibleTransferQty,
+  transferQtyError,
   type BatchConversion,
   type LineageNode,
 } from "@/lib/lineage";
@@ -83,16 +86,20 @@ export default function BatchConversionPage() {
   const [schema, setSchema] = useState<ResolvedEntrySchema | null>(null);
   const [convertedOn, setConvertedOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formOk, setFormOk] = useState<string | null>(null);
   const [focusBatch, setFocusBatch] = useState<string | null>(null);
+  const [focusPanel, setFocusPanel] = useState<"source" | "converted" | null>(null);
   const [chain, setChain] = useState<LineageNode[] | null>(null);
   const [activeTab, setActiveTab] = useState<EntryMode>("matrix");
   const [hydrate, setHydrate] = useState<EntryHydrate | null>(null);
+  const [sourceHydrate, setSourceHydrate] = useState<EntryHydrate | null>(null);
   const [entryReady, setEntryReady] = useState(false);
   const pushedLot = useRef<string | null>(null);
   const hydrateKey = useRef<string | null>(null);
+  const sourceHydrateKey = useRef<string | null>(null);
 
   const knownLots = useMemo(() => {
     const set = new Set<string>();
@@ -158,24 +165,18 @@ export default function BatchConversionPage() {
     return fromBatchGroup.stages.find((s) => sameStage(s.stageId, changeStageId)) ?? null;
   }, [fromBatchGroup, changeStageId]);
 
-  const stageAvailable = stageBucket
-    ? stageBucket.acceptedQty > 0
-      ? stageBucket.acceptedQty
-      : stageBucket.checkedQty
-    : fromBatchGroup && changeStageId
-      ? 0
-      : null;
+  const stageAvailable =
+    stageBucket
+      ? eligibleTransferQty(stageBucket)
+      : fromBatchGroup && changeStageId
+        ? 0
+        : null;
 
   const stageLabel =
     stageOptions.find((o) => o.value === changeStageId)?.label ||
     (changeStageId ? STAGE_LABELS[resolveStageId(changeStageId) ?? ""] ?? changeStageId : "");
 
-  const qtyError =
-    changeStageId && changedQty > 0 && stageAvailable === 0
-      ? `The original lot has no quantity at ${stageLabel}. Pick a station it has already reached.`
-      : stageAvailable != null && stageAvailable > 0 && changedQty > stageAvailable
-        ? `Only ${stageAvailable.toLocaleString()} can change size at ${stageLabel}.`
-        : null;
+  const qtyError = transferQtyError(changedQty, stageAvailable, stageLabel);
 
   const previewId = toSize ? proposedConvertedBatchId(fromBatch, toSize) : null;
   const convertedName = previewId && previewId !== (fromBatch && formatBatchIdInput(fromBatch))
@@ -186,6 +187,18 @@ export default function BatchConversionPage() {
   );
   const flowLabel =
     fromBatch && convertedName ? conversionFlowLabel(formatBatchIdInput(fromBatch), convertedName) : null;
+
+  const convertBatchGroup = useMemo(() => {
+    if (!convertedName) return null;
+    const target = formatBatchIdInput(convertedName).trim().toUpperCase();
+    return (
+      batchGroups.find(
+        (g) =>
+          g.batch.trim().toUpperCase() === target ||
+          canonicalBatchId(g.batch) === canonicalBatchId(target),
+      ) ?? null
+    );
+  }, [batchGroups, convertedName]);
 
   const conversionFlow: ConversionFlowInfo | null = useMemo(() => {
     if (!fromBatch) return null;
@@ -299,13 +312,57 @@ export default function BatchConversionPage() {
     if (sz && sizeOfLot(from || "") !== sz) setToSize(sz);
     if (d) setConvertedOn(d);
     if (r) setReason(r);
+    const view = params.get("view");
+    if (view === "source" || view === "converted") setFocusPanel(view);
   }, []);
 
   useEffect(() => {
-    if (!conversionReady || !convertedName || !changeStageId || changedQty <= 0) return;
-    const key = `${convertedName}|${changeStageId}|${changedQty}|${convertedOn}|${toSize}`;
+    if (!fromBatch) {
+      sourceHydrateKey.current = null;
+      setSourceHydrate(null);
+      return;
+    }
+    const lot = formatBatchIdInput(fromBatch);
+    const key = `${lot}|${changeStageId}|${fromBatchGroup?.rowCount ?? 0}|${fromBatchGroup?.eventCount ?? 0}`;
+    if (sourceHydrateKey.current === key) return;
+    sourceHydrateKey.current = key;
+    setSourceHydrate(
+      hydrateFromBatchGroup(fromBatchGroup, {
+        batchId: lot,
+        stageId: changeStageId,
+        date: fromBatchGroup?.dateTo || convertedOn,
+        size: fromSize,
+        mode: "edit",
+      }),
+    );
+  }, [fromBatch, changeStageId, fromBatchGroup, convertedOn, fromSize]);
+
+  useEffect(() => {
+    if (!convertedName) return;
+    const key = `${convertedName}|${changeStageId}|${changedQty}|${convertedOn}|${toSize}|${convertBatchGroup?.rowCount ?? 0}`;
     if (hydrateKey.current === key) return;
     hydrateKey.current = key;
+    const recorded = hydrateFromBatchGroup(convertBatchGroup, {
+      batchId: convertedName,
+      stageId: changeStageId,
+      date: convertedOn,
+      size: toSize.endsWith("Fr") ? toSize : `${toSize}Fr`,
+      mode: convertBatchGroup ? "edit" : "reuse-lot",
+    });
+    if (recorded && convertBatchGroup) {
+      setHydrate(recorded);
+      setEntryReady(true);
+      setFocusBatch(convertedName);
+      return;
+    }
+    if (!conversionReady || changedQty <= 0) {
+      setHydrate(
+        recorded ??
+          reuseLot(convertedName, convertedOn, toSize.endsWith("Fr") ? toSize : `${toSize}Fr`),
+      );
+      setEntryReady(true);
+      return;
+    }
     openEntryFor({
       batchId: convertedName,
       date: convertedOn,
@@ -317,7 +374,7 @@ export default function BatchConversionPage() {
       productType: fromBatchGroup?.stages[0]?.rows[0]?.productType ?? null,
       stageId: changeStageId,
     });
-  }, [conversionReady, convertedName, changeStageId, changedQty, convertedOn, toSize, fromBatchGroup, openEntryFor]);
+  }, [conversionReady, convertedName, changeStageId, changedQty, convertedOn, toSize, fromBatchGroup, convertBatchGroup, openEntryFor]);
 
   useEffect(() => {
     if (!focusBatch) {
@@ -359,7 +416,7 @@ export default function BatchConversionPage() {
           changedQty,
           stageId: changeStageId,
           convertedOn,
-          reason,
+          reason: notes.trim() ? `${reason.trim()} — ${notes.trim()}` : reason.trim(),
         }),
       });
       const data = (await res.json()) as { conversion?: BatchConversion; error?: string };
@@ -403,6 +460,47 @@ export default function BatchConversionPage() {
     setEntryReady(true);
   };
 
+  const revealPanel = useCallback((view: "source" | "converted") => {
+    setFocusPanel(view);
+    setActiveTab("matrix");
+    if (typeof window === "undefined") return;
+    window.requestAnimationFrame(() => {
+      document.getElementById(`conversion-panel-${view}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }, []);
+
+  const loadRecordedConversion = useCallback(
+    (c: BatchConversion, view: "source" | "converted") => {
+      setFromBatch(c.fromBatch);
+      setToSize(c.toSize);
+      setConvertedOn(c.convertedOn);
+      setReason(c.reason);
+      setNotes("");
+      setChangeStageId(c.stageId || "");
+      setChangedQtyInput(c.changedQty > 0 ? String(c.changedQty) : "");
+      setFocusBatch(view === "converted" ? c.toBatch : c.fromBatch);
+      const targetGroup = batchGroups.find(
+        (g) =>
+          g.batch.trim().toUpperCase() === c.fromBatch.trim().toUpperCase() ||
+          canonicalBatchId(g.batch) === canonicalBatchId(c.fromBatch),
+      );
+      openEntryFor({
+        batchId: c.toBatch,
+        date: c.convertedOn,
+        size: c.toSize,
+        checked: c.changedQty > 0 ? c.changedQty : 0,
+        accepted: c.changedQty > 0 ? c.changedQty : 0,
+        stageId: c.stageId || undefined,
+        productType: targetGroup?.stages[0]?.rows[0]?.productType,
+      });
+      revealPanel(view);
+    },
+    [batchGroups, openEntryFor, revealPanel],
+  );
+
   return (
     <AppShell active="batch-conversion">
       <header style={{ marginBottom: 16 }}>
@@ -422,9 +520,9 @@ export default function BatchConversionPage() {
           className="muted"
           style={{ fontSize: "var(--text-md)", margin: 0, maxWidth: "68ch", lineHeight: "var(--leading-body)" }}
         >
-          Record how many pieces changed size, and the station where that happens.
-          The converted lot is entered from that station through the end of the line.
-          Earlier stations stay on the original lot.
+          Original lot stays the reference. Record the size change, then enter
+          quantities on the original and converted lots side by side using the
+          same Data Entry structure.
         </p>
       </header>
 
@@ -445,7 +543,7 @@ export default function BatchConversionPage() {
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
           <div>
             <h2 className="h3" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-              Conversion details
+              A. Conversion details
             </h2>
             <p className="muted" style={{ fontSize: 12, margin: "2px 0 0" }}>
               Only the quantity you enter moves to the new size. The rest stays on the original lot.
@@ -629,6 +727,16 @@ export default function BatchConversionPage() {
               required
             />
           </label>
+          <label style={labelStyle}>
+            Notes
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Optional operator notes"
+              aria-label="Conversion notes"
+              style={{ ...inputStyle, fontFamily: "inherit" }}
+            />
+          </label>
           <p className="muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.45, color: qtyError ? "var(--warning)" : undefined }}>
             {qtyError
               ? qtyError
@@ -708,9 +816,170 @@ export default function BatchConversionPage() {
             {formError || formOk}
           </p>
         )}
+      </section>
 
-        {conversions.length > 0 && (
-          <div style={{ overflowX: "auto", marginTop: 12 }}>
+      <section style={{ marginBottom: 20 }} aria-label="Mirrored batch entry">
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+          <div>
+            <h2 className="h3" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
+              B. Mirrored batch entry
+            </h2>
+            <p className="muted" style={{ fontSize: 12, margin: "2px 0 0", maxWidth: "72ch" }}>
+              Same Data Entry quantity structure on both lots. Original identity stays locked;
+              the converted lot starts at the change station.
+            </p>
+          </div>
+          <Tabs
+            ariaLabel="Conversion entry mode"
+            active={activeTab}
+            onSelect={(id) => setActiveTab(id as EntryMode)}
+            items={[
+              { id: "matrix", label: "Log batches" },
+              { id: "history", label: "Converted history" },
+            ]}
+          />
+        </div>
+
+        {activeTab === "history" ? (
+          <EntryHistory
+            events={historyEvents}
+            onEdit={handleEdit}
+            onReuse={handleReuse}
+            grain={t.grain}
+            batchLabel={(batch) => historyNameForLot(batch, conversions)}
+          />
+        ) : fromBatch ? (
+          <>
+            <style>{`
+              .moid-conversion-panels {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                gap: 16px;
+                align-items: start;
+              }
+              @media (max-width: 1100px) {
+                .moid-conversion-panels { grid-template-columns: minmax(0, 1fr); }
+              }
+            `}</style>
+            <div className="moid-conversion-panels">
+              <ConversionEntryPanel
+                tone="source"
+                batchId={formatBatchIdInput(fromBatch)}
+                size={fromSize}
+                stageLabel={stageLabel || undefined}
+                focused={focusPanel === "source"}
+                relatedBatch={convertedName}
+              >
+                <BatchMatrixEntry
+                  hydrate={sourceHydrate}
+                  onHydrateConsumed={() => setSourceHydrate(null)}
+                  hideConvertBatch
+                  identityLocked
+                  draftScope="conversion-source"
+                  embedded
+                />
+              </ConversionEntryPanel>
+              {convertedName ? (
+                <ConversionEntryPanel
+                  tone="converted"
+                  batchId={convertedName}
+                  size={toSize ? (toSize.endsWith("Fr") ? toSize : `${toSize}Fr`) : null}
+                  stageLabel={stageLabel || undefined}
+                  focused={focusPanel === "converted"}
+                  relatedBatch={formatBatchIdInput(fromBatch)}
+                >
+                  <BatchMatrixEntry
+                    hydrate={hydrate}
+                    onHydrateConsumed={() => setHydrate(null)}
+                    hideConvertBatch
+                    conversionFlow={conversionFlow}
+                    identityLocked
+                    draftScope="conversion-converted"
+                    embedded
+                  />
+                </ConversionEntryPanel>
+              ) : (
+                <ConversionEntryPanel
+                  tone="converted"
+                  batchId="—"
+                  focused={focusPanel === "converted"}
+                  relatedBatch={formatBatchIdInput(fromBatch)}
+                >
+                  <p className="muted" style={{ fontSize: 13, margin: 0, padding: "12px 4px 20px" }}>
+                    Pick a new size, the change station, and a positive quantity to open the
+                    converted lot on the same entry structure.
+                  </p>
+                </ConversionEntryPanel>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            Enter the original lot from Data Entry or type it above. Both quantity panels use the
+            same inspection-entry structure as Data Entry.
+          </p>
+        )}
+      </section>
+
+      <section
+        aria-label="Audit trail and batch lineage"
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-lg)",
+          padding: "14px 16px 16px",
+          boxShadow: "var(--shadow-1)",
+          marginBottom: 24,
+        }}
+      >
+        <h2 className="h3" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
+          C. Audit trail & batch lineage
+        </h2>
+        <p className="muted" style={{ fontSize: 12, margin: "2px 0 12px" }}>
+          Click either batch ID to open that lot in the mirrored entry panels. History is the
+          recorded conversion, not the current form.
+        </p>
+
+        {chain && chain.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 12,
+              fontFamily: "var(--font-mono)",
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            {chain.map((node, i) => (
+              <span key={node.batch} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                {i > 0 && (
+                  <span style={{ color: "var(--accent)", fontSize: 11, letterSpacing: "0.06em" }}>CT</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => revealPanel(node.origin ? "source" : "converted")}
+                  style={{
+                    ...inputStyle,
+                    width: "auto",
+                    height: 30,
+                    padding: "0 10px",
+                    cursor: "pointer",
+                    fontWeight: 800,
+                    borderColor: node.origin ? "var(--border-strong)" : "color-mix(in srgb, var(--accent) 45%, var(--border))",
+                  }}
+                >
+                  {node.batch}
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {conversions.length > 0 ? (
+          <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
                 <tr>
@@ -719,43 +988,33 @@ export default function BatchConversionPage() {
                   <th style={th}>Changed</th>
                   <th style={thLeft}>At</th>
                   <th style={th}>On</th>
+                  <th style={thLeft}>By</th>
                   <th style={thLeft}>Reason</th>
                 </tr>
               </thead>
               <tbody>
                 {conversions.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => {
-                      setFromBatch(c.fromBatch);
-                      setToSize(c.toSize);
-                      setConvertedOn(c.convertedOn);
-                      setReason(c.reason);
-                      setChangeStageId(c.stageId || "");
-                      setChangedQtyInput(c.changedQty > 0 ? String(c.changedQty) : "");
-                      const targetGroup = batchGroups.find(
-                        (g) =>
-                          g.batch.trim().toUpperCase() === c.fromBatch.trim().toUpperCase() ||
-                          canonicalBatchId(g.batch) === canonicalBatchId(c.fromBatch),
-                      );
-                      openEntryFor({
-                        batchId: c.toBatch,
-                        date: c.convertedOn,
-                        size: c.toSize,
-                        checked: c.changedQty > 0 ? c.changedQty : 0,
-                        accepted: c.changedQty > 0 ? c.changedQty : 0,
-                        stageId: c.stageId || undefined,
-                        productType: targetGroup?.stages[0]?.rows[0]?.productType,
-                      });
-                    }}
-                    style={{ cursor: "pointer" }}
-                  >
+                  <tr key={c.id}>
                     <td style={tdMono}>
-                      {c.fromBatch}
+                      <button
+                        type="button"
+                        onClick={() => loadRecordedConversion(c, "source")}
+                        style={idBtn}
+                        title={`Open original ${c.fromBatch}`}
+                      >
+                        {c.fromBatch}
+                      </button>
                       <span style={sizeBit}>{c.fromSize}</span>
                     </td>
                     <td style={tdMono}>
-                      {historyNameForLot(c.toBatch, [c])}
+                      <button
+                        type="button"
+                        onClick={() => loadRecordedConversion(c, "converted")}
+                        style={idBtn}
+                        title={`Open converted ${c.toBatch}`}
+                      >
+                        {c.toBatch}
+                      </button>
                       <span style={sizeBit}>{c.toSize}</span>
                     </td>
                     <td style={tdMuted}>{c.changedQty > 0 ? c.changedQty.toLocaleString() : "—"}</td>
@@ -763,51 +1022,20 @@ export default function BatchConversionPage() {
                       {c.stageId ? STAGE_LABELS[resolveStageId(c.stageId) ?? ""] ?? c.stageId : "—"}
                     </td>
                     <td style={tdMuted}>{c.convertedOn}</td>
+                    <td style={tdMuted}>{c.createdBy || "—"}</td>
                     <td style={tdMuted}>{c.reason}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        ) : (
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            No recorded conversions yet. Recording one writes an immutable lineage edge and keeps
+            the original lot as the parent identity.
+          </p>
         )}
       </section>
-
-      {entryReady || conversionReady ? (
-        <>
-          <div style={{ marginBottom: 16 }}>
-            <Tabs
-              ariaLabel="Converted lot entry mode"
-              active={activeTab}
-              onSelect={(id) => setActiveTab(id as EntryMode)}
-              items={[
-                { id: "matrix", label: "Log a batch" },
-                { id: "history", label: "History" },
-              ]}
-            />
-          </div>
-          {activeTab === "matrix" ? (
-            <BatchMatrixEntry
-              hydrate={hydrate}
-              onHydrateConsumed={() => setHydrate(null)}
-              hideConvertBatch
-              conversionFlow={conversionFlow}
-            />
-          ) : (
-            <EntryHistory
-              events={historyEvents}
-              onEdit={handleEdit}
-              onReuse={handleReuse}
-              grain={t.grain}
-              batchLabel={(batch) => historyNameForLot(batch, conversions)}
-            />
-          )}
-        </>
-      ) : (
-        <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          Enter the original lot, the new size, the station where the size changes, and how many
-          pieces changed. The form underneath then asks only from that station through the end of the line.
-        </p>
-      )}
     </AppShell>
   );
 }
@@ -849,4 +1077,17 @@ const sizeBit: CSSProperties = {
   marginLeft: 8,
   color: "var(--text-3)",
   fontWeight: 500,
+};
+const idBtn: CSSProperties = {
+  background: "none",
+  border: "none",
+  padding: 0,
+  color: "inherit",
+  font: "inherit",
+  fontFamily: "var(--font-mono)",
+  fontWeight: 800,
+  letterSpacing: "0.03em",
+  cursor: "pointer",
+  textDecoration: "underline",
+  textUnderlineOffset: 3,
 };

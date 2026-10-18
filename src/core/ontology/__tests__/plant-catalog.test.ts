@@ -96,7 +96,7 @@ test("a target of 0 is never conflated with no target", () => {
 test("plantCatalog() is shaped like a CompanyCatalog", () => {
   const c = plantCatalog();
   expect(c.fiscalYearStartMonth).toBe(4);
-  expect(c.stages).toHaveLength(15);
+  expect(c.stages).toHaveLength(16);
   expect(c.sizes.map((s) => s.sizeId)).toContain("Fr16"); // ledger-compatible id
 });
 
@@ -147,7 +147,7 @@ describe("mergePlantCatalog — upgrading a catalog that was inferred from workb
     const ids = merged.stages.map((s) => s.stageId);
     expect(ids).toContain("production");
     expect(ids.indexOf("production")).toBeLessThan(ids.indexOf("visual"));
-    expect(merged.stages).toHaveLength(16); // 15 authored + 1 plant-specific
+    expect(merged.stages).toHaveLength(17); // 16 authored + 1 plant-specific
   });
 
   test("merging twice is a no-op", () => {

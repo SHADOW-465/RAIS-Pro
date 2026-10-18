@@ -171,13 +171,22 @@ export default function BatchMatrixEntry({
   onHydrateConsumed,
   hideConvertBatch = false,
   conversionFlow,
+  identityLocked = false,
+  draftScope,
+  embedded = false,
 }: {
   onSynced?: () => void;
   hydrate?: EntryHydrate | null;
   onHydrateConsumed?: () => void;
   hideConvertBatch?: boolean;
   conversionFlow?: ConversionFlowInfo | null;
+  identityLocked?: boolean;
+  /** Isolate local drafts when two matrices share the conversion page. */
+  draftScope?: string;
+  /** Compact layout for side-by-side conversion panels. */
+  embedded?: boolean;
 }) {
+  const draftKey = draftScope ? `${DRAFT_KEY}_${draftScope}` : DRAFT_KEY;
   const { events, refreshEvents } = useEvents();
   const { noteConversion, refreshConversions } = useLineage();
   const { canWrite, canEraseLedger, persona } = usePersona();
@@ -405,7 +414,7 @@ export default function BatchMatrixEntry({
     const pt = localStorage.getItem(PRODUCT_TYPE_STORAGE_KEY);
     if (pt) applyProductType(pt);
 
-    const d = loadDraft<BatchDraft>(DRAFT_KEY);
+    const d = loadDraft<BatchDraft>(draftKey);
     const mem = readLotMemory();
     if (hydrate?.mode === "edit" || hydrate?.mode === "reuse-lot" || Boolean(conversionFlow)) {
       // Applied in hydrate effect below / conversion flow
@@ -463,7 +472,7 @@ export default function BatchMatrixEntry({
     }
     if (mem?.on) setLotMemoryOn(true);
     draftReady.current = true;
-  }, [applyProductType, hydrate]);
+  }, [applyProductType, hydrate, conversionFlow, draftKey]);
 
   // Minute tick for shift-window checks
   useEffect(() => {
@@ -484,7 +493,7 @@ export default function BatchMatrixEntry({
       !bin &&
       Object.keys(defects).length === 0;
     saveDraft(
-      DRAFT_KEY,
+      draftKey,
       empty
         ? null
         : {
@@ -527,6 +536,7 @@ export default function BatchMatrixEntry({
     defects,
     trolleyDefects,
     remarks,
+    draftKey,
   ]);
 
   // Fetch live schema template
@@ -1640,7 +1650,7 @@ export default function BatchMatrixEntry({
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", paddingBottom: 60 }}>
+    <div style={{ maxWidth: embedded ? "100%" : 1200, margin: embedded ? 0 : "0 auto", paddingBottom: embedded ? 16 : 60 }}>
       {/* 1. Context & Station Selection */}
       <EntryContextBar
         macro={macro}
@@ -1719,6 +1729,7 @@ export default function BatchMatrixEntry({
         onToggleMemory={toggleLotMemory}
         hideConvertBatch={hideConvertBatch || Boolean(activeConversionFlow)}
         conversionFlow={activeConversionFlow}
+        identityLocked={identityLocked}
         stageId={stageId}
         checked={checked}
         accepted={accept}
@@ -1747,6 +1758,7 @@ export default function BatchMatrixEntry({
         prefillNote={prefillNote}
         impliedRejectFromBalance={impliedRejectFromBalance}
         defectCoverage={defectCoverage}
+        idPrefix={draftScope}
       />
 
       {/* 5. Defect Breakdown Workspace */}
@@ -1780,7 +1792,7 @@ export default function BatchMatrixEntry({
         }}
       >
         <label
-          htmlFor="batch-remarks"
+          htmlFor={draftScope ? `${draftScope}-batch-remarks` : "batch-remarks"}
           style={{
             display: "block",
             fontSize: 13,
@@ -1792,7 +1804,7 @@ export default function BatchMatrixEntry({
           Remarks & Shift Hand-Over Notes (Optional)
         </label>
         <textarea
-          id="batch-remarks"
+          id={draftScope ? `${draftScope}-batch-remarks` : "batch-remarks"}
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
           placeholder="Optional notes for QA / next operator regarding lot condition or line setup…"
@@ -1844,9 +1856,11 @@ export default function BatchMatrixEntry({
         saveDisabled={saveDisabled}
         saving={saving}
         blockMessage={verdict.blocks[0]?.message}
+        contained={embedded}
       />
 
       {/* 9. Current Shift Queue */}
+      {embedded ? null : (
       <ShiftQueueTable
         saved={saved}
         onEditRow={(rec) => {
@@ -1883,6 +1897,7 @@ export default function BatchMatrixEntry({
         canEraseLedger={canEraseLedger}
         editingId={editingId}
       />
+      )}
     </div>
   );
 }

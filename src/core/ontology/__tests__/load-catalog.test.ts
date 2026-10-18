@@ -157,3 +157,31 @@ test("a stored catalog holding the old section for eye-punching/hanging is reali
   const again = await loadCatalog("acme");
   expect(again.stages.find((s) => s.stageId === "hanging")?.category).toBe("primary");
 });
+
+test("a plant merged before Stripping existed gains it, with the dipping defects", async () => {
+  const store = getCatalogStore();
+  const authored = plantCatalog();
+  await store.put("acme", {
+    ...authored,
+    stages: authored.stages.filter((s) => s.stageId !== "stripping"),
+    defects: authored.defects.map((d) => ({
+      ...d,
+      stages: d.stages.filter((id) => id !== "stripping"),
+    })),
+    // A full authored merge from before Stripping: the rest of the floor is not re-inserted.
+    lastMergedFrom: "plant-catalog",
+  });
+
+  const loaded = await loadCatalog("acme");
+  expect(loaded.stages.some((s) => s.stageId === "stripping")).toBe(true);
+  const stripping = templateFrom(loaded).stages.find((s) => s.stageId === "stripping")!;
+  expect(stripping.category).toBe("primary");
+  expect(stripping.defects.map((d) => d.defectCode)).toEqual([
+    "COAG", "RW", "SD", "OL", "BM", "WEB", "MF", "OTH",
+  ]);
+
+  // Once only: deleting it on Data Schema afterwards sticks.
+  await store.put("acme", { ...loaded, stages: loaded.stages.filter((s) => s.stageId !== "stripping") });
+  const again = await loadCatalog("acme");
+  expect(again.stages.some((s) => s.stageId === "stripping")).toBe(false);
+});

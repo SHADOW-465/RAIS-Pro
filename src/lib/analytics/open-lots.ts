@@ -27,7 +27,7 @@ function recordsQty(s: (typeof STAGES)[number]): boolean {
 /**
  * Stations that define process completion on the line.
  *
- * Primary: Dipping (accepted qty). Conveyance steps after it are skipped.
+ * Primary: Dipping (accepted qty). Conveyance steps and Stripping are skipped.
  * Secondary: every qty station in the P10–P14 department — Eye Punching,
  * Hanging, and the lumped Data Entry "Secondary Production" row. Those are
  * the same process recorded three ways, not three sequential gates.
@@ -37,6 +37,9 @@ export function requiredStations(): { stageId: string; label: string; process: P
   return STAGES.filter((s) => {
     if (!s.category) return false;
     if (s.stageId === "balloon-production") return false;
+    // Entered by hand after Dipping; no workbook or earlier lot carries it, so
+    // requiring it would reopen every historical lot.
+    if (s.stageId === "stripping") return false;
     if (s.category === "assembly") return !!s.isQualityGate;
     if (s.category === "secondary") return recordsQty(s);
     return Array.isArray(s.captures) && s.captures.includes("accepted");

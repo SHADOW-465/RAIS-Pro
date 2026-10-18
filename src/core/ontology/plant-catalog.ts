@@ -50,8 +50,11 @@ const PASS = ["checked", "accepted", "rejected"] as const;
 export const STAGES: Stage[] = [
   { stageId: "production", label: "Dipping", effectiveFrom: null, effectiveTo: null,
     upstream: [], captures: [...PASS], ...FLOW, sizeWise: true, category: "primary" },
+  // Entered right after Dipping on the Data Entry line. Same 8 dipping defects.
+  { stageId: "stripping", label: "Stripping", effectiveFrom: null, effectiveTo: null,
+    upstream: ["production"], captures: [...PASS], ...FLOW, sizeWise: true, category: "primary" },
   { stageId: "eye-punching", label: "Eye Punching", effectiveFrom: null, effectiveTo: null,
-    upstream: ["production"], captures: [...PASS], ...FLOW, category: "secondary" },
+    upstream: ["stripping"], captures: [...PASS], ...FLOW, category: "secondary" },
   { stageId: "leaching", label: "Leaching", effectiveFrom: null, effectiveTo: null,
     upstream: ["eye-punching"], captures: ["checked"], ...FLOW, category: "primary" },
   { stageId: "chlorination", label: "Chlorination", effectiveFrom: null, effectiveTo: null,
@@ -239,6 +242,7 @@ export const STAGE_ALIASES: Record<string, string[]> = {
     "SHOP FLOOR",
     "UNIT-01 (DEPARTMENT-DIPPING)",
   ],
+  stripping: ["STRIPPING", "STRIPPING QTY"],
   "eye-punching": ["EYE PUNCHING", "EYE PUNCHING QTY", "EP"],
   leaching: ["LEACHING"],
   chlorination: ["CHLORINATION"],
@@ -362,7 +366,10 @@ function buildDefects(): Defect[] {
     if (tFinal != null) t.push({ stageId: "final", pct: tFinal });
     if (t.length) DEFECT_TARGETS[code] = [...(DEFECT_TARGETS[code] ?? []), ...t];
   }
-  for (const [code, label, aliases] of DIPPING_8) add(code, label, aliases, "production");
+  for (const [code, label, aliases] of DIPPING_8) {
+    add(code, label, aliases, "production");
+    add(code, label, [], "stripping");
+  }
   for (const [code, label, aliases] of BALLOON_4) add(code, label, aliases, "balloon");
   for (const [code, label, aliases] of VALVE_5) add(code, label, aliases, "valve-integrity");
   return [...byCode.values()];

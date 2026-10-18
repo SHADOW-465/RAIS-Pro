@@ -24,6 +24,8 @@ interface BatchIdChipProps {
   style?: React.CSSProperties;
   /** Whether to show the DE (Data Entry) shortcut action button. Defaults to true. */
   showDataEntry?: boolean;
+  /** Optional Batch Conversion shortcut (original or converted identity). */
+  conversionHref?: string | null;
 }
 
 export default function BatchIdChip({
@@ -32,6 +34,7 @@ export default function BatchIdChip({
   warnSuffix,
   style,
   showDataEntry = true,
+  conversionHref = null,
 }: BatchIdChipProps) {
   const [hovered, setHovered] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -62,6 +65,15 @@ export default function BatchIdChip({
       window.location.href = dataEntryHref;
     },
     [dataEntryHref],
+  );
+
+  const handleOpenConversion = useCallback(
+    (e: React.MouseEvent | React.KeyboardEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (conversionHref) window.location.href = conversionHref;
+    },
+    [conversionHref],
   );
 
   const btnBase: React.CSSProperties = {
@@ -196,6 +208,25 @@ export default function BatchIdChip({
               <path d="M10 1L5.5 5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
             DE
+          </span>
+        )}
+        {conversionHref && (
+          <span
+            role="link"
+            tabIndex={0}
+            title={`Open ${batchId} in Batch Conversion`}
+            onClick={handleOpenConversion}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleOpenConversion(e); }}
+            style={{
+              ...btnBase,
+              color: "var(--accent)",
+              borderColor: "color-mix(in srgb, var(--accent) 45%, var(--border))",
+              background: "color-mix(in srgb, var(--accent) 10%, var(--surface-3, var(--surface-2)))",
+              gap: 4,
+            }}
+            aria-label={`Open ${batchId} in Batch Conversion`}
+          >
+            CT
           </span>
         )}
       </span>

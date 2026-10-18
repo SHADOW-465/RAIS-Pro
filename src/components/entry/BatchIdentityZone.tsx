@@ -67,6 +67,8 @@ interface BatchIdentityZoneProps {
   onToggleMemory?: () => void;
   hideConvertBatch?: boolean;
   conversionFlow?: ConversionFlowInfo | null;
+  /** Lock lot identity (batch ID, size, category) while conversion panels stay mirrored. */
+  identityLocked?: boolean;
   /** Active stage ID — carried to batch-conversion via URL so the page opens in context */
   stageId?: string;
   /** Quantity currently in the checked field — pre-fills conversion page */
@@ -109,6 +111,7 @@ export default function BatchIdentityZone({
   onToggleMemory,
   hideConvertBatch = false,
   conversionFlow,
+  identityLocked = false,
   stageId,
   checked,
   accepted,
@@ -538,7 +541,7 @@ export default function BatchIdentityZone({
               value={category}
               onChange={(v) => onCategoryChange(v as CatheterCategory)}
               options={CATHETER_CATEGORIES.map((c) => ({ value: c, label: c }))}
-              disabled={memoryOn}
+              disabled={memoryOn || identityLocked}
               block
               ariaLabel="Catheter Category"
             />
@@ -554,7 +557,7 @@ export default function BatchIdentityZone({
               value={catheterType}
               onChange={(v) => onCatheterTypeChange(v as CatheterType)}
               options={CATHETER_TYPES.map((t) => ({ value: t, label: t }))}
-              disabled={memoryOn || category === "Female" || category === "Peadiatric"}
+              disabled={memoryOn || identityLocked || category === "Female" || category === "Peadiatric"}
               block
               ariaLabel="Catheter Type"
             />
@@ -570,7 +573,7 @@ export default function BatchIdentityZone({
               value={size}
               onChange={onSizeChange}
               options={catheterSizeOptions.map((s) => ({ value: s, label: s }))}
-              disabled={memoryOn}
+              disabled={memoryOn || identityLocked}
               block
               ariaLabel="Product Size"
             />
@@ -634,9 +637,9 @@ export default function BatchIdentityZone({
               onBatchDateChange={onBatchDateChange}
               size={size}
               recordedOn={date}
-              disabled={memoryOn}
+              disabled={memoryOn || identityLocked}
               memoryOn={memoryOn}
-              onToggleMemory={onToggleMemory}
+              onToggleMemory={identityLocked ? undefined : onToggleMemory}
             />
           </div>
 

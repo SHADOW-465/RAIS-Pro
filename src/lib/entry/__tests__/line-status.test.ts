@@ -5,8 +5,8 @@ import { buildLineStatus, laneCaption } from "../line-status";
 const SCHEMA = resolveEntrySchema({
   stages: [
     {
-      stageId: "production",
-      label: "Production Dipping",
+      stageId: "stripping",
+      label: "Stripping",
       category: "primary",
       columns: [{ key: "checked" }],
     },
@@ -81,7 +81,7 @@ describe("buildLineStatus", () => {
     expect(s.isBlank).toBe(true);
     expect(s.isNew).toBe(false);
     expect(s.nextLaneId).toBe("primary");
-    expect(s.nextStationId).toBe("production");
+    expect(s.nextStationId).toBe("stripping");
     expect(s.headline).toMatch(/New lots start at Production Dipping/);
     expect(captions("", new Set()).map((c) => c.caption)).toEqual([
       "Not started",
@@ -94,8 +94,8 @@ describe("buildLineStatus", () => {
     const s = buildLineStatus({ lot: LOT, schema: SCHEMA, occupied: new Set() });
     expect(s.isNew).toBe(true);
     expect(s.lot).toBe(LOT);
-    expect(s.nextStationId).toBe("production");
-    expect(s.headline).toBe("New lot 26H01-16 — start at Production Dipping.");
+    expect(s.nextStationId).toBe("stripping");
+    expect(s.headline).toBe("New lot 26H01-16 — start at Stripping.");
     expect(laneCaption(s.lanes[0])).toBe("Not started");
   });
 
@@ -138,7 +138,7 @@ describe("buildLineStatus", () => {
 
   test("builtin seed schema still counts Eye Punching + Hanging as Secondary 2/2", () => {
     const seed = resolveEntrySchema(null);
-    const occupied = occ("production", "eye-punching", "hanging", "visual", "balloon", "valve-integrity", "final");
+    const occupied = occ("production", "stripping", "eye-punching", "hanging", "visual", "balloon", "valve-integrity", "final");
     const s = buildLineStatus({ lot: LOT, schema: seed, occupied });
     const secondary = s.lanes.find((l) => l.id === "secondary")!;
     expect(secondary.total).toBe(2);

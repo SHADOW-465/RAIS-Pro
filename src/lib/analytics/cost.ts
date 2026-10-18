@@ -96,16 +96,22 @@ export function savingsOpportunity(events: Event[], scope: Scope): number | null
   return Math.max(targetGapSavings, improvementSavings);
 }
 
-export function copqTrend(events: Event[], scope: Scope): { period: string; label: string; value: number }[] {
+export function copqTrend(
+  events: Event[],
+  scope: Scope
+): { period: string; label: string; value: number; checked?: number; noProduction?: boolean }[] {
   const ev = scopeEvents(events, scope);
   const periods = periodsIn(ev, scope.grain, { from: scope.dateFrom, to: scope.dateTo });
   return periods.map((p) => {
     const bucket = periodBucket(ev, scope.grain, p);
     const costResult = copq(bucket, { grain: scope.grain, policy: scope.policy });
+    const noProduction = bucket.length === 0;
     return {
       period: p,
       label: periodLabel(p),
       value: costResult?.value ?? 0,
+      checked: bucket.length,
+      noProduction,
     };
   });
 }

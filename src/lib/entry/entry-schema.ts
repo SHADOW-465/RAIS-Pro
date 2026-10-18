@@ -74,6 +74,47 @@ export function migrateToStageId(input: {
   return "visual";
 }
 
+/**
+ * The plant line as Data Entry types it:
+ *   Production Dipping → Stripping
+ *   Secondary          → Eye Punching, Hanging
+ *   Assembly           → Visual, Balloon, Valve Integrity, Final
+ * Stages the plant keeps in its catalog (and reads from Excel) but does not
+ * enter by hand are hidden here. Catalog and analytics are untouched; stages
+ * added by hand on Data Schema still appear.
+ */
+const HIDDEN_FROM_ENTRY = new Set([
+  "production", // Dipping: read from Excel, no longer typed; Stripping is the entry stage
+  "leaching",
+  "chlorination",
+  "gauge",
+  "trimming",
+  "balloon-production",
+  "secondary", // lumped P10–P14 row; Eye Punching + Hanging replace it
+  "valve-fixing",
+  "primary-pack-inspection",
+]);
+
+/** Drop retired stations, and fold alias twins ("production-dipping" beside
+ *  "production") into the canonical one so a station is never listed twice. */
+function entryStations(stations: EntryStation[]): EntryStation[] {
+  const seen = new Set<string>();
+  const visible = stations.filter((s) => {
+    const canon = resolveStageId(s.stageId) ?? s.stageId;
+    return !HIDDEN_FROM_ENTRY.has(canon);
+  });
+  const exactCanon = new Set(
+    visible.filter((s) => (resolveStageId(s.stageId) ?? s.stageId) === s.stageId).map((s) => s.stageId),
+  );
+  return visible.filter((s) => {
+    const canon = resolveStageId(s.stageId) ?? s.stageId;
+    if (canon !== s.stageId && exactCanon.has(canon)) return false;
+    if (seen.has(canon)) return false;
+    seen.add(canon);
+    return true;
+  });
+}
+
 function extrasFor(stageId: string): ExtraField[] {
   const canon = resolveStageId(stageId) ?? stageId;
   if (canon === "production") return ["trolleys"];
@@ -116,30 +157,36 @@ function fromTemplate(template: EntryTemplateLike): ResolvedEntrySchema {
       extras: extrasFor(s.stageId),
     };
   });
-  return { source: "catalog", stations, sections: template.sections };
+  return { source: "catalog", stations: entryStations(stations), sections: template.sections };
 }
 
 function fromSeed(): ResolvedEntrySchema {
   const stations: EntryStation[] = [];
 
   const primaryDefs = MATRIX_STAGES.primary.defects;
+  const dippingDefects = Array.isArray(primaryDefs) ? primaryDefs : [];
   stations.push({
-    stageId: "production",
-    label: MATRIX_STAGES.primary.name,
+    stageId: "stripping",
+    label: "Stripping",
     category: "primary",
     columns: ["checked", "accepted", "rejected"],
-    defects: Array.isArray(primaryDefs) ? primaryDefs : [],
-    extras: ["trolleys"],
+    defects: dippingDefects,
+    extras: [],
   });
 
-  stations.push({
-    stageId: "secondary",
-    label: MATRIX_STAGES.secondary.name,
-    category: "secondary",
-    columns: ["checked"],
-    defects: [],
-    extras: ["bin"],
-  });
+  for (const [stageId, label] of [
+    ["eye-punching", "Eye Punching"],
+    ["hanging", "Hanging"],
+  ] as const) {
+    stations.push({
+      stageId,
+      label,
+      category: "secondary",
+      columns: ["checked", "accepted", "rejected"],
+      defects: [],
+      extras: [],
+    });
+  }
 
   for (const p of MATRIX_STAGES.assembly.processes) {
     if (!p.stageId || !p.interactive) continue;

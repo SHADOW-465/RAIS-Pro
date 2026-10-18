@@ -10,10 +10,25 @@ import { useState, useEffect, useRef } from "react";
  */
 export function niceYMax(raw: number): number {
   if (!Number.isFinite(raw) || raw <= 0) return 0.01;
-  const padded = raw * 1.15;
+  const padded = raw * 1.14;
   const exp = Math.pow(10, Math.floor(Math.log10(padded)));
   const n = padded / exp;
-  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  const nice =
+    n <= 1
+      ? 1
+      : n <= 1.5
+        ? 1.5
+        : n <= 2
+          ? 2
+          : n <= 2.6
+            ? 2.5
+            : n <= 3
+              ? 3
+              : n <= 4
+                ? 4
+                : n <= 5
+                  ? 5
+                  : 10;
   return nice * exp;
 }
 

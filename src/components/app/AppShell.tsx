@@ -1516,18 +1516,19 @@ export default function AppShell({
         boxSizing: "border-box",
         transition: "background-color var(--duration-medium, 300ms) var(--ease-out)"
       }}>
-        {/* Scope selectors — only the ones this screen actually reads. */}
-        <div style={{ 
-          display: scopeControls.length > 0 ? "flex" : "none", 
-          alignItems: "center", 
-          gap: 8, 
-          background: "var(--surface)", 
-          border: "1px solid var(--border-strong)", 
-          borderRadius: "30px", 
-          padding: "4px 10px", 
-          boxShadow: "var(--shadow-sm)",
-          height: 38
-        }}>
+        {/* Scope selectors + Universal Holiday toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <div style={{ 
+            display: scopeControls.length > 0 ? "flex" : "none", 
+            alignItems: "center", 
+            gap: 8, 
+            background: "var(--surface)", 
+            border: "1px solid var(--border-strong)", 
+            borderRadius: "30px", 
+            padding: "4px 10px", 
+            boxShadow: "var(--shadow-sm)",
+            height: 38
+          }}>
           {showView && (
           <div className="view-picker-container" style={{ display: "flex", alignItems: "center", position: "relative" }}>
             <div
@@ -1920,6 +1921,40 @@ export default function AppShell({
           </div>
           )}
         </div>
+
+        {/* Universal Holiday toggle button */}
+        {scopeControls.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setTweak("showCalendarHolidays", !(t.showCalendarHolidays ?? true))}
+            title={(t.showCalendarHolidays ?? true) ? "Holidays feature active across dashboard (click to deactivate)" : "Click to activate Holidays feature across dashboard"}
+            style={{
+              height: 38,
+              borderRadius: "30px",
+              border: "1px solid",
+              borderColor: (t.showCalendarHolidays ?? true) ? "var(--accent)" : "var(--border-strong)",
+              background: (t.showCalendarHolidays ?? true)
+                ? "color-mix(in srgb, var(--accent) 14%, var(--surface))"
+                : "var(--surface)",
+              color: (t.showCalendarHolidays ?? true) ? "var(--accent)" : "var(--text-3)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "0 14px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              boxShadow: "var(--shadow-sm)",
+              transition: "all 0.15s ease",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span style={{ fontSize: 11, color: (t.showCalendarHolidays ?? true) ? "var(--accent)" : "var(--text-3)" }}>★</span>
+            <span>{(t.showCalendarHolidays ?? true) ? "Holidays Active" : "Holidays Off"}</span>
+          </button>
+        )}
+      </div>
 
         {/* right profile / actions: styled cleanly in pillbox cards */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

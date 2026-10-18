@@ -19,3 +19,13 @@ test("batch-id helpers were not rewritten for conversion", () => {
   expect(src).not.toMatch(/conversion/);
   expect(src).not.toMatch(/lineage/);
 });
+
+test("conversion page mounts two BatchMatrixEntry panels on the shared component", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/batch-conversion/page.tsx"), "utf8");
+  expect(src).toMatch(/tone="source"/);
+  expect(src).toMatch(/tone="converted"/);
+  expect(src.match(/<BatchMatrixEntry/g)?.length).toBeGreaterThanOrEqual(2);
+  expect(src).toMatch(/draftScope="conversion-source"/);
+  expect(src).toMatch(/draftScope="conversion-converted"/);
+  expect(src).toMatch(/identityLocked/);
+});
