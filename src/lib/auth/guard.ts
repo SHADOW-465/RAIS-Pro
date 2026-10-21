@@ -91,6 +91,39 @@ export async function requireSession(req: NextRequest): Promise<Guard> {
   return { ok: true, actor };
 }
 
+/**
+ * Plant-wide destructive tools (purge transaction data, reset the schema
+ * registry) belong to whoever runs the installation, not to a plant role. A GM
+ * holds every capability, so a capability alone cannot keep these away from
+ * the GM. They need a named login in MOID_ADMIN_USERS (comma-separated
+ * usernames). Unset means nobody — the safe default for a client deployment.
+ * An env var rather than a role so no plant login can grant it to itself.
+ */
+export function isPlantAdmin(username: string): boolean {
+  const list = (process.env.MOID_ADMIN_USERS ?? "")
+    .split(",")
+    .map((u) => u.trim().toLowerCase())
+    .filter(Boolean);
+  return list.includes(username.trim().toLowerCase());
+}
+
+/** Require `cap` AND a login listed in MOID_ADMIN_USERS. See isPlantAdmin. */
+export async function requireAdmin(req: NextRequest, cap: Capability): Promise<Guard> {
+  const guard = await requireCapability(req, cap);
+  if (!guard.ok) return guard;
+  if (!isPlantAdmin(guard.actor.username)) {
+    return {
+      ok: false,
+      actor: null,
+      response: NextResponse.json(
+        { error: "Administrative tools are not available to this login.", need: "admin" },
+        { status: 403 },
+      ),
+    };
+  }
+  return guard;
+}
+
 /** Require an authenticated caller holding `cap`. */
 export async function requireCapability(req: NextRequest, cap: Capability): Promise<Guard> {
   const session = await requireSession(req);

@@ -56,7 +56,9 @@ describe.each(routes)("%s", ({ rel, file }) => {
     // One guard call per mutating handler — a file exporting POST and DELETE
     // that guards only POST must not pass.
     const guardCalls =
-      countOf(src, "requireCapability(req") + countOf(src, "requireSession(req");
+      countOf(src, "requireCapability(req") +
+      countOf(src, "requireSession(req") +
+      countOf(src, "requireAdmin(req");
     expect(guardCalls).toBeGreaterThanOrEqual(handlers.length);
   });
 

@@ -56,6 +56,8 @@ type PersonaCtx = {
   canConfigure: boolean;
   /** GM only — may permanently erase rows already in the ledger. */
   canEraseLedger: boolean;
+  /** Login listed in MOID_ADMIN_USERS — sees purge / schema reset. Never the GM by role alone. */
+  isAdmin: boolean;
   /** Always true — sign-in is required (hardcoded presets). */
   authEnabled: boolean;
   /** Signed-in user when auth is on; null when open or signed out. */
@@ -77,11 +79,13 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   const [authEnabled, setAuthEnabled] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const refreshAuth = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me", { credentials: "same-origin" });
       const data = await res.json().catch(() => ({}));
+      setIsAdmin(data.admin === true && !!data.user?.username);
       if (data.authEnabled) {
         setAuthEnabled(true);
         // Any role id, not just the three built-in ones. Gating this on a
@@ -156,6 +160,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       canApprove: capabilities.approve,
       canConfigure: capabilities.configure,
       canEraseLedger: capabilities.eraseLedger,
+      isAdmin,
       authEnabled,
       authUser,
       personaLocked: authEnabled,
@@ -163,7 +168,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       refreshAuth,
       signOut,
     };
-  }, [persona, serverRole, setPersona, authEnabled, authUser, authReady, refreshAuth, signOut]);
+  }, [persona, serverRole, setPersona, authEnabled, authUser, authReady, refreshAuth, signOut, isAdmin]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -187,6 +192,7 @@ export function usePersona(): PersonaCtx {
       canApprove: capabilities.approve,
       canConfigure: capabilities.configure,
       canEraseLedger: capabilities.eraseLedger,
+      isAdmin: false,
       authEnabled: false,
       authUser: null,
       personaLocked: false,

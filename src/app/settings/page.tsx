@@ -8,7 +8,7 @@ import "./settings.css";
  * pre-emit critique: P5 H5 E4 S4 R5 V4
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Select from "@/components/ui/Select";
 import DatePicker from "@/components/ui/DatePicker";
 import AppShell from "@/components/app/AppShell";
@@ -52,7 +52,13 @@ const SECTIONS: { id: SectionId; label: string; hint: string }[] = [
 export default function SettingsPage() {
   const { refreshEvents } = useEvents();
   const { registry } = useRegistry();
-  const { canConfigure } = usePersona();
+  const { canConfigure, isAdmin } = usePersona();
+  // Purge and schema reset are installation-admin tools (MOID_ADMIN_USERS),
+  // not GM tools. The routes refuse them too; this keeps them off the screen.
+  const sections = useMemo(
+    () => (isAdmin ? SECTIONS : SECTIONS.filter((s) => s.id !== "admin")),
+    [isAdmin],
+  );
   const activeRegistry = registry || EMPTY_REGISTRY;
   const [section, setSection] = useState<SectionId>("rules");
 
@@ -62,8 +68,8 @@ export default function SettingsPage() {
   useEffect(() => {
     const raw = window.location.hash.replace("#", "");
     const id = (raw === "quality" || raw === "valuation" ? "rules" : raw) as SectionId;
-    if (SECTIONS.some((s) => s.id === id)) setSection(id);
-  }, []);
+    if (sections.some((s) => s.id === id)) setSection(id);
+  }, [sections]);
   const [shiftCfg, setShiftCfg] = useState<ShiftWindowConfig>(DEFAULT_SHIFT_WINDOWS);
   const [exportCfg, setExportCfg] = useState<DataEntryExportConfig>(
     DEFAULT_DATA_ENTRY_EXPORT_CONFIG,
@@ -166,7 +172,7 @@ export default function SettingsPage() {
   const removeCustomDefect = (code: string) =>
     setCustomDefects((prev) => prev.filter((d) => d.code !== code));
 
-  const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
+  const active = sections.find((s) => s.id === section) ?? sections[0];
   const stageCount = activeRegistry.stages?.length ?? 0;
   const defectCount = activeRegistry.defects?.length ?? 0;
   const showFoot =
@@ -187,7 +193,7 @@ export default function SettingsPage() {
             <h1 className="settings-title">Settings</h1>
             <p className="settings-lede">
               Plant-wide options: calculation rules, Data Entry export, shift windows,
-              defect codes, and admin tools. Calculation rules are versioned and shared;
+              defect codes{isAdmin ? ", and admin tools" : ""}. Calculation rules are versioned and shared;
               export preferences are stored in this browser.
             </p>
           </div>
@@ -229,7 +235,7 @@ export default function SettingsPage() {
         <div className="settings-workbench">
           <nav className="settings-rail" aria-label="Settings sections">
             <ul className="settings-rail-list">
-              {SECTIONS.map((s, i) => {
+              {sections.map((s, i) => {
                 const isActive = section === s.id;
                 const danger = s.id === "admin";
                 return (
@@ -590,7 +596,7 @@ export default function SettingsPage() {
               {section === "roles" && <RolesAccess />}
               {section === "users" && <PlantUsers />}
 
-              {section === "admin" && (
+              {section === "admin" && isAdmin && (
                 <div className="settings-admin">
                   <p className="settings-admin-warn">
                     Destructive. You must type a confirmation word before anything is deleted.

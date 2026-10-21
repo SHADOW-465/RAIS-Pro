@@ -18,6 +18,7 @@ import { Card, Empty } from "@/components/app/widgets";
 import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { useTweaks } from "@/components/editorial/TweaksContext";
+import { usePersona } from "@/components/app/PersonaContext";
 import {
   qualityStatus,
   resolveScope,
@@ -142,6 +143,7 @@ export default function SchemaPage() {
   const { events } = useEvents();
   const { refreshRegistry, policy } = useRegistry();
   const { t } = useTweaks();
+  const { isAdmin } = usePersona();
 
   const [catalog, setCatalog] = useState<CatalogMeta | null>(null);
   const [mappings, setMappings] = useState<SchemaMapping[]>([]);
@@ -1451,6 +1453,7 @@ export default function SchemaPage() {
           onCancel={() => setUnlockOpen(false)}
         />
 
+        {isAdmin && (
         <p
           className="small"
           style={{
@@ -1469,6 +1472,7 @@ export default function SchemaPage() {
           </a>
           . Editing or deleting individual rows above is almost always the better move.
         </p>
+        )}
       </div>
     </AppShell>
   );
