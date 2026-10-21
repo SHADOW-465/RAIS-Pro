@@ -20,4 +20,5 @@ export * from "./open-lots";
 export * from "./accepted";
 export * from "./report-coverage";
 export * from "./scope-label";
+export * from "./funnel";
 
