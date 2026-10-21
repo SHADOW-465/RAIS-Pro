@@ -1,6 +1,7 @@
 "use client";
 
-// CAPA register — corrective/preventive actions in capa-store (localStorage).
+// CAPA register — corrective/preventive actions in capa-store (plant server,
+// with this browser's localStorage as the fallback until the table exists).
 // Create blank or from decision-engine recommendations (CapaComposerModal).
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
@@ -14,6 +15,7 @@ import { useTweaks } from "@/components/editorial/TweaksContext";
 import type { RecommendationT } from "@/shared/models/decision";
 import {
   useCapas,
+  useCapaSource,
   updateCapa,
   removeCapa,
   draftFromRecommendation,
@@ -43,6 +45,7 @@ function varsContext(r: RecommendationT): string {
 
 export default function CapaPage() {
   const capas = useCapas();
+  const capaSource = useCapaSource();
   const { t } = useTweaks();
   const [engineRecs, setEngineRecs] = useState<RecommendationT[]>([]);
   const [engineLoading, setEngineLoading] = useState(false);
@@ -260,7 +263,11 @@ export default function CapaPage() {
             <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.45, maxWidth: 520 }}>
               Track corrective work. Promote a decision-engine hit or start blank.
               <span style={{ display: "block", marginTop: 4, fontSize: 12 }}>
-                Stored on this browser only — not a plant QMS record.
+                {capaSource === "db"
+                  ? "Stored on the plant server — every signed-in user sees this register."
+                  : capaSource === "local"
+                    ? "Stored on this browser only — the plant CAPA table is not set up yet."
+                    : "Loading the plant register…"}
               </span>
             </p>
           </div>
