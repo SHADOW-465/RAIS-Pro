@@ -21,6 +21,7 @@ import { useTweaks } from "@/components/editorial/TweaksContext";
 import {
   qualityStatus,
   resolveScope,
+  lotScopeLabel,
   integrityAuditHref,
   integrityFixHref,
   integrityIssueId,
@@ -1435,6 +1436,7 @@ export default function SchemaPage() {
             blocked={integrity.state === "blocked"}
             reason={integrity.reason}
             issues={integrity.integrityIssues}
+            scopeLabel={lotScopeLabel(t)}
           />
         )}
 
@@ -1615,10 +1617,13 @@ function IntegrityIssuesPanel({
   blocked,
   reason,
   issues,
+  scopeLabel,
 }: {
   blocked: boolean;
   reason: string;
   issues: IntegrityIssue[];
+  /** Header scope the scan ran on — the same population as the dashboard. */
+  scopeLabel: string;
 }) {
   const [open, setOpen] = useState(false);
   const critical = issues.filter((i) => i.severity === "critical").length;
@@ -1628,7 +1633,7 @@ function IntegrityIssuesPanel({
     : "color-mix(in srgb, var(--warning-weak) 70%, var(--surface))";
   const titleColor = blocked ? "var(--critical)" : "var(--warning)";
   const title = blocked
-    ? "Data integrity blocked — ledger is not OK"
+    ? `Data integrity blocked — ${critical} critical check${critical === 1 ? "" : "s"} failed`
     : "Open integrity warnings";
 
   return (
@@ -1677,7 +1682,7 @@ function IntegrityIssuesPanel({
             {title}
           </span>
           <span style={{ display: "block", fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
-            {issues.length} open issue{issues.length === 1 ? "" : "s"}
+            {scopeLabel} · {issues.length} open issue{issues.length === 1 ? "" : "s"}
             {critical > 0 ? ` · ${critical} critical` : ""}
             {!open ? " · click to expand" : ""}
           </span>
