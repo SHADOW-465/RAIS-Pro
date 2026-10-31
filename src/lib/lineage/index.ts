@@ -20,7 +20,7 @@ export {
 export { defaultChangeStageId } from "./default-station";
 export { planConversion } from "./validate";
 export { lineageChain, isOnLineage } from "./graph";
-export { getLineageStore } from "./store";
+// getLineageStore lives in ./store (server-only) — import it from "@/lib/lineage/store".
 export {
   chipFromQty,
   eligibleTransferQty,

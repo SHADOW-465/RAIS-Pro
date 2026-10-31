@@ -9,9 +9,8 @@ import { adoptShiftWindowConfig, readStoredShiftWindow } from "@/lib/entry/shift
 import { readUserPresets, replaceUserPresets } from "@/lib/report/presets-store";
 import { readUserWorkspacePresets, replaceUserWorkspacePresets } from "@/lib/report/workspace-presets";
 import { importedMarker } from "@/lib/storage";
-import { isEmptyRecord, SHARED_KINDS, type SharedKind } from "./kinds";
+import { isEmptyRecord, SHARED_KINDS, SHARED_STATE_UNAVAILABLE_MESSAGE, type SharedKind } from "./kinds";
 import { revisionOf, setSharedWarning, SHARED_STATE_EVENT } from "./push";
-import { SHARED_STATE_UNAVAILABLE_MESSAGE } from "./store";
 
 export type SyncStep = "apply-server" | "import-local" | "mark-empty" | "keep-local" | "keep-silent";
 
