@@ -5,6 +5,7 @@ import {
 } from "@/core/policy/policy";
 import type { DefectAliasRef } from "@/lib/analytics/defect-alias";
 import type { BatchConversion } from "@/lib/lineage";
+import type { PlantTotals } from "@/lib/analytics/plant-totals";
 import type { Event } from "@/lib/store/types";
 
 export interface EventsPayload {
@@ -45,6 +46,40 @@ function defectAliasesFrom(mappings: unknown): DefectAliasRef[] {
     out.push({ key: String(m.key), canonicalId: String(m.canonicalId) });
   }
   return out;
+}
+
+/** Body for POST /api/analytics/totals. Same fields the route's zod schema accepts. */
+export interface PlantTotalsRequest {
+  dateBasis?: "lot" | "entry";
+  grain?: "day" | "week" | "month" | "fy";
+  datePreset?: "all" | "this-month" | "last-90-days" | "last-12-months" | "this-fy" | "custom";
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  stageView?: string | null;
+  stageCategories?: ("primary" | "secondary" | "assembly")[] | null;
+  includeExcel?: boolean;
+  includeDirectEntry?: boolean;
+  excelFiles?: string[] | null;
+  batchIds?: string[] | null;
+  from?: string | null;
+  to?: string | null;
+  span?: "all" | null;
+  entryFrom?: string | null;
+  entryTo?: string | null;
+}
+
+/** A non-OK response throws so the screen keeps its local selectors. */
+export async function fetchPlantTotals(body: PlantTotalsRequest): Promise<PlantTotals> {
+  const res = await fetch("/api/analytics/totals", {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) throw new Error("totals 401");
+  if (!res.ok) throw new Error(`totals ${res.status}`);
+  return (await res.json()) as PlantTotals;
 }
 
 export async function fetchEvents(range: { from?: string; to?: string; span?: "all" }): Promise<EventsPayload> {

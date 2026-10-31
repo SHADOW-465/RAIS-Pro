@@ -5,6 +5,8 @@ import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
+import { usePlantTotals } from "@/lib/client/use-plant-totals";
+import { restoreTrend } from "@/lib/analytics/overlay-totals";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
@@ -43,6 +45,7 @@ export default function DefectAnalysisPage() {
   const { t } = useTweaks();
   useApplyInvestigationFromUrl();
   const { events: contextEvents, isLoading } = useEvents();
+  const serverTotals = usePlantTotals().data;
   const { registry, policy } = useRegistry();
   const activeRegistry = registry || EMPTY_REGISTRY;
   const events = contextEvents ? (contextEvents as any[]) : null;
@@ -103,10 +106,14 @@ export default function DefectAnalysisPage() {
     const allPeriods = periodsIn(events, t.grain);
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
-    const defects = byDefect(events, scope, activeRegistry);
+    const defects = serverTotals ? serverTotals.defects : byDefect(events, scope, activeRegistry);
     const ordered = orderDefectsByCatalog(defects, activeRegistry);
-    const dt = defectTrend(events, scope, Math.max(ordered.length, 1), activeRegistry);
-    const overall = trend(events, scope, "rejectionRate", activeRegistry);
+    const dt = serverTotals
+      ? serverTotals.defectTrendAll
+      : defectTrend(events, scope, Math.max(ordered.length, 1), activeRegistry);
+    const overall = serverTotals
+      ? restoreTrend(serverTotals.rejectionTrend)
+      : trend(events, scope, "rejectionRate", activeRegistry);
 
     return {
       defects,
@@ -115,7 +122,7 @@ export default function DefectAnalysisPage() {
       overall,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
-  }, [events, scope, t.grain, activeRegistry]);
+  }, [events, scope, t.grain, activeRegistry, serverTotals]);
 
   const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
 

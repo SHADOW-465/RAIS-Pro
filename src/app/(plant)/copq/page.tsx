@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
+import { usePlantTotals } from "@/lib/client/use-plant-totals";
+import { headlineFigures, restoreCopqTrend } from "@/lib/analytics/overlay-totals";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { usePolicy } from "@/components/app/RegistryContext";
@@ -34,6 +36,7 @@ export default function CopqPage() {
   const { t } = useTweaks();
   const policy = usePolicy();
   const { events: contextEvents, isLoading } = useEvents();
+  const serverTotals = usePlantTotals().data;
   const events = contextEvents ? (contextEvents as any[]) : null;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -76,8 +79,9 @@ export default function CopqPage() {
     const trendScope: Scope = scope; // carries the stage filter into the trends
 
     const copqRes = copq(events, scope);
-    const savings = savingsOpportunity(events, scope);
-    const cTrend = copqTrend(events, trendScope);
+    const savingsLocal = savingsOpportunity(events, scope);
+    const head = serverTotals ? headlineFigures(serverTotals.headlines) : null;
+    const cTrend = serverTotals ? restoreCopqTrend(serverTotals.copqTrend) : copqTrend(events, trendScope);
 
     // A zero or non-finite base is not a percent change.
     let copqDiff = "vs Prior Period";
@@ -92,13 +96,13 @@ export default function CopqPage() {
     }
 
     return {
-      copq: finiteNumber(copqRes?.value) ?? 0,
-      savings: finiteNumber(savings) ?? 0,
+      copq: head ? head.copq : (finiteNumber(copqRes?.value) ?? 0),
+      savings: head ? head.savings : (finiteNumber(savingsLocal) ?? 0),
       copqTrend: cTrend,
       copqDiff,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
-  }, [events, scope, t.grain]);
+  }, [events, scope, t.grain, serverTotals]);
 
   const grainLabel = t.grain === "day" ? "Daily" : t.grain === "week" ? "Weekly" : t.grain === "month" ? "Monthly" : "Yearly";
 

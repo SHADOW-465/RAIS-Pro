@@ -6,6 +6,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import { useEvents } from "@/components/app/EventsContext";
+import { usePlantTotals } from "@/lib/client/use-plant-totals";
+import { headlineFigures, overlayStageRows, restoreCopqTrend, restoreTrend } from "@/lib/analytics/overlay-totals";
 import { useRegistry } from "@/components/app/RegistryContext";
 import Icon from "@/components/editorial/Icon";
 import type { SourceRow, SourceMetricKind } from "@/components/FloatingDetailModal";
@@ -111,6 +113,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { t } = useTweaks();
   const { events, isLoading } = useEvents();
+  const serverTotals = usePlantTotals().data;
   const { registry, policy } = useRegistry();
   const { authUser, persona } = usePersona();
   const layoutUser = authUser?.username ?? persona;
@@ -248,7 +251,7 @@ export default function Dashboard() {
     const accepted = Math.max(0, checked - rejected);
     const acceptedRate = checked > 0 ? (checked - rejected) / checked : Math.max(0, 1 - rate);
 
-    return {
+    const local = {
       rate,
       rejected,
       checked,
@@ -286,7 +289,25 @@ export default function Dashboard() {
         to: scope.dateTo,
       } satisfies Pick<InvestigationState, "grain" | "from" | "to">,
     };
-  }, [events, scope, t.grain, selectedSize, activeRegistry, scopeLabel]);
+    if (!serverTotals) return local;
+    const head = headlineFigures(serverTotals.headlines);
+    return {
+      ...local,
+      rate: head.rate,
+      rejected: head.rejected,
+      checked: head.checked,
+      accepted: head.accepted,
+      acceptedRate: head.acceptedRate,
+      fpy: head.fpy,
+      stages: overlayStageRows(local.stages, serverTotals.stages),
+      defects: serverTotals.defects,
+      tr: restoreTrend(serverTotals.rejectionTrend),
+      defectTrend: serverTotals.defectTrend,
+      copq: head.copq,
+      savings: head.savings,
+      copqTrend: restoreCopqTrend(serverTotals.copqTrend),
+    };
+  }, [events, scope, t.grain, selectedSize, activeRegistry, scopeLabel, serverTotals]);
 
   // The active view is the GLOBAL stage scope from the header (TweaksContext).
   const activeView = t.stageView;

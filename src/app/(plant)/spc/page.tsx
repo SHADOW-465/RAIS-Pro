@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
+import { usePlantTotals } from "@/lib/client/use-plant-totals";
+import { restoreTrend } from "@/lib/analytics/overlay-totals";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { usePolicy } from "@/components/app/RegistryContext";
@@ -194,6 +196,7 @@ export default function SpcPage() {
   const { t } = useTweaks();
   const policy = usePolicy();
   const { events: contextEvents, isLoading } = useEvents();
+  const serverTotals = usePlantTotals().data;
   const events = contextEvents ? (contextEvents as any[]) : null;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
@@ -233,7 +236,7 @@ export default function SpcPage() {
     const allPeriods = periodsIn(events, t.grain);
     const latestPeriod = allPeriods[allPeriods.length - 1];
 
-    const tr = trend(events, scope);
+    const tr = serverTotals ? restoreTrend(serverTotals.spcTrend) : trend(events, scope);
 
     if (tr.length === 0) return null;
 
@@ -301,7 +304,7 @@ export default function SpcPage() {
       r3,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
-  }, [events, scope, t.grain]);
+  }, [events, scope, t.grain, serverTotals]);
 
   return (
     <AppShell active="spc" dateRange={m?.latestPeriodLabel}>

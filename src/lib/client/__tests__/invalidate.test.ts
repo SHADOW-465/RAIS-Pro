@@ -6,21 +6,22 @@ import { invalidateAfterWrite, queryKeysForWrite, type WriteKind } from "../inva
 describe("queryKeysForWrite", () => {
   test("entries and events share the ledger keys", () => {
     expect(queryKeysForWrite("entries")).toEqual(queryKeysForWrite("events"));
-    expect(queryKeysForWrite("events")).toEqual([["events"], ["ledger-bounds"]]);
+    expect(queryKeysForWrite("events")).toEqual([["events"], ["ledger-bounds"], ["plant-totals"]]);
   });
 
   test("each write kind names the caches it changes", () => {
     const keys = (kind: WriteKind) => queryKeysForWrite(kind).map((k) => k[0]);
-    expect(keys("schema")).toEqual(["schema"]);
+    expect(keys("schema")).toEqual(["schema", "plant-totals"]);
     expect(keys("conversions")).toEqual(["conversions"]);
     expect(keys("capa")).toEqual(["capa"]);
     expect(keys("presets")).toEqual(["presets"]);
     expect(keys("grants")).toEqual(["grants"]);
     expect(keys("roles")).toEqual(["roles", "users"]);
-    expect(keys("workbooks")).toEqual(["workbooks", "events", "ledger-bounds"]);
+    expect(keys("workbooks")).toEqual(["workbooks", "events", "ledger-bounds", "plant-totals"]);
     expect(keys("clear-data")).toEqual([
       "events",
       "ledger-bounds",
+      "plant-totals",
       "schema",
       "conversions",
       "capa",
@@ -47,6 +48,7 @@ describe("invalidateAfterWrite", () => {
       { queryKey: ["workbooks"] },
       { queryKey: ["events"] },
       { queryKey: ["ledger-bounds"] },
+      { queryKey: ["plant-totals"] },
     ]);
   });
 });

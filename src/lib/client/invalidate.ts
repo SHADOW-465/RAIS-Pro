@@ -15,7 +15,7 @@ export type WriteKind =
   | "workbooks"
   | "clear-data";
 
-const LEDGER: QueryKey[] = [["events"], ["ledger-bounds"]];
+const LEDGER: QueryKey[] = [["events"], ["ledger-bounds"], ["plant-totals"]];
 
 export function queryKeysForWrite(kind: WriteKind): QueryKey[] {
   switch (kind) {
@@ -23,7 +23,7 @@ export function queryKeysForWrite(kind: WriteKind): QueryKey[] {
     case "entries":
       return LEDGER;
     case "schema":
-      return [["schema"]];
+      return [["schema"], ["plant-totals"]];
     case "conversions":
       return [["conversions"]];
     case "capa":

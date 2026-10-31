@@ -5,6 +5,8 @@ import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
+import { usePlantTotals } from "@/lib/client/use-plant-totals";
+import { headlineFigures, overlayStageRows, restoreTrend } from "@/lib/analytics/overlay-totals";
 import { useRegistry } from "@/components/app/RegistryContext";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
@@ -44,6 +46,7 @@ export default function StageAnalysisPage() {
   // Mid-path: apply ?grain&from&to&stage from dashboard funnel / attention rail.
   useApplyInvestigationFromUrl();
   const { events: contextEvents, isLoading } = useEvents();
+  const serverTotals = usePlantTotals().data;
   const { registry, policy } = useRegistry();
   const activeRegistry = registry || EMPTY_REGISTRY;
   const events = contextEvents ? (contextEvents as any[]) : null;
@@ -111,14 +114,22 @@ export default function StageAnalysisPage() {
     const tr = trend(events, scope, "rejectionRate", activeRegistry);
     const st = stageTrend(events, scope, activeRegistry);
 
-    return {
+    const local = {
       rate,
       stages: orderedStages,
       tr,
       stageTrend: st,
       latestPeriodLabel: latestPeriod ? periodLabel(latestPeriod) : ""
     };
-  }, [events, scope, t.grain, activeRegistry]);
+    if (!serverTotals) return local;
+    return {
+      ...local,
+      rate: headlineFigures(serverTotals.headlines).rate,
+      stages: overlayStageRows(local.stages, serverTotals.stages),
+      tr: restoreTrend(serverTotals.rejectionTrend),
+      stageTrend: serverTotals.stageTrend,
+    };
+  }, [events, scope, t.grain, activeRegistry, serverTotals]);
 
   return (
     <AppShell active="stage" dateRange={m?.latestPeriodLabel}>

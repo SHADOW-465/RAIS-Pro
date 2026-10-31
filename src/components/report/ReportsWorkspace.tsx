@@ -31,6 +31,8 @@ import {
   type WorkspacePreset,
 } from "@/lib/report/workspace-presets";
 import { financialYear, fyLabel } from "@/lib/report/financial-year";
+import { usePlantTotals } from "@/lib/client/use-plant-totals";
+import { overlayReportModel } from "@/lib/analytics/overlay-totals";
 import { SHARED_STATE_EVENT, sharedStateKind } from "@/lib/shared-state/push";
 import type { CalculationPolicyT } from "@/core/policy/policy";
 
@@ -281,6 +283,34 @@ export default function ReportsWorkspace({
   if (includeExcel) sourceChannels.push("excel");
   if (includeDirectEntry) sourceChannels.push("direct-entry");
 
+  const entryWindow = useMemo(() => {
+    if (periodMode === "financial-year") {
+      const year = financialYear(fyStartYear);
+      return { from: year.from, to: year.to };
+    }
+    if (dateFrom && dateTo) return { from: dateFrom, to: dateTo };
+    return null;
+  }, [periodMode, fyStartYear, dateFrom, dateTo]);
+
+  // Same ledger slice the workspace events already came from. Entry dates
+  // and the report's own channels are the analytics scope, not a second fetch.
+  const serverTotals = usePlantTotals({
+    basis: "entry",
+    entryFrom: entryWindow?.from,
+    entryTo: entryWindow?.to,
+    enabled: entryWindow != null,
+    tweaks: {
+      datePreset: "all",
+      grain: "month",
+      stageView: "cumulative",
+      stageCategories: ["primary", "secondary", "assembly"],
+      includeExcel,
+      includeDirectEntry,
+      excelFiles,
+      batchIds,
+    },
+  }).data;
+
   const built = useMemo(() => {
     const generatedAt = new Date().toISOString();
     return buildReport(
@@ -451,7 +481,11 @@ export default function ReportsWorkspace({
     };
   }, [printing]);
 
-  const model = built.ok ? built.model : null;
+  const model = useMemo(() => {
+    if (!built.ok) return null;
+    if (!serverTotals) return built.model;
+    return overlayReportModel(built.model, serverTotals);
+  }, [built, serverTotals]);
   const blockReason = !built.ok ? built.error : model && !model.validation.canExport ? model.validation.blockers[0] : null;
   const canPrint = built.ok && !!model?.validation.canExport;
 
