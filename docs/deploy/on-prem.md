@@ -197,7 +197,7 @@ If `MINICPM_BASE_URL` is empty, the appliance is still valid for pilot entry and
 - Postgres only on the internal Docker network
 - Generated JWT secret + DB passwords (not Supabase demo keys)
 - `server_tokens off` / no powered-by on the app
-- **Optional app sign-in** via `MOID_AUTH_SECRET` (same as Vercel). When set, `/login` shows the three topbar roles (GM / Owner / Operator); pick one and enter its password. Defaults: `moid-gm` / `moid-owner` / `moid-operator`. When unset, open app + free topbar role switcher.
+- **App sign-in is always on.** `./scripts/gen-secrets.sh` writes `MOID_AUTH_SECRET` and a random password per role (`MOID_AUTH_PASSWORD_GM` / `_OWNER` / `_OPERATOR`) into `deploy/.env`. There are no built-in default passwords, and the app refuses to start without `MOID_AUTH_SECRET`.
 
 **Explicitly not in this kit (pilot)**
 

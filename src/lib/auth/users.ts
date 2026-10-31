@@ -19,7 +19,7 @@
 //
 // ── Migration, and why you cannot lock yourself out ────────────────────────
 // A preset role login stays valid until an ACTIVE named user holds that role.
-// Create a real GM and `gm` / `moid-gm` stops working — self-migrating, no flag
+// Create a real GM and the shared `gm` login stops working — self-migrating, no flag
 // to remember. You cannot strand yourself, because creating that user requires
 // already being signed in. Break glass: deactivate the named users for a role
 // (SQL `UPDATE plant_users SET active = false WHERE role = 'gm'`) and the preset

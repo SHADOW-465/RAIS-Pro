@@ -26,6 +26,12 @@ rand_alnum() {
 JWT_SECRET="${JWT_SECRET:-$(rand_hex 32)}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(rand_alnum)}"
 DB_AUTHENTICATOR_PASSWORD="${DB_AUTHENTICATOR_PASSWORD:-$(rand_alnum)}"
+# App sign-in: the session signing key and the three preset-role passwords.
+# There are no built-in defaults — the app refuses to start without the secret.
+MOID_AUTH_SECRET="${MOID_AUTH_SECRET:-$(rand_hex 32)}"
+MOID_AUTH_PASSWORD_GM="${MOID_AUTH_PASSWORD_GM:-$(rand_hex 8)}"
+MOID_AUTH_PASSWORD_OWNER="${MOID_AUTH_PASSWORD_OWNER:-$(rand_hex 8)}"
+MOID_AUTH_PASSWORD_OPERATOR="${MOID_AUTH_PASSWORD_OPERATOR:-$(rand_hex 8)}"
 
 # Long-lived plant JWTs (10 years). Role claim is what PostgREST uses.
 JWT_PAIR="$(node -e '
@@ -76,6 +82,11 @@ upsert POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
 upsert DB_AUTHENTICATOR_PASSWORD "$DB_AUTHENTICATOR_PASSWORD"
 upsert NEXT_PUBLIC_SUPABASE_ANON_KEY "$ANON_JWT"
 upsert SUPABASE_SERVICE_ROLE_KEY "$SERVICE_JWT"
+upsert MOID_AUTH_SECRET "$MOID_AUTH_SECRET"
+upsert MOID_AUTH_PASSWORD_GM "$MOID_AUTH_PASSWORD_GM"
+upsert MOID_AUTH_PASSWORD_OWNER "$MOID_AUTH_PASSWORD_OWNER"
+upsert MOID_AUTH_PASSWORD_OPERATOR "$MOID_AUTH_PASSWORD_OPERATOR"
+echo "[gen-secrets] sign-in passwords for gm / owner / operator are in $ENV_FILE (MOID_AUTH_PASSWORD_*)"
 
 echo "[gen-secrets] wrote JWT_SECRET, POSTGRES_PASSWORD, DB_AUTHENTICATOR_PASSWORD,"
 echo "              NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY → $ENV_FILE"

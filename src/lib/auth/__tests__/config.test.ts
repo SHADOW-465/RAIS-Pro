@@ -5,8 +5,7 @@ import {
   isAuthEnabled,
   listLoginOptions,
   passwordForRole,
-  DEFAULT_AUTH_SECRET,
-  DEFAULT_PRESET_PASSWORDS,
+  authConfigError,
   missingProductionSecrets,
 } from "../config";
 
@@ -20,7 +19,7 @@ describe("preset role logins", () => {
   it("always requires sign-in with a session secret", () => {
     delete process.env.MOID_AUTH_SECRET;
     expect(isAuthEnabled()).toBe(true);
-    expect(getAuthSecret()).toBe(DEFAULT_AUTH_SECRET);
+    expect(getAuthSecret().length).toBeGreaterThanOrEqual(16);
   });
 
   it("uses MOID_AUTH_SECRET when long enough", () => {
@@ -29,16 +28,24 @@ describe("preset role logins", () => {
   });
 
   it("exposes exactly gm, owner, operator", () => {
+    process.env.MOID_AUTH_PASSWORD = "shared-plant";
     const users = getAuthUsers();
     expect(users.map((u) => u.role)).toEqual(["gm", "owner", "operator"]);
     expect(listLoginOptions()).toHaveLength(3);
   });
 
-  it("accepts role id + default password", () => {
+  it("has no built-in passwords: a role with none configured cannot sign in", () => {
     delete process.env.MOID_AUTH_PASSWORD_GM;
     delete process.env.MOID_AUTH_PASSWORD;
-    const u = findUser("gm", DEFAULT_PRESET_PASSWORDS.gm);
-    expect(u?.role).toBe("gm");
+    expect(passwordForRole("gm")).toBeNull();
+    for (const guess of ["moid-gm", "gm", "", "password"]) {
+      expect(findUser("gm", guess)).toBeNull();
+    }
+  });
+
+  it("accepts role id + the configured password", () => {
+    process.env.MOID_AUTH_PASSWORD_GM = "plant-gm-secret";
+    expect(findUser("gm", "plant-gm-secret")?.role).toBe("gm");
     expect(findUser("gm", "wrong")).toBeNull();
   });
 
@@ -55,11 +62,9 @@ describe("preset role logins", () => {
   });
 });
 
-// The built-in secret and passwords are in the repo, so a deployment still
-// using them is forgeable by anyone with a checkout — every capability check
-// in guard.ts rests on the session being unforgeable. Production must refuse
-// them rather than quietly carry on.
-describe("production refuses the repo's public credentials", () => {
+// Nothing in the repo is a credential. A production server without
+// MOID_AUTH_SECRET must refuse to sign or verify sessions at all.
+describe("production fails closed without MOID_AUTH_SECRET", () => {
   const prev = { ...process.env };
   afterEach(() => {
     process.env = { ...prev };
@@ -73,6 +78,7 @@ describe("production refuses the repo's public credentials", () => {
   const clearAuthEnv = () => {
     delete process.env.MOID_AUTH_SECRET;
     delete process.env.MOID_AUTH_PASSWORD;
+    delete process.env.NEXT_PHASE;
     for (const r of ["GM", "OWNER", "OPERATOR"]) delete process.env[`MOID_AUTH_PASSWORD_${r}`];
   };
 
@@ -92,27 +98,28 @@ describe("production refuses the repo's public credentials", () => {
     expect(missingProductionSecrets()).toEqual(["MOID_AUTH_SECRET"]);
   });
 
-  it("never throws in production, whatever is or isn't set — this is what runs on every request", () => {
-    // getAuthSecret/passwordForRole sit under src/proxy.ts, which runs on
-    // every single request. A version of this that threw here once took the
-    // entire app down on Vercel, which sets NODE_ENV=production automatically
-    // and never sees .env.local. A security check that can 500 every page is
-    // worse than the exposure it guards against.
+  it("throws in production when the secret is missing or too short", () => {
     clearAuthEnv();
     setNodeEnv("production");
-    expect(() => getAuthSecret()).not.toThrow();
-    expect(() => passwordForRole("gm")).not.toThrow();
-    // …and still falls back to the usable (if public) defaults, so a plant
-    // that wants the simple pilot passwords keeps working unattended.
-    expect(getAuthSecret()).toBe(DEFAULT_AUTH_SECRET);
-    expect(passwordForRole("gm")).toBe(DEFAULT_PRESET_PASSWORDS.gm);
+    expect(authConfigError()).toMatch(/MOID_AUTH_SECRET/);
+    expect(() => getAuthSecret()).toThrow(/MOID_AUTH_SECRET/);
+    process.env.MOID_AUTH_SECRET = "too-short";
+    expect(() => getAuthSecret()).toThrow();
   });
 
-  it("stays permissive in development so a fresh clone still runs", () => {
+  it("does not throw during `next build` (nothing is serving requests)", () => {
+    clearAuthEnv();
+    setNodeEnv("production");
+    process.env.NEXT_PHASE = "phase-production-build";
+    expect(authConfigError()).toBeNull();
+    expect(() => getAuthSecret()).not.toThrow();
+  });
+
+  it("uses a dev-only key outside production so a fresh clone still runs", () => {
     clearAuthEnv();
     setNodeEnv("development");
-    expect(getAuthSecret()).toBe(DEFAULT_AUTH_SECRET);
-    expect(passwordForRole("gm")).toBe(DEFAULT_PRESET_PASSWORDS.gm);
+    expect(authConfigError()).toBeNull();
+    expect(getAuthSecret()).toMatch(/dev-only/);
   });
 
   it("a fully configured production deployment uses the real values", () => {
@@ -120,9 +127,10 @@ describe("production refuses the repo's public credentials", () => {
     setNodeEnv("production");
     process.env.MOID_AUTH_SECRET = "a-real-secret-well-over-16-chars";
     process.env.MOID_AUTH_PASSWORD = "a-real-password";
+    expect(authConfigError()).toBeNull();
     expect(getAuthSecret()).toBe("a-real-secret-well-over-16-chars");
     expect(findUser("gm", "a-real-password")?.role).toBe("gm");
-    expect(findUser("gm", DEFAULT_PRESET_PASSWORDS.gm)).toBeNull();
+    expect(findUser("gm", "moid-gm")).toBeNull();
   });
 });
 
