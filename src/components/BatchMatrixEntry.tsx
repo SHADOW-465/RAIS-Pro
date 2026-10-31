@@ -352,6 +352,13 @@ export default function BatchMatrixEntry({
   }, [conversionFlow, batchId]);
 
   const activeConversionFlow = conversionFlow ?? lineageConversion;
+  // A converted lot holds only the pieces that moved. Before a quantity is
+  // chosen the original lot's available count is the ceiling.
+  const convertedCap = activeConversionFlow
+    ? (activeConversionFlow.changedQty ?? 0) > 0
+      ? activeConversionFlow.changedQty
+      : (activeConversionFlow.originalAccepted ?? null)
+    : null;
 
   // Keep form state synchronized when a batch conversion is being authored
   useEffect(() => {
@@ -860,6 +867,7 @@ export default function BatchMatrixEntry({
           capturesRejected: showReject,
           capturesDefects: !hideDefects,
           editing: !!editingId,
+          maxChecked: convertedCap,
         },
         ledgerSummary,
         today(),
@@ -883,6 +891,7 @@ export default function BatchMatrixEntry({
       showReject,
       hideDefects,
       editingId,
+      convertedCap,
       ledgerSummary,
       processSchema,
       occupied,
@@ -1430,8 +1439,64 @@ export default function BatchMatrixEntry({
     });
   }
 
+  /** Record the lineage edge for a converted lot. Returns why it failed, or null. */
+  async function recordConversion(rec: ShiftBatchRecord): Promise<string | null> {
+    if (!activeConversionFlow?.fromBatch || !activeConversionFlow?.toSize) return null;
+    try {
+      const posted = await fetch("/api/batch-conversions", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromBatch: activeConversionFlow.fromBatch,
+          toSize: activeConversionFlow.toSize,
+          toBatch: rec.batchId,
+          changedQty: activeConversionFlow.changedQty ?? rec.checked,
+          stageId: activeConversionFlow.stageId || rec.stageId,
+          convertedOn: rec.date,
+          reason: activeConversionFlow.reason || "Customer / process",
+        }),
+      });
+      const body = (await posted.json().catch(() => null)) as
+        | { conversion?: BatchConversion; error?: string }
+        | null;
+      if (!posted.ok) {
+        return body?.error || `The conversion was not recorded (server said ${posted.status}).`;
+      }
+      if (body?.conversion) noteConversion(body.conversion);
+      await refreshConversions().catch(() => {});
+      return null;
+    } catch (e) {
+      return `The conversion was not recorded: ${e instanceof Error ? e.message : "could not reach the server"}.`;
+    }
+  }
+
   async function finalizeSave(rec: ShiftBatchRecord) {
+    // A conversion being authored here is validated against the original lot
+    // BEFORE anything reaches the ledger, so a refused conversion leaves no
+    // orphan entry behind. A lot opened from an existing conversion keeps the
+    // old order: its edge already exists.
+    const authoring = Boolean(conversionFlow?.fromBatch && conversionFlow?.toSize);
     setSaving(true);
+    if (authoring) {
+      const refused = await recordConversion(rec);
+      if (refused) {
+        setReceipt({
+          batchId: rec.batchId,
+          stageName: rec.processName,
+          size: rec.size,
+          checked: rec.checked,
+          accept: rec.accept,
+          reject: rec.reject,
+          savedAt: rec.savedAt,
+          synced: false,
+          error: `Nothing was saved. ${refused}`,
+        });
+        setSaving(false);
+        return;
+      }
+    }
     try {
       const revising = saved.some((b) => b.id === rec.id);
       const issues = await commitRecord(rec);
@@ -1447,40 +1512,10 @@ export default function BatchMatrixEntry({
       localStorage.setItem("rais_hdr_shift", rec.shift);
       if (rec.productType) localStorage.setItem(PRODUCT_TYPE_STORAGE_KEY, String(rec.productType));
 
-      // The ledger entry is already saved; the lineage edge is a separate
-      // write that can still be refused. Say so on the receipt instead of
-      // letting the operator believe the conversion was recorded.
-      let conversionError: string | null = null;
-      if (activeConversionFlow?.fromBatch && activeConversionFlow?.toSize) {
-        try {
-          const posted = await fetch("/api/batch-conversions", {
-            method: "POST",
-            credentials: "same-origin",
-            cache: "no-store",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fromBatch: activeConversionFlow.fromBatch,
-              toSize: activeConversionFlow.toSize,
-              toBatch: rec.batchId,
-              changedQty: activeConversionFlow.changedQty ?? rec.checked,
-              stageId: activeConversionFlow.stageId || rec.stageId,
-              convertedOn: rec.date,
-              reason: activeConversionFlow.reason || "Customer / process",
-            }),
-          });
-          const body = (await posted.json().catch(() => null)) as
-            | { conversion?: BatchConversion; error?: string }
-            | null;
-          if (posted.ok) {
-            if (body?.conversion) noteConversion(body.conversion);
-            await refreshConversions().catch(() => {});
-          } else {
-            conversionError = body?.error || `The conversion was not recorded (server said ${posted.status}).`;
-          }
-        } catch (e) {
-          conversionError = `The conversion was not recorded: ${e instanceof Error ? e.message : "could not reach the server"}.`;
-        }
-      }
+      // Opened from an existing conversion: the ledger entry is saved, and the
+      // idempotent lineage write can still be refused. Say so on the receipt
+      // instead of letting the operator believe it was recorded.
+      const conversionError = authoring ? null : await recordConversion(rec);
 
       setReceipt({
         batchId: rec.batchId,

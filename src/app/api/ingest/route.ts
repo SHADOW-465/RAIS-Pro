@@ -12,6 +12,9 @@ import { massBalanceIssues } from "@/lib/ingest/mass-balance";
 import { getStores } from "@/lib/store";
 import { entryIdentity, identityKey, identityOfEvent } from "@/lib/entry/identity";
 import { formatIngestError } from "@/lib/entry/format-ingest-error";
+import { getLineageStore } from "@/lib/lineage/store";
+import { convertedLotCapError } from "@/lib/lineage/cap";
+import { LineageUnavailableError } from "@/lib/lineage/types";
 
 interface IngestBody {
   ingestionId: string;
@@ -47,6 +50,28 @@ export async function POST(req: NextRequest) {
         comment: comment && comment.trim() ? comment.trim() : null
       };
     });
+
+    // A converted lot holds only the pieces that moved to its size. Without
+    // the lineage table no conversion can exist, so there is nothing to cap;
+    // any other lineage failure refuses the save rather than skip the check.
+    let conversions: Awaited<ReturnType<ReturnType<typeof getLineageStore>["list"]>> = [];
+    try {
+      conversions = await getLineageStore().list();
+    } catch (err) {
+      if (err instanceof LineageUnavailableError) {
+        console.warn("[ingest] batch_conversions unavailable; converted-lot quantity cap not enforced.");
+      } else {
+        console.error("[ingest] could not read conversions for the converted-lot cap", err);
+        return NextResponse.json(
+          { error: "Could not verify converted-lot quantities, so nothing was saved. Try again." },
+          { status: 503 },
+        );
+      }
+    }
+    const capError = convertedLotCapError(recordsWithComments, conversions);
+    if (capError) {
+      return NextResponse.json({ error: capError, code: "converted-lot-over-cap" }, { status: 400 });
+    }
 
     // Two different questions, two different candidate sets.
     //

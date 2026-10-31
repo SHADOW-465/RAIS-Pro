@@ -27,7 +27,8 @@ import {
   sizeOfLot,
   conversionFlowLabel,
   historyNameForLot,
-  eligibleTransferQty,
+  findLotGroup,
+  stationQtyFromGroup,
   transferQtyError,
   conversionDateError,
   localToday,
@@ -41,7 +42,6 @@ import {
   stationsIn,
   type ResolvedEntrySchema,
 } from "@/lib/entry/entry-schema";
-import { sameStage } from "@/lib/entry/process-sequence";
 import { STAGE_LABELS, resolveStageId } from "@/core/ontology/plant-catalog";
 
 type EntryMode = "matrix" | "history";
@@ -78,7 +78,7 @@ function reuseLot(batchId: string, date: string, size: string | null): EntryHydr
 
 export default function BatchConversionPage() {
   const { canWrite } = usePersona();
-  const { events } = useEvents();
+  const { events, isLoading: eventsLoading, error: eventsError } = useEvents();
   const { conversions, error: loadError, refreshConversions, noteConversion } = useLineage();
   const { t } = useTweaks();
   const [fromBatch, setFromBatch] = useState("");
@@ -103,19 +103,6 @@ export default function BatchConversionPage() {
   const hydrateKey = useRef<string | null>(null);
   const sourceHydrateKey = useRef<string | null>(null);
 
-  const knownLots = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of (events ?? []) as AuditEventLike[]) {
-      const b = batchOf(e);
-      if (b && isValidBatchId(b)) set.add(b);
-    }
-    for (const c of conversions) {
-      set.add(c.fromBatch);
-      set.add(c.toBatch);
-    }
-    return [...set].sort();
-  }, [events, conversions]);
-
   const entryRows = useMemo(
     () => buildEntryRows((events ?? []) as AuditEventLike[]),
     [events],
@@ -126,17 +113,26 @@ export default function BatchConversionPage() {
     [entryRows],
   );
 
-  const fromBatchGroup = useMemo(() => {
-    if (!fromBatch) return null;
-    const target = formatBatchIdInput(fromBatch).trim().toUpperCase();
-    return (
-      batchGroups.find(
-        (g) =>
-          g.batch.trim().toUpperCase() === target ||
-          canonicalBatchId(g.batch) === canonicalBatchId(target),
-      ) ?? null
-    );
-  }, [batchGroups, fromBatch]);
+  const fromBatchGroup = useMemo(
+    () => (fromBatch ? findLotGroup(batchGroups, formatBatchIdInput(fromBatch)) : null),
+    [batchGroups, fromBatch],
+  );
+
+  // Lots that exist in the ledger and have not been converted yet: the only
+  // valid "Original batch" values, and what the picker offers.
+  const convertibleLots = useMemo(() => {
+    const converted = new Set(conversions.map((c) => c.fromBatch));
+    return batchGroups
+      .map((g) => g.batch)
+      .filter((b) => isValidBatchId(b) && !converted.has(canonicalBatchId(b) ?? b))
+      .sort();
+  }, [batchGroups, conversions]);
+  // Do not call a lot unknown while the ledger is still loading or failed to load.
+  const ledgerReady = events != null && !eventsLoading && !eventsError;
+  const lotError =
+    fromBatch && ledgerReady && !fromBatchGroup && isValidBatchId(formatBatchIdInput(fromBatch))
+      ? `Lot ${formatBatchIdInput(fromBatch)} has no entries in the ledger. Pick an existing lot from the list.`
+      : null;
 
   const fromSize = useMemo(() => {
     const raw = fromBatchGroup?.stages[0]?.rows[0]?.size;
@@ -162,17 +158,18 @@ export default function BatchConversionPage() {
     return options;
   }, [schema]);
 
-  const stageBucket = useMemo(() => {
-    if (!fromBatchGroup || !changeStageId) return null;
-    return fromBatchGroup.stages.find((s) => sameStage(s.stageId, changeStageId)) ?? null;
-  }, [fromBatchGroup, changeStageId]);
+  // One figure per station, shared by the banner, the original-lot panel and
+  // the server-side cap (lib/lineage/eligible.ts).
+  const stationFigures = useMemo(
+    () => (fromBatchGroup && changeStageId ? stationQtyFromGroup(fromBatchGroup, changeStageId) : null),
+    [fromBatchGroup, changeStageId],
+  );
 
-  const stageAvailable =
-    stageBucket
-      ? eligibleTransferQty(stageBucket)
-      : fromBatchGroup && changeStageId
-        ? 0
-        : null;
+  const stageAvailable = stationFigures
+    ? stationFigures.available
+    : fromBatchGroup && changeStageId
+      ? 0
+      : null;
 
   const stageLabel =
     stageOptions.find((o) => o.value === changeStageId)?.label ||
@@ -188,22 +185,15 @@ export default function BatchConversionPage() {
     ? previewId
     : null;
   const conversionReady = Boolean(
-    convertedName && fromSize && toSize && fromSize !== toSize && changeStageId && changedQty > 0 && !qtyError && !dateError,
+    convertedName && fromSize && toSize && fromSize !== toSize && changeStageId && changedQty > 0 && !qtyError && !dateError && fromBatchGroup,
   );
   const flowLabel =
     fromBatch && convertedName ? conversionFlowLabel(formatBatchIdInput(fromBatch), convertedName) : null;
 
-  const convertBatchGroup = useMemo(() => {
-    if (!convertedName) return null;
-    const target = formatBatchIdInput(convertedName).trim().toUpperCase();
-    return (
-      batchGroups.find(
-        (g) =>
-          g.batch.trim().toUpperCase() === target ||
-          canonicalBatchId(g.batch) === canonicalBatchId(target),
-      ) ?? null
-    );
-  }, [batchGroups, convertedName]);
+  const convertBatchGroup = useMemo(
+    () => (convertedName ? findLotGroup(batchGroups, convertedName) : null),
+    [batchGroups, convertedName],
+  );
 
   const conversionFlow: ConversionFlowInfo | null = useMemo(() => {
     if (!fromBatch) return null;
@@ -354,7 +344,7 @@ export default function BatchConversionPage() {
       size: toSize.endsWith("Fr") ? toSize : `${toSize}Fr`,
       mode: convertBatchGroup ? "edit" : "reuse-lot",
     });
-    if (recorded && convertBatchGroup) {
+    if (recorded && convertBatchGroup && recorded.checked > 0) {
       setHydrate(recorded);
       setEntryReady(true);
       setFocusBatch(convertedName);
@@ -487,11 +477,7 @@ export default function BatchConversionPage() {
       setChangeStageId(c.stageId || "");
       setChangedQtyInput(c.changedQty > 0 ? String(c.changedQty) : "");
       setFocusBatch(view === "converted" ? c.toBatch : c.fromBatch);
-      const targetGroup = batchGroups.find(
-        (g) =>
-          g.batch.trim().toUpperCase() === c.fromBatch.trim().toUpperCase() ||
-          canonicalBatchId(g.batch) === canonicalBatchId(c.fromBatch),
-      );
+      const targetGroup = findLotGroup(batchGroups, c.fromBatch);
       openEntryFor({
         batchId: c.toBatch,
         date: c.convertedOn,
@@ -604,7 +590,7 @@ export default function BatchConversionPage() {
               required
             />
             <datalist id="known-lots">
-              {knownLots.map((b) => (
+              {convertibleLots.map((b) => (
                 <option key={b} value={b} />
               ))}
             </datalist>
@@ -796,24 +782,32 @@ export default function BatchConversionPage() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 16, fontFamily: "var(--font-mono)", fontSize: 13 }}>
-              <div>
-                <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 700, marginRight: 5 }}>Checked</span>
-                <span style={{ fontWeight: 800, color: "var(--text)" }}>{fromBatchGroup.checkedQty.toLocaleString()}</span>
-              </div>
-              <div>
-                <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 700, marginRight: 5 }}>Accepted (Available to Convert)</span>
-                <span style={{ fontWeight: 800, color: "var(--accent)" }}>{fromBatchGroup.acceptedQty.toLocaleString()}</span>
-              </div>
-              {fromBatchGroup.rejectedQty > 0 && (
-                <div>
-                  <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 700, marginRight: 5 }}>Rejected</span>
-                  <span style={{ fontWeight: 700, color: "var(--danger, #e5484d)" }}>{fromBatchGroup.rejectedQty.toLocaleString()}</span>
-                </div>
+              {stationFigures ? (
+                <>
+                  <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 700 }}>
+                    At {stageLabel || "station"}
+                  </span>
+                  <Figure label="Checked" value={stationFigures.checked} />
+                  <Figure label="Accepted (Available to Convert)" value={stationFigures.available} color="var(--accent)" />
+                  {stationFigures.hold > 0 && <Figure label="Hold" value={stationFigures.hold} />}
+                  {stationFigures.rejected > 0 && (
+                    <Figure label="Rejected" value={stationFigures.rejected} color="var(--danger, #e5484d)" />
+                  )}
+                </>
+              ) : (
+                <span style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "inherit" }}>
+                  {changeStageId
+                    ? `${fromBatchGroup.batch} has no entries at ${stageLabel || "this station"}.`
+                    : "Pick the station where the size changes to see what is available."}
+                </span>
               )}
             </div>
           </div>
         )}
 
+        {lotError && (
+          <p role="alert" style={{ color: "var(--warning)", fontSize: 13, margin: "10px 0 0" }}>{lotError}</p>
+        )}
         {dateError && !formError && (
           <p style={{ color: "var(--warning)", fontSize: 13, margin: "10px 0 0" }}>{dateError}</p>
         )}
@@ -1049,6 +1043,17 @@ export default function BatchConversionPage() {
         )}
       </section>
     </AppShell>
+  );
+}
+
+function Figure({ label, value, color }: { label: string; value: number; color?: string }) {
+  return (
+    <div>
+      <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 700, marginRight: 5 }}>
+        {label}
+      </span>
+      <span style={{ fontWeight: 800, color: color ?? "var(--text)" }}>{value.toLocaleString()}</span>
+    </div>
   );
 }
 

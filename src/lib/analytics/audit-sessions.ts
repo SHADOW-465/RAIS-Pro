@@ -327,6 +327,8 @@ export interface AuditStageBucket {
   checkedQty: number;
   acceptedQty: number;
   rejectedQty: number;
+  /** Held / reworked pieces at this station, summed over its rows. */
+  holdQty: number;
   rowCount: number;
 }
 
@@ -727,6 +729,7 @@ export function groupByBatchThenStage(rows: AuditEntryRow[]): AuditBatchGroup[] 
         checkedQty: sc,
         acceptedQty: passedForward({ checked: sc, accepted: sa, rejected: sr, hold: sh }),
         rejectedQty: sr,
+        holdQty: sh,
         rowCount: srows.length,
       });
     }

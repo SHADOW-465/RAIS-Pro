@@ -4,6 +4,7 @@
 
 import type { AuditBatchGroup, AuditEntryRow } from "@/lib/analytics/audit-sessions";
 import { toDisplaySize } from "@/lib/entry/batch-id";
+import { sameStage } from "@/lib/entry/process-sequence";
 
 export type EntryHydrateMode = "edit" | "reuse-lot";
 
@@ -75,7 +76,13 @@ function emptyHydrate(
 
 /**
  * Load a conversion panel from a ledger batch group.
- * Prefers the requested station; falls back to the first stage on the lot.
+ *
+ * A requested station is matched like everywhere else (`sameStage`) and never
+ * silently swapped for the lot's first station: the panel would then show a
+ * different station's figures than the ones the conversion is capped by.
+ * One row at the station is opened for editing. Several rows (split days,
+ * sizes) cannot be edited as one, so they open as the station's TOTALS, the
+ * same figures `stationQtyFromGroup` gives the banner and the server cap.
  * Lots with no ledger rows still get a reuse-lot hydrate so identity is locked.
  */
 export function hydrateFromBatchGroup(
@@ -91,11 +98,32 @@ export function hydrateFromBatchGroup(
   const stageId = (opts.stageId ?? "").trim();
   const bucket = group
     ? (stageId
-        ? (group.stages.find((s) => s.stageId === stageId) ?? group.stages[0] ?? null)
+        ? (group.stages.find((s) => sameStage(s.stageId, stageId)) ?? null)
         : (group.stages[0] ?? null))
     : null;
-  const row = bucket?.rows[0];
-  if (row) return hydrateFromAuditRow(row, opts.mode ?? "edit");
+  if (bucket && bucket.rows.length === 1) return hydrateFromAuditRow(bucket.rows[0], opts.mode ?? "edit");
+  if (bucket && bucket.rows.length > 1) {
+    const first = bucket.rows[0];
+    const defects: Record<string, number> = {};
+    for (const r of bucket.rows) {
+      for (const [code, qty] of Object.entries(defectsFromAuditRow(r))) defects[code] = (defects[code] ?? 0) + qty;
+    }
+    return {
+      mode: "reuse-lot",
+      batchId: first.batch,
+      date: first.date,
+      stageId: first.stageId,
+      size: first.size ? toDisplaySize(first.size) ?? first.size : null,
+      productType: first.productType,
+      shift: null,
+      checked: bucket.checkedQty,
+      accepted: bucket.acceptedQty,
+      hold: bucket.holdQty,
+      rejected: bucket.rejectedQty,
+      defects,
+      editingId: "",
+    };
+  }
   const batchId = (group?.batch || opts.batchId || "").trim();
   if (!batchId) return null;
   return emptyHydrate(batchId, {

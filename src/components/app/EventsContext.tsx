@@ -18,6 +18,8 @@ interface EventsContextType {
   isLoading: boolean;
   /** True while a background revalidate is in flight (UI already has data). */
   isValidating: boolean;
+  /** Set when the last load failed; cleared by the next success. */
+  error: string | null;
   refreshEvents: () => Promise<void>;
 }
 
@@ -38,6 +40,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
   const [events, setEvents] = useState<Event[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isValidating, setIsValidating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const hasData = useRef(false);
 
   /** Session required before private APIs: auth on and no user yet. */
@@ -70,8 +73,10 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       const next = (data.events ?? []) as Event[];
       setEvents(next);
+      setError(null);
       hasData.current = true;
     } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load the ledger.");
       console.error("Failed to fetch events:", err);
       setEvents((prev) => (prev != null ? prev : []));
       throw err;
@@ -108,8 +113,8 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
   }, [refreshEvents, canFetch]);
 
   const value = useMemo(
-    () => ({ events, isLoading, isValidating, refreshEvents }),
-    [events, isLoading, isValidating, refreshEvents],
+    () => ({ events, isLoading, isValidating, error, refreshEvents }),
+    [events, isLoading, isValidating, error, refreshEvents],
   );
 
   return (

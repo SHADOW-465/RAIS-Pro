@@ -71,8 +71,8 @@ test("hydrateFromBatchGroup prefers the requested station and keeps recorded qua
     {
       batch: "26H17-14",
       stages: [
-        { stageId: "visual", rows: [visual], checkedQty: 500, acceptedQty: 470, rejectedQty: 20, rowCount: 1 },
-        { stageId: "balloon", rows: [balloon], checkedQty: 400, acceptedQty: 380, rejectedQty: 10, rowCount: 1 },
+        { stageId: "visual", rows: [visual], checkedQty: 500, acceptedQty: 470, rejectedQty: 20, holdQty: 10, rowCount: 1 },
+        { stageId: "balloon", rows: [balloon], checkedQty: 400, acceptedQty: 380, rejectedQty: 10, holdQty: 10, rowCount: 1 },
       ],
       checkedQty: 500,
       acceptedQty: 380,
@@ -96,4 +96,34 @@ test("hydrateFromBatchGroup without ledger rows still locks the lot identity", (
   expect(h?.mode).toBe("reuse-lot");
   expect(h?.batchId).toBe("26I17-30");
   expect(h?.checked).toBe(0);
+});
+
+test("a station the lot never reached is not swapped for its first station", () => {
+  const visual = row({ stageId: "visual" });
+  const h = hydrateFromBatchGroup(
+    {
+      batch: "26H17-14",
+      stages: [{ stageId: "visual", rows: [visual], checkedQty: 500, acceptedQty: 470, rejectedQty: 20, holdQty: 10, rowCount: 1 }],
+      checkedQty: 500, acceptedQty: 470, rejectedQty: 20, rowCount: 1, eventCount: 1,
+      dateFrom: "2026-08-17", dateTo: "2026-08-17", sources: ["manual"],
+    },
+    { stageId: "balloon" },
+  );
+  expect(h?.checked).toBe(0);
+  expect(h?.mode).toBe("reuse-lot");
+});
+
+test("several rows at the station open as the station totals, not the newest row", () => {
+  const a = row({ id: "a", date: "2026-08-18", checked: 1000, accepted: 800, rejected: 200, rework: 0, defects: [{ code: "AIR", qty: 5 }] });
+  const b = row({ id: "b", date: "2026-08-17", checked: 700, accepted: 461, rejected: 239, rework: 0, defects: [{ code: "AIR", qty: 7 }] });
+  const h = hydrateFromBatchGroup(
+    {
+      batch: "26H17-14",
+      stages: [{ stageId: "visual", rows: [a, b], checkedQty: 1700, acceptedQty: 1261, rejectedQty: 439, holdQty: 0, rowCount: 2 }],
+      checkedQty: 1700, acceptedQty: 1261, rejectedQty: 439, rowCount: 2, eventCount: 2,
+      dateFrom: "2026-08-17", dateTo: "2026-08-18", sources: ["manual"],
+    },
+    { stageId: "visual" },
+  );
+  expect(h).toMatchObject({ mode: "reuse-lot", checked: 1700, accepted: 1261, hold: 0, rejected: 439, defects: { AIR: 12 } });
 });

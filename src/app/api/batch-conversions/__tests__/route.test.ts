@@ -70,6 +70,14 @@ test("rejects more than the ledger says is eligible (the body cannot raise the l
   expect(json.error).toMatch(/Only 700/);
 });
 
+test("rejects an original lot that has no ledger entries", async () => {
+  const res = await post({ ...body, fromBatch: "26I21-16", toSize: "18Fr" });
+  expect(res.status).toBe(400);
+  const json = await res.json();
+  expect(json.code).toBe("unknown-lot");
+  expect(json.error).toMatch(/no entries in the ledger/);
+});
+
 test("rejects a station the lot never reached", async () => {
   const res = await post({ ...body, stageId: "balloon" });
   expect(res.status).toBe(400);

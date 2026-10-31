@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireSession } from "@/lib/auth/guard";
 import { ConversionError, LineageUnavailableError } from "@/lib/lineage/types";
 import { getLineageStore } from "@/lib/lineage/store";
-import { eligibleQtyFromEvents } from "@/lib/lineage/eligible";
+import { eligibleQtyFromEvents, lotExistsInEvents } from "@/lib/lineage/eligible";
 import { canonLot } from "@/lib/lineage/ids";
 import { resolveStageId } from "@/core/ontology/plant-catalog";
 import { getStores } from "@/lib/store";
@@ -75,10 +75,9 @@ export async function POST(req: NextRequest) {
     // ponytail: reads the whole effective ledger per save; saves are rare.
     const lot = canonLot(body.fromBatch);
     const stage = resolveStageId(body.stageId);
-    const eligibleQty =
-      lot && stage
-        ? eligibleQtyFromEvents((await getStores().events.effective()) as unknown as AuditEventLike[], lot, stage)
-        : undefined;
+    const events = lot ? ((await getStores().events.effective()) as unknown as AuditEventLike[]) : null;
+    const eligibleQty = events && lot && stage ? eligibleQtyFromEvents(events, lot, stage) : undefined;
+    const lotKnown = events && lot ? lotExistsInEvents(events, lot) : undefined;
     const conversion = await getLineageStore().create({
       fromBatch: body.fromBatch,
       toSize: body.toSize,
@@ -89,6 +88,7 @@ export async function POST(req: NextRequest) {
       reason: body.reason ?? "",
       createdBy: auth.actor.username,
       eligibleQty,
+      lotKnown,
     });
     return NextResponse.json({ conversion }, { status: 201, headers: LIVE_CACHE });
   } catch (err: unknown) {

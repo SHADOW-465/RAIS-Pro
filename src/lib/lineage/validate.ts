@@ -75,6 +75,13 @@ export function planConversion(
     throw new ConversionError("invalid-from", "Original batch ID is not a valid lot code.");
   }
 
+  if (input.lotKnown === false) {
+    throw new ConversionError(
+      "unknown-lot",
+      `Lot ${fromBatch} has no entries in the ledger, so there is nothing to convert. Pick an existing lot.`,
+    );
+  }
+
   const toBatch = canonLot(input.toBatch || proposedConvertedBatchId(fromBatch, input.toSize) || "");
   if (!toBatch) {
     throw new ConversionError("invalid-to", "Converted batch ID could not be derived from the new size.");

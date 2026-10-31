@@ -41,10 +41,16 @@ export interface CreateConversionInput {
    * planConversion rejects a larger `changedQty`.
    */
   eligibleQty?: number;
+  /**
+   * Whether the ledger has any entry for the original lot. Set by the server
+   * from the ledger, never from the request body. `false` rejects the save.
+   */
+  lotKnown?: boolean;
 }
 
 export type ConversionErrorCode =
   | "invalid-from"
+  | "unknown-lot"
   | "invalid-to"
   | "same-size"
   | "stem-mismatch"

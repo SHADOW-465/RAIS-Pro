@@ -28,3 +28,10 @@ export {
   type FlowBand,
 } from "./quantity-flow";
 export { attachConversionHalves, type AuditBatchGroupWithConvert } from "./audit-halves";
+export {
+  findLotGroup,
+  stationQtyFromGroup,
+  lotExistsInEvents,
+  eligibleQtyFromEvents,
+  type StationFigures,
+} from "./eligible";
