@@ -115,12 +115,13 @@ Complaint: browsers stay on an old version until site data is cleared.
 7. **Auth matcher** (`proxy.ts`) no longer wraps `_next/`, favicon, manifest, `sw.js`, icons,
    robots/sitemap or static file extensions; `/api/version` is public.
 
-### Manual step (not code): enable Vercel Skew Protection
+### Stale tabs without Skew Protection
 
-**Vercel Skew Protection must be switched on in the Vercel dashboard** (Project → Settings →
-Advanced → Skew Protection). It keeps an already-open tab talking to the deployment it was loaded
-from, so the chunk reload above becomes a rare fallback instead of the main defence. It cannot be
-set from this repo.
+Vercel Skew Protection is not used (it is not on the free tier) and nothing in the code depends on it
+(no `__vdpl`, no deployment-id header). Stale tabs are covered by two things in the app: the one-time
+chunk-error reload (item 2) and the `/api/version` **New version – reload** banner (item 3). A tab that
+was open across a deploy either reloads itself once when a page file has gone, or shows the banner
+the next time it gains focus (or within 5 minutes).
 
 ### Open / for a decision
 
@@ -227,3 +228,33 @@ Gaps:
 - The trigger updates one shared row, so concurrent write statements queue briefly on its lock. Statements are short, and the bump is once per statement (a 5,000-row ingest batch bumps once), so this is not expected to matter at one-plant volume; it was not load-tested.
 - Not run against a database: the trigger, the publication step and the grants have not been executed anywhere. Jest covers the route (401, 200, 503, 500, no-store), the store's missing-table detection, and the poll state machine.
 - Two tabs reload independently; no cross-tab coordination.
+
+## Step H — database lockdown, without touching auth
+
+Auth/login is on hold (see the next section); the DB lockdown is the only security change in this step.
+
+**Server client.** `createServerClient()` (`src/lib/supabase.ts`) uses `SUPABASE_SERVICE_ROLE_KEY` when set, otherwise the anon key exactly as `main` does, with one server `console.warn` ("service role key missing - DB lockdown will block this deployment"). It never throws on a missing service key and never falls back to the in-memory store. It is `import "server-only"`: a client bundle that reaches it fails the build. That guard flagged three client-bundle imports, fixed as before (shared-state message constant moved to `kinds.ts`; `getLineageStore` no longer re-exported from the lineage barrel, import it from `@/lib/lineage/store`; `decide()` takes `rules` explicitly and `/api/decide` loads them). `server-only` is mapped to an empty stub under jest (`jest.server-only-stub.js`). The unused browser helper `getSupabaseClient` was removed (nothing in `src` called it).
+
+**Every DB path uses it.** Every module that reaches Supabase (API routes, the event/registry stores, capa, shared-state, plant-docs, batch conversions and audits, totals RPCs via `server-totals.ts`, `ledger_meta`, roles/users, notifications, remedies, policy, catalog, mods, snapshots) call `createServerClient()`; the only other `createClient` users are the two maintenance scripts under `scripts/`, which read `SUPABASE_SERVICE_ROLE_KEY` themselves. A jest test (`src/lib/__tests__/no-client-supabase.test.ts`) walks the import graph from every `'use client'` file and fails if one reaches `src/lib/supabase.ts` or `@supabase/*`, or reads `NEXT_PUBLIC_SUPABASE*`.
+
+**`GET /api/health`** (session required, no-store) reports `dbKey: "service_role" | "anon" | "none"`, `store`, `lockdownSafe` and the build id, never the key. It is how the operator confirms the service key reached the deployment before running the lockdown.
+
+**Migrations.** The branch's unapplied migrations (capa_actions, plant_shared_state, ledger_meta, effective_events/totals) now use the same open pattern as `20260923_batch_conversions.sql` (`FOR ALL USING (true)`, grants to anon + authenticated + service_role), so the features work if the SQL is run before the key is set. `bump_ledger_meta()` is `SECURITY DEFINER`, so the trigger works for a write by either role. `20261102000000_rls_lockdown.sql` (restored from the reverted commit) is last: it walks the catalog, replaces every policy with one `TO service_role` policy, and revokes anon/authenticated on tables, views, sequences and functions. Bundles: `supabase/APPLY_ME_2026-10-31.sql` (features, safe any time) and `..._LOCKDOWN.sql` (only after the key is set), kept verbatim-in-sync by `src/lib/__tests__/apply-script.test.ts`; `supabase/ROLLBACK_LOCKDOWN_2026-10-31.sql` re-opens anon access. Operator steps: `docs/APPLY_ME_INSTRUCTIONS.md`.
+
+**Build id** now falls back `MOID_BUILD_ID` -> `VERCEL_GIT_COMMIT_SHA` -> `VERCEL_DEPLOYMENT_ID` -> `git rev-parse HEAD` -> a pinned timestamp.
+
+Gaps:
+- No SQL (migrations, bundles, rollback) was executed against any database; they were reviewed by reading only.
+- With the anon key and the lockdown applied the app is blocked by design; `/api/health` plus the order in the instructions is the only protection against running them out of order.
+- `20261031_plant_documents.sql` and the `plant-docs` / `plant-sync` / `lib/client/storage.ts` files are still untracked leftovers from an earlier step and were not committed. The ledger_meta trigger list already covers `plant_documents` if it is ever applied, and the lockdown catches any table, so re-run the lockdown after applying it.
+- `deploy/Dockerfile` and compose still pass `NEXT_PUBLIC_SUPABASE_ANON_KEY`; the server still falls back to it, so it must stay for now.
+- `next build` is the only check of the `server-only` guard; jest's graph test is a static approximation.
+
+## Security: login/auth on hold
+
+The earlier "Step G" auth hardening was reverted (`git revert` of 99f0279, cd52b26, e51e1a7, 24256d2, bf0484f; revert commits 812b842..b24ce3a) so logins behave exactly as on `main`. Redo later, as a separate step, with the operator ready to set the new variables:
+- Fail closed without `MOID_AUTH_SECRET` in production (`getAuthSecret()` throwing, `src/proxy.ts` 503, `src/instrumentation.ts` + `src/lib/env.ts` startup validation) and drop `DEFAULT_AUTH_SECRET`.
+- Remove the built-in preset passwords (`DEFAULT_PRESET_PASSWORDS`); require `MOID_AUTH_PASSWORD_<ROLE>`; `deploy/scripts/gen-secrets.sh` and `docker-compose.yml` to generate/require them.
+- Untrack `deploy/AUTH-CREDENTIALS.md` and `DATA/*.xlsx` (and rotate anything real; they stay in git history).
+- Make the server client *require* the service-role key (this step keeps the anon fallback instead).
+Nothing in this step changes sign-in, passwords, the auth secret, or those tracked files.
