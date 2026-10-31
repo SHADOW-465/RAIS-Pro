@@ -78,3 +78,16 @@ test("a role that was deleted or switched off reads as no session", async () => 
   __seedRoleForTests({ ...SUPERVISOR, active: false });
   expect((await call("supervisor.moulding")).status).toBe(401);
 });
+
+test("a GM is not an admin unless the login is listed in MOID_ADMIN_USERS", async () => {
+  const saved = process.env.MOID_ADMIN_USERS;
+  try {
+    delete process.env.MOID_ADMIN_USERS;
+    expect((await (await call("gm")).json()).admin).toBe(false);
+    process.env.MOID_ADMIN_USERS = "gm";
+    expect((await (await call("gm")).json()).admin).toBe(true);
+  } finally {
+    if (saved === undefined) delete process.env.MOID_ADMIN_USERS;
+    else process.env.MOID_ADMIN_USERS = saved;
+  }
+});

@@ -81,6 +81,7 @@ import {
   trustScore,
   auditSummary,
   qualityStatus,
+  funnelReconciliation,
   dashboardKpiDeltas,
   formatPercent,
   formatRatioPercent,
@@ -1261,8 +1262,8 @@ type FunnelRow = { stageId: string; label: string; checked: number; rejected: nu
 
 /** The sequential gate chain drawn as a funnel: each gate is a block showing its
  *  own checked/rejected, a survivor bar proportional to units entering the line,
- *  and a connector stating what it passed forward. Pure presentation over
- *  `byStage` rows — no new math, no summing across gates. */
+ *  and a connector stating what it passed forward and what has not reached the
+ *  next gate yet. Numbers come from `funnelReconciliation` over `byStage` rows. */
 function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
   stages: FunnelRow[];
   entryChecked: number;
@@ -1271,12 +1272,11 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
   onGateClick: (row: FunnelRow) => void;
 }) {
   const denom = Math.max(entryChecked, 1);
-  const last = stages[stages.length - 1];
-  const finalGood = last ? Math.max(last.checked - last.rejected, 0) : 0;
+  const { gates, finalGood, betweenGates } = funnelReconciliation(stages);
   return (
     <div style={{ display: "flex", alignItems: "stretch", gap: 0, overflowX: "auto", padding: "4px 0" }}>
       {stages.map((s, i) => {
-        const passed = Math.max(s.checked - s.rejected, 0);
+        const { passed, notYetAtNext, overAtNext } = gates[i];
         const over = s.rejRate > targetRej;
         return (
           <div key={s.stageId} style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 150 }}>
@@ -1322,6 +1322,12 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
             {i < stages.length - 1 && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 6px", flexShrink: 0 }}>
                 <span style={{ fontSize: 11, color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(passed)} →</span>
+                {(notYetAtNext ?? 0) > 0 && (
+                  <span style={{ fontSize: 10, color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(notYetAtNext ?? 0)} not yet at next</span>
+                )}
+                {overAtNext > 0 && (
+                  <span style={{ fontSize: 10, color: "var(--warning)", whiteSpace: "nowrap" }}>+{num(overAtNext)} over (V-014)</span>
+                )}
               </div>
             )}
           </div>
@@ -1331,6 +1337,9 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
         <span className="ui-label">Final good</span>
         <span className="num" style={{ fontSize: "var(--text-xl)", fontWeight: 600, color: "var(--text)" }}>{num(finalGood)}</span>
         <span className="small" style={{ color: "var(--text-2)" }}>FPY {pct(fpy)}</span>
+        {betweenGates !== 0 && (
+          <span className="small" style={{ color: "var(--text-3)" }}>{num(betweenGates)} between gates</span>
+        )}
       </div>
     </div>
   );

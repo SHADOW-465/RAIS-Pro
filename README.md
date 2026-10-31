@@ -165,6 +165,12 @@ hardcoded (`moid-gm`, `moid-owner`, `moid-operator`). Optional env overrides:
 `MOID_AUTH_PASSWORD_*` for passwords, `MOID_AUTH_SECRET` only if you want a
 custom session HMAC (a built-in default is used otherwise).
 
+**Admin tools:** Settings → Administrative (purge transaction data, reset the
+schema registry) and the routes behind it (`/api/clear-data`,
+`/api/clear-schema`) are not part of any role, the GM included. They open only
+for logins named in `MOID_ADMIN_USERS` (comma-separated usernames) that also
+hold the route's capability. Unset means nobody.
+
 **Move Data Entry between databases:** On Data Entry, topbar **Export entries**
 opens a panel to pick scope/dates/format → download JSON → Staging →
 *Import transfer package* (idempotent append).

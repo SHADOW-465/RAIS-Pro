@@ -4,12 +4,12 @@
 // Settings / Data Schema "Advanced · reset" posts here (typed confirmation).
 
 import { NextResponse, type NextRequest } from "next/server";
-import { requireCapability } from "@/lib/auth/guard";
+import { requireAdmin } from "@/lib/auth/guard";
 import { getCatalogStore } from "@/core/ontology/store/catalog-store";
 import { getKnowledgeStore } from "@/core/ontology/store/knowledge-store";
 
 export async function POST(req: NextRequest) {
-  const auth = await requireCapability(req, "configure");
+  const auth = await requireAdmin(req, "configure");
   if (!auth.ok) return auth.response;
 
   try {

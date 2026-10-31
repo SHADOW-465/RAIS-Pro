@@ -16,6 +16,7 @@ import {
   verifySessionToken,
 } from "@/lib/auth/session";
 import { resolveRole } from "@/lib/auth/roles";
+import { isPlantAdmin } from "@/lib/auth/guard";
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -34,6 +35,9 @@ export async function GET(req: NextRequest) {
   const res = NextResponse.json({
     authEnabled: true,
     user: { username: session.u, role: role.roleId },
+    // Settings → Administrative is shown only when this is true. The routes
+    // behind it check the same thing (requireAdmin), so hiding is not the guard.
+    admin: isPlantAdmin(session.u),
     role: {
       roleId: role.roleId,
       label: role.label,
