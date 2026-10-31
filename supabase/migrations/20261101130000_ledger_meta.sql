@@ -5,10 +5,11 @@
 -- This file is not applied by the app. Until it is, /api/ledger-meta answers
 -- 503 and each browser reloads its screens on a 60-second timer instead.
 --
--- Service role only. The browser never reads this table directly: the app
--- signs people in with its own session cookie, not a Supabase login, so a
--- direct (Realtime) subscription would need the anon role to read the plant's
--- tables. The API reads the row with the service key instead.
+-- The browser never reads this table directly: the app signs people in with
+-- its own session cookie, not a Supabase login, so the API reads the row on the
+-- server instead. Grants follow the app's existing pattern (anon + authenticated
+-- + service_role) so this works before SUPABASE_SERVICE_ROLE_KEY is set; the RLS
+-- lockdown migration, run last, tightens it to service_role only.
 
 CREATE TABLE IF NOT EXISTS ledger_meta (
   id         smallint    PRIMARY KEY DEFAULT 1 CHECK (id = 1),
@@ -22,13 +23,13 @@ ALTER TABLE ledger_meta ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS ledger_meta_service_role_all ON ledger_meta;
 CREATE POLICY ledger_meta_service_role_all ON ledger_meta
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
+  FOR ALL USING (true) WITH CHECK (true);
 
-REVOKE ALL ON ledger_meta FROM anon, authenticated;
-GRANT ALL ON ledger_meta TO service_role;
+GRANT ALL ON TABLE public.ledger_meta TO anon, authenticated, service_role;
 
 -- One bump per write statement, not per row, so a 5,000-row ingest batch
--- moves the number once.
+-- moves the number once. SECURITY DEFINER: the function runs as its owner, so
+-- the bump succeeds whichever role (anon or service_role) did the write.
 CREATE OR REPLACE FUNCTION bump_ledger_meta() RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER

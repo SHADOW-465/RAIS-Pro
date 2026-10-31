@@ -4,7 +4,10 @@
 -- This file is not applied by the app. Until it is, /api/shared-state
 -- answers 503 and each browser keeps its local copy.
 --
--- Service role only. The API is the only reader and writer.
+-- Grants follow the app's existing pattern (anon + authenticated + service_role)
+-- so this works before SUPABASE_SERVICE_ROLE_KEY is set; the RLS lockdown
+-- migration, run last, tightens it to service_role only. The API is the only
+-- reader and writer either way.
 
 CREATE TABLE IF NOT EXISTS plant_shared_state (
   company_id  text        NOT NULL DEFAULT 'default',
@@ -19,7 +22,6 @@ ALTER TABLE plant_shared_state ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS plant_shared_state_service_role_all ON plant_shared_state;
 CREATE POLICY plant_shared_state_service_role_all ON plant_shared_state
-  FOR ALL TO service_role USING (true) WITH CHECK (true);
+  FOR ALL USING (true) WITH CHECK (true);
 
-REVOKE ALL ON plant_shared_state FROM anon, authenticated;
-GRANT ALL ON plant_shared_state TO service_role;
+GRANT ALL ON TABLE public.plant_shared_state TO anon, authenticated, service_role;

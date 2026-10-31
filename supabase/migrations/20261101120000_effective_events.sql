@@ -399,8 +399,11 @@ as $$
   order by coalesce(sum(k.quantity), 0) desc, k.bucket;
 $$;
 
-grant select on public.effective_events to service_role;
-grant execute on function public.moid_event_qty(jsonb) to service_role;
-grant execute on function public.totals_daily(date, date, text[], text) to service_role;
-grant execute on function public.totals_stage(date, date, text[], text[], text) to service_role;
-grant execute on function public.totals_defect(date, date, text[], jsonb) to service_role;
+-- Same pattern as the tables: callable on the anon key too, so totals work
+-- before SUPABASE_SERVICE_ROLE_KEY is set. The RLS lockdown migration (run
+-- last) revokes anon/authenticated here.
+grant select on public.effective_events to anon, authenticated, service_role;
+grant execute on function public.moid_event_qty(jsonb) to anon, authenticated, service_role;
+grant execute on function public.totals_daily(date, date, text[], text) to anon, authenticated, service_role;
+grant execute on function public.totals_stage(date, date, text[], text[], text) to anon, authenticated, service_role;
+grant execute on function public.totals_defect(date, date, text[], jsonb) to anon, authenticated, service_role;
