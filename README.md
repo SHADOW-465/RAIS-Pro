@@ -161,13 +161,10 @@ server — see **[docs/deploy/on-prem.md](docs/deploy/on-prem.md)** and the
 defaults to `default`.
 
 **Sign-in (always on):** every request hits `/login` until a session cookie is
-set. Roles match the topbar (GM / Owner / Operator). There are no built-in
-credentials: set `MOID_AUTH_PASSWORD_GM` / `_OWNER` / `_OPERATOR` (or one shared
-`MOID_AUTH_PASSWORD`) and `MOID_AUTH_SECRET` (≥16 chars, the session signing
-key). **Production refuses to start without `MOID_AUTH_SECRET`**,
-`SUPABASE_SERVICE_ROLE_KEY` and a Supabase URL (`src/instrumentation.ts`); a
-preset role with no password set cannot sign in. Outside production a dev-only
-signing key is used with a warning.
+set. Roles match the topbar (GM / Owner / Operator); default passwords are
+hardcoded (`moid-gm`, `moid-owner`, `moid-operator`). Optional env overrides:
+`MOID_AUTH_PASSWORD_*` for passwords, `MOID_AUTH_SECRET` only if you want a
+custom session HMAC (a built-in default is used otherwise).
 
 **Admin tools:** Settings → Administrative (purge transaction data, reset the
 schema registry) and the routes behind it (`/api/clear-data`,

@@ -27,7 +27,7 @@ async function getHandler(req: NextRequest) {
 
   const users = await getUserStore().list(companyId());
   // Which roles still answer to their shared password, so the UI can say so
-  // rather than leaving the GM to guess whether the shared `gm` password still works.
+  // rather than leaving the GM to guess whether `moid-gm` still works.
   const sharedLoginsActive: RoleId[] = [];
   for (const role of PERSONA_ORDER) {
     if (await presetLoginAllowed(role)) sharedLoginsActive.push(role);

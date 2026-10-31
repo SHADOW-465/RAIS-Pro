@@ -75,11 +75,9 @@ services:
       RAIS_AI_BACKEND: ${RAIS_AI_BACKEND:-minicpm}
       # Never force memory store on plant.
       MOID_STORE: ${MOID_STORE:-}
-      # App sign-in. The secret is mandatory: the app refuses to start without it.
-      MOID_AUTH_SECRET: ${MOID_AUTH_SECRET:?run ./scripts/gen-secrets.sh}
-      MOID_AUTH_PASSWORD_GM: ${MOID_AUTH_PASSWORD_GM:-}
-      MOID_AUTH_PASSWORD_OWNER: ${MOID_AUTH_PASSWORD_OWNER:-}
-      MOID_AUTH_PASSWORD_OPERATOR: ${MOID_AUTH_PASSWORD_OPERATOR:-}
+      # Optional app sign-in (same as Vercel). Empty = open access.
+      MOID_AUTH_SECRET: ${MOID_AUTH_SECRET:-}
+      MOID_AUTH_USERS: ${MOID_AUTH_USERS:-}
     networks:
       - moid_internal
       # If LLM runs on the host LAN, app may need host gateway access — use

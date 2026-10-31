@@ -22,7 +22,6 @@ import {
   verifyNavToken,
   verifySessionToken,
 } from "@/lib/auth/session";
-import { authConfigError } from "@/lib/auth/config";
 import { navHref, navKeyForPath, type NavKey } from "@/lib/nav-keys";
 
 function isPublicPath(pathname: string): boolean {
@@ -38,23 +37,6 @@ function isPublicPath(pathname: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // Fail closed: a production server with no MOID_AUTH_SECRET would sign (and
-  // trust) sessions with a key anyone can guess, so serve nothing at all and
-  // say why. /healthz stays up so the host's probe reports "running", not
-  // "crashed" — the 503 on everything else is the signal.
-  const misconfigured = authConfigError();
-  if (misconfigured && pathname !== "/healthz") {
-    // eslint-disable-next-line no-console
-    console.error(`[auth] ${misconfigured}`);
-    return pathname.startsWith("/api/")
-      ? NextResponse.json({ error: misconfigured }, { status: 503 })
-      : new NextResponse(`Server misconfigured. ${misconfigured}`, {
-          status: 503,
-          headers: { "content-type": "text/plain; charset=utf-8" },
-        });
-  }
-
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }

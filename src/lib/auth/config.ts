@@ -1,14 +1,22 @@
 // Preset plant logins = the same three roles as the topbar persona switcher
 // (GM, Owner, Operator). User picks a role on /login and enters that role's
-// password. Auth is always on.
+// password. Auth is always on — no env flag required.
 //
-// There are NO credentials in this repo. In production the app refuses to run
-// without MOID_AUTH_SECRET (the proxy answers 503 with the reason, see
-// authConfigError) and a preset role can only sign in once its password is set
-// in the environment. Outside production a dev-only signing key is used, with a
-// warning, so `npm run dev` and tests need no setup for the session secret.
+// The built-in secret and passwords below are PUBLIC — they are in the repo.
+// Anyone with a checkout can mint a signed session for any role against a
+// deployment still using them, which makes every capability check downstream
+// decorative. They exist so a fresh clone (and a plant that just wants the
+// simple pilot passwords) runs with zero setup; they are not real credentials.
+//
+// This file used to refuse to authenticate at all in production when they were
+// left in place. That was the wrong shape: `getAuthSecret`/`passwordForRole`
+// sit underneath src/proxy.ts, which runs on every request, so throwing here
+// took the entire app down — on Vercel specifically, which sets
+// NODE_ENV=production automatically and never sees .env.local (it's
+// gitignored; Vercel env vars are configured separately, in its dashboard).
+// A security check that can 500 every page is worse than the risk it guards
+// against. Using a default now only logs a warning — see the two functions.
 
-import { authSecretProblem } from "@/lib/env";
 import {
   PERSONAS,
   PERSONA_ORDER,
@@ -34,13 +42,25 @@ export function companyId(): string {
 export const SESSION_TTL_SEC = 60 * 60 * 12;
 
 /**
- * Signing key used ONLY outside production (dev, tests), with a warning.
- * Production never uses it: getAuthSecret throws instead.
+ * Built-in session signing key when MOID_AUTH_SECRET is unset.
+ * Must be ≥16 chars. Change/override for production plants that need
+ * independent session invalidation across environments.
  */
-const DEV_ONLY_AUTH_SECRET = "moid-dev-only-session-hmac-never-used-in-production";
+export const DEFAULT_AUTH_SECRET =
+  "moid-built-in-session-hmac-v1-not-for-high-security-plants";
 
 /** Fixed login ids — identical to PersonaId / topbar roles. */
 export const PRESET_LOGIN_IDS: readonly PersonaId[] = PERSONA_ORDER;
+
+/**
+ * Default pilot passwords (override in env for real plants).
+ * Documented in .env.example — change before any real deployment.
+ */
+export const DEFAULT_PRESET_PASSWORDS: Record<PersonaId, string> = {
+  gm: "moid-gm",
+  owner: "moid-owner",
+  operator: "moid-operator",
+};
 
 export type AuthUser = {
   /** Same as role id: gm | owner | operator */
@@ -59,45 +79,45 @@ export type LoginOption = {
   homeHref: string;
 };
 
-/** Set in production, this is why the app must not serve requests (else null).
- *  The proxy turns it into a 503 before anything else runs. */
-export function authConfigError(): string | null {
-  return authSecretProblem();
-}
-
-/** Names of preset-login env vars that are unset (advisory: named users created
- *  under Settings → Plant users do not need them). */
+/** Names of the env vars a production deployment SHOULD set — advisory only.
+ *  Nothing in this file calls this and refuses to run: `getAuthSecret` and
+ *  `passwordForRole` sit underneath `src/proxy.ts`, which runs on every single
+ *  request. A version of this that threw here once took the whole app down on
+ *  Vercel — Vercel sets NODE_ENV=production automatically, .env.local never
+ *  reaches it (it's gitignored, and Vercel env vars are configured separately
+ *  in its dashboard), and a plant that wants the simple pilot passwords is
+ *  allowed to have them. Surface this instead where a human will actually see
+ *  it — a settings banner, a startup log — never as a request-path throw. */
 export function missingProductionSecrets(): string[] {
   const missing: string[] = [];
   if ((process.env.MOID_AUTH_SECRET ?? "").trim().length < 16) {
     missing.push("MOID_AUTH_SECRET");
   }
+  const shared = (process.env.MOID_AUTH_PASSWORD ?? "").trim();
   for (const role of PRESET_LOGIN_IDS) {
-    if (!passwordForRole(role, false)) {
-      missing.push(`MOID_AUTH_PASSWORD_${role.toUpperCase()}`);
-    }
+    const own = (process.env[`MOID_AUTH_PASSWORD_${role.toUpperCase()}`] ?? "").trim();
+    if (!own && !shared) missing.push(`MOID_AUTH_PASSWORD_${role.toUpperCase()}`);
   }
   return missing;
 }
 
 let warnedSecret = false;
 
-/** Signing secret. Production without MOID_AUTH_SECRET throws (fail closed);
- *  elsewhere a dev-only key is used and a warning is logged once. */
+/** Signing secret: env override, else the built-in default. Logs once, never
+ *  throws — see the note on `missingProductionSecrets`. */
 export function getAuthSecret(): string {
   const s = (process.env.MOID_AUTH_SECRET ?? "").trim();
   if (s.length >= 16) return s;
-  const problem = authSecretProblem();
-  if (problem) throw new Error(`[auth] ${problem}`);
-  if (!warnedSecret) {
+  if (process.env.NODE_ENV === "production" && !warnedSecret) {
     warnedSecret = true;
     // eslint-disable-next-line no-console
     console.warn(
-      "[auth] MOID_AUTH_SECRET is not set — using a dev-only signing key. " +
-        "Fine for local development; production refuses to start without it.",
+      "[auth] MOID_AUTH_SECRET is not set — using the built-in default, which is " +
+        "public in this repo. Set it in your host's environment variables to make " +
+        "sessions unforgeable by anyone with a checkout.",
     );
   }
-  return DEV_ONLY_AUTH_SECRET;
+  return DEFAULT_AUTH_SECRET;
 }
 
 /** Length-independent, constant-time string compare. `!==` on a password
@@ -112,11 +132,11 @@ function secretEquals(a: string, b: string): boolean {
   return diff === 0;
 }
 
-const warnedPassword = new Set<PersonaId>();
+let warnedPassword = false;
 
-/** Password for a preset role from the environment, or null when none is set —
- *  that preset login is then disabled (there is no built-in default). */
-export function passwordForRole(role: PersonaId, warn = true): string | null {
+/** Password for a preset role: env override, else default pilot password.
+ *  Logs once, never throws — see the note on `missingProductionSecrets`. */
+export function passwordForRole(role: PersonaId): string {
   const envKeys: Record<PersonaId, string[]> = {
     gm: ["MOID_AUTH_PASSWORD_GM", "MOID_AUTH_PASSWORD"],
     owner: ["MOID_AUTH_PASSWORD_OWNER", "MOID_AUTH_PASSWORD"],
@@ -126,26 +146,25 @@ export function passwordForRole(role: PersonaId, warn = true): string | null {
     const v = (process.env[key] ?? "").trim();
     if (v) return v;
   }
-  if (warn && !warnedPassword.has(role)) {
-    warnedPassword.add(role);
+  if (process.env.NODE_ENV === "production" && !warnedPassword) {
+    warnedPassword = true;
     // eslint-disable-next-line no-console
     console.warn(
-      `[auth] No password configured for the "${role}" preset login ` +
-        `(MOID_AUTH_PASSWORD_${role.toUpperCase()}); it is disabled. Set it in the ` +
-        "environment, or sign in as a named user (Settings → Plant users).",
+      "[auth] Using the built-in pilot passwords (moid-gm / moid-owner / moid-operator) " +
+        "— these are public in this repo. Set MOID_AUTH_PASSWORD_* in your host's " +
+        "environment variables, or create named users under Settings → Plant users.",
     );
   }
-  return null;
+  return DEFAULT_PRESET_PASSWORDS[role];
 }
 
 /** Always the three topbar roles when auth is configured. */
 export function getAuthUsers(): AuthUser[] {
-  const users: AuthUser[] = [];
-  for (const role of PRESET_LOGIN_IDS) {
-    const password = passwordForRole(role);
-    if (password) users.push({ username: role, password, role });
-  }
-  return users;
+  return PRESET_LOGIN_IDS.map((role) => ({
+    username: role,
+    password: passwordForRole(role),
+    role,
+  }));
 }
 
 export function listLoginOptions(): LoginOption[] {
