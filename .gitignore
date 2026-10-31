@@ -110,7 +110,3 @@ phase2-*.jpeg
 # understand-anything / knowledge graph local cache
 .ua/
 
-
-# plant login credentials are never committed (kept locally only)
-deploy/AUTH-CREDENTIALS.md
-deploy/AUTH-CREDENTIALS.local.md
