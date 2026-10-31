@@ -30,6 +30,8 @@ function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith("/api/auth/")) return true;
   // Plant compose health probe (nginx) — not an app route, but allow if proxied.
   if (pathname === "/healthz") return true;
+  // Build id probe: the "new version" banner also has to work on /login.
+  if (pathname === "/api/version") return true;
   return false;
 }
 
@@ -99,8 +101,12 @@ async function deniedScreen(
 export const config = {
   matcher: [
     /*
-     * Match all paths except Next internals and common static assets.
+     * Match everything except Next internals and static files. A static asset
+     * must never be redirected to /login: a signed-out tab (or a browser
+     * fetching the manifest, service worker or icons before the session
+     * cookie is sent) would be handed an HTML page where it expected a file,
+     * and keep it.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/|favicon\.ico$|manifest\.(?:json|webmanifest)$|sw\.js$|workbox-.*\.js$|robots\.txt$|sitemap\.xml$|apple-touch-icon.*|icon.*|.*\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|map|woff2?|ttf|otf|txt|xml|webmanifest)$).*)",
   ],
 };

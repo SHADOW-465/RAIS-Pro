@@ -11,6 +11,7 @@
 // Order matters and comes from the catalog: the plant reads its own defect
 // columns COAG, SD, TT, … and Data Entry must render them in that sequence.
 
+import { withNoStore } from "@/lib/http/live-cache";
 import { NextResponse } from "next/server";
 import type { CompanyCatalog } from "@/core/ontology/store/catalog-store";
 import { loadCatalog } from "@/core/ontology/load-catalog";
@@ -94,7 +95,7 @@ export function templateFrom(catalog: CompanyCatalog, source = "Plant catalog"):
   };
 }
 
-export async function GET() {
+async function getHandler() {
   try {
     const company = process.env.MOID_COMPANY_ID || "default";
     // Seeds from the authored plant catalog on first use, so Data Entry works on
@@ -122,3 +123,5 @@ export async function GET() {
     );
   }
 }
+
+export const GET = withNoStore(getHandler);

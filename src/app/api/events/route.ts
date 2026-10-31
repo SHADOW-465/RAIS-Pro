@@ -24,11 +24,11 @@ import { requireSession } from "@/lib/auth/guard";
 import { resolveRole } from "@/lib/auth/roles";
 import { scopeEventsForRole } from "@/lib/access/scope";
 import type { EventFilter } from "@/lib/store/types";
-import { LIVE_CACHE } from "@/lib/http/live-cache";
+import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
 
@@ -67,3 +67,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: err?.message ?? "Failed to load events" }, { status: 500 });
   }
 }
+
+export const GET = withNoStore(getHandler);

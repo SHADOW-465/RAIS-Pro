@@ -10,11 +10,11 @@ import { getModStore } from "@/core/ontology/store/mod-store";
 import { getCatalogStore } from "@/core/ontology/store/catalog-store";
 import { validateModDocument } from "@/core/ontology/validate/mod-validator";
 import { learnFromMod } from "@/core/ontology/builder/learn";
-import { LIVE_CACHE } from "@/lib/http/live-cache";
+import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   try {
     const modId = req.nextUrl.searchParams.get("modId");
     if (modId) {
@@ -78,3 +78,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to publish MOD" }, { status: 500 });
   }
 }
+
+export const GET = withNoStore(getHandler);

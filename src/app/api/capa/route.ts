@@ -11,7 +11,7 @@ import { z } from "zod";
 import { requireCapability, requireSession } from "@/lib/auth/guard";
 import { companyId } from "@/lib/auth/config";
 import { CapaRecordSchema, getCapaStore } from "@/lib/capa/store";
-import { LIVE_CACHE } from "@/lib/http/live-cache";
+import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ const PutBody = z.union([
 const failed = (err: unknown, fallback: string) =>
   NextResponse.json({ error: err instanceof Error ? err.message : fallback }, { status: 500 });
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   try {
@@ -68,3 +68,5 @@ export async function DELETE(req: NextRequest) {
     return failed(err, "Failed to delete CAPA");
   }
 }
+
+export const GET = withNoStore(getHandler);

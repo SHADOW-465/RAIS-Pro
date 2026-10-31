@@ -9,6 +9,7 @@
 // Reads are also served inline by /api/schema so the client gets plant config
 // in one round trip; this route owns writes, history, and plant baseline.
 
+import { withNoStore } from "@/lib/http/live-cache";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireSession } from "@/lib/auth/guard";
 import { resolveRole } from "@/lib/auth/roles";
@@ -20,7 +21,7 @@ function companyId(): string {
   return process.env.MOID_COMPANY_ID || "default";
 }
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   // The unit cost lives in here, so this read is no longer anonymous-by-proxy:
   // a role without the Cost of Rejection screen should not merely be unable to
   // OPEN it, it should not receive the plant's money at all. Redacting only in
@@ -150,3 +151,5 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
+
+export const GET = withNoStore(getHandler);

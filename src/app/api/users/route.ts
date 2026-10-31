@@ -17,11 +17,11 @@ import {
 } from "@/lib/auth/users";
 import { PERSONA_ORDER, type RoleId } from "@/lib/persona";
 import { listRoles, resolveRole } from "@/lib/auth/roles";
-import { LIVE_CACHE } from "@/lib/http/live-cache";
+import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const auth = await requireCapability(req, "configure");
   if (!auth.ok) return auth.response;
 
@@ -138,3 +138,5 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ error: "action must be set-password, activate or deactivate." }, { status: 400 });
 }
+
+export const GET = withNoStore(getHandler);

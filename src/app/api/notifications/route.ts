@@ -11,14 +11,14 @@ import {
 import type { NotificationType } from "@/lib/notifications/types";
 import { issueGrant } from "@/lib/entry/edit-grants";
 import type { EditRequestPayload } from "@/lib/notifications/types";
-import { LIVE_CACHE } from "@/lib/http/live-cache";
+import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 
 export const dynamic = "force-dynamic";
 // Authority now comes from the session actor's capabilities (see guard.ts).
 
 export const runtime = "nodejs";
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const statusParam = req.nextUrl.searchParams.get("status") ?? "open";
   const type = req.nextUrl.searchParams.get("type") as NotificationType | null;
   const status =
@@ -133,3 +133,5 @@ export async function PATCH(req: NextRequest) {
     );
   }
 }
+
+export const GET = withNoStore(getHandler);

@@ -17,7 +17,7 @@
 // reverse edge would be an import cycle.
 
 import { NextResponse, type NextRequest } from "next/server";
-import { LIVE_CACHE } from "@/lib/http/live-cache";
+import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 import { requireCapability } from "@/lib/auth/guard";
 import {
   BUILTIN_ROLES,
@@ -66,7 +66,7 @@ async function wouldStrandAdministration(
   return !(after && after.active && after.configure);
 }
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const auth = await requireCapability(req, "configure");
   if (!auth.ok) return auth.response;
 
@@ -233,3 +233,5 @@ export async function DELETE(req: NextRequest) {
   }
   return NextResponse.json({ ok: true, roles: await listRoles() });
 }
+
+export const GET = withNoStore(getHandler);

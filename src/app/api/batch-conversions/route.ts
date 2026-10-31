@@ -10,12 +10,12 @@ import { canonLot } from "@/lib/lineage/ids";
 import { resolveStageId } from "@/core/ontology/plant-catalog";
 import { getStores } from "@/lib/store";
 import type { AuditEventLike } from "@/lib/analytics/audit-sessions";
-import { LIVE_CACHE } from "@/lib/http/live-cache";
+import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
 
@@ -95,3 +95,5 @@ export async function POST(req: NextRequest) {
     return failure(err, "Failed to record conversion");
   }
 }
+
+export const GET = withNoStore(getHandler);

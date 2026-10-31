@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireSession } from "@/lib/auth/guard";
 import { getRemedyStore, type RemedyBookRow, type RemedyRow, type TrendNoteRow } from "@/lib/remedies/store";
-import { LIVE_CACHE } from "@/lib/http/live-cache";
+import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,7 +43,7 @@ function asBook(body: unknown): RemedyBookRow {
   return { defects, trends };
 }
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const auth = await requireSession(req);
   if (!auth.ok) return auth.response;
   try {
@@ -109,3 +109,5 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
+
+export const GET = withNoStore(getHandler);
