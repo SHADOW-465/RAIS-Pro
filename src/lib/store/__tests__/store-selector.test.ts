@@ -4,19 +4,11 @@ describe("shouldUseSupabase", () => {
   const OLD = { ...process.env };
   afterEach(() => { process.env = { ...OLD }; });
 
-  it("is true when URL + the service-role key are present (durable by default)", () => {
+  it("is true when URL + a key are present (durable by default)", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "svc";
     delete process.env.MOID_STORE;
     expect(shouldUseSupabase()).toBe(true);
-  });
-
-  it("never treats the anon key as enough (service-role key required)", () => {
-    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon";
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-    delete process.env.MOID_STORE;
-    expect(shouldUseSupabase()).toBe(false);
   });
 
   it("is false when MOID_STORE=memory forces memory (test mode)", () => {

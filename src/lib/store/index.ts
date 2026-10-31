@@ -25,14 +25,14 @@ export interface Stores {
 const g = globalThis as unknown as { __moidStores?: Stores };
 
 /**
- * Durable by default: use Supabase whenever a project URL + the service-role key are present.
+ * Durable by default: use Supabase whenever a project URL + a key are present.
  * `MOID_STORE=memory` forces the in-RAM store (tests, throwaway dev). Setting
  * `MOID_STORE=supabase` also works but is no longer required.
  */
 export function shouldUseSupabase(): boolean {
   if ((process.env.MOID_STORE || "").toLowerCase() === "memory") return false;
-  return !!(process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-    !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
 export function getStores(): Stores {

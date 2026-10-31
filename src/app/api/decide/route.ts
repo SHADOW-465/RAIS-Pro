@@ -8,7 +8,6 @@ import { DecideRequest } from "@/shared/models/decision";
 import { getStores } from "@/lib/store";
 import { canonicalizeEvents } from "@/lib/analytics/canonical";
 import { decide } from "@/core/decision/engine";
-import { getDecisionRuleStore } from "@/core/decision/rule-store";
 import { explainRecommendations } from "@/core/decision/explain";
 import { getModStore } from "@/core/ontology/store/mod-store";
 import { getPolicyStore } from "@/core/policy/policy-store";
@@ -61,7 +60,6 @@ export async function POST(req: NextRequest) {
     const scoped = policy ? { ...scope, policy } : scope;
     const result = await decide(data, scoped, {
       registry,
-      rules: await getDecisionRuleStore().listActive(),
       targetRate: policy ? policy.targetRejectionPct / 100 : undefined,
       watchRate: policy ? policy.watchRejectionPct / 100 : undefined,
     });

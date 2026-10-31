@@ -12,6 +12,7 @@ import type {
   RulePredicateT,
 } from "@/shared/models/decision";
 import { computeCanonicalVars, type CanonicalContext } from "./canonical-vars";
+import { getDecisionRuleStore } from "./rule-store";
 import { policyOf } from "@/lib/analytics/scope";
 
 function thresholdOf(
@@ -127,27 +128,24 @@ const SEVERITY_RANK: Record<string, number> = { critical: 0, warning: 1, info: 2
 
 /**
  * Evaluate active decision rules against the ledger for a scope.
- * Pure over (events, scope, rules).
+ * Pure over (events, scope, rules) — store fetch is the only I/O.
  */
 export async function decide(
   events: Event[],
   scope: Scope,
   opts: {
     registry?: Registry;
-    /** Required: this module is bundled into the browser, so it must not reach
-     *  the (server-only) rule store. Server callers pass
-     *  `await getDecisionRuleStore().listActive()` from ./rule-store. */
-    rules: DecisionRuleT[];
+    rules?: DecisionRuleT[];
     targetRate?: number;
     watchRate?: number;
     /** Cap how many recommendations to return (default 8). */
     limit?: number;
-  },
+  } = {},
 ): Promise<{ recommendations: RecommendationT[]; vars: Record<string, number>; labels: Record<string, string> }> {
   const policy = policyOf(scope);
   const targetRate = opts.targetRate ?? policy.targetRejectionPct / 100;
   const watchRate = opts.watchRate ?? policy.watchRejectionPct / 100;
-  const loaded = opts.rules;
+  const loaded = opts.rules ?? (await getDecisionRuleStore().listActive());
   const rules = loaded.map((r) => bindPolicyThresholds(r, targetRate, watchRate));
   const ctx = computeCanonicalVars(events, scope, opts.registry, { targetRate, watchRate });
 

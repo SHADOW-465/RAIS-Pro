@@ -9,12 +9,10 @@ import {
   isEmptyRecord,
   type SharedKind,
   type StoredGrant,
-  SHARED_STATE_UNAVAILABLE_MESSAGE,
 } from "./kinds";
 
-// Defined in kinds.ts so the browser-side sync can import it without pulling
-// this server-only module (and the Supabase client) into the client bundle.
-export { SHARED_STATE_UNAVAILABLE_MESSAGE };
+export const SHARED_STATE_UNAVAILABLE_MESSAGE =
+  "Plant shared settings are not set up. Apply supabase/migrations/20261031140000_plant_shared_state.sql, then reload.";
 
 export class SharedStateUnavailableError extends Error {
   constructor(message = SHARED_STATE_UNAVAILABLE_MESSAGE) {

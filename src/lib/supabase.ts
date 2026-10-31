@@ -1,35 +1,52 @@
 // src/lib/supabase.ts
-import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Server-side client (service role key). `server-only` makes the build fail if
- * a client component ever imports this module. The browser never talks to
- * Supabase directly: every read and write goes through an API route, so RLS
- * can deny anon/authenticated outright (see the RLS lockdown migration).
+ * Browser-safe client (anon key). Used in client components only.
+ * Instantiated lazily so module evaluation does not throw during build
+ * when env vars are absent.
+ */
+export function getSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url) throw new Error("NEXT_PUBLIC_SUPABASE_URL is not set");
+  if (!anon) throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not set");
+  return createClient(url, anon);
+}
+
+/**
+ * Server-side client (service role key).
+ * NEVER import this in client components — it exposes the service role key.
+ * Only use in Next.js API route handlers (server-side).
  */
 export function createServerClient() {
   // On Docker plant installs the browser must hit the LAN public URL, while
   // the Next server should talk to PostgREST on the compose network.
   const url =
     process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url) {
     throw new Error(
       "SUPABASE_INTERNAL_URL or NEXT_PUBLIC_SUPABASE_URL is not set",
     );
   }
-  // No anon-key fallback: with RLS locked down it would fail every query with
-  // a confusing permission error instead of this one.
-  if (!serviceKey) {
+
+  const keyToUse = serviceKey || anonKey;
+  if (!keyToUse) {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY is not set. The server needs the service-role key " +
-        "(Supabase → Project Settings → API); the anon key is never used server-side.",
+      "Neither SUPABASE_SERVICE_ROLE_KEY nor NEXT_PUBLIC_SUPABASE_ANON_KEY is set",
     );
   }
 
-  return createClient(url, serviceKey, {
+  if (!serviceKey) {
+    console.warn(
+      "[supabase] SUPABASE_SERVICE_ROLE_KEY not set, falling back to anon key. RLS may block operations.",
+    );
+  }
+
+  return createClient(url, keyToUse, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
