@@ -106,6 +106,7 @@ src/
 | `POST /api/clear-schema` | Reset the schema brain (keeps the ledger) |
 | `POST /api/clear-data` | Clear the transactional ledger (keeps the schema) |
 | `GET /api/events` · `GET /api/day-records` | Ledger reads for screens and grids |
+| `GET /api/ledger-meta` | Change counter other tabs poll to reload their screens (503 until its migration is applied) |
 | `GET/DELETE /api/manual-entries` | Data Entry ledger rows |
 | `GET/POST /api/batch-conversions` | Batch size-conversion lineage (isolated from the ledger) |
 | `POST /api/chat` · `POST /api/capa-advisor` · `POST /api/decide` | AI-backed answers, CAPA drafting, rule recommendations |

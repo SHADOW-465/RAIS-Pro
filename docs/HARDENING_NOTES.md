@@ -210,3 +210,20 @@ The SQL does not reproduce `canonicalizeEvents` (exact event-id dedupe, size-tie
 Screens still compute locally until the totals request returns, then replace headline, stage, defect, rejection-trend, SPC-trend, and COPQ figures. Size, trust, audit, the dashboard weekly and cumulative charts, and report monthly series stay on the client. Report accepted stays the unavailable policy gap. Drill-down rows stay on the events the screen already loaded. The totals request uses that same occurred-on window, not a second 30-day default.
 
 Browser verification of the six screens was not run. Jest covers the overlay, the totals route, and the events pager.
+
+## Step F — live updates
+
+`supabase/migrations/20261101130000_ledger_meta.sql` is a file only and has not been applied. It creates `ledger_meta` (one row: `version`, `updated_at`), a statement-level trigger `bump_ledger_meta()` on every business table that exists (events, ingestions, registries, company_catalog, calculation_policy, cost_config, mods, workbook_snapshots, raw_files, batch_conversions, capa_actions, defect_remedies, plant_shared_state, plant_documents, plant_roles, plant_users; missing tables are skipped), and adds `ledger_meta` to `supabase_realtime` when that publication exists. Service role only; `anon` and `authenticated` have no grant.
+
+**Polling, not a Realtime socket.** Each signed-in tab (`LedgerWatcher`, mounted in `PlantProviders`) calls `GET /api/ledger-meta` (no-store, session required, service key stays on the server) every 60 s and when the tab returns to the foreground (15 s minimum gap, nothing while hidden). The first reading is a baseline. When the number moves, every business query key is invalidated (`"remote"` in `lib/client/invalidate.ts`, same set as clear-data); only queries on screen refetch.
+
+Why not Realtime: the app signs in with its own cookie, not a Supabase login, so a browser subscription would run as `anon`, and Realtime applies RLS per subscriber, so `anon` would need SELECT on `ledger_meta`. Step G locks anon out of the app tables. `ledger_meta` holds no plant data, so it could be granted alone, but that adds a browser-side Supabase client and the anon key on a path the lockdown is meant to close. Only `ledger_meta` is published, not `events`: publishing the ledger would stream every row through Realtime and make it readable to any socket.
+
+**Before the migration is applied** the endpoint answers 503 `{ version: null, code: "ledger-meta-unavailable" }` and logs one server `console.warn` naming the file. With no number to compare, the tab reloads its screens on every 60 s tick (not on the first reading after load). A 500, a network error or an offline tab changes nothing; 401/403 stops the poll.
+
+Gaps:
+- A write bumps the counter for the writer too, so their own tab does one extra refetch within a minute of saving. `invalidateAfterWrite` already refreshed it, so this is a duplicate read, not a stale one.
+- Latency is up to 60 s, plus the 15 s focus gap. Not instant.
+- The trigger updates one shared row, so concurrent write statements queue briefly on its lock. Statements are short, and the bump is once per statement (a 5,000-row ingest batch bumps once), so this is not expected to matter at one-plant volume; it was not load-tested.
+- Not run against a database: the trigger, the publication step and the grants have not been executed anywhere. Jest covers the route (401, 200, 503, 500, no-store), the store's missing-table detection, and the poll state machine.
+- Two tabs reload independently; no cross-tab coordination.
