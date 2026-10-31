@@ -36,6 +36,7 @@ import {
   personaDef,
   type PersonaId,
 } from "@/lib/persona";
+import { sidebarCollapsed as sidebarCollapsedPref, navSectionsCollapsed } from "@/lib/ui-prefs";
 import { useCommandPaletteHotkey } from "@/components/app/CommandPaletteHotkey";
 import { canReport } from "@/lib/report/blocks";
 import { subscribeNavBanner, emitNavBanner, type NavBanner } from "@/lib/analytics/nav-banner";
@@ -164,7 +165,6 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-const NAV_COLLAPSE_KEY = "moid_nav_collapsed";
 
 // Global stage scope. "cumulative" = all stages combined; the rest scope every
 // screen (KPIs, trends, view-source, SPC) to a single inspection process.
@@ -391,10 +391,7 @@ export default function AppShell({
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [dateMinMax, setDateMinMax] = useState<{ min: string; max: string } | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.localStorage.getItem("rais_sidebar_collapsed") === "true";
-    }
-    return false;
+    return sidebarCollapsedPref.get() ?? false;
   });
 
   // Floating Ask MOID — multi-turn task agent (enter / report / guide)
@@ -832,9 +829,7 @@ export default function AppShell({
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
       const next = !prev;
-      try {
-        window.localStorage.setItem("rais_sidebar_collapsed", String(next));
-      } catch {}
+      sidebarCollapsedPref.set(next);
       return next;
     });
   };
@@ -1042,12 +1037,8 @@ export default function AppShell({
 
   // Load persisted sidebar section collapse state once on mount.
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(NAV_COLLAPSE_KEY);
-      if (raw) setCollapsedSections(JSON.parse(raw));
-    } catch {
-      // ignore malformed/unavailable localStorage
-    }
+    const saved = navSectionsCollapsed.get();
+    if (saved) setCollapsedSections(saved);
   }, []);
 
   // Calculate active navigation element coordinates relative to <nav> container
@@ -1116,11 +1107,7 @@ export default function AppShell({
   function toggleSection(title: string) {
     setCollapsedSections((prev) => {
       const next = { ...prev, [title]: !prev[title] };
-      try {
-        window.localStorage.setItem(NAV_COLLAPSE_KEY, JSON.stringify(next));
-      } catch {
-        // ignore write failures (private browsing, quota, etc.)
-      }
+      navSectionsCollapsed.set(next);
       return next;
     });
   }

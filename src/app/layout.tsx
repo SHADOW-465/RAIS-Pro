@@ -10,6 +10,7 @@ import { RegistryProvider } from "@/components/app/RegistryContext";
 import { PersonaProvider } from "@/components/app/PersonaContext";
 import { ActiveMetricProvider } from "@/components/app/ActiveMetricContext";
 import { ConfirmProvider } from "@/components/ui/ConfirmContext";
+import { BuildWatcher } from "@/components/app/BuildWatcher";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 
 export const metadata: Metadata = {
@@ -36,12 +37,17 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                const theme = localStorage.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                // lib/storage.ts wraps the saved theme; plain "theme" is the pre-wrapper key.
+                let theme = null;
+                try { theme = JSON.parse(localStorage.getItem('moid:theme')).data; } catch (_) {}
+                if (theme !== 'light' && theme !== 'dark') theme = localStorage.theme;
+                if (theme !== 'light' && theme !== 'dark') theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                 document.documentElement.setAttribute('data-theme', theme);
               } catch (_) {}
             `,
           }}
         />
+        <BuildWatcher />
         <TweaksProvider>
           <PersonaProvider>
             <EventsProvider>

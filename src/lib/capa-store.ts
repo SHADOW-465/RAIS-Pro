@@ -6,6 +6,8 @@
 // Same pattern as remedy-store.ts.
 
 import { useEffect, useSyncExternalStore } from "react";
+import { z } from "zod";
+import { slot } from "@/lib/storage";
 import type { RecommendationT } from "@/shared/models/decision";
 
 export type CapaPriority = "High" | "Medium" | "Low";
@@ -34,26 +36,30 @@ export interface CapaRecord {
   createdAt: string;
 }
 
-const KEY = "moid_capa_actions";
 const EVT = "moid_capa_changed";
 
+// The fields every reader needs are checked; the rest passes through.
+const localCapas = slot({
+  name: "capa-actions",
+  schema: z.array(
+    z.looseObject({
+      id: z.string().min(1),
+      title: z.string(),
+      priority: z.enum(["High", "Medium", "Low"]),
+      status: z.enum(["Open", "In Progress", "Completed"]),
+      createdAt: z.string(),
+    }),
+  ) as unknown as z.ZodType<CapaRecord[]>,
+  legacyKeys: ["moid_capa_actions"],
+});
+
 function read(): CapaRecord[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as CapaRecord[]) : [];
-  } catch {
-    return [];
-  }
+  return localCapas.get() ?? [];
 }
 
 function write(next: CapaRecord[]): void {
   if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    /* ignore quota / private mode */
-  }
+  localCapas.set(next); // quota / private mode: the server copy is the record
   window.dispatchEvent(new Event(EVT));
 }
 

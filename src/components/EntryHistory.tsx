@@ -14,6 +14,7 @@
 // Erase deliberately lives on one screen. An operator saving a batch here must
 // not be able to un-save it; that is the Audit trail's job and the GM's call.
 
+import { loadShiftBatches } from "@/lib/entry/shift-batches";
 import React, { useEffect, useMemo, useState } from "react";
 import type { Grain } from "@/lib/analytics/scope";
 import {
@@ -45,7 +46,6 @@ import {
   categoryAndTypeFrom,
   describeProductType,
   sizesFor,
-  SHIFT_STORAGE_KEY,
   type ShiftBatchRecord,
   type CatheterCategory,
   type CatheterType,
@@ -269,13 +269,11 @@ export default function EntryHistory({
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem(SHIFT_STORAGE_KEY);
-      if (!raw) {
+      const parsed: ShiftBatchRecord[] = loadShiftBatches();
+      if (parsed.length === 0) {
         setLocalShiftRows([]);
         return;
       }
-      const parsed: ShiftBatchRecord[] = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
 
       const uncommitted = parsed.filter((r) => !r.synced);
       if (uncommitted.length === 0) {

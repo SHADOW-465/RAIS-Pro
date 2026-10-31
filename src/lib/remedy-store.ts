@@ -2,6 +2,8 @@
 // graph spikes and dips. Client localStorage, same pattern as capa-store.
 
 import { useEffect, useSyncExternalStore } from "react";
+import { z } from "zod";
+import { slot } from "@/lib/storage";
 import { DEFECTS, canonicalDefectCode } from "@/core/ontology/plant-catalog";
 
 export interface DefectRemedy {
@@ -28,33 +30,26 @@ export interface RemedyBook {
   trends: TrendNote[];
 }
 
-const KEY = "moid_defect_remedies";
 const EVT = "moid_defect_remedies_changed";
 
 const EMPTY: RemedyBook = { defects: {}, trends: [] };
 
+const localBook = slot({
+  name: "defect-remedies",
+  schema: z.object({
+    defects: z.record(z.string(), z.looseObject({ code: z.string() })).default({}),
+    trends: z.array(z.looseObject({ id: z.string() })).default([]),
+  }) as unknown as z.ZodType<RemedyBook>,
+  legacyKeys: ["moid_defect_remedies"],
+});
+
 function read(): RemedyBook {
-  if (typeof window === "undefined") return EMPTY;
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return EMPTY;
-    const v = JSON.parse(raw) as Partial<RemedyBook>;
-    return {
-      defects: v.defects && typeof v.defects === "object" ? v.defects : {},
-      trends: Array.isArray(v.trends) ? v.trends : [],
-    };
-  } catch {
-    return EMPTY;
-  }
+  return localBook.get() ?? EMPTY;
 }
 
 function write(next: RemedyBook): void {
   if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    /* quota / private */
-  }
+  localBook.set(next); // quota / private mode: the server copy is the record
   window.dispatchEvent(new Event(EVT));
 }
 

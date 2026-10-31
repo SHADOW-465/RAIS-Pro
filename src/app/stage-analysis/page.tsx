@@ -1,5 +1,6 @@
 "use client";
 
+import { stageGridLayout } from "@/lib/ui-prefs";
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
@@ -56,23 +57,12 @@ export default function StageAnalysisPage() {
   const [modalMetricKind, setModalMetricKind] = useState<SourceMetricKind>("rejection_rate");
   const [modalInitialShowSource, setModalInitialShowSource] = useState(false);
   const [modalDefaultSourceTab, setModalDefaultSourceTab] = useState<"batches" | "history">("batches");
-  const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
   const [layoutTemplate, setLayoutTemplate] = useState<"2-wide" | "1-full" | "3-grid" | "4-compact">(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("rais_stage_grid_layout");
-        if (saved === "2-wide" || saved === "1-full" || saved === "3-grid" || saved === "4-compact") {
-          return saved;
-        }
-      } catch {}
-    }
-    return "2-wide";
+    return stageGridLayout.get() ?? "2-wide";
   });
 
   useEffect(() => {
-    try {
-      localStorage.setItem("rais_stage_grid_layout", layoutTemplate);
-    } catch {}
+    stageGridLayout.set(layoutTemplate);
   }, [layoutTemplate]);
 
   const openModal = (
@@ -96,23 +86,6 @@ export default function StageAnalysisPage() {
   useEffect(() => {
     setTargetRej(getTargetRejectionRate());
 
-    // Load stashed raw sheets if any are available in sessionStorage
-    try {
-      let activeId = sessionStorage.getItem("rais_active_session_id");
-      if (!activeId) {
-        for (let i = 0; i < sessionStorage.length; i++) {
-          const key = sessionStorage.key(i);
-          if (key && key.startsWith("rais_raw_")) {
-            activeId = key.substring("rais_raw_".length);
-            break;
-          }
-        }
-      }
-      if (activeId) {
-        const stored = sessionStorage.getItem(`rais_raw_${activeId}`);
-        if (stored) setRawSheets(JSON.parse(stored));
-      }
-    } catch { /* ignore */ }
   }, []);
 
   const scope: Scope = useMemo(
@@ -615,7 +588,6 @@ export default function StageAnalysisPage() {
         metricKind={modalMetricKind}
         periodGrain={t.grain === "week" ? "week" : t.grain === "day" ? "day" : "month"}
         primaryValue={modalPrimaryValue}
-        rawSheets={rawSheets}
         initialShowSource={modalInitialShowSource}
         defaultSourceTab={modalDefaultSourceTab}
       >

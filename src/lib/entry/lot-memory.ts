@@ -4,7 +4,16 @@
 // Size (or a draft reload) rebuilds it. Memory stores the identity the
 // operator just created so the rest of the line files against the same lot.
 
-export const LOT_MEMORY_KEY = "moid_lot_memory";
+import { z } from "zod";
+import { slot } from "@/lib/storage";
+
+// parseLotMemory is the one judge of what a stored pin means, so the slot only
+// asks "would parseLotMemory take it".
+const lotMemorySlot = slot({
+  name: "lot-memory",
+  schema: z.unknown().refine((v) => parseLotMemory(JSON.stringify(v)) !== null),
+  legacyKeys: ["moid_lot_memory"],
+});
 
 export type LotMemorySnapshot = {
   on: boolean;
@@ -58,22 +67,12 @@ export function snapshotLotMemory(s: {
 
 export function readLotMemory(): LotMemorySnapshot | null {
   if (typeof window === "undefined") return null;
-  try {
-    return parseLotMemory(window.localStorage.getItem(LOT_MEMORY_KEY));
-  } catch {
-    return null;
-  }
+  const stored = lotMemorySlot.get();
+  return stored === undefined ? null : parseLotMemory(JSON.stringify(stored));
 }
 
 export function writeLotMemory(snap: LotMemorySnapshot | null): void {
   if (typeof window === "undefined") return;
-  try {
-    if (!snap || !snap.on) {
-      window.localStorage.removeItem(LOT_MEMORY_KEY);
-      return;
-    }
-    window.localStorage.setItem(LOT_MEMORY_KEY, JSON.stringify(snap));
-  } catch {
-    /* private mode / quota — memory is best-effort */
-  }
+  if (!snap || !snap.on) lotMemorySlot.remove();
+  else lotMemorySlot.set(snap); // best-effort: private mode / quota just means no pin
 }

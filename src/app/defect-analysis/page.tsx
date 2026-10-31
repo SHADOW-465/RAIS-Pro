@@ -1,5 +1,6 @@
 "use client";
 
+import { defectGridLayout } from "@/lib/ui-prefs";
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
@@ -55,25 +56,14 @@ export default function DefectAnalysisPage() {
   const [modalMetricKind, setModalMetricKind] = useState<SourceMetricKind>("pareto");
   const [modalInitialShowSource, setModalInitialShowSource] = useState(false);
   const [modalDefaultSourceTab, setModalDefaultSourceTab] = useState<"batches" | "history">("batches");
-  const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
   const [targetRej, setTargetRej] = useState(0.10);
   const [defectMetric, setDefectMetric] = useState<"qty" | "rate">("qty");
   const [layoutTemplate, setLayoutTemplate] = useState<"2-wide" | "1-full" | "3-grid" | "4-compact">(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("rais_defect_grid_layout");
-        if (saved === "2-wide" || saved === "1-full" || saved === "3-grid" || saved === "4-compact") {
-          return saved;
-        }
-      } catch {}
-    }
-    return "2-wide"; // Default to 2-wide expanded timeline layout
+    return defectGridLayout.get() ?? "2-wide";
   });
 
   useEffect(() => {
-    try {
-      localStorage.setItem("rais_defect_grid_layout", layoutTemplate);
-    } catch {}
+    defectGridLayout.set(layoutTemplate);
   }, [layoutTemplate]);
 
   const openModal = (
@@ -96,23 +86,6 @@ export default function DefectAnalysisPage() {
 
   useEffect(() => {
     setTargetRej(getTargetRejectionRate());
-    // Load stashed raw sheets if any are available in sessionStorage
-    try {
-      let activeId = sessionStorage.getItem("rais_active_session_id");
-      if (!activeId) {
-        for (let i = 0; i < sessionStorage.length; i++) {
-          const key = sessionStorage.key(i);
-          if (key && key.startsWith("rais_raw_")) {
-            activeId = key.substring("rais_raw_".length);
-            break;
-          }
-        }
-      }
-      if (activeId) {
-        const stored = sessionStorage.getItem(`rais_raw_${activeId}`);
-        if (stored) setRawSheets(JSON.parse(stored));
-      }
-    } catch { /* ignore */ }
   }, []);
 
   // Stage scope comes solely from the topbar View switcher (t.stageView).
@@ -741,7 +714,6 @@ export default function DefectAnalysisPage() {
         sourceRows={modalSourceRows}
         metricKind={modalMetricKind}
         primaryValue={modalPrimaryValue}
-        rawSheets={rawSheets}
         initialShowSource={modalInitialShowSource}
         defaultSourceTab={modalDefaultSourceTab}
       >

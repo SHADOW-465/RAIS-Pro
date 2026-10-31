@@ -1,8 +1,10 @@
-// Named report presets — built-in catalogue + user-saved (localStorage).
+// Named report presets — built-in catalogue + user-saved (browser storage, lib/storage.ts).
 //
 // Phase 2: the Reports page is an editor. Built-ins seed the shelf (including
 // the full forensic book as one preset). User saves land next to them.
 
+import { z } from "zod";
+import { slot } from "@/lib/storage";
 import type { ReportSpec } from "./blocks";
 import {
   cloneSpec,
@@ -22,7 +24,13 @@ export type NamedReportPreset = {
   updatedAt: string;
 };
 
-export const NAMED_PRESETS_STORAGE_KEY = "moid_report_presets";
+const userPresets = slot({
+  name: "report-presets",
+  schema: z.array(
+    z.looseObject({ id: z.string(), name: z.string(), spec: z.looseObject({}) }),
+  ) as unknown as z.ZodType<NamedReportPreset[]>,
+  legacyKeys: ["moid_report_presets"],
+});
 
 /** Built-in named presets always available on /reports (and loadable elsewhere). */
 export function builtInNamedPresets(): NamedReportPreset[] {
@@ -77,24 +85,11 @@ export function builtInNamedPresets(): NamedReportPreset[] {
 }
 
 function loadUserPresets(): NamedReportPreset[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(NAMED_PRESETS_STORAGE_KEY);
-    if (!raw) return [];
-    const list = JSON.parse(raw) as NamedReportPreset[];
-    return Array.isArray(list) ? list.filter((p) => p && p.id && p.spec && !p.builtIn) : [];
-  } catch {
-    return [];
-  }
+  return (userPresets.get() ?? []).filter((p) => p.spec && !p.builtIn);
 }
 
 function saveUserPresets(list: NamedReportPreset[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(NAMED_PRESETS_STORAGE_KEY, JSON.stringify(list));
-  } catch {
-    /* ignore */
-  }
+  userPresets.set(list); // quota / private mode: presets just won't persist
 }
 
 /** Built-ins first, then user saves (newest first). */

@@ -5,6 +5,7 @@
 // Files are drag-reorderable (order persisted locally) and deletable, and the
 // numbers cards expand into the same "View Source" provenance modal as Dashboard.
 
+import { workbooksOrder } from "@/lib/ui-prefs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
@@ -59,15 +60,9 @@ interface ModDetail {
   };
 }
 
-const ORDER_KEY = "moid_workbooks_order";
 
 function loadOrder(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(ORDER_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
+  return workbooksOrder.get() ?? [];
 }
 
 function fileOf(e: Event): string {
@@ -166,7 +161,7 @@ export default function WorkbooksPage() {
 
   const persistOrder = (next: string[]) => {
     setOrder(next);
-    localStorage.setItem(ORDER_KEY, JSON.stringify(next));
+    workbooksOrder.set(next);
   };
 
   const reorder = (dragged: string, target: string) => {

@@ -1,5 +1,8 @@
 // Temporary edit grants issued when GM approves an out-of-window edit request.
 
+import { z } from "zod";
+import { slot } from "@/lib/storage";
+
 export type EditGrant = {
   entryKey: string;
   approvedBy: string;
@@ -8,7 +11,19 @@ export type EditGrant = {
   notificationId?: string;
 };
 
-export const EDIT_GRANTS_STORAGE_KEY = "moid_edit_grants";
+const grantsSlot = slot({
+  name: "edit-grants",
+  schema: z.array(
+    z.object({
+      entryKey: z.string(),
+      approvedBy: z.string(),
+      approvedAt: z.string(),
+      expiresAt: z.string(),
+      notificationId: z.string().optional(),
+    }),
+  ),
+  legacyKeys: ["moid_edit_grants"],
+});
 export const DEFAULT_GRANT_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 /** Stable key for a batch entry row. */
@@ -32,14 +47,9 @@ function mem(): EditGrant[] {
 
 function loadAll(): EditGrant[] {
   if (typeof window !== "undefined") {
-    try {
-      const raw = localStorage.getItem(EDIT_GRANTS_STORAGE_KEY);
-      const list = raw ? (JSON.parse(raw) as EditGrant[]) : [];
-      g.__moidEditGrants = list;
-      return list;
-    } catch {
-      return mem();
-    }
+    const list = grantsSlot.get() ?? [];
+    g.__moidEditGrants = list;
+    return list;
   }
   return mem();
 }
@@ -47,11 +57,7 @@ function loadAll(): EditGrant[] {
 function saveAll(grants: EditGrant[]): void {
   g.__moidEditGrants = grants;
   if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(EDIT_GRANTS_STORAGE_KEY, JSON.stringify(grants));
-  } catch {
-    /* ignore */
-  }
+  grantsSlot.set(grants);
 }
 
 /** Drop expired grants and return active ones. */
@@ -93,11 +99,5 @@ export function revokeGrant(key: string): void {
 
 export function __resetGrantsForTests(): void {
   g.__moidEditGrants = [];
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.removeItem(EDIT_GRANTS_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
-  }
+  if (typeof window !== "undefined") grantsSlot.remove();
 }

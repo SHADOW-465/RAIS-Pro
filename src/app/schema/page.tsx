@@ -34,7 +34,7 @@ import SchemaDetail, { type SchemaDetailHandle } from "@/components/schema/Schem
 import SchemaEditUnlock from "@/components/schema/SchemaEditUnlock";
 import { applySchemaDelete, canDeleteNode, deleteLabelFor } from "@/lib/schema/apply-delete";
 import { previewCatalogAction } from "@/lib/schema/catalog-preview";
-import { SCHEMA_EDIT_STORAGE_KEY } from "@/lib/schema/edit-lock";
+import { schemaEditUnlocked, schemaTreeOpen } from "@/lib/ui-prefs";
 import { addActionFor } from "@/lib/schema/toolbar";
 import type { SchemaPendingCreate } from "@/lib/schema/toolbar";
 import { buildSchemaTree, filterTree, type SchemaNode } from "@/lib/schema/tree";
@@ -126,7 +126,6 @@ interface ModDetail {
 type Section = "stages" | "defects" | "sizes" | "mappings";
 
 /** Which tree folders are open, remembered across reloads. */
-const TREE_OPEN_KEY = "moid_schema_tree_open";
 
 const CAPTURE_OPTS = ["checked", "accepted", "hold", "rejected"] as const;
 
@@ -161,23 +160,14 @@ export default function SchemaPage() {
   /** Expansion survives a reload — the tree is deep and the plant is big. */
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
-    try {
-      const raw = localStorage.getItem(TREE_OPEN_KEY);
-      return new Set<string>(raw ? (JSON.parse(raw) as string[]) : ["cat:assembly"]);
-    } catch {
-      return new Set(["cat:assembly"]);
-    }
+    return new Set<string>(schemaTreeOpen.get() ?? ["cat:assembly"]);
   });
   const toggleNode = useCallback((id: string) => {
     setExpandedNodes((cur) => {
       const next = new Set(cur);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      try {
-        localStorage.setItem(TREE_OPEN_KEY, JSON.stringify([...next]));
-      } catch {
-        /* private mode — expansion just won't persist */
-      }
+      schemaTreeOpen.set([...next]);
       return next;
     });
   }, []);
@@ -294,32 +284,20 @@ export default function SchemaPage() {
   }, [load, loadWorkbooks]);
 
   useEffect(() => {
-    try {
-      setEditUnlocked(sessionStorage.getItem(SCHEMA_EDIT_STORAGE_KEY) === "1");
-    } catch {
-      /* private mode — stay locked */
-    }
+    setEditUnlocked(schemaEditUnlocked.get() === true);
   }, []);
 
   const lockEdit = () => {
     setEditUnlocked(false);
     setToolbarCanSave(false);
     setPendingCreate(null);
-    try {
-      sessionStorage.removeItem(SCHEMA_EDIT_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
+    schemaEditUnlocked.remove();
   };
 
   const unlockEdit = () => {
     setEditUnlocked(true);
     setUnlockOpen(false);
-    try {
-      sessionStorage.setItem(SCHEMA_EDIT_STORAGE_KEY, "1");
-    } catch {
-      /* ignore */
-    }
+    schemaEditUnlocked.set(true);
   };
 
   const ensureExpanded = useCallback((id: string) => {
@@ -327,11 +305,7 @@ export default function SchemaPage() {
       if (cur.has(id)) return cur;
       const next = new Set(cur);
       next.add(id);
-      try {
-        localStorage.setItem(TREE_OPEN_KEY, JSON.stringify([...next]));
-      } catch {
-        /* private mode */
-      }
+      schemaTreeOpen.set([...next]);
       return next;
     });
   }, []);

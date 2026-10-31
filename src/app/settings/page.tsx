@@ -1,5 +1,6 @@
 "use client";
 
+import { customDefects as customDefectsPref } from "@/lib/ui-prefs";
 import "./settings.css";
 
 /* Hallmark · macrostructure: Index-First · genre: modern-minimal · tone: utilitarian
@@ -140,12 +141,8 @@ export default function SettingsPage() {
     if (typeof window !== "undefined") {
       // Target / watch / unit cost / stage weights are versioned plant policy
       // now (see the Calculation rules section). Nothing reads these keys.
-      try {
-        const cd = localStorage.getItem("rais_custom_defects");
-        if (cd) setCustomDefects(JSON.parse(cd));
-      } catch {
-        /* ignore malformed */
-      }
+      const cd = customDefectsPref.get();
+      if (cd) setCustomDefects(cd);
 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,7 +150,7 @@ export default function SettingsPage() {
 
   const handleSave = () => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("rais_custom_defects", JSON.stringify(customDefects));
+      customDefectsPref.set(customDefects);
 
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);

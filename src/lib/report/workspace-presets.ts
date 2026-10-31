@@ -3,11 +3,24 @@
 // Contract: a preset stores report type + period mode + optional notes.
 // It does NOT freeze an absolute custom date range unless persistCustomDates
 // is explicitly true. Financial Year mode stores the mode, not a past FY.
-// Persistence is browser-local (localStorage) — not a governed plant template.
+// Persistence is browser-local (lib/storage.ts) — not a governed plant template.
 
+import { z } from "zod";
+import { slot } from "@/lib/storage";
 import type { ReportPeriodMode, ReportType } from "./report-scope";
 
+/** The key the pre-wrapper code used; adopted once by the slot below. */
 export const WORKSPACE_PRESETS_KEY = "moid_report_workspace_presets";
+
+const userPresets = (store: PresetStorage | null) =>
+  slot({
+    name: "report-workspace-presets",
+    schema: z.array(
+      z.looseObject({ id: z.string(), name: z.string(), reportType: z.string(), periodMode: z.string() }),
+    ) as unknown as z.ZodType<WorkspacePreset[]>,
+    legacyKeys: [WORKSPACE_PRESETS_KEY],
+    store,
+  });
 
 export type WorkspacePreset = {
   id: string;
@@ -80,27 +93,18 @@ export function builtInWorkspacePresets(): WorkspacePreset[] {
 
 function readUser(storage: PresetStorage | null): PresetStoreResult<WorkspacePreset[]> {
   if (!storage) return { ok: true, value: [] };
-  try {
-    const raw = storage.getItem(WORKSPACE_PRESETS_KEY);
-    if (!raw) return { ok: true, value: [] };
-    const list = JSON.parse(raw) as WorkspacePreset[];
-    if (!Array.isArray(list)) return { ok: false, error: "Saved layout presets are unreadable." };
-    return { ok: true, value: list.filter((p) => p && p.id && p.reportType && !p.builtIn) };
-  } catch {
-    return { ok: false, error: "Could not read layout presets from browser storage." };
-  }
+  // Stale or damaged saves are discarded by the slot and read as "none saved".
+  const list = userPresets(storage).get() ?? [];
+  return { ok: true, value: list.filter((p) => p.reportType && !p.builtIn) };
 }
 
 function writeUser(storage: PresetStorage | null, list: WorkspacePreset[]): PresetStoreResult<true> {
   if (!storage) {
     return { ok: false, error: "Browser storage is not available. Layout presets stay in this session only." };
   }
-  try {
-    storage.setItem(WORKSPACE_PRESETS_KEY, JSON.stringify(list));
-    return { ok: true, value: true };
-  } catch {
-    return { ok: false, error: "Could not write layout presets to browser storage." };
-  }
+  return userPresets(storage).set(list)
+    ? { ok: true, value: true }
+    : { ok: false, error: "Could not write layout presets to browser storage." };
 }
 
 export function listWorkspacePresets(storage: PresetStorage | null = defaultStorage()): PresetStoreResult<WorkspacePreset[]> {

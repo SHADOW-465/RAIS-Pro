@@ -202,7 +202,6 @@ export default function SpcPage() {
   const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
   const [modalPrimaryValue, setModalPrimaryValue] = useState<string | undefined>(undefined);
   const [modalMetricKind, setModalMetricKind] = useState<SourceMetricKind>("rejection_rate");
-  const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
 
   const openModal = (
     title: string,
@@ -219,25 +218,6 @@ export default function SpcPage() {
     setModalOpen(true);
   };
 
-  useEffect(() => {
-    // Load stashed raw sheets if any are available in sessionStorage
-    try {
-      let activeId = sessionStorage.getItem("rais_active_session_id");
-      if (!activeId) {
-        for (let i = 0; i < sessionStorage.length; i++) {
-          const key = sessionStorage.key(i);
-          if (key && key.startsWith("rais_raw_")) {
-            activeId = key.substring("rais_raw_".length);
-            break;
-          }
-        }
-      }
-      if (activeId) {
-        const stored = sessionStorage.getItem(`rais_raw_${activeId}`);
-        if (stored) setRawSheets(JSON.parse(stored));
-      }
-    } catch { /* ignore */ }
-  }, []);
 
   const scope: Scope = useMemo(
     () => resolveScope(events ?? [], t, policy),
@@ -463,7 +443,6 @@ export default function SpcPage() {
         metricKind={modalMetricKind}
         periodGrain={t.grain === "week" ? "week" : t.grain === "day" ? "day" : "month"}
         primaryValue={modalPrimaryValue}
-        rawSheets={rawSheets}
       >
         {modalContent}
       </FloatingDetailModal>

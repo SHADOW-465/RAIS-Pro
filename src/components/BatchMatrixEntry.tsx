@@ -4,14 +4,14 @@
 // Uploads to ledger (POST /api/ingest) and manages local shift operational queue.
 // Preserves all append-only event ledger and deterministic validation invariants.
 
+import { loadShiftBatches, persistShiftBatches } from "@/lib/entry/shift-batches";
+import { entryHeaderOperator, entryHeaderShift, entryProductType } from "@/lib/ui-prefs";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmContext";
 import {
   MATRIX_STAGES,
   ENTRY_ROLES,
   toEntryRole,
-  SHIFT_STORAGE_KEY,
-  PRODUCT_TYPE_STORAGE_KEY,
   sizesFor,
   typeIsSelectable,
   productTypeFor,
@@ -151,19 +151,8 @@ interface BatchDraft {
   remarks: string;
 }
 
-function loadShift(): ShiftBatchRecord[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(SHIFT_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as ShiftBatchRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function persistShift(rows: ShiftBatchRecord[]) {
-  localStorage.setItem(SHIFT_STORAGE_KEY, JSON.stringify(rows));
-}
+const loadShift = loadShiftBatches;
+const persistShift = persistShiftBatches;
 
 export default function BatchMatrixEntry({
   onSynced,
@@ -416,11 +405,11 @@ export default function BatchMatrixEntry({
   // Load shift records & local draft on mount
   useEffect(() => {
     setSaved(loadShift());
-    const op = localStorage.getItem("rais_hdr_operator");
+    const op = entryHeaderOperator.get();
     if (op) setOperator(toEntryRole(op));
-    const sh = localStorage.getItem("rais_hdr_shift");
+    const sh = entryHeaderShift.get();
     if (sh) setShift(sh);
-    const pt = localStorage.getItem(PRODUCT_TYPE_STORAGE_KEY);
+    const pt = entryProductType.get();
     if (pt) applyProductType(pt);
 
     const d = loadDraft<BatchDraft>(draftKey);
@@ -1508,9 +1497,9 @@ export default function BatchMatrixEntry({
       setSaved(next);
       persistShift(next);
 
-      localStorage.setItem("rais_hdr_operator", rec.operator);
-      localStorage.setItem("rais_hdr_shift", rec.shift);
-      if (rec.productType) localStorage.setItem(PRODUCT_TYPE_STORAGE_KEY, String(rec.productType));
+      entryHeaderOperator.set(rec.operator);
+      entryHeaderShift.set(rec.shift);
+      if (rec.productType) entryProductType.set(String(rec.productType));
 
       // Opened from an existing conversion: the ledger entry is saved, and the
       // idempotent lineage write can still be refused. Say so on the receipt

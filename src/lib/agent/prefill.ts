@@ -1,8 +1,21 @@
 // Build Data Entry prefill payloads from an entry draft (sessionStorage + URL).
 
+import { z } from "zod";
+import { slot } from "@/lib/storage";
 import type { EntryDraft } from "./types";
 
-export const PREFILL_STORAGE_KEY = "moid_agent_entry_prefill";
+const prefillSlot = slot({
+  name: "agent-entry-prefill",
+  area: "session",
+  schema: z.looseObject({
+    stageId: z.string(),
+    batchId: z.string(),
+    checked: z.number(),
+    source: z.literal("ask-moid"),
+    savedAt: z.string(),
+  }) as unknown as z.ZodType<EntryPrefillPayload>,
+  legacyKeys: ["moid_agent_entry_prefill"],
+});
 
 export interface EntryPrefillPayload {
   macro: string;
@@ -47,31 +60,17 @@ export function prefillFromDraft(draft: EntryDraft): EntryPrefillPayload {
 
 export function writePrefill(payload: EntryPrefillPayload): void {
   if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(PREFILL_STORAGE_KEY, JSON.stringify(payload));
-  } catch {
-    /* */
-  }
+  prefillSlot.set(payload);
 }
 
 export function readPrefill(): EntryPrefillPayload | null {
   if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(PREFILL_STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as EntryPrefillPayload;
-  } catch {
-    return null;
-  }
+  return prefillSlot.get() ?? null;
 }
 
 export function clearPrefill(): void {
   if (typeof window === "undefined") return;
-  try {
-    sessionStorage.removeItem(PREFILL_STORAGE_KEY);
-  } catch {
-    /* */
-  }
+  prefillSlot.remove();
 }
 
 /** Deep link that Data Entry can honor: /data-entry?prefill=1&batch=… */

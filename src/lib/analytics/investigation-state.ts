@@ -1,6 +1,9 @@
 // Investigation / Understand scope — addressable work-object shape (UX philosophy F8).
 // Phase 2: href builders + recents. Tweaks apply via useApplyInvestigationFromUrl.
 
+import { z } from "zod";
+import { slot } from "@/lib/storage";
+
 export type InvestigationGrain = "day" | "week" | "month" | "fy";
 
 export type InvestigationMetric =
@@ -36,7 +39,13 @@ export type InvestigationTweaksPatch = {
   stageView?: string;
 };
 
-const RECENTS_KEY = "moid_investigation_recents";
+const recentsSlot = slot({
+  name: "investigation-recents",
+  schema: z.array(
+    z.looseObject({ href: z.string(), state: z.looseObject({}), savedAt: z.string() }),
+  ) as unknown as z.ZodType<InvestigationRecent[]>,
+  legacyKeys: ["moid_investigation_recents"],
+});
 const RECENTS_MAX = 8;
 
 const GRAINS = new Set<InvestigationGrain>(["day", "week", "month", "fy"]);
@@ -139,34 +148,24 @@ export interface InvestigationRecent {
   savedAt: string; // ISO
 }
 
-/** Push a navigated investigation onto the recents stack (localStorage). */
+/** Push a navigated investigation onto the recents stack (browser storage). */
 export function pushInvestigationRecent(
   href: string,
   state: InvestigationState
 ): void {
   if (typeof window === "undefined") return;
-  try {
-    const raw = localStorage.getItem(RECENTS_KEY);
-    const prev: InvestigationRecent[] = raw ? JSON.parse(raw) : [];
-    const key = investigationKey(state);
-    const next: InvestigationRecent[] = [
-      { href, state, savedAt: new Date().toISOString() },
-      ...prev.filter((r) => investigationKey(r.state) !== key),
-    ].slice(0, RECENTS_MAX);
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
-  } catch {
-    /* ignore quota / private mode */
-  }
+  const prev = recentsSlot.get() ?? [];
+  const key = investigationKey(state);
+  const next: InvestigationRecent[] = [
+    { href, state, savedAt: new Date().toISOString() },
+    ...prev.filter((r) => investigationKey(r.state) !== key),
+  ].slice(0, RECENTS_MAX);
+  recentsSlot.set(next); // quota / private mode: recents just won't persist
 }
 
 export function listInvestigationRecents(): InvestigationRecent[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(RECENTS_KEY);
-    return raw ? (JSON.parse(raw) as InvestigationRecent[]) : [];
-  } catch {
-    return [];
-  }
+  return recentsSlot.get() ?? [];
 }
 
 /**

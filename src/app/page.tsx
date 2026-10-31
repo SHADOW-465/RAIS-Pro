@@ -129,7 +129,6 @@ export default function Dashboard() {
   const [modalMetricKind, setModalMetricKind] = useState<SourceMetricKind>("generic");
   const [modalOriginRect, setModalOriginRect] = useState<DOMRect | null>(null);
   const [modalRankedDefects, setModalRankedDefects] = useState<{ code: string; label: string }[]>([]);
-  const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
   const lastClickRect = useRef<DOMRect | null>(null);
 
   useEffect(() => {
@@ -165,25 +164,6 @@ export default function Dashboard() {
     setModalOpen(true);
   };
 
-  useEffect(() => {
-    // Load stashed raw sheets if any are available in sessionStorage
-    try {
-      let activeId = sessionStorage.getItem("rais_active_session_id");
-      if (!activeId) {
-        for (let i = 0; i < sessionStorage.length; i++) {
-          const key = sessionStorage.key(i);
-          if (key && key.startsWith("rais_raw_")) {
-            activeId = key.substring("rais_raw_".length);
-            break;
-          }
-        }
-      }
-      if (activeId) {
-        const stored = sessionStorage.getItem(`rais_raw_${activeId}`);
-        if (stored) setRawSheets(JSON.parse(stored));
-      }
-    } catch { /* ignore */ }
-  }, []);
 
   const scope: Scope = useMemo(
     () => resolveScope(events ?? [], t, policy),
@@ -1223,7 +1203,6 @@ export default function Dashboard() {
           sourceRows={modalSourceRows}
           metricKind={modalMetricKind}
           periodGrain={t.grain === "week" ? "week" : t.grain === "day" ? "day" : "month"}
-          rawSheets={rawSheets}
           originRect={modalOriginRect}
           rankedDefects={modalRankedDefects}
         >
