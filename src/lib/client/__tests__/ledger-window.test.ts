@@ -51,7 +51,7 @@ describe("analyticsWindow matches resolveScope", () => {
   test("a relative preset stays unresolved until the anchor day is known", () => {
     expect(analyticsWindow(tweaks("last-90-days"), { ready: false }).needsAnchor).toBe(true);
     expect(presetNeedsAnchor("last-90-days")).toBe(true);
-    expect(presetNeedsAnchor("all")).toBe(false);
+    expect(presetNeedsAnchor("all")).toBe(true);
     expect(presetNeedsAnchor("custom")).toBe(false);
   });
 });
@@ -75,19 +75,27 @@ describe("ledgerFetchWindow", () => {
     expect(daysBetween(analytic.to!, fetched.to!)).toBe(LEDGER_FETCH_PAD_DAYS);
   });
 
-  test("all data and an unfinished custom range stay unscoped", () => {
-    const anchor = { ready: true, max: ANCHOR };
-    for (const t of [tweaks("all"), tweaks("custom", "2026-01-01", "")]) {
-      const fetched = ledgerFetchWindow(t, anchor);
-      expect(fetched.from).toBeUndefined();
-      expect(fetched.to).toBeUndefined();
-      expect(fetched.needsAnchor).toBe(false);
-    }
+  test("all data asks for the bounds range, and waits until those ends exist", () => {
+    expect(ledgerFetchWindow(tweaks("all"), { ready: false, max: ANCHOR }).needsAnchor).toBe(true);
+    const fetched = ledgerFetchWindow(tweaks("all"), {
+      ready: true,
+      min: "2025-01-02",
+      max: ANCHOR,
+      maxEnd: "2026-06-20",
+    });
+    expect(fetched).toEqual({ needsAnchor: false, from: "2025-01-02", to: "2026-06-20" });
+    const noEnds = ledgerFetchWindow(tweaks("all"), { ready: true });
+    expect(noEnds).toEqual({ needsAnchor: false, span: "all" });
+  });
+
+  test("an unfinished custom range asks for every row, not the 30-day default", () => {
+    const fetched = ledgerFetchWindow(tweaks("custom", "2026-01-01", ""), { ready: true, max: ANCHOR });
+    expect(fetched).toEqual({ needsAnchor: false, span: "all" });
   });
 
   test("an unavailable bounds read asks for the ledger without a window", () => {
     const fetched = ledgerFetchWindow(tweaks("this-fy"), { ready: true, max: ANCHOR }, { unscoped: true });
-    expect(fetched).toEqual({ needsAnchor: false });
+    expect(fetched).toEqual({ needsAnchor: false, span: "all" });
   });
 });
 

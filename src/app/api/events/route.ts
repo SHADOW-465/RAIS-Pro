@@ -24,8 +24,9 @@ import { requireSession } from "@/lib/auth/guard";
 import { resolveRole } from "@/lib/auth/roles";
 import { scopeEventsForRole } from "@/lib/access/scope";
 import { dateBounds } from "@/lib/analytics/scope";
-import type { EventFilter } from "@/lib/store/types";
+import type { Event, EventFilter } from "@/lib/store/types";
 import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
+import { defaultEventRange, EventPageError, pageEvents, parseEventLimit } from "@/lib/store/event-page";
 
 export const dynamic = "force-dynamic";
 
@@ -47,8 +48,17 @@ async function getHandler(req: NextRequest) {
         const role = await resolveRole(auth.actor.role);
         const data = scopeEventsForRole(all, role?.scope);
         const { min, max } = dateBounds(data);
+        // max stays the latest occurredOn.start (relative presets anchor on it).
+        // maxEnd is the latest occurredOn.end, so a week-span row is not clipped
+        // when "All data" asks for start..end.
+        let maxEnd: string | undefined;
+        for (const e of data) {
+          const end = e.occurredOn?.end;
+          if (!end) continue;
+          if (maxEnd === undefined || end > maxEnd) maxEnd = end;
+        }
         return NextResponse.json(
-          { min: min ?? null, max: max ?? null, backend },
+          { min: min ?? null, max: max ?? null, maxEnd: maxEnd ?? null, backend },
           { headers: LIVE_CACHE },
         );
       } catch (err: any) {
@@ -60,9 +70,20 @@ async function getHandler(req: NextRequest) {
       }
     }
 
+    // A bare read is the last 30 UTC days. bounds=1 (handled above) and
+    // span=all stay unscoped. An explicit from or to wins over both.
+    const spanAll = sp.get("span") === "all";
+    let from = sp.get("from") || undefined;
+    let to = sp.get("to") || undefined;
+    if (!from && !to && !spanAll) {
+      const window = defaultEventRange(new Date());
+      from = window.from;
+      to = window.to;
+    }
+
     const filter: EventFilter = {
-      from: sp.get("from") ?? undefined,
-      to: sp.get("to") ?? undefined,
+      from,
+      to,
       stageId: sp.get("stageId") ?? undefined,
       eventType: (sp.get("eventType") as EventFilter["eventType"]) ?? undefined,
     };
@@ -71,6 +92,8 @@ async function getHandler(req: NextRequest) {
     // Analytics call scopeEvents → filter (date/stage/**source channel/file**)
     // → then canonicalize. Collapsing here first would hide Excel rows that
     // lose to same-day Data Entry, making "Excel only" impossible.
+    // The 30-day default lives here, not in EventStore.effective, so decide,
+    // day-records, and export keep their own windows.
     const all = await events.effective(filter);
 
     // The caller's own scope, never one named in the request: a client that can
@@ -78,10 +101,27 @@ async function getHandler(req: NextRequest) {
     const role = await resolveRole(auth.actor.role);
     const data = scopeEventsForRole(all, role?.scope);
 
+    let page: { events: Event[]; nextCursor: string | null };
+    try {
+      page = pageEvents(data, {
+        limit: parseEventLimit(sp.get("limit")),
+        cursor: sp.get("cursor") || null,
+      });
+    } catch (err) {
+      if (err instanceof EventPageError) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      throw err;
+    }
+
     return NextResponse.json(
       {
-        events: data,
-        count: data.length,
+        events: page.events,
+        count: page.events.length,
+        total: data.length,
+        nextCursor: page.nextCursor,
+        from: from ?? null,
+        to: to ?? null,
         backend,
         // So a screen can say "your line" rather than quietly showing a smaller
         // plant. A number that is scoped and does not say so is a wrong number.

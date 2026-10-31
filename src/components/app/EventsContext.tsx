@@ -33,9 +33,10 @@ const EventsContext = createContext<EventsContextType | undefined>(undefined);
  * started on screens that never read events, and a focused tab does not
  * refetch (staleTime, refetchOnWindowFocus off).
  *
- * Relative presets ("last 90 days", …) need the latest event day first. That
- * is a dates-only read (`?bounds=1`). If it is missing, the screen warns and
- * reads the ledger without a window rather than showing an empty plant.
+ * Relative presets ("last 90 days", …) need the latest event day first.
+ * "All data" needs the same read so it can ask for that whole span — a bare
+ * /api/events call is only the last 30 days. If bounds is missing, the screen
+ * warns and reads with span=all rather than showing an empty plant.
  */
 export function EventsProvider({
   enabled = true,
@@ -64,7 +65,7 @@ export function EventsProvider({
   const anchorReady = !wantsAnchor || unscoped || bounds.isFetched;
   const window = ledgerFetchWindow(
     { datePreset: t.datePreset, dateFrom: t.dateFrom, dateTo: t.dateTo },
-    { ready: anchorReady, max: bounds.data?.max },
+    { ready: anchorReady, min: bounds.data?.min, max: bounds.data?.max, maxEnd: bounds.data?.maxEnd },
     { unscoped },
   );
 
@@ -72,7 +73,7 @@ export function EventsProvider({
     queryKey: window.needsAnchor ? eventsPendingKey(user) : eventsQueryKey(user, window),
     queryFn: async () => {
       try {
-        return await fetchEvents({ from: window.from, to: window.to });
+        return await fetchEvents({ from: window.from, to: window.to, span: window.span });
       } catch (err) {
         console.error("Failed to fetch events:", err);
         throw err;

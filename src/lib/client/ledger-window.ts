@@ -23,8 +23,23 @@ export interface LedgerDateTweaks {
 export interface LedgerWindow {
   from?: string;
   to?: string;
-  /** Relative preset cannot be resolved until the latest event day is known. */
+  /** Relative preset, or "all" before bounds are known, cannot be fetched yet. */
   needsAnchor: boolean;
+  /**
+   * Ask /api/events not to apply the 30-day default. Set when bounds failed,
+   * or when a custom range is only half filled. "All data" with known ends
+   * sends those ends instead, so the default cannot shrink the plant.
+   */
+  span?: "all";
+}
+
+export interface LedgerAnchor {
+  ready: boolean;
+  min?: string;
+  /** Latest occurredOn.start. Relative presets anchor on this. */
+  max?: string;
+  /** Latest occurredOn.end. "All data" uses this as the inclusive end. */
+  maxEnd?: string;
 }
 
 function iso(ms: number): string {
@@ -36,14 +51,14 @@ function shiftDays(day: string, days: number): string {
 }
 
 export function presetNeedsAnchor(preset: DatePreset): boolean {
-  return preset !== "all" && preset !== "custom";
+  return preset !== "custom";
 }
 
 /** Same date window resolveScope applies. An empty ledger (ready, no max)
  *  anchors on today, which is what resolveScope does with no events. */
 export function analyticsWindow(
   t: LedgerDateTweaks,
-  anchor: { ready: boolean; max?: string },
+  anchor: LedgerAnchor,
 ): LedgerWindow {
   if (t.datePreset === "all") return { needsAnchor: false };
   if (t.datePreset === "custom") {
@@ -96,16 +111,26 @@ export function cachedWindowCovers(
   return cached.from <= next.from && cached.to >= next.to;
 }
 
-/** Window passed to /api/events. "all" (and an unfinished custom range) stays
- *  unscoped — that is the page asking for every row, not a background preload. */
+/** Window passed to /api/events.
+ *  "All data" sends the bounds range (start..latest end) once that read has
+ *  landed. A failed bounds read, or a custom range with one end missing,
+ *  sends span=all so the route's 30-day default cannot drop the rest. */
 export function ledgerFetchWindow(
   t: LedgerDateTweaks,
-  anchor: { ready: boolean; max?: string },
+  anchor: LedgerAnchor,
   opts?: { unscoped?: boolean },
 ): LedgerWindow {
-  if (opts?.unscoped) return { needsAnchor: false };
+  if (opts?.unscoped) return { needsAnchor: false, span: "all" };
+  if (t.datePreset === "all") {
+    if (!anchor.ready) return { needsAnchor: true };
+    const from = anchor.min;
+    const to = anchor.maxEnd ?? anchor.max;
+    if (!from || !to) return { needsAnchor: false, span: "all" };
+    return { needsAnchor: false, from, to };
+  }
   const w = analyticsWindow(t, anchor);
-  if (w.needsAnchor || !w.from || !w.to) return w;
+  if (w.needsAnchor) return w;
+  if (!w.from || !w.to) return { needsAnchor: false, span: "all" };
   return {
     needsAnchor: false,
     from: shiftDays(w.from, -LEDGER_FETCH_PAD_DAYS),

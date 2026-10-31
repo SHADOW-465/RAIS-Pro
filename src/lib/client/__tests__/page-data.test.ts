@@ -59,6 +59,20 @@ describe("queriesForNav", () => {
     expect(window.from! < "2026-06-15").toBe(true);
   });
 
+  test("all data waits for bounds, then requests that occurred-on span", () => {
+    const waiting = queriesForNav("dashboard", ALL, { ready: false }, "ada").map((q) => q.id);
+    expect(waiting).toContain("ledger-bounds");
+    expect(waiting).not.toContain("events");
+    const ready = queriesForNav(
+      "dashboard",
+      ALL,
+      { ready: true, min: "2026-01-01", max: "2026-06-01", maxEnd: "2026-06-08" },
+      "ada",
+    );
+    const events = ready.find((q) => q.id === "events");
+    expect(events?.queryKey).toEqual(["events", "ada", "2026-01-01", "2026-06-08"]);
+  });
+
   test("ask prefetches nothing, and staging prefetches schema only", () => {
     expect(queriesForNav("ask", ALL, { ready: true }, "ada")).toEqual([]);
     expect(queriesForNav("staging", ALL, { ready: true }, "ada").map((q) => q.id)).toEqual(["schema"]);

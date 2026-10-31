@@ -15,6 +15,8 @@ export interface EventsPayload {
 export interface BoundsPayload {
   min?: string;
   max?: string;
+  /** Latest occurredOn.end. "All data" uses this so a span past the last start is kept. */
+  maxEnd?: string;
   /** The server could not answer with dates. The caller reads the ledger unscoped. */
   unavailable?: boolean;
 }
@@ -45,20 +47,33 @@ function defectAliasesFrom(mappings: unknown): DefectAliasRef[] {
   return out;
 }
 
-export async function fetchEvents(range: { from?: string; to?: string }): Promise<EventsPayload> {
-  const qs = new URLSearchParams();
-  if (range.from) qs.set("from", range.from);
-  if (range.to) qs.set("to", range.to);
-  const q = qs.toString();
-  const res = await fetch(`/api/events${q ? `?${q}` : ""}`, {
-    credentials: "same-origin",
-    cache: "no-store",
-    headers: { Accept: "application/json" },
-  });
-  if (res.status === 401) return { events: [], unauthorized: true };
-  if (!res.ok) throw new Error(`events ${res.status}`);
-  const data = await res.json();
-  return { events: (data.events ?? []) as Event[], unauthorized: false };
+export async function fetchEvents(range: { from?: string; to?: string; span?: "all" }): Promise<EventsPayload> {
+  const events: Event[] = [];
+  let cursor: string | null = null;
+  // A response with no nextCursor (this server, or an older one) is the last page.
+  for (let page = 0; page < 10000; page++) {
+    const qs = new URLSearchParams();
+    if (range.from) qs.set("from", range.from);
+    if (range.to) qs.set("to", range.to);
+    if (range.span === "all" && !range.from && !range.to) qs.set("span", "all");
+    if (cursor) qs.set("cursor", cursor);
+    const q = qs.toString();
+    const res = await fetch(`/api/events${q ? `?${q}` : ""}`, {
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+    if (res.status === 401) {
+      if (events.length === 0) return { events: [], unauthorized: true };
+      throw new Error("events 401");
+    }
+    if (!res.ok) throw new Error(`events ${res.status}`);
+    const data = (await res.json()) as { events?: Event[]; nextCursor?: unknown };
+    events.push(...(data.events ?? []));
+    cursor = typeof data.nextCursor === "string" && data.nextCursor ? data.nextCursor : null;
+    if (!cursor) break;
+  }
+  return { events, unauthorized: false };
 }
 
 /** Latest event day, without the row bodies. A missing or failed bounds read
@@ -80,7 +95,13 @@ export async function fetchLedgerBounds(): Promise<BoundsPayload> {
       console.warn(`[events] bounds read failed (${res.status}); loading the ledger without a date window`);
       return { unavailable: true };
     }
-    const data = (await res.json()) as { min?: unknown; max?: unknown; boundsUnavailable?: boolean; error?: string };
+    const data = (await res.json()) as {
+      min?: unknown;
+      max?: unknown;
+      maxEnd?: unknown;
+      boundsUnavailable?: boolean;
+      error?: string;
+    };
     if (data.boundsUnavailable) {
       console.warn(
         `[events] bounds read unavailable${data.error ? `: ${data.error}` : ""}; loading the ledger without a date window`,
@@ -90,6 +111,7 @@ export async function fetchLedgerBounds(): Promise<BoundsPayload> {
     return {
       min: typeof data.min === "string" ? data.min : undefined,
       max: typeof data.max === "string" ? data.max : undefined,
+      maxEnd: typeof data.maxEnd === "string" ? data.maxEnd : undefined,
     };
   } catch (err) {
     console.warn("[events] bounds request failed; loading the ledger without a date window", err);

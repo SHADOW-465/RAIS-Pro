@@ -31,6 +31,9 @@ function defectOf(e: Event): string | null {
   return "defectCode" in e ? ((e.defectCode as string | null) ?? null) : null;
 }
 
+/** Conflict on event_id inserts nothing. A re-ingest must not rewrite the row. */
+export const EVENTS_UPSERT = { onConflict: "event_id", ignoreDuplicates: true } as const;
+
 export class SupabaseEventStore implements EventStore {
   private get client() {
     return createServerClient();
@@ -80,7 +83,7 @@ export class SupabaseEventStore implements EventStore {
     // (one large insert → "fetch failed").
     const INSERT_BATCH = 500;
     for (const rowsBatch of chunk(rows, INSERT_BATCH)) {
-      const { error: insertError } = await this.client.from("events").upsert(rowsBatch, { onConflict: "event_id" });
+      const { error: insertError } = await this.client.from("events").upsert(rowsBatch, EVENTS_UPSERT);
       if (insertError) throw insertError;
     }
 
@@ -112,7 +115,8 @@ export class SupabaseEventStore implements EventStore {
         .from("events")
         .select("payload")
         .eq("event_type", "correction")
-        .order("recorded_at", { ascending: true }),
+        .order("recorded_at", { ascending: true })
+        .order("event_id", { ascending: true }),
     );
     const superseded = new Set<string>();
     for (const c of corrections) {
@@ -124,7 +128,7 @@ export class SupabaseEventStore implements EventStore {
       let q = this.client.from("events").select("*");
       if (filter.eventType) q = q.eq("event_type", filter.eventType);
       if (filter.ingestionId) q = q.eq("ingestion_id", filter.ingestionId);
-      q = q.order("recorded_at", { ascending: true });
+      q = q.order("recorded_at", { ascending: true }).order("event_id", { ascending: true });
       return q;
     });
 
@@ -149,6 +153,7 @@ export class SupabaseEventStore implements EventStore {
       if (filter.ingestionId) q = q.eq("ingestion_id", filter.ingestionId);
       const { data, error } = await q
         .order("recorded_at", { ascending: true })
+        .order("event_id", { ascending: true })
         .range(from, from + PAGE - 1);
       if (error) throw error;
       const batch = data || [];

@@ -2,7 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { NavKey } from "@/lib/nav-keys";
 import { canReport } from "@/lib/report/blocks";
 import { fetchConversions, fetchEvents, fetchLedgerBounds, fetchSchema } from "./fetchers";
-import { EVENTS_STALE_MS, ledgerFetchWindow, type LedgerDateTweaks } from "./ledger-window";
+import { EVENTS_STALE_MS, ledgerFetchWindow, type LedgerAnchor, type LedgerDateTweaks } from "./ledger-window";
 import { boundsQueryKey, conversionsQueryKey, eventsQueryKey, schemaQueryKey } from "./query-keys";
 
 /** Screens that read ledger rows. Staging, CAPA and Alerts do not — they must
@@ -34,7 +34,7 @@ export interface NavQuery {
 export function queriesForNav(
   key: NavKey,
   tweaks: LedgerDateTweaks,
-  anchor: { ready: boolean; max?: string },
+  anchor: LedgerAnchor,
   user: string,
   opts?: { unscoped?: boolean },
 ): NavQuery[] {
@@ -50,7 +50,7 @@ export function queriesForNav(
       out.push({
         id: "events",
         queryKey: eventsQueryKey(user, window),
-        queryFn: () => fetchEvents({ from: window.from, to: window.to }),
+        queryFn: () => fetchEvents({ from: window.from, to: window.to, span: window.span }),
       });
     }
   }
@@ -68,8 +68,10 @@ export async function prefetchNav(
   tweaks: LedgerDateTweaks,
   user: string,
 ): Promise<void> {
-  const cached = client.getQueryData<{ max?: string; unavailable?: boolean }>(boundsQueryKey(user));
-  let anchor = { ready: !!cached, max: cached?.max };
+  const cached = client.getQueryData<{ min?: string; max?: string; maxEnd?: string; unavailable?: boolean }>(
+    boundsQueryKey(user),
+  );
+  let anchor: LedgerAnchor = { ready: !!cached, min: cached?.min, max: cached?.max, maxEnd: cached?.maxEnd };
   let unscoped = cached?.unavailable === true;
   const first = queriesForNav(key, tweaks, anchor, user, { unscoped });
   const bounds = first.find((q) => q.id === "ledger-bounds");
@@ -79,8 +81,10 @@ export async function prefetchNav(
       queryFn: bounds.queryFn,
       staleTime: EVENTS_STALE_MS,
     });
-    const next = client.getQueryData<{ max?: string; unavailable?: boolean }>(boundsQueryKey(user));
-    anchor = { ready: true, max: next?.max };
+    const next = client.getQueryData<{ min?: string; max?: string; maxEnd?: string; unavailable?: boolean }>(
+      boundsQueryKey(user),
+    );
+    anchor = { ready: true, min: next?.min, max: next?.max, maxEnd: next?.maxEnd };
     unscoped = next?.unavailable === true;
   }
   const queries = queriesForNav(key, tweaks, anchor, user, { unscoped }).filter((q) => q.id !== "ledger-bounds");
