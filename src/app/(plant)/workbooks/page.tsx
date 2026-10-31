@@ -17,6 +17,7 @@ import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/co
 import ChartBuilder, { bestGrain } from "@/components/ChartBuilder";
 import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
 import {
   byStage,
   byDefect,
@@ -193,6 +194,7 @@ export default function WorkbooksPage() {
     try {
       const res = await fetch(`/api/workbooks?snapshotId=${encodeURIComponent(wb.snapshotId)}`, { method: "DELETE" });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Delete failed");
+      await invalidateAfterWrite("workbooks");
       if (selected === wb.mod?.modId) {
         setSelected(null);
         setSelectedFile(null);

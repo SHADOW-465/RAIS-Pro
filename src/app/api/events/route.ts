@@ -23,6 +23,7 @@ import { getStores } from "@/lib/store";
 import { requireSession } from "@/lib/auth/guard";
 import { resolveRole } from "@/lib/auth/roles";
 import { scopeEventsForRole } from "@/lib/access/scope";
+import { dateBounds } from "@/lib/analytics/scope";
 import type { EventFilter } from "@/lib/store/types";
 import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 
@@ -34,6 +35,31 @@ async function getHandler(req: NextRequest) {
 
   try {
     const sp = req.nextUrl.searchParams;
+
+    // Dates only — the client uses this to turn "last 90 days" into a window
+    // before it downloads rows. Same role scope as the row read. If the scan
+    // fails, say so; the client then reads without a window instead of
+    // painting an empty plant.
+    if (sp.get("bounds") === "1") {
+      try {
+        const { events, backend } = getStores();
+        const all = await events.effective();
+        const role = await resolveRole(auth.actor.role);
+        const data = scopeEventsForRole(all, role?.scope);
+        const { min, max } = dateBounds(data);
+        return NextResponse.json(
+          { min: min ?? null, max: max ?? null, backend },
+          { headers: LIVE_CACHE },
+        );
+      } catch (err: any) {
+        console.warn("[events] bounds read failed; clients will load without a date window", err);
+        return NextResponse.json(
+          { boundsUnavailable: true, error: err?.message ?? "bounds failed" },
+          { headers: LIVE_CACHE },
+        );
+      }
+    }
+
     const filter: EventFilter = {
       from: sp.get("from") ?? undefined,
       to: sp.get("to") ?? undefined,

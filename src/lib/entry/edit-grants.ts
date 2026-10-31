@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { slot } from "@/lib/storage";
 import { pushShared, SHARED_STATE_EVENT } from "@/lib/shared-state/push";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
 
 export type EditGrant = {
   entryKey: string;
@@ -74,6 +75,9 @@ export function adoptGrant(grant: EditGrant): void {
   adoptGrants([grant, ...rest]);
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(SHARED_STATE_EVENT, { detail: { kind: "edit-grants" } }));
+  // The grant was issued on the server. This browser did not call issueGrant,
+  // so the cache has to be told from here.
+  void invalidateAfterWrite("grants");
 }
 
 /** Drop expired grants and return active ones. */
@@ -107,12 +111,14 @@ export function issueGrant(opts: {
   const rest = loadAll().filter((gr) => gr.entryKey !== opts.entryKey);
   saveAll([grant, ...rest]);
   pushShared("edit-grants", { kind: "edit-grants", grant });
+  void invalidateAfterWrite("grants");
   return grant;
 }
 
 export function revokeGrant(key: string): void {
   saveAll(loadAll().filter((gr) => gr.entryKey !== key));
   pushShared("edit-grants", { kind: "edit-grants", revokeEntryKey: key });
+  void invalidateAfterWrite("grants");
 }
 
 export function __resetGrantsForTests(): void {

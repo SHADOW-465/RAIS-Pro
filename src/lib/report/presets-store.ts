@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { slot } from "@/lib/storage";
 import { pushShared } from "@/lib/shared-state/push";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
 import type { ReportSpec } from "./blocks";
 import {
   cloneSpec,
@@ -131,6 +132,7 @@ export function saveNamedPreset(name: string, spec: ReportSpec, existingId?: str
   };
   const rest = users.filter((p) => p.id !== id);
   saveUserPresets([next, ...rest], true);
+  void invalidateAfterWrite("presets");
   return next;
 }
 
@@ -140,6 +142,7 @@ export function deleteNamedPreset(id: string): boolean {
   const next = users.filter((p) => p.id !== id);
   if (next.length === users.length) return false;
   saveUserPresets(next, true);
+  void invalidateAfterWrite("presets");
   return true;
 }
 

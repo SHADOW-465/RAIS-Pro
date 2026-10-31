@@ -4,11 +4,8 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { TweaksProvider } from "@/components/editorial/TweaksContext";
-import { EventsProvider } from "@/components/app/EventsContext";
-import { LineageProvider } from "@/components/app/LineageContext";
-import { RegistryProvider } from "@/components/app/RegistryContext";
 import { PersonaProvider } from "@/components/app/PersonaContext";
-import { ActiveMetricProvider } from "@/components/app/ActiveMetricContext";
+import { QueryProvider } from "@/components/app/QueryProvider";
 import { ConfirmProvider } from "@/components/ui/ConfirmContext";
 import { BuildWatcher } from "@/components/app/BuildWatcher";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
@@ -48,19 +45,13 @@ export default function RootLayout({
           }}
         />
         <BuildWatcher />
-        <TweaksProvider>
-          <PersonaProvider>
-            <EventsProvider>
-              <LineageProvider>
-                <RegistryProvider>
-                  <ActiveMetricProvider>
-                    <ConfirmProvider>{children}</ConfirmProvider>
-                  </ActiveMetricProvider>
-                </RegistryProvider>
-              </LineageProvider>
-            </EventsProvider>
-          </PersonaProvider>
-        </TweaksProvider>
+        <QueryProvider>
+          <TweaksProvider>
+            <PersonaProvider>
+              <ConfirmProvider>{children}</ConfirmProvider>
+            </PersonaProvider>
+          </TweaksProvider>
+        </QueryProvider>
       </body>
     </html>
   );

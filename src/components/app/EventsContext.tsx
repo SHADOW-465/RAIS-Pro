@@ -1,17 +1,18 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import React, { createContext, useCallback, useContext, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Event } from "@/lib/store/types";
 import { usePersona } from "@/components/app/PersonaContext";
-import { createTrailingRefresh } from "@/lib/client/trailing-refresh";
+import { useTweaks } from "@/components/editorial/TweaksContext";
+import { fetchEvents, fetchLedgerBounds } from "@/lib/client/fetchers";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
+import {
+  EVENTS_STALE_MS,
+  ledgerFetchWindow,
+  presetNeedsAnchor,
+} from "@/lib/client/ledger-window";
+import { boundsQueryKey, eventsCacheCovers, eventsPendingKey, eventsQueryKey } from "@/lib/client/query-keys";
 
 interface EventsContextType {
   events: Event[] | null;
@@ -26,100 +27,119 @@ interface EventsContextType {
 const EventsContext = createContext<EventsContextType | undefined>(undefined);
 
 /**
- * Shared ledger cache for the shell.
+ * Ledger cache for the shell. One TanStack Query per signed-in user and date
+ * window: the first load shows loading, and a later window keeps the previous
+ * rows only when that cache already covers the new one. The query is not
+ * started on screens that never read events, and a focused tab does not
+ * refetch (staleTime, refetchOnWindowFocus off).
  *
- * SWR-style: first load shows loading; later refreshes keep stale data on screen
- * (isValidating) so navigating / agent ingest / entry save never blank the UI.
- * One in-flight fetch is coalesced so concurrent refreshEvents() share a promise.
- *
- * When plant auth is on, we wait for a session before calling /api/events so a
- * signed-out shell does not spam 401s, and we re-fetch as soon as the user signs in.
+ * Relative presets ("last 90 days", …) need the latest event day first. That
+ * is a dates-only read (`?bounds=1`). If it is missing, the screen warns and
+ * reads the ledger without a window rather than showing an empty plant.
  */
-export function EventsProvider({ children }: { children: React.ReactNode }) {
+export function EventsProvider({
+  enabled = true,
+  children,
+}: {
+  /** False on screens that only need refreshEvents() after a write. */
+  enabled?: boolean;
+  children: React.ReactNode;
+}) {
   const { authEnabled, authUser, authReady } = usePersona();
-  const [events, setEvents] = useState<Event[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isValidating, setIsValidating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const hasData = useRef(false);
+  const { t } = useTweaks();
+  const queryClient = useQueryClient();
+  const blocked = authReady && authEnabled && !authUser;
+  const canFetch = authReady && !blocked && enabled;
+  const user = authUser?.username ?? "";
+  const wantsAnchor = presetNeedsAnchor(t.datePreset);
 
-  /** Session required before private APIs: auth on and no user yet. */
-  const blockedByAuth = authReady && authEnabled && !authUser;
-  const canFetch = authReady && !blockedByAuth;
-  const canFetchRef = useRef(canFetch);
-  canFetchRef.current = canFetch;
+  const bounds = useQuery({
+    queryKey: boundsQueryKey(user),
+    queryFn: fetchLedgerBounds,
+    enabled: canFetch && wantsAnchor,
+    staleTime: EVENTS_STALE_MS,
+  });
 
-  const load = useCallback(async () => {
-    if (!canFetchRef.current) {
-      setEvents([]);
-      setIsLoading(false);
-      setIsValidating(false);
-      return;
-    }
-    if (hasData.current) setIsValidating(true);
-    else setIsLoading(true);
-    try {
-      const res = await fetch("/api/events", {
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: { Accept: "application/json" },
-      });
-      if (res.status === 401) {
-        setEvents([]);
-        hasData.current = false;
-        return;
+  const unscoped = bounds.data?.unavailable === true;
+  const anchorReady = !wantsAnchor || unscoped || bounds.isFetched;
+  const window = ledgerFetchWindow(
+    { datePreset: t.datePreset, dateFrom: t.dateFrom, dateTo: t.dateTo },
+    { ready: anchorReady, max: bounds.data?.max },
+    { unscoped },
+  );
+
+  const eventsQuery = useQuery({
+    queryKey: window.needsAnchor ? eventsPendingKey(user) : eventsQueryKey(user, window),
+    queryFn: async () => {
+      try {
+        return await fetchEvents({ from: window.from, to: window.to });
+      } catch (err) {
+        console.error("Failed to fetch events:", err);
+        throw err;
       }
-      if (!res.ok) throw new Error(`events ${res.status}`);
-      const data = await res.json();
-      const next = (data.events ?? []) as Event[];
-      setEvents(next);
-      setError(null);
-      hasData.current = true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load the ledger.");
-      console.error("Failed to fetch events:", err);
-      setEvents((prev) => (prev != null ? prev : []));
-      throw err;
-    } finally {
-      setIsLoading(false);
-      setIsValidating(false);
-    }
-  }, []);
-
-  const refreshRef = useRef(createTrailingRefresh(() => load()));
-  const refreshEvents = useCallback(() => refreshRef.current(), []);
-
-  // Load (or clear) whenever auth readiness / session changes — including post-login.
-  useEffect(() => {
-    if (!authReady) return;
-    if (blockedByAuth) {
-      setEvents([]);
-      hasData.current = false;
-      setIsLoading(false);
-      setIsValidating(false);
-      return;
-    }
-    void refreshEvents().catch(() => {});
-  }, [authReady, blockedByAuth, authUser?.username, refreshEvents]);
-
-  useEffect(() => {
-    const onVis = () => {
-      if (document.visibilityState === "visible" && hasData.current && canFetch) {
-        void refreshEvents().catch(() => {});
+    },
+    enabled: canFetch && !window.needsAnchor,
+    staleTime: EVENTS_STALE_MS,
+    // Keep the rows on screen only when they already cover the new window.
+    placeholderData: (previous, previousQuery) => {
+      if (!previous || !previousQuery) return undefined;
+      if (!eventsCacheCovers(previousQuery.queryKey, { user, from: window.from, to: window.to })) {
+        return undefined;
       }
+      return previous;
+    },
+  });
+
+  const refreshEvents = useCallback(async () => {
+    await invalidateAfterWrite("events", queryClient);
+  }, [queryClient]);
+
+  const value = useMemo<EventsContextType>(() => {
+    if (!authReady) {
+      return { events: null, isLoading: true, isValidating: false, error: null, refreshEvents };
+    }
+    if (blocked) {
+      return { events: [], isLoading: false, isValidating: false, error: null, refreshEvents };
+    }
+
+    const payload = eventsQuery.data;
+    const failed = eventsQuery.isError && !payload;
+    const events = payload?.unauthorized
+      ? []
+      : payload?.events ?? (failed ? [] : null);
+    const waiting =
+      canFetch &&
+      events == null &&
+      !failed &&
+      (window.needsAnchor || eventsQuery.isPending || eventsQuery.isFetching);
+    const error = eventsQuery.isError
+      ? eventsQuery.error instanceof Error
+        ? eventsQuery.error.message
+        : "Could not load the ledger."
+      : null;
+    return {
+      events,
+      isLoading: waiting,
+      isValidating: !waiting && (eventsQuery.isFetching || (wantsAnchor && bounds.isFetching)),
+      error,
+      refreshEvents,
     };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, [refreshEvents, canFetch]);
+  }, [
+    authReady,
+    blocked,
+    bounds.isFetching,
+    canFetch,
+    eventsQuery.data,
+    eventsQuery.error,
+    eventsQuery.isError,
+    eventsQuery.isFetching,
+    eventsQuery.isPending,
+    refreshEvents,
+    wantsAnchor,
+    window.needsAnchor,
+  ]);
 
-  const value = useMemo(
-    () => ({ events, isLoading, isValidating, error, refreshEvents }),
-    [events, isLoading, isValidating, error, refreshEvents],
-  );
-
-  return (
-    <EventsContext.Provider value={value}>{children}</EventsContext.Provider>
-  );
+  return <EventsContext.Provider value={value}>{children}</EventsContext.Provider>;
 }
 
 export function useEvents() {

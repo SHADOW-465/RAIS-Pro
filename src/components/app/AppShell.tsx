@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef, useCallback, type ReactNode } from "react";
 import Icon, { type IconName } from "@/components/editorial/Icon";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { useEvents } from "@/components/app/EventsContext";
+import { prefetchNav, routeReadsLedger } from "@/lib/client/page-data";
 import { useConfirm } from "@/components/ui/ConfirmContext";
 import DatePicker from "@/components/ui/DatePicker";
 import {
@@ -42,7 +44,7 @@ import SharedStateBanner from "@/components/app/SharedStateBanner";
 import { canReport } from "@/lib/report/blocks";
 import { subscribeNavBanner, emitNavBanner, type NavBanner } from "@/lib/analytics/nav-banner";
 import { usePersona } from "@/components/app/PersonaContext";
-import { useActiveMetric } from "@/components/app/ActiveMetricContext";
+import { ActiveMetricProvider, useActiveMetric } from "@/components/app/ActiveMetricContext";
 
 // Heavy chrome — code-split; only fetched when the operator opens the surface.
 const CommandPalette = dynamic(() => import("@/components/app/CommandPalette"), {
@@ -201,7 +203,7 @@ const SCOPE_CONTROLS: Partial<Record<NavKey, ("view" | "interval" | "range" | "s
   audit: ["range", "sources"],
 };
 
-export default function AppShell({
+function AppShellView({
   active, trustScore: trustScoreProp, statusCounts, dateRange, children, presetId: _presetId,
   toolbarExtra, wide,
 }: {
@@ -218,6 +220,7 @@ export default function AppShell({
   wide?: boolean;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { events, refreshEvents, isLoading: eventsLoading, error: eventsError } = useEvents();
   const { t, setTweak } = useTweaks();
   const { registry, policy, configured: registryConfigured, isLoading: registryLoading } = useRegistry();
@@ -1172,6 +1175,10 @@ export default function AppShell({
     anomalies: integrityHealth?.anomalies ?? null,
     alerts: integrityHealth?.alerts ?? null,
   };
+  // Screens that do not read the ledger never start that fetch. A dash there
+  // means "not computed on this page", which is different from still loading.
+  const integrityPending =
+    eventsLoading || (events == null && routeReadsLedger(active) && !eventsError);
 
   // Grouped View options. "Stations" only lists stages that:
   //   1) have ledger data, AND
@@ -1392,6 +1399,24 @@ export default function AppShell({
                     <button key={n.key} disabled={n.soon}
                       data-nav-active={isActive}
                       data-nav-spotlight={isSpotlight || undefined}
+                      onMouseEnter={() => {
+                        if (n.href) {
+                          void prefetchNav(queryClient, n.key, {
+                            datePreset: t.datePreset,
+                            dateFrom: t.dateFrom,
+                            dateTo: t.dateTo,
+                          }, authUser?.username ?? "");
+                        }
+                      }}
+                      onFocus={() => {
+                        if (n.href) {
+                          void prefetchNav(queryClient, n.key, {
+                            datePreset: t.datePreset,
+                            dateFrom: t.dateFrom,
+                            dateTo: t.dateTo,
+                          }, authUser?.username ?? "");
+                        }
+                      }}
                       onClick={() => {
                         if (n.key === "ask") {
                           setShowChatWidget(true);
@@ -2293,10 +2318,10 @@ export default function AppShell({
         boxShadow: "var(--shadow-sm)"
       }}>
         <div style={{ display: "flex", gap: "clamp(12px, 1.5vw, 24px)" }}>
-          <Status tone="var(--critical)" label="Active Alerts" value={sc.alerts == null ? "…" : `${sc.alerts} Critical`} />
+          <Status tone="var(--critical)" label="Active Alerts" value={sc.alerts == null ? (integrityPending ? "…" : "—") : `${sc.alerts} Critical`} />
           <Status tone="var(--positive)" label="Pending CAPA" value={`${sc.capa ?? 0} Actions`} />
           <Status tone="var(--warning)" label="Overdue Actions" value={`${sc.overdue ?? 0}`} />
-          <Status tone="var(--warning)" label="Data Anomalies" value={sc.anomalies == null ? "…" : `${sc.anomalies}`} />
+          <Status tone="var(--warning)" label="Data Anomalies" value={sc.anomalies == null ? (integrityPending ? "…" : "—") : `${sc.anomalies}`} />
         </div>
       </footer>
 
@@ -2556,6 +2581,16 @@ export default function AppShell({
         M
       </button>
     </div>
+  );
+}
+
+/** The spotlight is shell state. Ledger, schema and lineage sit above the page
+ *  (those screens call the hooks before they render this shell). */
+export default function AppShell(props: React.ComponentProps<typeof AppShellView>) {
+  return (
+    <ActiveMetricProvider>
+      <AppShellView {...props} />
+    </ActiveMetricProvider>
   );
 }
 

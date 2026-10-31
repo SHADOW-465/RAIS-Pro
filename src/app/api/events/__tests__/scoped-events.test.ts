@@ -143,3 +143,24 @@ describe("/api/policy withholds plant money", () => {
     expect((await call(POLICY_GET, "http://localhost/api/policy", null)).status).toBe(401);
   });
 });
+
+describe("GET /api/events?bounds=1", () => {
+  test("an unauthenticated caller gets 401", async () => {
+    expect((await call(GET, "http://localhost/api/events?bounds=1", null)).status).toBe(401);
+  });
+
+  test("returns the date ends of the caller's ledger and not the rows", async () => {
+    await seedLedger();
+    const res = await call(GET, "http://localhost/api/events?bounds=1", "gm");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.events).toBeUndefined();
+    expect(body.boundsUnavailable).toBeUndefined();
+    expect(typeof body.min).toBe("string");
+    expect(typeof body.max).toBe("string");
+    // The memory store is process-global, so other suites may have appended
+    // rows. The seeded day has to sit inside the ends, not be the only day.
+    expect(body.min <= "2026-01-05").toBe(true);
+    expect(body.max >= "2026-01-05").toBe(true);
+  });
+});

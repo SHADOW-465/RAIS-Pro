@@ -7,6 +7,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { z } from "zod";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
 import { slot } from "@/lib/storage";
 import type { RecommendationT } from "@/shared/models/decision";
 
@@ -168,6 +169,7 @@ function commit(next: CapaRecord[]): void {
 export function addCapa(record: CapaRecord): void {
   commit([record, ...read()]);
   void send("PUT", { capa: record });
+  void invalidateAfterWrite("capa");
 }
 
 export function updateCapa(id: string, patch: Partial<CapaRecord>): void {
@@ -175,11 +177,13 @@ export function updateCapa(id: string, patch: Partial<CapaRecord>): void {
   commit(next);
   const updated = next.find((c) => c.id === id);
   if (updated) void send("PUT", { capa: updated });
+  void invalidateAfterWrite("capa");
 }
 
 export function removeCapa(id: string): void {
   commit(read().filter((c) => c.id !== id));
   void send("DELETE", undefined, `?id=${encodeURIComponent(id)}`);
+  void invalidateAfterWrite("capa");
 }
 
 /** True if a CAPA already tracks this exact rule + problem (dedupe). */

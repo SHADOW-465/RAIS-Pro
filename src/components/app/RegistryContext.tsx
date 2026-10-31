@@ -3,40 +3,19 @@
 // The active Data Entry schema (registry) — the SAME /api/schema "no presetId"
 // default the server itself falls back to, fetched once here so every
 // analytics page shares one copy instead of independently calling
-// DISPOSAFE_REGISTRY as a hardcoded default. Mirrors EventsContext exactly.
+// DISPOSAFE_REGISTRY as a hardcoded default.
 //
-// Waits for auth session so signed-out shells
-// do not log `schema 401`, and re-fetches immediately after sign-in.
+// Mounted by the shell, not the root layout, so signed-out routes (login)
+// do not request it. Waits for a session before calling /api/schema.
 
-import {
-  DEFAULT_POLICY,
-  parsePolicy,
-  type CalculationPolicyT,
-} from "@/core/policy/policy";
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import { DEFAULT_POLICY, type CalculationPolicyT } from "@/core/policy/policy";
+import React, { createContext, useCallback, useContext, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePersona } from "@/components/app/PersonaContext";
-import { createTrailingRefresh } from "@/lib/client/trailing-refresh";
-import type { DefectAliasRef } from "@/lib/analytics/defect-alias";
-
-function defectAliasesFrom(mappings: unknown): DefectAliasRef[] {
-  if (!Array.isArray(mappings)) return [];
-  const out: DefectAliasRef[] = [];
-  for (const row of mappings) {
-    if (!row || typeof row !== "object") continue;
-    const m = row as { kind?: string; key?: string; canonicalId?: string };
-    if (m.kind !== "defect-alias" || !m.key || !m.canonicalId) continue;
-    out.push({ key: String(m.key), canonicalId: String(m.canonicalId) });
-  }
-  return out;
-}
+import { fetchSchema } from "@/lib/client/fetchers";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
+import { EVENTS_STALE_MS } from "@/lib/client/ledger-window";
+import { schemaQueryKey } from "@/lib/client/query-keys";
 
 export type RefreshRegistryOpts = { force?: boolean };
 
@@ -57,98 +36,56 @@ interface RegistryContextType {
 
 const RegistryContext = createContext<RegistryContextType | undefined>(undefined);
 
+const EMPTY = {
+  registry: null as any | null,
+  policy: DEFAULT_POLICY,
+  schemaRev: null as string | null,
+  configured: false,
+};
+
 export function RegistryProvider({ children }: { children: React.ReactNode }) {
   const { authEnabled, authUser, authReady } = usePersona();
-  const [registry, setRegistry] = useState<any | null>(null);
-  const [policy, setPolicy] = useState<CalculationPolicyT>(DEFAULT_POLICY);
-  const [schemaRev, setSchemaRev] = useState<string | null>(null);
-  const [configured, setConfigured] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isValidating, setIsValidating] = useState(false);
-  const hasData = useRef(false);
+  const queryClient = useQueryClient();
+  const blocked = authReady && authEnabled && !authUser;
+  const canFetch = authReady && !blocked;
+  const user = authUser?.username ?? "";
 
-  const blockedByAuth = authReady && authEnabled && !authUser;
-  const canFetch = authReady && !blockedByAuth;
-  const canFetchRef = useRef(canFetch);
-  canFetchRef.current = canFetch;
-
-  const load = useCallback(async () => {
-    if (!canFetchRef.current) {
-      setRegistry(null);
-      setPolicy(DEFAULT_POLICY);
-      setSchemaRev(null);
-      setConfigured(false);
-      setIsLoading(false);
-      setIsValidating(false);
-      return;
-    }
-    if (hasData.current) setIsValidating(true);
-    else setIsLoading(true);
-    try {
-      const res = await fetch("/api/schema", {
-        credentials: "same-origin",
-        cache: "no-store",
-      });
-      if (res.status === 401) {
-        setRegistry(null);
-        setPolicy(DEFAULT_POLICY);
-        setSchemaRev(null);
-        setConfigured(false);
-        hasData.current = false;
-        return;
+  const query = useQuery({
+    queryKey: schemaQueryKey(user),
+    queryFn: async () => {
+      try {
+        return await fetchSchema();
+      } catch (err) {
+        console.error("Failed to fetch active registry:", err);
+        throw err;
       }
-      if (!res.ok) throw new Error(`schema ${res.status}`);
-      const data = await res.json();
-      const defectAliases = defectAliasesFrom(data.mappings);
-      setRegistry(
-        data.registry ? { ...data.registry, defectAliases } : null,
-      );
-      setPolicy(parsePolicy(data.policy));
-      setSchemaRev(data.catalog?.updatedAt ?? data.catalog?.lastMergedFrom ?? null);
-      setConfigured(!!data.configured);
-      hasData.current = true;
-    } catch (err) {
-      console.error("Failed to fetch active registry:", err);
-      setRegistry((prev: any | null) => (prev != null ? prev : null));
-      throw err;
-    } finally {
-      setIsLoading(false);
-      setIsValidating(false);
-    }
-  }, []);
+    },
+    enabled: canFetch,
+    staleTime: EVENTS_STALE_MS,
+  });
 
-  const refreshRef = useRef(createTrailingRefresh(() => load()));
   const refreshRegistry = useCallback(async (_opts?: RefreshRegistryOpts) => {
-    await refreshRef.current();
-  }, []);
+    await invalidateAfterWrite("schema", queryClient);
+  }, [queryClient]);
 
-  useEffect(() => {
-    if (!authReady) return;
-    if (blockedByAuth) {
-      setRegistry(null);
-      setPolicy(DEFAULT_POLICY);
-      setSchemaRev(null);
-      setConfigured(false);
-      hasData.current = false;
-      setIsLoading(false);
-      setIsValidating(false);
-      return;
+  const value = useMemo<RegistryContextType>(() => {
+    if (!authReady) {
+      return { ...EMPTY, isLoading: true, isValidating: false, refreshRegistry };
     }
-    void refreshRegistry().catch(() => {});
-  }, [authReady, blockedByAuth, authUser?.username, refreshRegistry]);
-
-  const value = useMemo(
-    () => ({
-      registry,
-      policy,
-      isLoading,
-      isValidating,
-      schemaRev,
-      configured,
+    if (blocked || query.data?.unauthorized) {
+      return { ...EMPTY, isLoading: false, isValidating: false, refreshRegistry };
+    }
+    const data = query.data;
+    return {
+      registry: data?.registry ?? null,
+      policy: data?.policy ?? DEFAULT_POLICY,
+      schemaRev: data?.schemaRev ?? null,
+      configured: data?.configured ?? false,
+      isLoading: !data && query.isPending,
+      isValidating: !!data && query.isFetching,
       refreshRegistry,
-    }),
-    [registry, policy, isLoading, isValidating, schemaRev, configured, refreshRegistry],
-  );
+    };
+  }, [authReady, blocked, query.data, query.isFetching, query.isPending, refreshRegistry]);
 
   return (
     <RegistryContext.Provider value={value}>{children}</RegistryContext.Provider>

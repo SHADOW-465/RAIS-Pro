@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/ui/ConfirmContext";
 import DatePicker from "@/components/ui/DatePicker";
 import type { PlantNotification } from "@/lib/notifications/types";
 import { NOTIFICATIONS_CHANGED, notifyNotificationsChanged } from "@/lib/client/live-signals";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
 import {
   classifyAlert,
   groupAlerts,
@@ -86,6 +87,9 @@ export default function AlertsPage() {
         notify(body.error ?? "Action failed", "error");
         return;
       }
+      // Approving from this page does not call adoptGrant. The grant still
+      // landed on the server, so the grants cache has to drop.
+      if (action === "approve") await invalidateAfterWrite("grants");
       notifyNotificationsChanged();
       await refresh();
     } finally {

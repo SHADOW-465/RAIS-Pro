@@ -16,8 +16,8 @@ import DatePicker from "@/components/ui/DatePicker";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
-import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
 import { usePersona } from "@/components/app/PersonaContext";
 import CalculationRules from "@/components/settings/CalculationRules";
 import DisplayDefaults from "@/components/settings/DisplayDefaults";
@@ -52,7 +52,6 @@ const SECTIONS: { id: SectionId; label: string; hint: string }[] = [
 ];
 
 export default function SettingsPage() {
-  const { refreshEvents } = useEvents();
   const { registry } = useRegistry();
   const { canConfigure, isAdmin } = usePersona();
   // Purge and schema reset are installation-admin tools (MOID_ADMIN_USERS),
@@ -111,7 +110,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/clear-data", { method: "POST" });
       if (!res.ok) throw new Error("Purge failed");
-      await refreshEvents();
+      await invalidateAfterWrite("clear-data");
       setActionStatus("Transaction data cleared successfully.");
       setShowClearModal(false);
       setClearConfirmText("");
@@ -129,7 +128,8 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/clear-schema", { method: "POST" });
       if (!res.ok) throw new Error("Failed to clear schema registry");
-      await refreshEvents();
+      await invalidateAfterWrite("schema");
+      await invalidateAfterWrite("events");
       setActionStatus("Schema registry reset to defaults successfully.");
       setShowClearSchemaModal(false);
       setClearSchemaConfirmText("");

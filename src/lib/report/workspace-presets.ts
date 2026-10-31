@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { slot } from "@/lib/storage";
 import { pushShared } from "@/lib/shared-state/push";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
 import type { ReportPeriodMode, ReportType } from "./report-scope";
 
 /** The key the pre-wrapper code used; adopted once by the slot below. */
@@ -173,6 +174,7 @@ export function saveWorkspacePreset(
   if (usesBrowser(storage)) {
     pushShared("workspace-presets", { kind: "workspace-presets", record: saved });
   }
+  void invalidateAfterWrite("presets");
   return { ok: true, value: next };
 }
 
@@ -190,6 +192,7 @@ export function deleteWorkspacePreset(
   if (usesBrowser(storage)) {
     pushShared("workspace-presets", { kind: "workspace-presets", record: next });
   }
+  void invalidateAfterWrite("presets");
   return { ok: true, value: true };
 }
 
