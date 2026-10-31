@@ -217,9 +217,9 @@ export default function AppShell({
   wide?: boolean;
 }) {
   const router = useRouter();
-  const { events, refreshEvents } = useEvents();
+  const { events, refreshEvents, isLoading: eventsLoading, error: eventsError } = useEvents();
   const { t, setTweak } = useTweaks();
-  const { registry, policy, configured: registryConfigured } = useRegistry();
+  const { registry, policy, configured: registryConfigured, isLoading: registryLoading } = useRegistry();
   const {
     persona,
     setPersona,
@@ -1166,18 +1166,23 @@ export default function AppShell({
 
   // Footer health is the integrity scan for the header scope — the same
   // V-004 / V-014 check Data Schema shows. Callers cannot zero it out.
+  // The scan needs BOTH the ledger and the calculation policy: scoped under the
+  // default policy while /api/schema is still in flight it counts differently
+  // (123 vs 124), and an unloaded or failed ledger would read as 0. Until both
+  // have arrived the counts are null and the footer shows a loading dash.
+  const footerReady = events != null && !eventsLoading && !eventsError && !registryLoading;
   const integrityHealth = useMemo(() => {
-    const ev = events ?? [];
-    if (ev.length === 0) return { anomalies: 0, alerts: 0 };
-    const q = qualityStatus(ev, resolveScope(ev, t, policy));
+    if (!footerReady || !events) return null;
+    if (events.length === 0) return { anomalies: 0, alerts: 0 };
+    const q = qualityStatus(events, resolveScope(events, t, policy));
     const critical = q.integrityIssues.filter((i) => i.severity === "critical").length;
     return { anomalies: q.integrityIssues.length, alerts: critical };
-  }, [events, t, policy]);
+  }, [footerReady, events, t, policy]);
   const sc = {
     capa: statusCounts?.capa ?? 0,
     overdue: statusCounts?.overdue ?? 0,
-    anomalies: integrityHealth.anomalies,
-    alerts: integrityHealth.alerts,
+    anomalies: integrityHealth?.anomalies ?? null,
+    alerts: integrityHealth?.alerts ?? null,
   };
 
   // Grouped View options. "Stations" only lists stages that:
@@ -2299,10 +2304,10 @@ export default function AppShell({
         boxShadow: "var(--shadow-sm)"
       }}>
         <div style={{ display: "flex", gap: "clamp(12px, 1.5vw, 24px)" }}>
-          <Status tone="var(--critical)" label="Active Alerts" value={`${sc.alerts ?? 0} Critical`} />
+          <Status tone="var(--critical)" label="Active Alerts" value={sc.alerts == null ? "…" : `${sc.alerts} Critical`} />
           <Status tone="var(--positive)" label="Pending CAPA" value={`${sc.capa ?? 0} Actions`} />
           <Status tone="var(--warning)" label="Overdue Actions" value={`${sc.overdue ?? 0}`} />
-          <Status tone="var(--warning)" label="Data Anomalies" value={`${sc.anomalies ?? 0}`} />
+          <Status tone="var(--warning)" label="Data Anomalies" value={sc.anomalies == null ? "…" : `${sc.anomalies}`} />
         </div>
       </footer>
 
