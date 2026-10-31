@@ -1,6 +1,7 @@
 "use client";
 
 import { customDefects as customDefectsPref } from "@/lib/ui-prefs";
+import { pushShared, SHARED_STATE_EVENT } from "@/lib/shared-state/push";
 import "./settings.css";
 
 /* Hallmark · macrostructure: Index-First · genre: modern-minimal · tone: utilitarian
@@ -83,6 +84,19 @@ export default function SettingsPage() {
     setExportCfg(readDataEntryExportConfig());
   }, []);
 
+  useEffect(() => {
+    const onShared = (ev: Event) => {
+      const kind = (ev as CustomEvent<{ kind?: string }>).detail?.kind;
+      if (!kind || kind === "shift-windows") setShiftCfg(readShiftWindowConfig());
+      if (!kind || kind === "custom-defects") {
+        const cd = customDefectsPref.get();
+        if (cd) setCustomDefects(cd);
+      }
+    };
+    window.addEventListener(SHARED_STATE_EVENT, onShared);
+    return () => window.removeEventListener(SHARED_STATE_EVENT, onShared);
+  }, []);
+
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearConfirmText, setClearConfirmText] = useState("");
   const [showClearSchemaModal, setShowClearSchemaModal] = useState(false);
@@ -151,6 +165,7 @@ export default function SettingsPage() {
   const handleSave = () => {
     if (typeof window !== "undefined") {
       customDefectsPref.set(customDefects);
+      pushShared("custom-defects", { kind: "custom-defects", record: customDefects });
 
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);

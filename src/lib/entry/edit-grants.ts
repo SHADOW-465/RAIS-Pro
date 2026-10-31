@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { slot } from "@/lib/storage";
+import { pushShared, SHARED_STATE_EVENT } from "@/lib/shared-state/push";
 
 export type EditGrant = {
   entryKey: string;
@@ -60,6 +61,21 @@ function saveAll(grants: EditGrant[]): void {
   grantsSlot.set(grants);
 }
 
+/** Replace the local cache without telling the server. Used by a pull. */
+export function adoptGrants(grants: EditGrant[]): void {
+  g.__moidEditGrants = grants;
+  if (typeof window === "undefined") return;
+  grantsSlot.set(grants);
+}
+
+/** Cache one server grant in this browser. Does not write it again. */
+export function adoptGrant(grant: EditGrant): void {
+  const rest = loadAll().filter((gr) => gr.entryKey !== grant.entryKey);
+  adoptGrants([grant, ...rest]);
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(SHARED_STATE_EVENT, { detail: { kind: "edit-grants" } }));
+}
+
 /** Drop expired grants and return active ones. */
 export function listActiveGrants(now: Date = new Date()): EditGrant[] {
   const t = now.getTime();
@@ -90,11 +106,13 @@ export function issueGrant(opts: {
   };
   const rest = loadAll().filter((gr) => gr.entryKey !== opts.entryKey);
   saveAll([grant, ...rest]);
+  pushShared("edit-grants", { kind: "edit-grants", grant });
   return grant;
 }
 
 export function revokeGrant(key: string): void {
   saveAll(loadAll().filter((gr) => gr.entryKey !== key));
+  pushShared("edit-grants", { kind: "edit-grants", revokeEntryKey: key });
 }
 
 export function __resetGrantsForTests(): void {

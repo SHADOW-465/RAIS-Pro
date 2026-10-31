@@ -6,6 +6,7 @@
 
 import { z } from "zod";
 import { slot } from "@/lib/storage";
+import { pushShared } from "@/lib/shared-state/push";
 
 // parseLotMemory is the one judge of what a stored pin means, so the slot only
 // asks "would parseLotMemory take it".
@@ -71,8 +72,33 @@ export function readLotMemory(): LotMemorySnapshot | null {
   return stored === undefined ? null : parseLotMemory(JSON.stringify(stored));
 }
 
+function samePin(a: LotMemorySnapshot | null, b: LotMemorySnapshot | null): boolean {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return a.on === b.on
+    && a.batchId === b.batchId
+    && a.batchDate === b.batchDate
+    && a.size === b.size
+    && a.category === b.category
+    && a.catheterType === b.catheterType
+    && a.productType === b.productType;
+}
+
+/** Cache a server pin. Does not push it back. */
+export function adoptLotMemory(snap: LotMemorySnapshot | null): void {
+  if (typeof window === "undefined") return;
+  if (!snap || !snap.on || !snap.batchId.trim()) lotMemorySlot.remove();
+  else lotMemorySlot.set(snap);
+}
+
 export function writeLotMemory(snap: LotMemorySnapshot | null): void {
   if (typeof window === "undefined") return;
-  if (!snap || !snap.on) lotMemorySlot.remove();
-  else lotMemorySlot.set(snap); // best-effort: private mode / quota just means no pin
+  const next = !snap || !snap.on || !snap.batchId.trim() ? null : snap;
+  // The entry form re-saves the pin it just read. Pushing that would
+  // overwrite the plant pin with this browser's copy on every page load.
+  const unchanged = samePin(readLotMemory(), next);
+  if (!next) lotMemorySlot.remove();
+  else lotMemorySlot.set(next);
+  if (unchanged) return;
+  pushShared("lot-memory", { kind: "lot-memory", record: next }, 400);
 }

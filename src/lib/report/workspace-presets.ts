@@ -3,10 +3,12 @@
 // Contract: a preset stores report type + period mode + optional notes.
 // It does NOT freeze an absolute custom date range unless persistCustomDates
 // is explicitly true. Financial Year mode stores the mode, not a past FY.
-// Persistence is browser-local (lib/storage.ts) — not a governed plant template.
+// User layouts are plant-wide (plant_shared_state). Built-ins stay in this file.
+// Tests inject `storage`; only window.localStorage is pushed to the server.
 
 import { z } from "zod";
 import { slot } from "@/lib/storage";
+import { pushShared } from "@/lib/shared-state/push";
 import type { ReportPeriodMode, ReportType } from "./report-scope";
 
 /** The key the pre-wrapper code used; adopted once by the slot below. */
@@ -107,6 +109,31 @@ function writeUser(storage: PresetStorage | null, list: WorkspacePreset[]): Pres
     : { ok: false, error: "Could not write layout presets to browser storage." };
 }
 
+function usesBrowser(storage: PresetStorage | null): boolean {
+  if (typeof window === "undefined" || storage == null) return false;
+  try {
+    return storage === window.localStorage;
+  } catch {
+    return false;
+  }
+}
+
+export function readUserWorkspacePresets(
+  storage: PresetStorage | null = defaultStorage(),
+): WorkspacePreset[] {
+  const users = readUser(storage);
+  return users.ok ? users.value : [];
+}
+
+/** Cache the plant's user layouts. Does not push them back. */
+export function replaceUserWorkspacePresets(
+  list: WorkspacePreset[],
+  storage: PresetStorage | null = defaultStorage(),
+): void {
+  const users = list.filter((p) => p.reportType && !p.builtIn && !p.id.startsWith("builtin:"));
+  writeUser(storage, users);
+}
+
 export function listWorkspacePresets(storage: PresetStorage | null = defaultStorage()): PresetStoreResult<WorkspacePreset[]> {
   const users = readUser(storage);
   if (!users.ok) return users;
@@ -140,8 +167,12 @@ export function saveWorkspacePreset(
     updatedAt: new Date().toISOString(),
   };
   const rest = users.value.filter((p) => p.id !== id);
-  const written = writeUser(storage, [next, ...rest]);
+  const saved = [next, ...rest];
+  const written = writeUser(storage, saved);
   if (!written.ok) return written;
+  if (usesBrowser(storage)) {
+    pushShared("workspace-presets", { kind: "workspace-presets", record: saved });
+  }
   return { ok: true, value: next };
 }
 
@@ -156,6 +187,9 @@ export function deleteWorkspacePreset(
   if (next.length === users.value.length) return { ok: true, value: false };
   const written = writeUser(storage, next);
   if (!written.ok) return written;
+  if (usesBrowser(storage)) {
+    pushShared("workspace-presets", { kind: "workspace-presets", record: next });
+  }
   return { ok: true, value: true };
 }
 

@@ -9,9 +9,11 @@ import {
   patchNotification,
 } from "@/lib/notifications/store";
 import type { NotificationType } from "@/lib/notifications/types";
-import { issueGrant } from "@/lib/entry/edit-grants";
+import { issueGrant, type EditGrant } from "@/lib/entry/edit-grants";
 import type { EditRequestPayload } from "@/lib/notifications/types";
+import { companyId } from "@/lib/auth/config";
 import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
+import { getSharedStateStore, SharedStateUnavailableError } from "@/lib/shared-state/store";
 
 export const dynamic = "force-dynamic";
 // Authority now comes from the session actor's capabilities (see guard.ts).
@@ -104,16 +106,10 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const updated = await patchNotification(id, {
-      action,
-      actor: actorPersona,
-      note,
-    });
-    if (!updated) {
-      return NextResponse.json({ error: "not found" }, { status: 404 });
-    }
-
-    let grant = null;
+    // The grant has to land where the requester can read it before the
+    // request is closed. Closing first left the approval only in this
+    // process, and a retry then 409'd with the requester still locked out.
+    let grant: EditGrant | null = null;
     if (action === "approve" && existing.type === "edit_request") {
       const p = existing.payload as EditRequestPayload;
       if (p?.entryKey) {
@@ -122,7 +118,28 @@ export async function PATCH(req: NextRequest) {
           approvedBy: actorPersona,
           notificationId: id,
         });
+        try {
+          await getSharedStateStore().mergeGrant(companyId(), grant, auth.actor.username);
+        } catch (err: unknown) {
+          if (err instanceof SharedStateUnavailableError) {
+            console.warn(err.message);
+            return NextResponse.json(
+              { error: err.message, code: "storage-unavailable" },
+              { status: 503 },
+            );
+          }
+          throw err;
+        }
       }
+    }
+
+    const updated = await patchNotification(id, {
+      action,
+      actor: actorPersona,
+      note,
+    });
+    if (!updated) {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
     }
 
     return NextResponse.json({ notification: updated, grant, openCount: await openCount() });

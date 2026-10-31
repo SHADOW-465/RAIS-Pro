@@ -204,3 +204,11 @@ export function sweepStaleStorage(): number {
   }
   return removed;
 }
+
+/**
+ * True once this browser has confirmed `name` with the server.
+ * The local copy of the data itself is a different slot and is kept.
+ */
+export function importedMarker(name: string): Slot<true> {
+  return slot({ name: `imported:${name}`, schema: z.literal(true) });
+}

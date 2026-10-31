@@ -210,11 +210,20 @@ class SupabaseRemedyStore implements RemedyStore {
 let memory: MemoryRemedyStore | null = null;
 let remote: SupabaseRemedyStore | null = null;
 
+const remedyGlobal = globalThis as unknown as { __moidRemedyStore?: RemedyStore };
+
 export function getRemedyStore(): RemedyStore {
+  if (remedyGlobal.__moidRemedyStore) return remedyGlobal.__moidRemedyStore;
   if (!shouldUseSupabase()) {
     memory ??= new MemoryRemedyStore();
     return memory;
   }
   remote ??= new SupabaseRemedyStore();
   return remote;
+}
+
+/** Tests only. */
+export function __setRemedyStoreForTests(store?: RemedyStore): void {
+  if (store) remedyGlobal.__moidRemedyStore = store;
+  else delete remedyGlobal.__moidRemedyStore;
 }

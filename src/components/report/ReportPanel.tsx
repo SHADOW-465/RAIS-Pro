@@ -24,6 +24,7 @@ import {
   getNamedPreset,
   type NamedReportPreset,
 } from "@/lib/report/presets-store";
+import { SHARED_STATE_EVENT, sharedStateKind } from "@/lib/shared-state/push";
 import { buildPresetsZip } from "@/lib/report/presets-package";
 import type { NavKey } from "@/lib/nav-keys";
 import {
@@ -189,6 +190,13 @@ export default function ReportPanel({
 
   useEffect(() => {
     refreshPresets();
+    const onShared = (ev: globalThis.Event) => {
+      const kind = sharedStateKind(ev);
+      if (kind && kind !== "report-presets") return;
+      refreshPresets();
+    };
+    window.addEventListener(SHARED_STATE_EVENT, onShared);
+    return () => window.removeEventListener(SHARED_STATE_EVENT, onShared);
   }, []);
 
   // After the portal paints, fire window.print(); clean up on afterprint.

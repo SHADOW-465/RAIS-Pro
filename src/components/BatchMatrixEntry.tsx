@@ -79,6 +79,7 @@ import {
   readShiftWindowConfig,
 } from "@/lib/entry/shift-window";
 import { entryKey, hasValidGrant } from "@/lib/entry/edit-grants";
+import { SHARED_STATE_EVENT } from "@/lib/shared-state/push";
 import { toStageDayRecord } from "@/lib/entry/to-stage-day-record";
 import { collectEntryReasons, remarksFromReasons } from "@/lib/entry/exception-reasons";
 import { formatLedgerBlockReason } from "@/lib/entry/format-ingest-error";
@@ -477,6 +478,28 @@ export default function BatchMatrixEntry({
     const id = window.setInterval(() => setTick((t) => t + 1), 60_000);
     return () => window.clearInterval(id);
   }, []);
+
+  const batchIdRef = useRef(batchId);
+  batchIdRef.current = batchId;
+  // A grant or shift window saved on another browser arrives through the
+  // plant document. Fill a lot pin only when this form has not started one.
+  useEffect(() => {
+    const onShared = (ev: Event) => {
+      setTick((n) => n + 1);
+      const kind = (ev as CustomEvent<{ kind?: string }>).detail?.kind;
+      if (kind !== "lot-memory") return;
+      const mem = readLotMemory();
+      if (!mem?.on) return;
+      if (batchIdRef.current.trim()) return;
+      setLotMemoryOn(true);
+      setBatchId(mem.batchId);
+      if (mem.batchDate) setBatchDate(mem.batchDate);
+      if (mem.size) setSize(mem.size);
+      if (mem.productType) applyProductType(mem.productType);
+    };
+    window.addEventListener(SHARED_STATE_EVENT, onShared);
+    return () => window.removeEventListener(SHARED_STATE_EVENT, onShared);
+  }, [applyProductType]);
 
   // Autosave draft
   useEffect(() => {

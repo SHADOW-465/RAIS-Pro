@@ -38,6 +38,7 @@ import {
 } from "@/lib/persona";
 import { sidebarCollapsed as sidebarCollapsedPref, navSectionsCollapsed } from "@/lib/ui-prefs";
 import { useCommandPaletteHotkey } from "@/components/app/CommandPaletteHotkey";
+import SharedStateBanner from "@/components/app/SharedStateBanner";
 import { canReport } from "@/lib/report/blocks";
 import { subscribeNavBanner, emitNavBanner, type NavBanner } from "@/lib/analytics/nav-banner";
 import { usePersona } from "@/components/app/PersonaContext";
@@ -2244,6 +2245,7 @@ export default function AppShell({
           maxWidth: wide ? "none" : "1400px",
           margin: wide ? 0 : "0 auto",
         }}>
+        <SharedStateBanner />
         {banner && (
           <div
             role="status"

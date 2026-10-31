@@ -1,5 +1,6 @@
 // GM defect remedies — description + action per defect code, plus notes on
-// graph spikes and dips. Client localStorage, same pattern as capa-store.
+// graph spikes and dips. The plant table (defect_remedies) is the record.
+// This browser's copy is the cache and the fallback when that table is missing.
 
 import { useEffect, useSyncExternalStore } from "react";
 import { z } from "zod";
@@ -57,6 +58,12 @@ let cache: RemedyBook = read();
 let serverMode: "unknown" | "db" | "local" = "unknown";
 let revision = 0;
 
+function setMode(next: "unknown" | "db" | "local"): void {
+  if (serverMode === next) return;
+  serverMode = next;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(EVT));
+}
+
 function publish(next: RemedyBook): void {
   revision += 1;
   write(next);
@@ -76,12 +83,12 @@ async function push(body: Record<string, unknown>): Promise<void> {
     if (res.status === 401 || res.status === 403) return;
     const data = await res.json().catch(() => null);
     if (!res.ok || !data || data.source !== "db") {
-      serverMode = "local";
+      setMode("local");
       return;
     }
-    serverMode = "db";
+    setMode("db");
   } catch {
-    serverMode = "local";
+    setMode("local");
   }
 }
 
@@ -93,16 +100,16 @@ async function pull(): Promise<void> {
   try {
     const res = await fetch("/api/remedies", { credentials: "same-origin", cache: "no-store" });
     if (!res.ok) {
-      serverMode = "local";
+      setMode("local");
       return;
     }
     const data = await res.json();
     if (revision !== seen) return;
     if (!data || data.source !== "db" || !data.book) {
-      serverMode = "local";
+      setMode("local");
       return;
     }
-    serverMode = "db";
+    setMode("db");
     const remote = data.book as RemedyBook;
     const local = read();
     const remoteEmpty = Object.keys(remote.defects ?? {}).length === 0 && (remote.trends ?? []).length === 0;
@@ -116,7 +123,7 @@ async function pull(): Promise<void> {
       trends: Array.isArray(remote.trends) ? remote.trends : [],
     });
   } catch {
-    serverMode = "local";
+    setMode("local");
   }
 }
 
@@ -136,6 +143,11 @@ function subscribe(cb: () => void): () => void {
     window.removeEventListener(EVT, handler);
     window.removeEventListener("storage", handler);
   };
+}
+
+/** "db" = plant book; "local" = this browser only, table missing or unread. */
+export function useRemedySource(): "unknown" | "db" | "local" {
+  return useSyncExternalStore(subscribe, () => serverMode, () => "unknown");
 }
 
 export function useRemedyBook(): RemedyBook {

@@ -5,6 +5,7 @@
 
 import { z } from "zod";
 import { slot } from "@/lib/storage";
+import { pushShared } from "@/lib/shared-state/push";
 import type { ReportSpec } from "./blocks";
 import {
   cloneSpec,
@@ -88,8 +89,19 @@ function loadUserPresets(): NamedReportPreset[] {
   return (userPresets.get() ?? []).filter((p) => p.spec && !p.builtIn);
 }
 
-function saveUserPresets(list: NamedReportPreset[]): void {
+export function readUserPresets(): NamedReportPreset[] {
+  return loadUserPresets();
+}
+
+function saveUserPresets(list: NamedReportPreset[], push: boolean): void {
   userPresets.set(list); // quota / private mode: presets just won't persist
+  if (!push) return;
+  pushShared("report-presets", { kind: "report-presets", record: list });
+}
+
+/** Cache the plant's user presets. Does not push them back. */
+export function replaceUserPresets(list: NamedReportPreset[]): void {
+  saveUserPresets(list.filter((p) => p.spec && !p.builtIn), false);
 }
 
 /** Built-ins first, then user saves (newest first). */
@@ -118,7 +130,7 @@ export function saveNamedPreset(name: string, spec: ReportSpec, existingId?: str
     updatedAt: now,
   };
   const rest = users.filter((p) => p.id !== id);
-  saveUserPresets([next, ...rest]);
+  saveUserPresets([next, ...rest], true);
   return next;
 }
 
@@ -127,7 +139,7 @@ export function deleteNamedPreset(id: string): boolean {
   const users = loadUserPresets();
   const next = users.filter((p) => p.id !== id);
   if (next.length === users.length) return false;
-  saveUserPresets(next);
+  saveUserPresets(next, true);
   return true;
 }
 

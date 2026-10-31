@@ -3,6 +3,7 @@
 
 import { z } from "zod";
 import { slot } from "@/lib/storage";
+import { pushShared } from "@/lib/shared-state/push";
 
 export type ShiftWindow = { start: string; end: string }; // "HH:MM" 24h
 
@@ -86,9 +87,22 @@ export function readShiftWindowConfig(): ShiftWindowConfig {
   };
 }
 
+/** The stored document, or null when this browser has not saved one. */
+export function readStoredShiftWindow(): ShiftWindowConfig | null {
+  if (typeof window === "undefined") return null;
+  return shiftWindowSlot.get() ?? null;
+}
+
+/** Cache a server document. Does not push it back. */
+export function adoptShiftWindowConfig(config: ShiftWindowConfig): void {
+  if (typeof window === "undefined") return;
+  shiftWindowSlot.set(config);
+}
+
 export function writeShiftWindowConfig(config: ShiftWindowConfig): void {
   if (typeof window === "undefined") return;
   shiftWindowSlot.set(config);
+  pushShared("shift-windows", { kind: "shift-windows", record: config });
 }
 
 export function describeShiftWindow(

@@ -171,8 +171,28 @@ Converted-lot entry gating: client correct when a non-reversed conversion suppli
 
 Evidence, current behaviour only. The gate itself was not edited.
 
-- Client waiver: `src/components/BatchMatrixEntry.tsx:728` sets `entryFromStageId` from `activeConversionFlow.stageId`. The fetch just above (chain length under 2, or the lot is the origin) leaves that null, so a normal lot and a reversed conversion do not waive the gate. An empty `stageId` also stays null (`stageId?.trim() || null`).
+- Client waiver: `src/components/BatchMatrixEntry.tsx:751` sets `entryFromStageId` from `activeConversionFlow.stageId`. The fetch just above (chain length under 2, or the lot is the origin) leaves that null, so a normal lot and a reversed conversion do not waive the gate. An empty `stageId` also stays null (`stageId?.trim() || null`).
 - Client rule: `src/lib/entry/process-sequence.ts:204-224`. With `entryFromStageId` set, stations before the change station count as already done and Visual is open. Without it, Visual on an empty lot is blocked at primary (`src/lib/entry/__tests__/process-sequence.test.ts` "jumping straight to Assembly", and `src/lib/entry/__tests__/check-entry.test.ts` "lets a converted lot save at Visual" / "blocks Assembly when Dipping has not been entered").
 - Save path uses the same flag: `src/lib/entry/check-entry.ts` `EntryProcessContext.entryFromStageId`, covered by `src/lib/entry/__tests__/converted-lot-gating.test.ts`.
 - Reversed rows leave active reads (`src/lib/lineage/store.ts` `activeOf` / `list`). After undo, `chainFor` is one node with `via: null`, so the client waiver does not apply.
 - Server: `src/app/api/ingest/route.ts` `POST` caps converted-lot quantity and does not call `missingProcessStep`, `entryFromStageId`, or `checkEntry`. A normal lot posted at Visual returns 200. That deviates from the required rule. `src/app/api/ingest/__tests__/entry-stage-gating.test.ts` locks the 200 and leaves `test.todo` for the reject. A converted lot at its change station also returns 200, which matches the required outcome only because the server accepts every station.
+
+## Step C: shared plant settings
+
+Browser business data now has a server copy so a second user sees the same document. The migration `supabase/migrations/20261031140000_plant_shared_state.sql` is a new file and was not applied. Until it is, `GET` and `PUT /api/shared-state` answer **503**, `console.warn` names that file, and the shell shows "This browser is still using its own copy." Local data is not deleted. A one-time import runs only after the server confirms the document is empty (`nextSyncStep`). 401 and 403 stay quiet and do not mark the browser as imported.
+
+### Moved
+
+1. **Report presets and workspace presets.** User saves only. Built-ins stay in the client. Workspace pushes only when the storage handle is `window.localStorage`, so tests that inject a memory store do not post.
+2. **Shift windows and custom defects.** Replace requires `configure` (GM). Operators can read. An operator browser therefore will not upload its local copy; the first GM session that still has a local copy imports it.
+3. **Lot memory.** One plant pin (`write`). Writing the same pin the form just read does not post, so opening Data Entry does not clobber another browser's pin. A real change is debounced. Last write wins.
+4. **Edit grants.** Approving an edit request writes the grant with `mergeGrant` **before** `patchNotification`. A missing table returns 503 and leaves the request open, so a retry is not a 409. The requester reads `edit-grants` on the next page load (`hasValidGrant` after the shared-state tick). The approver's panel caches the returned grant and does not mint a second expiry. Other entry keys are kept.
+5. **Custom defects** stay a shared document, not catalog rows. Data Schema remains the only editor of the master schema.
+6. **Defect remedies** already used `defect_remedies` and `/api/remedies` (legacy key `moid_defect_remedies`). A missing table was HTTP 200 `source: "unavailable"` with no page warning. It is now **503** naming `supabase/migrations/20261013_defect_remedies.sql`, and `/remedies` says the book is on this browser only. The client still imports a local book once the table exists and is empty.
+7. **CAPA** was already on the server (`capa_actions`, `/api/capa`, visible warning on `/capa`). Its response stays HTTP 200 with `source: "unavailable"` when the table is missing. The client already treats a failed response as local. That contract was not changed.
+
+Documents other than grants are last-write-wins for the whole JSON value. Two browsers importing at the same moment into an empty document can overwrite each other once; after that, import refuses to replace a non-empty document.
+
+Converted-lot entry gating was not changed. Verdict stands: client correct when a non-reversed conversion supplies stageId (`BatchMatrixEntry.tsx:751`, `process-sequence.ts:204-224`); server wrong because `src/app/api/ingest/route.ts` does not call `missingProcessStep` (NOT changed, awaiting Showmik decision).
+
+The shared-settings banner and the remedies warning were not clicked through in a browser. Route tests cover the 503 and the grant hand-off.

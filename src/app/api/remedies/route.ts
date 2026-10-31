@@ -1,9 +1,15 @@
-// Plant defect remedies. Migration is a file only — a missing table returns
-// source "unavailable" and the browser keeps its local book.
+// Plant defect remedies. Migration is a file only — a missing table is 503.
+// The browser keeps its local book and shows that message.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability, requireSession } from "@/lib/auth/guard";
-import { getRemedyStore, type RemedyBookRow, type RemedyRow, type TrendNoteRow } from "@/lib/remedies/store";
+import {
+  getRemedyStore,
+  type RemedyBookRow,
+  type RemedyRead,
+  type RemedyRow,
+  type TrendNoteRow,
+} from "@/lib/remedies/store";
 import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +17,20 @@ export const runtime = "nodejs";
 
 function companyId(): string {
   return process.env.MOID_COMPANY_ID || "default";
+}
+
+const REMEDY_UNAVAILABLE =
+  "Defect remedies are not set up. Apply supabase/migrations/20261013_defect_remedies.sql, then reload.";
+
+function remedyJson(read: RemedyRead, headers?: HeadersInit) {
+  if (read.source !== "db") {
+    console.warn(REMEDY_UNAVAILABLE);
+    return NextResponse.json(
+      { error: REMEDY_UNAVAILABLE, source: "unavailable", book: read.book },
+      { status: 503, headers },
+    );
+  }
+  return NextResponse.json(read, { headers });
 }
 
 function asBook(body: unknown): RemedyBookRow {
@@ -48,11 +68,11 @@ async function getHandler(req: NextRequest) {
   if (!auth.ok) return auth.response;
   try {
     const read = await getRemedyStore().read(companyId());
-    return NextResponse.json(read, { headers: LIVE_CACHE });
+    return remedyJson(read, LIVE_CACHE);
   } catch (err: unknown) {
     return NextResponse.json(
-      { source: "unavailable", book: { defects: {}, trends: [] }, error: err instanceof Error ? err.message : "Failed to read remedies" },
-      { status: 200, headers: LIVE_CACHE },
+      { error: err instanceof Error ? err.message : "Failed to read remedies" },
+      { status: 500, headers: LIVE_CACHE },
     );
   }
 }
@@ -69,11 +89,11 @@ export async function PUT(req: NextRequest) {
 
     if (body?.importLocal) {
       const read = await store.importIfEmpty(company, asBook(body.book));
-      return NextResponse.json(read);
+      return remedyJson(read);
     }
     if (body?.removeTrendId && typeof body.removeTrendId === "string") {
       const read = await store.removeTrend(company, body.removeTrendId);
-      return NextResponse.json(read);
+      return remedyJson(read);
     }
     if (body?.trend && typeof body.trend === "object") {
       const t = body.trend as Partial<TrendNoteRow>;
@@ -88,7 +108,7 @@ export async function PUT(req: NextRequest) {
         updatedBy: actor,
       };
       const read = await store.saveTrend(company, row);
-      return NextResponse.json(read);
+      return remedyJson(read);
     }
     const code = String(body?.code ?? body?.defect?.code ?? "").trim();
     if (!code) return NextResponse.json({ error: "code required" }, { status: 400 });
@@ -101,7 +121,7 @@ export async function PUT(req: NextRequest) {
       updatedBy: actor,
     };
     const read = await store.saveDefect(company, row);
-    return NextResponse.json(read);
+    return remedyJson(read);
   } catch (err: unknown) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to save remedy" },

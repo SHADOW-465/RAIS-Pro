@@ -15,6 +15,7 @@ import {
   saveTrendNote,
   removeTrendNote,
   useRemedyBook,
+  useRemedySource,
   type TrendNote,
 } from "@/lib/remedy-store";
 import { byDefect, resolveScope } from "@/lib/analytics";
@@ -24,6 +25,7 @@ export default function RemediesPage() {
   const { persona } = usePersona();
   const canEdit = persona === "gm";
   const book = useRemedyBook();
+  const remedySource = useRemedySource();
   const { events } = useEvents();
   const { registry, policy } = useRegistry();
   const { t } = useTweaks();
@@ -128,6 +130,16 @@ export default function RemediesPage() {
             and it is imported once the plant book is empty. The dashboard Top Defects
             showcase then names Primary, Secondary, and Tertiary from live ranking.
           </p>
+          {remedySource === "local" && (
+            <p role="status" style={{ fontSize: 13, margin: "8px 0 0", color: "var(--text-2)", maxWidth: "72ch" }}>
+              Stored on this browser only — the plant defect remedies table is not set up yet.
+            </p>
+          )}
+          {remedySource === "db" && (
+            <p style={{ fontSize: 13, margin: "8px 0 0", color: "var(--text-3)", maxWidth: "72ch" }}>
+              Stored on the plant server — every signed-in user sees this book.
+            </p>
+          )}
         </div>
 
         {!canEdit && (

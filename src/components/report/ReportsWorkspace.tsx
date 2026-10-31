@@ -31,6 +31,7 @@ import {
   type WorkspacePreset,
 } from "@/lib/report/workspace-presets";
 import { financialYear, fyLabel } from "@/lib/report/financial-year";
+import { SHARED_STATE_EVENT, sharedStateKind } from "@/lib/shared-state/push";
 import type { CalculationPolicyT } from "@/core/policy/policy";
 
 const PRINT_CSS = `
@@ -240,9 +241,19 @@ export default function ReportsWorkspace({
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    const listed = listWorkspacePresets();
-    if (listed.ok) setPresets(listed.value);
-    else setMsg({ text: listed.error, tone: "err" });
+    const load = () => {
+      const listed = listWorkspacePresets();
+      if (listed.ok) setPresets(listed.value);
+      else setMsg({ text: listed.error, tone: "err" });
+    };
+    load();
+    const onShared = (ev: globalThis.Event) => {
+      const kind = sharedStateKind(ev);
+      if (kind && kind !== "workspace-presets") return;
+      load();
+    };
+    window.addEventListener(SHARED_STATE_EVENT, onShared);
+    return () => window.removeEventListener(SHARED_STATE_EVENT, onShared);
   }, []);
   useEffect(() => {
     const id = "rw-print-css";
