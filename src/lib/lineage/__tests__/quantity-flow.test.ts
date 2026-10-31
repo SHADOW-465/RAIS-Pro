@@ -17,10 +17,16 @@ const stations: FlowStation[] = [
   { stageId: "balloon", label: "Balloon Inspection", laneId: "assembly" },
 ];
 
-test("eligible transfer uses accepted at the change station, else checked", () => {
-  expect(eligibleTransferQty({ acceptedQty: 4000, checkedQty: 6000 })).toBe(4000);
-  expect(eligibleTransferQty({ acceptedQty: 0, checkedQty: 6000 })).toBe(6000);
+test("eligible transfer is the accepted quantity at the change station", () => {
+  expect(eligibleTransferQty({ acceptedQty: 4000 })).toBe(4000);
   expect(eligibleTransferQty(null)).toBeNull();
+});
+
+test("a station that accepted nothing has nothing to convert — rejects are never eligible", () => {
+  // Real bucket shape: 6000 checked, all rejected → passedForward gives 0.
+  const bucket = { acceptedQty: 0, checkedQty: 6000, rejectedQty: 6000 };
+  expect(eligibleTransferQty(bucket)).toBe(0);
+  expect(transferQtyError(1, eligibleTransferQty(bucket), "Visual")).toMatch(/no quantity at Visual/);
 });
 
 test("transfer above eligible quantity is rejected", () => {
@@ -132,4 +138,29 @@ test("qtyFromRows sums hold from rework and does not invent values", () => {
     rejected: 250,
   });
   expect(qtyFromRows([])).toEqual({ checked: 0, accepted: 0, hold: 0, rejected: 0 });
+});
+
+test("remaining at the change station is original passed forward minus converted", () => {
+  const bands = buildQuantityFlow({
+    stations,
+    original: { visual: { checked: 2800, accepted: 1600, hold: 450, rejected: 250 } },
+    convert: {},
+    conversion: { stageId: "visual", changedQty: 1200, toBatch: "26I17-16" },
+  });
+  const visual = bands.find((b) => b.stageId === "visual");
+  expect(visual?.remainQty).toBe(400); // 1600 - 1200, not the 1200 that moved
+});
+
+test("remaining never goes below zero and non-change stations keep their WIP", () => {
+  const bands = buildQuantityFlow({
+    stations,
+    original: {
+      secondary: { checked: 6000, accepted: 4000, hold: 600, rejected: 200 },
+      visual: { checked: 100, accepted: 50, hold: 0, rejected: 0 },
+    },
+    convert: {},
+    conversion: { stageId: "visual", changedQty: 80, toBatch: "26I17-16" },
+  });
+  expect(bands.find((b) => b.stageId === "visual")?.remainQty).toBe(0);
+  expect(bands.find((b) => b.stageId === "secondary")?.remainQty).toBe(1200);
 });

@@ -252,6 +252,8 @@ export default function BatchMatrixEntry({
     savedAt: string;
     synced: boolean;
     error?: string | null;
+    /** Ledger entry saved, but the batch-conversion record was refused. */
+    conversionError?: string | null;
   } | null>(null);
 
   const [lastIssues, setLastIssues] = useState<{
@@ -386,8 +388,9 @@ export default function BatchMatrixEntry({
     }
     const qty = conversionFlow.changedQty ?? 0;
     if (qty > 0) {
+      // Accepted is for the operator to enter: the moved pieces are not
+      // inspected on the new size yet.
       setChecked(qty);
-      setAccept(qty);
       userTouchedQty.current = true;
     }
   }, [conversionFlow, setEditing, schema]);
@@ -401,7 +404,6 @@ export default function BatchMatrixEntry({
     if (stageId !== start) return;
     if (userTouchedQty.current || checked > 0) return;
     setChecked(qty);
-    setAccept(qty);
   }, [conversionFlow, lineageConversion, stageId, checked]);
 
   // Load shift records & local draft on mount
@@ -1445,6 +1447,10 @@ export default function BatchMatrixEntry({
       localStorage.setItem("rais_hdr_shift", rec.shift);
       if (rec.productType) localStorage.setItem(PRODUCT_TYPE_STORAGE_KEY, String(rec.productType));
 
+      // The ledger entry is already saved; the lineage edge is a separate
+      // write that can still be refused. Say so on the receipt instead of
+      // letting the operator believe the conversion was recorded.
+      let conversionError: string | null = null;
       if (activeConversionFlow?.fromBatch && activeConversionFlow?.toSize) {
         try {
           const posted = await fetch("/api/batch-conversions", {
@@ -1462,13 +1468,17 @@ export default function BatchMatrixEntry({
               reason: activeConversionFlow.reason || "Customer / process",
             }),
           });
+          const body = (await posted.json().catch(() => null)) as
+            | { conversion?: BatchConversion; error?: string }
+            | null;
           if (posted.ok) {
-            const body = (await posted.json().catch(() => null)) as { conversion?: BatchConversion } | null;
             if (body?.conversion) noteConversion(body.conversion);
             await refreshConversions().catch(() => {});
+          } else {
+            conversionError = body?.error || `The conversion was not recorded (server said ${posted.status}).`;
           }
-        } catch {
-          /* non-blocking */
+        } catch (e) {
+          conversionError = `The conversion was not recorded: ${e instanceof Error ? e.message : "could not reach the server"}.`;
         }
       }
 
@@ -1481,6 +1491,7 @@ export default function BatchMatrixEntry({
         reject: rec.reject,
         savedAt: rec.savedAt,
         synced: true,
+        conversionError,
       });
 
       setEditing(null);

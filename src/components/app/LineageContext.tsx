@@ -49,7 +49,11 @@ export function LineageProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!res.ok) {
-      setError(res.status === 401 ? "Sign in required." : "Could not load conversions.");
+      // A 503 carries the reason (storage not set up); show it, not a guess.
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      setError(
+        res.status === 503 && body?.error ? body.error : "Could not load conversions.",
+      );
       setIsLoading(false);
       return;
     }

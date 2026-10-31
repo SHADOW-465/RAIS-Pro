@@ -29,6 +29,8 @@ import {
   historyNameForLot,
   eligibleTransferQty,
   transferQtyError,
+  conversionDateError,
+  localToday,
   type BatchConversion,
   type LineageNode,
 } from "@/lib/lineage";
@@ -178,12 +180,15 @@ export default function BatchConversionPage() {
 
   const qtyError = transferQtyError(changedQty, stageAvailable, stageLabel);
 
+  const today = localToday();
+  const dateError = conversionDateError(convertedOn, today);
+
   const previewId = toSize ? proposedConvertedBatchId(fromBatch, toSize) : null;
   const convertedName = previewId && previewId !== (fromBatch && formatBatchIdInput(fromBatch))
     ? previewId
     : null;
   const conversionReady = Boolean(
-    convertedName && fromSize && toSize && fromSize !== toSize && changeStageId && changedQty > 0 && !qtyError,
+    convertedName && fromSize && toSize && fromSize !== toSize && changeStageId && changedQty > 0 && !qtyError && !dateError,
   );
   const flowLabel =
     fromBatch && convertedName ? conversionFlowLabel(formatBatchIdInput(fromBatch), convertedName) : null;
@@ -368,7 +373,7 @@ export default function BatchConversionPage() {
       date: convertedOn,
       size: toSize.endsWith("Fr") ? toSize : `${toSize}Fr`,
       checked: changedQty,
-      accepted: changedQty,
+      accepted: 0,
       hold: 0,
       rejected: 0,
       productType: fromBatchGroup?.stages[0]?.rows[0]?.productType ?? null,
@@ -435,7 +440,7 @@ export default function BatchConversionPage() {
         date: row.convertedOn,
         size: row.toSize,
         checked: row.changedQty,
-        accepted: row.changedQty,
+        accepted: 0,
         hold: 0,
         rejected: 0,
         stageId: row.stageId,
@@ -492,7 +497,7 @@ export default function BatchConversionPage() {
         date: c.convertedOn,
         size: c.toSize,
         checked: c.changedQty > 0 ? c.changedQty : 0,
-        accepted: c.changedQty > 0 ? c.changedQty : 0,
+        accepted: 0,
         stageId: c.stageId || undefined,
         productType: targetGroup?.stages[0]?.rows[0]?.productType,
       });
@@ -647,7 +652,11 @@ export default function BatchConversionPage() {
             Converted on
             <DatePicker
               value={convertedOn}
-              onChange={setConvertedOn}
+              onChange={(v) => {
+                setConvertedOn(v);
+                setFormOk(null);
+              }}
+              max={today}
               ariaLabel="Conversion date"
               size="sm"
             />
@@ -805,6 +814,9 @@ export default function BatchConversionPage() {
           </div>
         )}
 
+        {dateError && !formError && (
+          <p style={{ color: "var(--warning)", fontSize: 13, margin: "10px 0 0" }}>{dateError}</p>
+        )}
         {(formError || formOk) && (
           <p
             style={{

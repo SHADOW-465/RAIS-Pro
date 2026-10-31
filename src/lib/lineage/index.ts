@@ -1,5 +1,6 @@
 export type { BatchConversion, CreateConversionInput, LineageNode, ConversionErrorCode } from "./types";
-export { ConversionError } from "./types";
+export { ConversionError, LineageUnavailableError } from "./types";
+export { isRealCalendarDay, localToday, latestServerDay, conversionDateError } from "./dates";
 export {
   proposedConvertedBatchId,
   canonLot,

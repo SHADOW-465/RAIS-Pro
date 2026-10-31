@@ -8,6 +8,7 @@
 
 import { resolveStageId, stageSortKey, STAGES } from "@/core/ontology/plant-catalog";
 import { ENTRY_LINE } from "@/lib/entry/entry-line";
+import { passedForward } from "@/lib/entry/passed-forward";
 import type { AuditEntryRow, AuditBatchGroup } from "@/lib/analytics/audit-sessions";
 
 export type StationQty = {
@@ -42,12 +43,17 @@ export type FlowBand = {
   isChangeStation: boolean;
 };
 
-/** Eligible pieces at the change station: accepted when present, else checked. */
+/**
+ * Eligible pieces at the change station: what the station passed forward
+ * (`AuditStageBucket.acceptedQty`, already accepted-or-derived). Never the
+ * checked count: rejected and held pieces are not convertible, so a station
+ * that accepted nothing has nothing to give.
+ */
 export function eligibleTransferQty(
-  stage: { acceptedQty: number; checkedQty: number } | null | undefined,
+  stage: { acceptedQty: number } | null | undefined,
 ): number | null {
   if (!stage) return null;
-  return stage.acceptedQty > 0 ? stage.acceptedQty : stage.checkedQty;
+  return Math.max(0, stage.acceptedQty);
 }
 
 export function transferQtyError(
@@ -154,7 +160,12 @@ export function buildQuantityFlow(opts: {
       original,
       convert,
       toBatch: showsConvert ? opts.conversion?.toBatch ?? null : null,
-      remainQty: isChangeStation ? (opts.conversion?.changedQty ?? original.wip) : original.wip,
+      // At the change station the pieces left on the original lot are what it
+      // passed forward minus what moved to the new size.
+      remainQty:
+        isChangeStation && opts.conversion
+          ? Math.max(0, passedForward(original) - opts.conversion.changedQty)
+          : original.wip,
       isChangeStation,
     };
   });

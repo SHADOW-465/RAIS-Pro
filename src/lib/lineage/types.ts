@@ -35,6 +35,12 @@ export interface CreateConversionInput {
   convertedOn: string;
   reason: string;
   createdBy: string;
+  /**
+   * Pieces the ledger says the original lot can give up at `stageId`. Set by
+   * the server from the ledger, never from the request body. When present,
+   * planConversion rejects a larger `changedQty`.
+   */
+  eligibleQty?: number;
 }
 
 export type ConversionErrorCode =
@@ -48,6 +54,7 @@ export type ConversionErrorCode =
   | "reason-required"
   | "invalid-date"
   | "qty-invalid"
+  | "qty-exceeds-eligible"
   | "stage-required";
 
 export class ConversionError extends Error {
@@ -56,6 +63,22 @@ export class ConversionError extends Error {
     super(message);
     this.name = "ConversionError";
     this.code = code;
+  }
+}
+
+/**
+ * The lineage table is missing (or out of date). Raised instead of quietly
+ * keeping rows in server memory, where a restart would lose a recorded
+ * conversion. The API maps it to 503.
+ */
+export class LineageUnavailableError extends Error {
+  constructor(detail?: string) {
+    super(
+      "Batch conversion storage is not set up on this server (the batch_conversions table is missing or out of date). " +
+        "Nothing was saved. Ask an administrator to apply the batch_conversion_partial migration." +
+        (detail ? ` [${detail}]` : ""),
+    );
+    this.name = "LineageUnavailableError";
   }
 }
 

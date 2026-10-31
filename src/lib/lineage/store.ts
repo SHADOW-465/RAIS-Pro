@@ -4,7 +4,7 @@
 import { shouldUseSupabase } from "@/lib/store";
 import { createServerClient } from "@/lib/supabase";
 import { lineageChain } from "./graph";
-import { ConversionError, type BatchConversion, type CreateConversionInput, type LineageNode } from "./types";
+import { ConversionError, LineageUnavailableError, type BatchConversion, type CreateConversionInput, type LineageNode } from "./types";
 import { canonLot } from "./ids";
 import { planConversion } from "./validate";
 
@@ -18,7 +18,7 @@ class MemoryLineageStore implements LineageStore {
   private rows: BatchConversion[] = [];
 
   async list() {
-    return this.rows.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return this.rows.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
   }
 
   async create(input: CreateConversionInput) {
@@ -81,38 +81,55 @@ function toDb(n: BatchConversion): DbRow {
   };
 }
 
-function tableMissing(err: { code?: string; message?: string } | null): boolean {
+/** The table (or one of its columns) is not there: a migration has not been applied. */
+function storageMissing(err: { code?: string; message?: string } | null): boolean {
   if (!err) return false;
   const msg = err.message ?? "";
   return (
     err.code === "42P01" ||
     err.code === "PGRST205" ||
+    err.code === "42703" ||
+    err.code === "PGRST204" ||
     (/batch_conversions/i.test(msg) && /does not exist|not find|schema cache/i.test(msg))
   );
 }
 
-class SupabaseLineageStore implements LineageStore {
-  private fallback = new MemoryLineageStore();
-  private missingTable = false;
+function unavailable(err: { code?: string; message?: string }): LineageUnavailableError {
+  console.warn(
+    `[lineage] batch_conversions is not usable (${err.code ?? "no code"}: ${err.message ?? ""}). ` +
+      "Refusing to record or list conversions until the migration is applied.",
+  );
+  return new LineageUnavailableError(err.code);
+}
 
+// PostgREST caps one select at 1000 rows, so read in pages. created_at alone
+// is not unique (two saves can share a timestamp), so id breaks the tie and a
+// row can neither repeat nor vanish between pages.
+const PAGE = 1000;
+
+export class SupabaseLineageStore implements LineageStore {
   private db() {
     return createServerClient();
   }
 
   private async allRows(): Promise<BatchConversion[]> {
-    if (this.missingTable) return this.fallback.list();
-    const { data, error } = await this.db()
-      .from("batch_conversions")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) {
-      if (tableMissing(error)) {
-        this.missingTable = true;
-        return this.fallback.list();
+    const out: BatchConversion[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await this.db()
+        .from("batch_conversions")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) {
+        if (storageMissing(error)) throw unavailable(error);
+        throw error;
       }
-      throw error;
+      const page = data ?? [];
+      out.push(...page.map((r) => fromDb(r as DbRow)));
+      if (page.length < PAGE) break;
     }
-    return (data ?? []).map((r) => fromDb(r as DbRow));
+    return out;
   }
 
   async list() {
@@ -123,20 +140,20 @@ class SupabaseLineageStore implements LineageStore {
     const existing = await this.allRows();
     const row = planConversion(input, existing);
     if (existing.some((r) => r.id === row.id)) return row;
-    if (this.missingTable) return this.fallback.create(input);
     const { data, error } = await this.db()
       .from("batch_conversions")
       .insert(toDb(row))
       .select("*")
       .single();
     if (error) {
-      if (tableMissing(error)) {
-        this.missingTable = true;
-        return this.fallback.create(input);
-      }
+      if (storageMissing(error)) throw unavailable(error);
       if (error.code === "23505") {
+        // Lost a race to another save. Re-plan against the fresh rows: that
+        // returns the winner for an identical repeat and throws the precise
+        // reason (other quantity, target taken) for anything else.
         const again = await this.allRows();
-        const hit = again.find((r) => r.id === row.id);
+        const replanned = planConversion(input, again);
+        const hit = again.find((r) => r.id === replanned.id);
         if (hit) return hit;
         throw new ConversionError("target-taken", error.message);
       }
