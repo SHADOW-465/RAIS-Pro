@@ -3,6 +3,9 @@
 
 import { z } from "zod";
 
+export const SHARED_STATE_UNAVAILABLE_MESSAGE =
+  "Plant shared settings are not set up. Apply supabase/migrations/20261031140000_plant_shared_state.sql, then reload.";
+
 export const SHARED_KINDS = [
   "report-presets",
   "workspace-presets",

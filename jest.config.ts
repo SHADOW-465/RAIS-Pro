@@ -19,7 +19,12 @@ const config: Config = {
   // require("@/...") to defer a heavy/circular import — that's a literal
   // runtime string, never touched by the transform, so it needs an explicit
   // resolver mapping or it 404s under Jest even though it works in Next itself.
-  moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+    // `server-only` throws unless bundled for a server (Next aliases it);
+    // under jest it is just an empty module.
+    '^server-only$': '<rootDir>/jest.server-only-stub.js',
+  },
   // Set MOID_STORE=memory before any module loads so tests never hit a live Supabase project.
   setupFiles: ['<rootDir>/jest.setup.ts'],
 };
