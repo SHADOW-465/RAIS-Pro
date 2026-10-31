@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { EventsProvider } from "@/components/app/EventsContext";
+import { LedgerWatcher } from "@/components/app/LedgerWatcher";
 import { LineageProvider } from "@/components/app/LineageContext";
 import { RegistryProvider } from "@/components/app/RegistryContext";
 import { routeReadsLedger, routeReadsLineage } from "@/lib/client/page-data";
@@ -21,6 +22,7 @@ export function PlantProviders({ children }: { children: ReactNode }) {
     active && routeReadsLineage(active) ? <LineageProvider>{children}</LineageProvider> : children;
   return (
     <RegistryProvider>
+      <LedgerWatcher />
       <EventsProvider enabled={!!active && routeReadsLedger(active)}>{withLineage}</EventsProvider>
     </RegistryProvider>
   );

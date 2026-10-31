@@ -13,7 +13,8 @@ export type WriteKind =
   | "grants"
   | "roles"
   | "workbooks"
-  | "clear-data";
+  | "clear-data"
+  | "remote";
 
 const LEDGER: QueryKey[] = [["events"], ["ledger-bounds"], ["plant-totals"]];
 
@@ -36,6 +37,8 @@ export function queryKeysForWrite(kind: WriteKind): QueryKey[] {
       return [["roles"], ["users"]];
     case "workbooks":
       return [["workbooks"], ...LEDGER];
+    // Another user changed something and we do not know what: reload every cache.
+    case "remote":
     case "clear-data":
       return [
         ...LEDGER,
