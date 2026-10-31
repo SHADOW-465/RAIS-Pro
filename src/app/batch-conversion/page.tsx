@@ -32,6 +32,8 @@ import {
   transferQtyError,
   conversionDateError,
   localToday,
+  defaultChangeStageId,
+  CONVERSION_REASON_CATEGORIES,
   type BatchConversion,
   type LineageNode,
 } from "@/lib/lineage";
@@ -77,7 +79,7 @@ function reuseLot(batchId: string, date: string, size: string | null): EntryHydr
 }
 
 export default function BatchConversionPage() {
-  const { canWrite } = usePersona();
+  const { canWrite, persona } = usePersona();
   const { events, isLoading: eventsLoading, error: eventsError } = useEvents();
   const { conversions, error: loadError, refreshConversions, noteConversion } = useLineage();
   const { t } = useTweaks();
@@ -87,8 +89,11 @@ export default function BatchConversionPage() {
   const [changedQtyInput, setChangedQtyInput] = useState("");
   const [schema, setSchema] = useState<ResolvedEntrySchema | null>(null);
   const [convertedOn, setConvertedOn] = useState(() => new Date().toISOString().slice(0, 10));
-  const [reason, setReason] = useState("");
+  const [reasonCategory, setReasonCategory] = useState("");
   const [notes, setNotes] = useState("");
+  const [undoId, setUndoId] = useState<string | null>(null);
+  const [undoReason, setUndoReason] = useState("");
+  const [undoing, setUndoing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formOk, setFormOk] = useState<string | null>(null);
@@ -180,37 +185,72 @@ export default function BatchConversionPage() {
   const today = localToday();
   const dateError = conversionDateError(convertedOn, today);
 
+  // Assembly (Visual first) is where a size change usually happens. The
+  // picker still lists every station; this only fills an empty choice.
+  useEffect(() => {
+    if (changeStageId) return;
+    const id = defaultChangeStageId(schema);
+    if (id) setChangeStageId(id);
+  }, [schema, changeStageId]);
+
   const previewId = toSize ? proposedConvertedBatchId(fromBatch, toSize) : null;
   const convertedName = previewId && previewId !== (fromBatch && formatBatchIdInput(fromBatch))
     ? previewId
     : null;
-  const conversionReady = Boolean(
-    convertedName && fromSize && toSize && fromSize !== toSize && changeStageId && changedQty > 0 && !qtyError && !dateError && fromBatchGroup,
-  );
-  const flowLabel =
-    fromBatch && convertedName ? conversionFlowLabel(formatBatchIdInput(fromBatch), convertedName) : null;
-
   const convertBatchGroup = useMemo(
     () => (convertedName ? findLotGroup(batchGroups, convertedName) : null),
     [batchGroups, convertedName],
   );
+  const targetAlreadyRecorded = Boolean(
+    convertedName &&
+      conversions.some(
+        (c) => (canonicalBatchId(c.toBatch) ?? c.toBatch) === (canonicalBatchId(convertedName) ?? convertedName),
+      ),
+  );
+  const targetLedgerError =
+    ledgerReady &&
+    convertedName &&
+    convertBatchGroup &&
+    (convertBatchGroup.rowCount > 0 || convertBatchGroup.eventCount > 0) &&
+    !targetAlreadyRecorded
+      ? `${convertedName} already has ledger entries. Converting into it would merge unrelated lots. Pick a new lot code that has no entries.`
+      : null;
+
+  const conversionReady = Boolean(
+    convertedName &&
+      fromSize &&
+      toSize &&
+      fromSize !== toSize &&
+      changeStageId &&
+      changedQty > 0 &&
+      !qtyError &&
+      !dateError &&
+      !targetLedgerError &&
+      fromBatchGroup &&
+      reasonCategory &&
+      notes.trim(),
+  );
+  const flowLabel =
+    fromBatch && convertedName ? conversionFlowLabel(formatBatchIdInput(fromBatch), convertedName) : null;
 
   const conversionFlow: ConversionFlowInfo | null = useMemo(() => {
     if (!fromBatch) return null;
     const proposed = convertedName || (toSize ? proposedConvertedBatchId(fromBatch, toSize) : null);
+    const categoryLabel =
+      CONVERSION_REASON_CATEGORIES.find((c) => c.id === reasonCategory)?.label ?? reasonCategory;
     return {
       fromBatch: formatBatchIdInput(fromBatch),
       toBatch: proposed,
       fromSize: fromSize ? (fromSize.endsWith("Fr") ? fromSize : `${fromSize}Fr`) : null,
       toSize: toSize ? (toSize.endsWith("Fr") ? toSize : `${toSize}Fr`) : null,
       convertedOn,
-      reason,
+      reason: notes.trim() ? `${categoryLabel}: ${notes.trim()}` : categoryLabel,
       changedQty: changedQty > 0 ? changedQty : null,
       stageId: changeStageId || null,
       originalChecked: stageAvailable,
       originalAccepted: stageAvailable,
     };
-  }, [fromBatch, convertedName, toSize, fromSize, convertedOn, reason, changedQty, changeStageId, stageAvailable]);
+  }, [fromBatch, convertedName, toSize, fromSize, convertedOn, reasonCategory, notes, changedQty, changeStageId, stageAvailable]);
 
   const convertedLotIds = useMemo(() => new Set(conversions.map((c) => c.toBatch)), [conversions]);
   const historyEvents = useMemo(() => {
@@ -306,7 +346,7 @@ export default function BatchConversionPage() {
     // Never prefill new size with the original size — that yields the same ID.
     if (sz && sizeOfLot(from || "") !== sz) setToSize(sz);
     if (d) setConvertedOn(d);
-    if (r) setReason(r);
+    if (r) setNotes(r);
     const view = params.get("view");
     if (view === "source" || view === "converted") setFocusPanel(view);
   }, []);
@@ -411,7 +451,8 @@ export default function BatchConversionPage() {
           changedQty,
           stageId: changeStageId,
           convertedOn,
-          reason: notes.trim() ? `${reason.trim()} — ${notes.trim()}` : reason.trim(),
+          reasonCategory,
+          reasonNote: notes.trim(),
         }),
       });
       const data = (await res.json()) as { conversion?: BatchConversion; error?: string };
@@ -440,6 +481,42 @@ export default function BatchConversionPage() {
       setFormError(err instanceof Error ? err.message : "Could not record conversion.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function undoConversion(c: BatchConversion) {
+    const why = undoReason.trim();
+    if (!why) {
+      setFormError("Say why this conversion is being undone.");
+      return;
+    }
+    setUndoing(true);
+    setFormError(null);
+    setFormOk(null);
+    try {
+      const res = await fetch("/api/batch-conversions/undo", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: c.id, reason: why }),
+      });
+      const data = (await res.json()) as { error?: string; warning?: string | null };
+      if (!res.ok) {
+        setFormError(data.error || "Could not undo the conversion.");
+        return;
+      }
+      setUndoId(null);
+      setUndoReason("");
+      setFormOk(
+        data.warning
+          ? `${c.fromBatch} to ${c.toBatch} was reversed. ${data.warning}`
+          : `${c.fromBatch} to ${c.toBatch} was reversed. The row is kept, and it no longer counts as the current lineage.`,
+      );
+      await refreshConversions();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Could not undo the conversion.");
+    } finally {
+      setUndoing(false);
     }
   }
 
@@ -472,8 +549,8 @@ export default function BatchConversionPage() {
       setFromBatch(c.fromBatch);
       setToSize(c.toSize);
       setConvertedOn(c.convertedOn);
-      setReason(c.reason);
-      setNotes("");
+      setReasonCategory(c.reasonCategory || "");
+      setNotes(c.reasonNote || "");
       setChangeStageId(c.stageId || "");
       setChangedQtyInput(c.changedQty > 0 ? String(c.changedQty) : "");
       setFocusBatch(view === "converted" ? c.toBatch : c.fromBatch);
@@ -650,13 +727,18 @@ export default function BatchConversionPage() {
 
           <label style={labelStyle}>
             Reason
-            <input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Customer / process"
-              aria-label="Reason for conversion"
-              style={{ ...inputStyle, fontFamily: "inherit" }}
-              required
+            <Select
+              value={reasonCategory}
+              onChange={(v) => {
+                setReasonCategory(v);
+                setFormOk(null);
+                setFormError(null);
+              }}
+              options={CONVERSION_REASON_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))}
+              placeholder="Why"
+              ariaLabel="Reason for conversion"
+              variant="pill"
+              size="sm"
             />
           </label>
 
@@ -727,8 +809,9 @@ export default function BatchConversionPage() {
             <input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional operator notes"
-              aria-label="Conversion notes"
+              placeholder="What happened"
+              aria-label="Conversion note"
+              required
               style={{ ...inputStyle, fontFamily: "inherit" }}
             />
           </label>
@@ -807,6 +890,9 @@ export default function BatchConversionPage() {
 
         {lotError && (
           <p role="alert" style={{ color: "var(--warning)", fontSize: 13, margin: "10px 0 0" }}>{lotError}</p>
+        )}
+        {targetLedgerError && (
+          <p role="alert" style={{ color: "var(--warning)", fontSize: 13, margin: "10px 0 0" }}>{targetLedgerError}</p>
         )}
         {dateError && !formError && (
           <p style={{ color: "var(--warning)", fontSize: 13, margin: "10px 0 0" }}>{dateError}</p>
@@ -996,6 +1082,8 @@ export default function BatchConversionPage() {
                   <th style={th}>On</th>
                   <th style={thLeft}>By</th>
                   <th style={thLeft}>Reason</th>
+                  <th style={thLeft}>Note</th>
+                  {persona === "gm" && <th style={thLeft}>Undo</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1029,7 +1117,48 @@ export default function BatchConversionPage() {
                     </td>
                     <td style={tdMuted}>{c.convertedOn}</td>
                     <td style={tdMuted}>{c.createdBy || "—"}</td>
-                    <td style={tdMuted}>{c.reason}</td>
+                    <td style={tdMuted}>
+                      {CONVERSION_REASON_CATEGORIES.find((x) => x.id === c.reasonCategory)?.label || c.reasonCategory || c.reason}
+                    </td>
+                    <td style={tdMuted}>{c.reasonNote || "—"}</td>
+                    {persona === "gm" && (
+                      <td style={tdMuted}>
+                        {undoId === c.id ? (
+                          <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            <input
+                              value={undoReason}
+                              onChange={(e) => setUndoReason(e.target.value)}
+                              placeholder="Why undo"
+                              aria-label={`Reason for undoing ${c.fromBatch} to ${c.toBatch}`}
+                              style={{ ...inputStyle, height: 30, width: 160, fontFamily: "inherit" }}
+                            />
+                            <button
+                              type="button"
+                              disabled={undoing || !undoReason.trim()}
+                              onClick={() => void undoConversion(c)}
+                              style={{ ...idBtn, color: "var(--warning)" }}
+                            >
+                              {undoing ? "Undoing…" : "Confirm"}
+                            </button>
+                            <button type="button" onClick={() => setUndoId(null)} style={idBtn}>
+                              Cancel
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUndoId(c.id);
+                              setUndoReason("");
+                              setFormError(null);
+                            }}
+                            style={idBtn}
+                          >
+                            Undo
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

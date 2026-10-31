@@ -10,6 +10,7 @@ import { conversionDateError, latestServerDay } from "./dates";
 import { transferQtyError } from "./quantity-flow";
 import {
   ConversionError,
+  normalizeReasonCategory,
   type BatchConversion,
   type CreateConversionInput,
 } from "./types";
@@ -55,8 +56,18 @@ export function planConversion(
   existing: BatchConversion[],
   now = new Date(),
 ): BatchConversion {
-  const reason = (input.reason ?? "").trim();
-  if (!reason) throw new ConversionError("reason-required", "Record why the size changed.");
+  const reasonCategory = normalizeReasonCategory(input.reasonCategory);
+  if (!reasonCategory) {
+    throw new ConversionError(
+      "reason-category-required",
+      "Choose why the size changed: rework, regrade, or size reclassification.",
+    );
+  }
+  const reasonNote = (input.reasonNote ?? "").trim();
+  if (!reasonNote) {
+    throw new ConversionError("reason-note-required", "Add a note saying what happened.");
+  }
+  const reason = `${reasonCategory}: ${reasonNote}`;
 
   const dateError = conversionDateError(input.convertedOn, latestServerDay(now));
   if (dateError) throw new ConversionError("invalid-date", dateError);
@@ -131,6 +142,13 @@ export function planConversion(
     );
   }
 
+  if (input.targetHasLedger) {
+    throw new ConversionError(
+      "target-has-ledger",
+      `${toBatch} already has ledger entries. Converting into it would merge unrelated lots. Pick a new lot code that has no entries.`,
+    );
+  }
+
   // Cycle: converting into an ancestor, or onward into self via a loop.
   if (ancestors(existing, fromBatch).has(toBatch) || descendants(existing, toBatch).has(fromBatch)) {
     throw new ConversionError("cycle", `${fromBatch} and ${toBatch} are already on the same lineage.`);
@@ -152,6 +170,8 @@ export function planConversion(
     stageId,
     convertedOn: input.convertedOn,
     reason,
+    reasonCategory,
+    reasonNote,
     createdAt: new Date().toISOString(),
     createdBy: input.createdBy.trim() || "unknown",
   };

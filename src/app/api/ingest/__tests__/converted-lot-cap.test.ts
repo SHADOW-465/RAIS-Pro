@@ -49,7 +49,8 @@ beforeEach(async () => {
     changedQty: 1146,
     stageId: "visual",
     convertedOn: "2026-09-23",
-    reason: "customer",
+    reasonCategory: "rework",
+    reasonNote: "customer",
     createdBy: "t",
   });
 });

@@ -156,6 +156,27 @@ export function parseBatchId(raw: string): BatchParts | null {
   };
 }
 
+/**
+ * Lot code whose size suffix follows the selected size.
+ *
+ * Returns the rewritten code when `currentId` was composed from `batchDate`
+ * (only the size suffix should move). Returns null when the field is empty
+ * or the operator typed a lot from a different day — that code is left alone.
+ */
+export function batchIdFollowingSize(opts: {
+  batchDate: string;
+  size: string;
+  currentId: string;
+}): string | null {
+  const next = buildBatchId(opts.batchDate, opts.size);
+  if (!next) return null;
+  const cur = formatBatchIdInput(opts.currentId);
+  if (!cur) return null;
+  const parsed = parseBatchId(cur);
+  if (!parsed?.date || parsed.date !== opts.batchDate) return null;
+  return next;
+}
+
 export function isValidBatchId(raw: string): boolean {
   const p = parseBatchId(raw);
   // Require size suffix for save validation (docs: full Batch ID)

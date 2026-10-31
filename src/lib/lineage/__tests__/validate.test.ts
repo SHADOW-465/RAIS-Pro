@@ -23,7 +23,8 @@ function create(
       changedQty: 200,
       stageId: "visual",
       convertedOn: on,
-      reason: "Customer size change",
+      reasonCategory: "size-reclassification",
+      reasonNote: "Customer size change",
       createdBy: "gm",
       ...extra,
     },
@@ -37,6 +38,9 @@ test("history name is original CT converted", () => {
   expect(
     historyNameForLot("26I17-18", [{ fromBatch: "26I17-16", toBatch: "26I17-18" }]),
   ).toBe("26I17-16 CT 26I17-18");
+  expect(
+    historyNameForLot("26I17-16", [{ fromBatch: "26I17-16", toBatch: "26I17-18" }]),
+  ).toBe("26I17-16 (converted to 26I17-18)");
 });
 
 test("26I21-14 + 16Fr proposes 26I21-16 and keeps the start-date stem", () => {
@@ -53,6 +57,9 @@ test("records an immutable lineage edge, never a rename", () => {
   expect(row.changedQty).toBe(200);
   expect(row.stageId).toBe("visual");
   expect(row.id).toBe("bc_26I21-14_26I21-16");
+  expect(row.reasonCategory).toBe("size-reclassification");
+  expect(row.reasonNote).toBe("Customer size change");
+  expect(row.reason).toBe("size-reclassification: Customer size change");
 });
 
 test("stores the partial quantity and the station where the size changes", () => {
@@ -150,11 +157,43 @@ test("rejects a cycle back to an ancestor", () => {
   }
 });
 
-test("requires a reason", () => {
+test("requires a reason category and a note", () => {
   try {
-    create("26I21-14", "16Fr", { reason: "  " });
+    create("26I21-14", "16Fr", { reasonCategory: "  " });
     throw new Error("expected throw");
   } catch (e) {
-    expect((e as ConversionError).code).toBe("reason-required");
+    expect((e as ConversionError).code).toBe("reason-category-required");
   }
+  try {
+    create("26I21-14", "16Fr", { reasonNote: "  " });
+    throw new Error("expected throw");
+  } catch (e) {
+    expect((e as ConversionError).code).toBe("reason-note-required");
+  }
+  try {
+    create("26I21-14", "16Fr", { reasonCategory: "customer asked" });
+    throw new Error("expected throw");
+  } catch (e) {
+    expect((e as ConversionError).code).toBe("reason-category-required");
+  }
+});
+
+test("an identical repeat keeps the original reason and ignores a later category", () => {
+  const first = create("26I21-14", "16Fr", { reasonCategory: "rework", reasonNote: "first note" });
+  const again = create("26I21-14", "16Fr", { reasonCategory: "regrade", reasonNote: "different note" }, [first]);
+  expect(again).toBe(first);
+  expect(again.reasonCategory).toBe("rework");
+  expect(again.reasonNote).toBe("first note");
+});
+
+test("refuses a target lot that already has ledger rows, except an identical repeat", () => {
+  try {
+    create("26J27-14", "16Fr", { targetHasLedger: true });
+    throw new Error("expected throw");
+  } catch (e) {
+    expect((e as ConversionError).code).toBe("target-has-ledger");
+    expect((e as Error).message).toMatch(/26J27-16 already has ledger entries/);
+  }
+  const first = create("26J27-14", "16Fr");
+  expect(create("26J27-14", "16Fr", { targetHasLedger: true }, [first])).toBe(first);
 });

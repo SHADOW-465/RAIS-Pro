@@ -1,5 +1,12 @@
-export type { BatchConversion, CreateConversionInput, LineageNode, ConversionErrorCode } from "./types";
-export { ConversionError, LineageUnavailableError } from "./types";
+export type { BatchConversion, CreateConversionInput, LineageNode, ConversionErrorCode, ConversionAudit } from "./types";
+export {
+  ConversionError,
+  LineageUnavailableError,
+  CONVERSION_REASON_CATEGORIES,
+  normalizeReasonCategory,
+  REASON_COLUMNS_MESSAGE,
+  REVERSAL_COLUMNS_MESSAGE,
+} from "./types";
 export { isRealCalendarDay, localToday, latestServerDay, conversionDateError } from "./dates";
 export {
   proposedConvertedBatchId,
@@ -8,7 +15,9 @@ export {
   conversionFlowLabel,
   conversionHistoryName,
   historyNameForLot,
+  nextConversionId,
 } from "./ids";
+export { defaultChangeStageId } from "./default-station";
 export { planConversion } from "./validate";
 export { lineageChain, isOnLineage } from "./graph";
 export { getLineageStore } from "./store";

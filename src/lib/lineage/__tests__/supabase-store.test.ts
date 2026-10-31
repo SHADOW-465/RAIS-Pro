@@ -16,10 +16,18 @@ function fakeClient(opts: {
   rowsByRead?: Record<string, unknown>[][];
   selectError?: Err;
   insertError?: Err;
+  updateError?: Err;
+  auditInsertError?: Err;
 }) {
-  const log = { orders: [] as string[], ranges: [] as [number, number][], inserts: [] as unknown[], reads: 0 };
+  const log = {
+    orders: [] as string[],
+    ranges: [] as [number, number][],
+    inserts: [] as unknown[],
+    updates: [] as unknown[],
+    reads: 0,
+  };
   const client = {
-    from: () => ({
+    from: (table: string) => ({
       select: () => {
         // a "read" starts at range offset 0
         let rows: Record<string, unknown>[] | null = null;
@@ -40,13 +48,27 @@ function fakeClient(opts: {
       },
       insert: (row: unknown) => {
         log.inserts.push(row);
+        const auditErr = table === "batch_conversion_audits" ? (opts.auditInsertError ?? null) : null;
         return {
+          error: auditErr,
           select: () => ({
             single: async () =>
               opts.insertError ? { data: null, error: opts.insertError } : { data: row, error: null },
           }),
         };
       },
+      update: (patch: unknown) => ({
+        eq: () => ({
+          select: () => ({
+            single: async () => {
+              log.updates.push(patch);
+              if (opts.updateError) return { data: null, error: opts.updateError };
+              const base = (opts.rowsByRead ?? [[]])[0]?.[0] ?? {};
+              return { data: { ...base, ...(patch as object) }, error: null };
+            },
+          }),
+        }),
+      }),
     }),
   };
   (createServerClient as jest.Mock).mockReturnValue(client);
@@ -59,7 +81,8 @@ const input = {
   changedQty: 120,
   stageId: "visual",
   convertedOn: "2026-09-23",
-  reason: "size",
+  reasonCategory: "size-reclassification",
+  reasonNote: "size",
   createdBy: "gm",
 };
 
@@ -140,6 +163,10 @@ describe("create", () => {
     const row = await new SupabaseLineageStore().create(input);
     expect(row.toBatch).toBe("26I21-16");
     expect(log.inserts).toHaveLength(1);
+    expect(log.inserts[0]).toMatchObject({
+      reason_category: "size-reclassification",
+      reason_note: "size",
+    });
   });
 
   test("an identical repeat inserts nothing", async () => {
@@ -165,5 +192,57 @@ describe("create", () => {
     fakeClient({ rowsByRead: [[], [existing(120)]], insertError: { code: "23505", message: "duplicate key" } });
     const row = await new SupabaseLineageStore().create(input);
     expect(row.id).toBe("bc_26I21-14_26I21-16");
+  });
+
+  test("a missing reason column refuses the save and names the migration", async () => {
+    fakeClient({
+      insertError: { code: "42703", message: 'column "reason_category" of relation "batch_conversions" does not exist' },
+    });
+    await expect(new SupabaseLineageStore().create(input)).rejects.toThrow(/20261031130000_batch_conversion_reason/);
+    await expect(new SupabaseLineageStore().create(input)).rejects.toThrow(/Nothing was saved/);
+  });
+});
+
+describe("reverse", () => {
+  test("marks the row and writes an audit, and list omits the reversed row", async () => {
+    fakeClient({
+      rowsByRead: [[existing(120), dbRow(2, { reversed_at: "2026-10-01T00:00:00.000Z" })]],
+    });
+    const store = new SupabaseLineageStore();
+    const list = await store.list();
+    expect(list.map((r) => r.id)).toEqual(["bc_26I21-14_26I21-16"]);
+    const result = await store.reverse({ id: "bc_26I21-14_26I21-16", actor: "gm", reason: "wrong lot" });
+    expect(result.auditStored).toBe(true);
+    expect(result.conversion.reversedBy).toBe("gm");
+    expect(result.conversion.reversalReason).toBe("wrong lot");
+    expect(result.audit.action).toBe("reversed");
+  });
+
+  test("missing reversal columns are unavailable and name the migration", async () => {
+    fakeClient({
+      rowsByRead: [[existing(120)]],
+      updateError: { code: "42703", message: 'column "reversed_at" does not exist' },
+    });
+    await expect(
+      new SupabaseLineageStore().reverse({ id: "bc_26I21-14_26I21-16", actor: "gm", reason: "wrong lot" }),
+    ).rejects.toThrow(/20261031120000_batch_conversion_reversal/);
+    await expect(
+      new SupabaseLineageStore().reverse({ id: "bc_26I21-14_26I21-16", actor: "gm", reason: "wrong lot" }),
+    ).rejects.toThrow(/Nothing was changed/);
+  });
+
+  test("a failed audit insert keeps the reversal and reports that the audit was not stored", async () => {
+    fakeClient({
+      rowsByRead: [[existing(120)]],
+      auditInsertError: { code: "42P01", message: 'relation "batch_conversion_audits" does not exist' },
+    });
+    const result = await new SupabaseLineageStore().reverse({
+      id: "bc_26I21-14_26I21-16",
+      actor: "gm",
+      reason: "wrong lot",
+    });
+    expect(result.auditStored).toBe(false);
+    expect(result.conversion.reversedAt).toBeTruthy();
+    expect(console.warn).toHaveBeenCalled();
   });
 });

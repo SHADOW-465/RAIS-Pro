@@ -136,3 +136,43 @@ set from this repo.
   browser's; reads/writes go through the slot either way.
 - Behaviour in a real browser (reload-once, banner, theme pre-paint, legacy adoption) is covered by
   logic tests only; there is no component-test setup in this repo and it was not clicked through.
+
+## Batch conversion — target lot, undo, reason, id suffix
+
+### Fixed
+
+1. **Target lot that already has ledger rows.** `planConversion` rejects `targetHasLedger`
+   (`target-has-ledger`) after the identical-repeat check, so re-saving the same edge still
+   no-ops once the converted lot has entries. The server sets the flag from the ledger
+   (`lotExistsInEvents`), never from the body. The form shows the same sentence and disables Record.
+2. **GM-only soft undo.** `POST /api/batch-conversions/undo` requires `write`, then role `gm`
+   (403 `gm-only` otherwise). It sets `reversed_at` / `reversed_by` / `reversal_reason` and writes
+   `batch_conversion_audits`. It never deletes the row. Active `list` / `chainFor` omit reversed
+   rows. A repeat after undo mints `bc_…__2` because the reversed row keeps the primary key.
+   Missing reversal columns → 503 naming `20261031120000_batch_conversion_reversal.sql`
+   ("Nothing was changed."). If the audit insert fails after the row is marked, the response is
+   200 with `auditStored: false` and a warning.
+3. **Batch ID suffix follows the selected size.** `batchIdFollowingSize` rewrites a code composed
+   from the same lot date (20Fr on `27A05-14` → `27A05-20`). An empty field and a different day
+   are left alone. The field effect skips when the input is disabled.
+4. **Reason.** A new conversion requires a category (`rework` / `regrade` / `size-reclassification`,
+   text column, extensible by editing the list) and a note. The row stores both plus
+   `reason` as `category: note` for older readers. An identical repeat keeps the original words.
+   Missing `reason_category` / `reason_note` → 503 naming `20261031130000_batch_conversion_reason.sql`
+   ("Nothing was saved."). The station picker still lists every station; an empty picker defaults
+   to assembly Visual. Both lots' history names keep the origin (`from CT to` on the new lot,
+   `batch (converted to …)` on the original), including report batch chips.
+
+Migrations are new files and were not applied. Until they are, save and undo fail closed as above.
+
+## Batch conversion — converted-lot entry gating
+
+Converted-lot entry gating: client correct when a non-reversed conversion supplies stageId; server wrong because `src/app/api/ingest/route.ts` does not call `missingProcessStep`, so a normal lot can skip primary/secondary (NOT changed, awaiting Showmik decision).
+
+Evidence, current behaviour only. The gate itself was not edited.
+
+- Client waiver: `src/components/BatchMatrixEntry.tsx:728` sets `entryFromStageId` from `activeConversionFlow.stageId`. The fetch just above (chain length under 2, or the lot is the origin) leaves that null, so a normal lot and a reversed conversion do not waive the gate. An empty `stageId` also stays null (`stageId?.trim() || null`).
+- Client rule: `src/lib/entry/process-sequence.ts:204-224`. With `entryFromStageId` set, stations before the change station count as already done and Visual is open. Without it, Visual on an empty lot is blocked at primary (`src/lib/entry/__tests__/process-sequence.test.ts` "jumping straight to Assembly", and `src/lib/entry/__tests__/check-entry.test.ts` "lets a converted lot save at Visual" / "blocks Assembly when Dipping has not been entered").
+- Save path uses the same flag: `src/lib/entry/check-entry.ts` `EntryProcessContext.entryFromStageId`, covered by `src/lib/entry/__tests__/converted-lot-gating.test.ts`.
+- Reversed rows leave active reads (`src/lib/lineage/store.ts` `activeOf` / `list`). After undo, `chainFor` is one node with `via: null`, so the client waiver does not apply.
+- Server: `src/app/api/ingest/route.ts` `POST` caps converted-lot quantity and does not call `missingProcessStep`, `entryFromStageId`, or `checkEntry`. A normal lot posted at Visual returns 200. That deviates from the required rule. `src/app/api/ingest/__tests__/entry-stage-gating.test.ts` locks the 200 and leaves `test.todo` for the reject. A converted lot at its change station also returns 200, which matches the required outcome only because the server accepts every station.

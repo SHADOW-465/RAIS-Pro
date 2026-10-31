@@ -6,7 +6,7 @@ import { requireCapability, requireSession } from "@/lib/auth/guard";
 import { ConversionError, LineageUnavailableError } from "@/lib/lineage/types";
 import { getLineageStore } from "@/lib/lineage/store";
 import { eligibleQtyFromEvents, lotExistsInEvents } from "@/lib/lineage/eligible";
-import { canonLot } from "@/lib/lineage/ids";
+import { canonLot, proposedConvertedBatchId } from "@/lib/lineage/ids";
 import { resolveStageId } from "@/core/ontology/plant-catalog";
 import { getStores } from "@/lib/store";
 import type { AuditEventLike } from "@/lib/analytics/audit-sessions";
@@ -58,7 +58,8 @@ export async function POST(req: NextRequest) {
       changedQty?: number;
       stageId?: string;
       convertedOn?: string;
-      reason?: string;
+      reasonCategory?: string;
+      reasonNote?: string;
     };
     // A number or nothing: Number(true) is 1 and Number("") is 0, and neither
     // is a quantity. planConversion rejects NaN, 0, negatives and fractions.
@@ -78,6 +79,8 @@ export async function POST(req: NextRequest) {
     const events = lot ? ((await getStores().events.effective()) as unknown as AuditEventLike[]) : null;
     const eligibleQty = events && lot && stage ? eligibleQtyFromEvents(events, lot, stage) : undefined;
     const lotKnown = events && lot ? lotExistsInEvents(events, lot) : undefined;
+    const toBatch = canonLot(body.toBatch || proposedConvertedBatchId(body.fromBatch, body.toSize) || "");
+    const targetHasLedger = events && toBatch ? lotExistsInEvents(events, toBatch) : undefined;
     const conversion = await getLineageStore().create({
       fromBatch: body.fromBatch,
       toSize: body.toSize,
@@ -85,10 +88,12 @@ export async function POST(req: NextRequest) {
       changedQty,
       stageId: body.stageId,
       convertedOn: body.convertedOn,
-      reason: body.reason ?? "",
+      reasonCategory: body.reasonCategory ?? "",
+      reasonNote: body.reasonNote ?? "",
       createdBy: auth.actor.username,
       eligibleQty,
       lotKnown,
+      targetHasLedger,
     });
     return NextResponse.json({ conversion }, { status: 201, headers: LIVE_CACHE });
   } catch (err: unknown) {

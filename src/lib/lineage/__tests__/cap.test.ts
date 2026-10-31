@@ -11,6 +11,8 @@ const conv: BatchConversion = {
   stageId: "visual",
   convertedOn: "2026-09-23",
   reason: "customer",
+  reasonCategory: "rework",
+  reasonNote: "customer",
   createdAt: "2026-09-23T00:00:00.000Z",
   createdBy: "t",
 };

@@ -12,6 +12,8 @@ import {
   listBatchIds,
   type SourceChannel,
 } from "@/lib/analytics/scope";
+import { useLineage } from "@/components/app/LineageContext";
+import { historyNameForLot } from "@/lib/lineage";
 import {
   REPORT_TYPES,
   type ReportType,
@@ -213,6 +215,7 @@ export default function ReportsWorkspace({
   policy?: CalculationPolicyT;
 }) {
   const { confirm } = useConfirm();
+  const { conversions } = useLineage();
   const years = useMemo(() => listFinancialYearsFromEvents(events), [events]);
   const [reportType, setReportType] = useState<ReportType>("fy-audit-pack");
   const [periodMode, setPeriodMode] = useState<ReportPeriodMode>("financial-year");
@@ -591,6 +594,7 @@ export default function ReportsWorkspace({
                     type="button"
                     className="rw-ghost"
                     aria-pressed={on}
+                    title={b}
                     onClick={() => setBatchIds(on ? batchIds.filter((x) => x !== b) : [...batchIds, b])}
                     style={{
                       display: "block",
@@ -601,7 +605,7 @@ export default function ReportsWorkspace({
                       background: on ? "var(--accent-weak)" : undefined,
                     }}
                   >
-                    {b}
+                    {historyNameForLot(b, conversions)}
                   </button>
                 );
               })}

@@ -18,6 +18,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import DatePicker from "@/components/ui/DatePicker";
 import {
+  batchIdFollowingSize,
   buildBatchId,
   canonicalBatchId,
   formatBatchIdInput,
@@ -77,6 +78,18 @@ export default function BatchIdField({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
+
+  // The selected size owns the suffix of a code composed from this lot date.
+  // An empty field is left empty, and a code for a different day is left alone.
+  useEffect(() => {
+    if (disabled) return;
+    const next = batchIdFollowingSize({ batchDate, size, currentId: batchId });
+    if (!next || next === batchId.trim().toUpperCase()) return;
+    onBatchIdChange(next);
+    // batchId is read but not a dependency: typing must not be rewritten on
+    // each keystroke, only when the size or the lot date changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchDate, size, disabled]);
 
   const parsed = parseBatchId(batchId);
   // Non-null only when what the operator typed differs from what gets stored.
