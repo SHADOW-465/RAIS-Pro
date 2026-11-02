@@ -28,6 +28,7 @@
 // a button that fails, and their absence says nothing a colleague could not
 // already tell you.
 
+import { withNoStore } from "@/lib/http/live-cache";
 import { NextResponse } from "next/server";
 import { listLoginOptions } from "@/lib/auth/config";
 import { companyId, getUserStore, presetLoginAllowed } from "@/lib/auth/users";
@@ -43,7 +44,7 @@ export interface LoginPerson {
   initial: string;
 }
 
-export async function GET() {
+async function getHandler() {
   // A store that cannot be read means "no named accounts", exactly as it does
   // on the sign-in path itself: the preset logins still answer, and nobody is
   // locked out by a database problem.
@@ -85,3 +86,5 @@ export async function GET() {
 
   return NextResponse.json({ authEnabled: true, logins: presets, people, roleOrder });
 }
+
+export const GET = withNoStore(getHandler);

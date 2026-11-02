@@ -28,6 +28,8 @@ const conversion: BatchConversion = {
   stageId: "visual",
   convertedOn: "2026-09-25",
   reason: "Customer",
+  reasonCategory: "regrade",
+  reasonNote: "Customer",
   createdAt: "2026-09-25T00:00:00.000Z",
   createdBy: "gm",
 };

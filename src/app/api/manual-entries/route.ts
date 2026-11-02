@@ -1,4 +1,5 @@
 // src/app/api/manual-entries/route.ts
+import { withNoStore } from "@/lib/http/live-cache";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/guard";
 import { getStores } from "@/lib/store";
@@ -34,7 +35,7 @@ function matchesSource(e: Event, source: string): boolean {
   return label === want || file === want || file.endsWith(want);
 }
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   try {
     // Same store abstraction /api/events uses — works against the in-memory
     // store in local/test runs (no Supabase configured) as well as Supabase,
@@ -239,3 +240,5 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: err?.message ?? "Failed to delete manual entry" }, { status: 500 });
   }
 }
+
+export const GET = withNoStore(getHandler);

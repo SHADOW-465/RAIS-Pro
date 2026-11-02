@@ -4,7 +4,17 @@
 // Size (or a draft reload) rebuilds it. Memory stores the identity the
 // operator just created so the rest of the line files against the same lot.
 
-export const LOT_MEMORY_KEY = "moid_lot_memory";
+import { z } from "zod";
+import { slot } from "@/lib/storage";
+import { pushShared } from "@/lib/shared-state/push";
+
+// parseLotMemory is the one judge of what a stored pin means, so the slot only
+// asks "would parseLotMemory take it".
+const lotMemorySlot = slot({
+  name: "lot-memory",
+  schema: z.unknown().refine((v) => parseLotMemory(JSON.stringify(v)) !== null),
+  legacyKeys: ["moid_lot_memory"],
+});
 
 export type LotMemorySnapshot = {
   on: boolean;
@@ -58,22 +68,37 @@ export function snapshotLotMemory(s: {
 
 export function readLotMemory(): LotMemorySnapshot | null {
   if (typeof window === "undefined") return null;
-  try {
-    return parseLotMemory(window.localStorage.getItem(LOT_MEMORY_KEY));
-  } catch {
-    return null;
-  }
+  const stored = lotMemorySlot.get();
+  return stored === undefined ? null : parseLotMemory(JSON.stringify(stored));
+}
+
+function samePin(a: LotMemorySnapshot | null, b: LotMemorySnapshot | null): boolean {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return a.on === b.on
+    && a.batchId === b.batchId
+    && a.batchDate === b.batchDate
+    && a.size === b.size
+    && a.category === b.category
+    && a.catheterType === b.catheterType
+    && a.productType === b.productType;
+}
+
+/** Cache a server pin. Does not push it back. */
+export function adoptLotMemory(snap: LotMemorySnapshot | null): void {
+  if (typeof window === "undefined") return;
+  if (!snap || !snap.on || !snap.batchId.trim()) lotMemorySlot.remove();
+  else lotMemorySlot.set(snap);
 }
 
 export function writeLotMemory(snap: LotMemorySnapshot | null): void {
   if (typeof window === "undefined") return;
-  try {
-    if (!snap || !snap.on) {
-      window.localStorage.removeItem(LOT_MEMORY_KEY);
-      return;
-    }
-    window.localStorage.setItem(LOT_MEMORY_KEY, JSON.stringify(snap));
-  } catch {
-    /* private mode / quota — memory is best-effort */
-  }
+  const next = !snap || !snap.on || !snap.batchId.trim() ? null : snap;
+  // The entry form re-saves the pin it just read. Pushing that would
+  // overwrite the plant pin with this browser's copy on every page load.
+  const unchanged = samePin(readLotMemory(), next);
+  if (!next) lotMemorySlot.remove();
+  else lotMemorySlot.set(next);
+  if (unchanged) return;
+  pushShared("lot-memory", { kind: "lot-memory", record: next }, 400);
 }

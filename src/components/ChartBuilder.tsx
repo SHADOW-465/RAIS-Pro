@@ -15,6 +15,8 @@
 // `baseScope`, so a built chart always answers the same question the rest of
 // the page is answering. Pinned charts are remembered per surface.
 
+import { z } from "zod";
+import { slot } from "@/lib/storage";
 import { useEffect, useMemo, useState } from "react";
 import { Card, Empty, BarsH, LineChart, Donut } from "@/components/app/widgets";
 import {
@@ -331,7 +333,15 @@ export default function ChartBuilder({
   title?: string;
   sub?: string;
 }) {
-  const storageKey = `moid_charts:${storageId}`;
+  const chartsSlot = useMemo(
+    () =>
+      slot({
+        name: `charts:${storageId}`,
+        schema: z.array(z.looseObject({ id: z.string(), metric: z.string() })) as unknown as z.ZodType<ChartSpec[]>,
+        legacyKeys: [`moid_charts:${storageId}`],
+      }),
+    [storageId],
+  );
 
   /** Options come from the events AS THE HOST PAGE SCOPED THEM, so the chips
    *  can't offer a stage or size the current range has nothing for. */
@@ -369,21 +379,12 @@ export default function ChartBuilder({
   }, [defaultGrain]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      setPinned(raw ? (JSON.parse(raw) as ChartSpec[]) : []);
-    } catch {
-      setPinned([]);
-    }
-  }, [storageKey]);
+    setPinned(chartsSlot.get() ?? []);
+  }, [chartsSlot]);
 
   const persist = (next: ChartSpec[]) => {
     setPinned(next);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch {
-      /* storage full or blocked — the chart still renders this session */
-    }
+    chartsSlot.set(next); // storage full or blocked: the chart still renders this session
   };
 
   const toggle = (key: "stageIds" | "sizes", value: string) =>

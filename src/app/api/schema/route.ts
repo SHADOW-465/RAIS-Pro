@@ -9,6 +9,7 @@
 //
 // Workbook delete never touches this. Only Data Schema mutations do.
 
+import { withNoStore } from "@/lib/http/live-cache";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/guard";
 import { z } from "zod";
@@ -140,7 +141,7 @@ async function loadMappings(company: string): Promise<
   });
 }
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   // The policy rides along on this response, and it carries the unit cost —
   // so the same redaction /api/policy does has to happen here too, or the
   // figure withheld from one endpoint arrives on the other. This route is the
@@ -485,3 +486,5 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
+
+export const GET = withNoStore(getHandler);

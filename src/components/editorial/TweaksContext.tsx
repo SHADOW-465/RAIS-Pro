@@ -1,5 +1,6 @@
 "use client";
 
+import { showCalendarHolidaysPref, theme as themePref } from "@/lib/ui-prefs";
 import {
   createContext,
   useCallback,
@@ -102,14 +103,7 @@ function initialTheme(): Theme {
  *  builds its first state makes the client's first render differ from the
  *  server's HTML (hydration error). */
 function savedShowCalendarHolidays(): boolean | null {
-  try {
-    const saved = localStorage.getItem("showCalendarHolidays");
-    if (saved === "false") return false;
-    if (saved === "true") return true;
-  } catch {
-    /* storage blocked */
-  }
-  return null;
+  return showCalendarHolidaysPref.get() ?? null;
 }
 
 export function TweaksProvider({ children }: { children: ReactNode }) {
@@ -118,7 +112,7 @@ export function TweaksProvider({ children }: { children: ReactNode }) {
   // Sync theme changes with the document attribute + persisted preference.
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", t.theme);
-    localStorage.setItem("theme", t.theme);
+    themePref.set(t.theme);
   }, [t.theme]);
 
   // Load the persisted holiday setting once, after hydration.
@@ -132,11 +126,7 @@ export function TweaksProvider({ children }: { children: ReactNode }) {
       // Persist on an explicit change only — never from an effect, which would
       // overwrite the saved choice with the default before it is loaded.
       if (key === "showCalendarHolidays") {
-        try {
-          localStorage.setItem("showCalendarHolidays", String(value));
-        } catch {
-          /* storage blocked */
-        }
+        showCalendarHolidaysPref.set(Boolean(value));
       }
       setT((prev) => ({ ...prev, [key]: value }));
     },

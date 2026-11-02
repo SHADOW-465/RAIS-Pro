@@ -13,6 +13,7 @@ import { sessionCookie } from "@/__tests__/fixtures/auth";
 import { __resetRoleStoreForTests, __seedRoleForTests, type RoleRecord } from "@/lib/auth/roles";
 import { getStores } from "@/lib/store";
 import { DEFAULT_POLICY } from "@/core/policy/policy";
+import { defaultEventRange } from "@/lib/store/event-page";
 
 const role = (over: Partial<RoleRecord>): RoleRecord => ({
   roleId: "supervisor.moulding",
@@ -36,7 +37,7 @@ const call = async (handler: (r: NextRequest) => Promise<Response>, url: string,
   return handler(new NextRequest(url, { headers }));
 };
 
-const events = (as: string | null) => call(GET, "http://localhost/api/events", as);
+const events = (as: string | null) => call(GET, "http://localhost/api/events?span=all", as);
 
 /** Two stages' worth of production, plus one row belonging to neither. */
 async function seedLedger() {
@@ -104,7 +105,7 @@ describe("/api/events is no longer role-blind", () => {
 
     const res = await call(
       GET,
-      "http://localhost/api/events?stageId=balloon",
+      "http://localhost/api/events?span=all&stageId=balloon",
       "supervisor.moulding",
     );
     const ids = (await res.json()).events.map((e: { eventId: string }) => e.eventId);
@@ -141,5 +142,117 @@ describe("/api/policy withholds plant money", () => {
 
   test("an unauthenticated caller gets nothing at all", async () => {
     expect((await call(POLICY_GET, "http://localhost/api/policy", null)).status).toBe(401);
+  });
+});
+
+describe("GET /api/events?bounds=1", () => {
+  test("an unauthenticated caller gets 401", async () => {
+    expect((await call(GET, "http://localhost/api/events?bounds=1", null)).status).toBe(401);
+  });
+
+  test("returns the date ends of the caller's ledger and not the rows", async () => {
+    await seedLedger();
+    const res = await call(GET, "http://localhost/api/events?bounds=1", "gm");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.events).toBeUndefined();
+    expect(body.boundsUnavailable).toBeUndefined();
+    expect(typeof body.min).toBe("string");
+    expect(typeof body.max).toBe("string");
+    // The memory store is process-global, so other suites may have appended
+    // rows. The seeded day has to sit inside the ends, not be the only day.
+    expect(body.min <= "2026-01-05").toBe(true);
+    expect(body.max >= "2026-01-05").toBe(true);
+    expect(typeof body.maxEnd).toBe("string");
+    expect(body.maxEnd >= "2026-01-05").toBe(true);
+  });
+});
+
+describe("GET /api/events date window and pages", () => {
+  test("omitting dates returns the last 30 UTC days and not an older row", async () => {
+    const { events: store } = getStores();
+    const window = defaultEventRange(new Date());
+    await store.append([
+      {
+        eventType: "production",
+        eventId: "e-step-e-inside",
+        stageId: "visual",
+        quantity: 1,
+        unit: "pcs",
+        batchNo: null,
+        size: null,
+        occurredOn: { start: window.to, end: window.to },
+        source: { channel: "direct-entry", extractedBy: "direct-entry" },
+      },
+      {
+        eventType: "production",
+        eventId: "e-step-e-outside",
+        stageId: "visual",
+        quantity: 1,
+        unit: "pcs",
+        batchNo: null,
+        size: null,
+        occurredOn: { start: "2000-01-01", end: "2000-01-01" },
+        source: { channel: "direct-entry", extractedBy: "direct-entry" },
+      },
+    ] as never);
+    const ids: string[] = [];
+    let cursor: string | null = null;
+    for (let i = 0; i < 20; i++) {
+      const url = new URL("http://localhost/api/events");
+      if (cursor) url.searchParams.set("cursor", cursor);
+      const body = await (await call(GET, url.toString(), "gm")).json();
+      if (i === 0) {
+        expect(body.from).toBe(window.from);
+        expect(body.to).toBe(window.to);
+      }
+      for (const e of body.events as { eventId: string }[]) ids.push(e.eventId);
+      cursor = body.nextCursor;
+      if (!cursor) break;
+    }
+    expect(ids).toContain("e-step-e-inside");
+    expect(ids).not.toContain("e-step-e-outside");
+    if (window.from > "2026-01-05" || window.to < "2026-01-05") {
+      expect(ids).not.toContain("e-visual");
+    }
+  });
+
+  test("span=all with an explicit range uses the range", async () => {
+    await seedLedger();
+    const body = await (
+      await call(GET, "http://localhost/api/events?span=all&from=2026-01-05&to=2026-01-05", "gm")
+    ).json();
+    const ids = body.events.map((e: { eventId: string }) => e.eventId);
+    expect(ids).toContain("e-visual");
+    expect(ids).not.toContain("e-step-e-outside");
+    expect(body.from).toBe("2026-01-05");
+    expect(body.to).toBe("2026-01-05");
+  });
+
+  test("limit and cursor walk the scoped ledger without a skip or a repeat", async () => {
+    await seedLedger();
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    for (let i = 0; i < 5000; i++) {
+      const url = new URL("http://localhost/api/events");
+      url.searchParams.set("span", "all");
+      url.searchParams.set("limit", "1");
+      if (cursor) url.searchParams.set("cursor", cursor);
+      const body = await (await call(GET, url.toString(), "gm")).json();
+      expect(body.events.length).toBeLessThanOrEqual(1);
+      for (const e of body.events) seen.push(e.eventId);
+      cursor = body.nextCursor;
+      if (!cursor) break;
+    }
+    expect(cursor).toBeNull();
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen).toEqual(expect.arrayContaining(["e-visual", "e-balloon"]));
+  });
+
+  test("a bad cursor is 400 and returns no rows", async () => {
+    const res = await call(GET, "http://localhost/api/events?span=all&cursor=not-a-cursor", "gm");
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.events).toBeUndefined();
   });
 });

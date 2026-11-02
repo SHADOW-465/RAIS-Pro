@@ -19,7 +19,7 @@ import { getKnowledgeStore } from "@/core/ontology/store/knowledge-store";
 import { loadCatalog } from "@/core/ontology/load-catalog";
 import { diffAgainstCatalog } from "@/core/ontology/catalog-diff";
 import { availableBackends } from "@/lib/ai";
-import { LIVE_CACHE } from "@/lib/http/live-cache";
+import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ function companyId(): string {
 
 /** GET /api/workbooks — uploaded snapshots joined with their MOD lineage
  *  (the Workbooks explorer's data source; replaces /api/datasets). */
-export async function GET() {
+async function getHandler() {
   try {
     const [snapshots, mods] = await Promise.all([
       getSnapshotStore().list(),
@@ -181,3 +181,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const GET = withNoStore(getHandler);

@@ -24,6 +24,7 @@ import {
   getNamedPreset,
   type NamedReportPreset,
 } from "@/lib/report/presets-store";
+import { SHARED_STATE_EVENT, sharedStateKind } from "@/lib/shared-state/push";
 import { buildPresetsZip } from "@/lib/report/presets-package";
 import type { NavKey } from "@/lib/nav-keys";
 import {
@@ -35,6 +36,8 @@ import {
 import type { Event } from "@/lib/store/types";
 import type { Registry } from "@/lib/analytics/rejection";
 import { useTweaks } from "@/components/editorial/TweaksContext";
+import { useLineage } from "@/components/app/LineageContext";
+import { historyNameForLot } from "@/lib/lineage";
 
 /** Global print rules — only active while body has .rp-printing. */
 const PRINT_SURFACE_CSS = `
@@ -146,6 +149,7 @@ export default function ReportPanel({
   initialPresetId?: string;
 }) {
   const { t, setTweak } = useTweaks();
+  const { conversions } = useLineage();
   const [presets, setPresets] = useState<NamedReportPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(initialPresetId ?? null);
   const [spec, setSpec] = useState<ReportSpec | null>(() => {
@@ -186,6 +190,13 @@ export default function ReportPanel({
 
   useEffect(() => {
     refreshPresets();
+    const onShared = (ev: globalThis.Event) => {
+      const kind = sharedStateKind(ev);
+      if (kind && kind !== "report-presets") return;
+      refreshPresets();
+    };
+    window.addEventListener(SHARED_STATE_EVENT, onShared);
+    return () => window.removeEventListener(SHARED_STATE_EVENT, onShared);
   }, []);
 
   // After the portal paints, fire window.print(); clean up on afterprint.
@@ -484,6 +495,7 @@ export default function ReportPanel({
                       <button
                         key={b}
                         type="button"
+                        title={b}
                         onClick={() =>
                           setTweak(
                             "batchIds",
@@ -506,7 +518,7 @@ export default function ReportPanel({
                           fontWeight: 700,
                         }}
                       >
-                        {b}
+                        {historyNameForLot(b, conversions)}
                       </button>
                     );
                   })}

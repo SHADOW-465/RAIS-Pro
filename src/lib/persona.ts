@@ -3,6 +3,8 @@
 // Does not affect APIs, analytics, routing tables, or page functionality —
 // only which sidebar (and command-palette destination) items are visible.
 
+import { z } from "zod";
+import { slot } from "@/lib/storage";
 import type { NavKey } from "@/lib/nav-keys";
 export type { NavKey };
 
@@ -162,7 +164,7 @@ export const PERSONA_ORDER: PersonaId[] = ["gm", "owner", "operator"];
 
 /** Default: full-access GM dashboard (matches complete sidebar). */
 export const DEFAULT_PERSONA: PersonaId = "gm";
-export const PERSONA_STORAGE_KEY = "moid_persona";
+const personaSlot = slot({ name: "persona", schema: z.string(), legacyKeys: ["moid_persona"] });
 
 export function isPersonaId(v: string | null | undefined): v is PersonaId {
   return !!v && v in PERSONAS;
@@ -193,21 +195,13 @@ export function personaDef(id: RoleId): PersonaDef {
 
 export function readStoredPersona(): RoleId {
   if (typeof window === "undefined") return DEFAULT_PERSONA;
-  try {
-    const v = localStorage.getItem(PERSONA_STORAGE_KEY);
-    return isPersonaId(v) ? v : DEFAULT_PERSONA;
-  } catch {
-    return DEFAULT_PERSONA;
-  }
+  const v = personaSlot.get();
+  return isPersonaId(v) ? v : DEFAULT_PERSONA;
 }
 
 export function writeStoredPersona(id: RoleId): void {
   if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(PERSONA_STORAGE_KEY, id);
-  } catch {
-    /* ignore */
-  }
+  personaSlot.set(id);
 }
 
 export function personaAllowsNav(persona: RoleId, key: NavKey): boolean {

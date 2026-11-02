@@ -106,6 +106,8 @@ src/
 | `POST /api/clear-schema` | Reset the schema brain (keeps the ledger) |
 | `POST /api/clear-data` | Clear the transactional ledger (keeps the schema) |
 | `GET /api/events` · `GET /api/day-records` | Ledger reads for screens and grids |
+| `GET /api/ledger-meta` | Change counter other tabs poll to reload their screens (503 until its migration is applied) |
+| `GET /api/health` | Which Supabase key the server uses (`service_role` / `anon` / `none`), never the key; check before the DB lockdown |
 | `GET/DELETE /api/manual-entries` | Data Entry ledger rows |
 | `GET/POST /api/batch-conversions` | Batch size-conversion lineage (isolated from the ledger) |
 | `POST /api/chat` · `POST /api/capa-advisor` · `POST /api/decide` | AI-backed answers, CAPA drafting, rule recommendations |
@@ -164,6 +166,12 @@ set. Roles match the topbar (GM / Owner / Operator); default passwords are
 hardcoded (`moid-gm`, `moid-owner`, `moid-operator`). Optional env overrides:
 `MOID_AUTH_PASSWORD_*` for passwords, `MOID_AUTH_SECRET` only if you want a
 custom session HMAC (a built-in default is used otherwise).
+
+**Admin tools:** Settings → Administrative (purge transaction data, reset the
+schema registry) and the routes behind it (`/api/clear-data`,
+`/api/clear-schema`) are not part of any role, the GM included. They open only
+for logins named in `MOID_ADMIN_USERS` (comma-separated usernames) that also
+hold the route's capability. Unset means nobody.
 
 **Move Data Entry between databases:** On Data Entry, topbar **Export entries**
 opens a panel to pick scope/dates/format → download JSON → Staging →

@@ -48,5 +48,18 @@ export function historyNameForLot(
   conversions: { fromBatch: string; toBatch: string }[],
 ): string {
   const hit = conversions.find((c) => c.toBatch === batch);
-  return hit ? conversionHistoryName(hit.fromBatch, hit.toBatch) : batch;
+  if (hit) return conversionHistoryName(hit.fromBatch, hit.toBatch);
+  // The original lot's history names the lot it became, so the origin is
+  // visible from either side. The two labels differ so a list of both ids
+  // does not show the same text twice.
+  const sent = conversions.find((c) => c.fromBatch === batch);
+  return sent ? `${batch} (converted to ${sent.toBatch})` : batch;
+}
+
+/** A repeat after an undo cannot reuse the reversed row's primary key. */
+export function nextConversionId(base: string, taken: { id: string }[]): string {
+  if (!taken.some((r) => r.id === base)) return base;
+  let n = 2;
+  while (taken.some((r) => r.id === `${base}__${n}`)) n += 1;
+  return `${base}__${n}`;
 }

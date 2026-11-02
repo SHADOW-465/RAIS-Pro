@@ -31,7 +31,7 @@ const g = globalThis as unknown as { __moidStores?: Stores };
  */
 export function shouldUseSupabase(): boolean {
   if ((process.env.MOID_STORE || "").toLowerCase() === "memory") return false;
-  return !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  return !!(process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 

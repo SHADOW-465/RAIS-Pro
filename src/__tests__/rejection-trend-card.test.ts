@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 test("dashboard Rejection Trend still opens the existing detail modal with the interactive chart", () => {
-  const src = readFileSync(join(process.cwd(), "src/app/page.tsx"), "utf8");
+  const src = readFileSync(join(process.cwd(), "src/app/(plant)/page.tsx"), "utf8");
   expect(src).toMatch(/RejectionTrendCard/);
   expect(src).toMatch(/RejectionTrendView/);
   expect(src).toMatch(/onOpenFullTrend/);

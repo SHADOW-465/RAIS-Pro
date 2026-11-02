@@ -1,12 +1,13 @@
 // GET /api/entries/revisions?date=&batch=&stageId=&size=
 // Full append-only history for one plant row (including superseded events).
 
+import { withNoStore } from "@/lib/http/live-cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getStores } from "@/lib/store";
 import { eventBatchId, isDirectEntryEvent } from "@/lib/analytics/scope";
 import type { Event } from "@/lib/store/types";
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   try {
     const sp = req.nextUrl.searchParams;
     const date = (sp.get("date") ?? "").trim();
@@ -137,3 +138,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const GET = withNoStore(getHandler);

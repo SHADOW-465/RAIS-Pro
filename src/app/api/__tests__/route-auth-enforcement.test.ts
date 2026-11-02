@@ -53,7 +53,7 @@ describe("POST /api/ingest — requires `write`", () => {
   });
 });
 
-describe("POST /api/clear-data — requires `eraseLedger` (GM only)", () => {
+describe("POST /api/clear-data — requires `eraseLedger`", () => {
   const url = "http://localhost/api/clear-data";
   const run = (role: PersonaId | null) =>
     import("../clear-data/route").then((m) => call(m.POST as Handler, { method: "POST", url, role }));
@@ -74,6 +74,40 @@ describe("POST /api/clear-data — requires `eraseLedger` (GM only)", () => {
     // 401 proves nothing downstream of the guard executed — the ordering
     // matters more here than anywhere else in the app.
     expect((await run(null)).status).toBe(401);
+  });
+});
+
+describe("admin tools — hidden from the GM, open only to MOID_ADMIN_USERS", () => {
+  const routes = [
+    { name: "clear-data", load: () => import("../clear-data/route") },
+    { name: "clear-schema", load: () => import("../clear-schema/route") },
+  ];
+  const run = (r: (typeof routes)[number], role: PersonaId | null) =>
+    r.load().then((m) =>
+      call(m.POST as Handler, { method: "POST", url: `http://localhost/api/${r.name}`, role }),
+    );
+  const saved = process.env.MOID_ADMIN_USERS;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.MOID_ADMIN_USERS;
+    else process.env.MOID_ADMIN_USERS = saved;
+  });
+
+  test.each(routes)("$name: a GM with no admin listing is 403", async (r) => {
+    delete process.env.MOID_ADMIN_USERS;
+    const res = await run(r, "gm");
+    expect(res.status).toBe(403);
+    expect((await res.json()).need).toBe("admin");
+  });
+
+  test.each(routes)("$name: a listed login gets past the gate", async (r) => {
+    // Fixture sessions use the role as the username.
+    process.env.MOID_ADMIN_USERS = "someone, GM";
+    expect([401, 403]).not.toContain((await run(r, "gm")).status);
+  });
+
+  test.each(routes)("$name: listing does not lift a missing capability", async (r) => {
+    process.env.MOID_ADMIN_USERS = "owner";
+    expect((await run(r, "owner")).status).toBe(403);
   });
 });
 

@@ -6,6 +6,7 @@
 // source: upload or manual entry). Reads through the same canonicalizeEvents()
 // the dashboard uses, so what the operator edits is exactly what's shown
 // everywhere else.
+import { withNoStore } from "@/lib/http/live-cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getStores } from "@/lib/store";
 import { canonicalizeEvents } from "@/lib/analytics/canonical";
@@ -13,7 +14,7 @@ import type { StageDayRecord } from "@/lib/ingest/emit";
 
 const COUNTABLE = new Set(["production", "inspection", "rejection"]);
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   try {
     const date = req.nextUrl.searchParams.get("date");
     const from = req.nextUrl.searchParams.get("from");
@@ -82,3 +83,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: err?.message ?? "Failed to load day records" }, { status: 500 });
   }
 }
+
+export const GET = withNoStore(getHandler);

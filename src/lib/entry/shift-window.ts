@@ -1,6 +1,10 @@
 // Shift edit windows — when an operator may create/edit without GM grant.
 // Default plant window: Day Shift 08:00–20:00 Asia/Kolkata.
 
+import { z } from "zod";
+import { slot } from "@/lib/storage";
+import { pushShared } from "@/lib/shared-state/push";
+
 export type ShiftWindow = { start: string; end: string }; // "HH:MM" 24h
 
 export type ShiftWindowConfig = {
@@ -8,7 +12,14 @@ export type ShiftWindowConfig = {
   windows: Record<string, ShiftWindow>;
 };
 
-export const SHIFT_WINDOW_STORAGE_KEY = "moid_shift_windows";
+const shiftWindowSlot = slot({
+  name: "shift-windows",
+  schema: z.object({
+    timezone: z.string().optional(),
+    windows: z.record(z.string(), z.object({ start: z.string(), end: z.string() })),
+  }) as unknown as z.ZodType<ShiftWindowConfig>,
+  legacyKeys: ["moid_shift_windows"],
+});
 
 export const DEFAULT_SHIFT_WINDOWS: ShiftWindowConfig = {
   timezone: "Asia/Kolkata",
@@ -68,27 +79,30 @@ export function isWithinShiftWindow(
 
 export function readShiftWindowConfig(): ShiftWindowConfig {
   if (typeof window === "undefined") return DEFAULT_SHIFT_WINDOWS;
-  try {
-    const raw = localStorage.getItem(SHIFT_WINDOW_STORAGE_KEY);
-    if (!raw) return DEFAULT_SHIFT_WINDOWS;
-    const parsed = JSON.parse(raw) as ShiftWindowConfig;
-    if (!parsed?.windows || typeof parsed.windows !== "object") return DEFAULT_SHIFT_WINDOWS;
-    return {
-      timezone: parsed.timezone || DEFAULT_SHIFT_WINDOWS.timezone,
-      windows: { ...DEFAULT_SHIFT_WINDOWS.windows, ...parsed.windows },
-    };
-  } catch {
-    return DEFAULT_SHIFT_WINDOWS;
-  }
+  const parsed = shiftWindowSlot.get();
+  if (!parsed) return DEFAULT_SHIFT_WINDOWS;
+  return {
+    timezone: parsed.timezone || DEFAULT_SHIFT_WINDOWS.timezone,
+    windows: { ...DEFAULT_SHIFT_WINDOWS.windows, ...parsed.windows },
+  };
+}
+
+/** The stored document, or null when this browser has not saved one. */
+export function readStoredShiftWindow(): ShiftWindowConfig | null {
+  if (typeof window === "undefined") return null;
+  return shiftWindowSlot.get() ?? null;
+}
+
+/** Cache a server document. Does not push it back. */
+export function adoptShiftWindowConfig(config: ShiftWindowConfig): void {
+  if (typeof window === "undefined") return;
+  shiftWindowSlot.set(config);
 }
 
 export function writeShiftWindowConfig(config: ShiftWindowConfig): void {
   if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(SHIFT_WINDOW_STORAGE_KEY, JSON.stringify(config));
-  } catch {
-    /* ignore */
-  }
+  shiftWindowSlot.set(config);
+  pushShared("shift-windows", { kind: "shift-windows", record: config });
 }
 
 export function describeShiftWindow(

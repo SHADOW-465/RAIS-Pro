@@ -1,7 +1,10 @@
 // Per-login dashboard card order. The board is a 12-column flow; moving a
 // card left/right swaps neighbors in the same row, up/down hops a row.
-// Persistence is localStorage keyed by the signed-in username so two people
-// on the same browser keep their own arrangement.
+// Persistence is browser storage (lib/storage.ts) keyed by the signed-in
+// username so two people on the same browser keep their own arrangement.
+
+import { z } from "zod";
+import { slot } from "@/lib/storage";
 
 export const DASH_COLS = 12;
 export const DASH_LAYOUT_VERSION = 1;
@@ -276,31 +279,29 @@ export function dropBefore(order: string[], dragged: string, target: string): st
   return without;
 }
 
+// parseLayout is the one judge of what a stored layout means (it also accepts
+// the pre-wrapper bare array), so the slot only asks "would parseLayout take it".
+const layoutSlot = (userKey: string) =>
+  slot({
+    name: `dash-layout:${userKey.trim() || "anon"}`,
+    schema: z.unknown().refine((v) => parseLayout(JSON.stringify(v)) !== null),
+    legacyKeys: [layoutStorageKey(userKey)],
+  });
+
 export function readLayout(userKey: string): StoredLayout | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return parseLayout(window.localStorage.getItem(layoutStorageKey(userKey)));
-  } catch {
-    return null;
-  }
+  const stored = layoutSlot(userKey).get();
+  return stored === undefined ? null : parseLayout(JSON.stringify(stored));
 }
 
 export function writeLayout(userKey: string, layout: StoredLayout): void {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(layoutStorageKey(userKey), serializeLayout(layout));
+  if (layoutSlot(userKey).set(JSON.parse(serializeLayout(layout)))) {
     window.dispatchEvent(new Event("moid_dash_layout_changed"));
-  } catch {
-    /* quota / private mode */
   }
 }
 
 export function clearLayout(userKey: string): void {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(layoutStorageKey(userKey));
-    window.dispatchEvent(new Event("moid_dash_layout_changed"));
-  } catch {
-    /* ignore */
-  }
+  layoutSlot(userKey).remove();
+  window.dispatchEvent(new Event("moid_dash_layout_changed"));
 }

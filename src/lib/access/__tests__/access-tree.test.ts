@@ -202,7 +202,7 @@ describe("counts", () => {
 // same walk-the-source approach route-auth-coverage.test.ts uses to stop a new
 // route from forgetting its guard.
 describe("the card catalog tracks the actual dashboard", () => {
-  const board = readFileSync(join(process.cwd(), "src", "app", "page.tsx"), "utf8");
+  const board = readFileSync(join(process.cwd(), "src", "app", "(plant)", "page.tsx"), "utf8");
   const onBoard = [...board.matchAll(/<DashItem\s+id="([^"]+)"/g)].map((m) => m[1]);
 
   test("the board was actually parsed", () => {

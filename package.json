@@ -16,6 +16,7 @@
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",
     "@supabase/supabase-js": "^2.101.1",
+    "@tanstack/react-query": "^5.105.0",
     "ai": "^6.0.191",
     "geist": "^1.7.2",
     "html2canvas": "^1.4.1",

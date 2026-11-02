@@ -84,6 +84,19 @@ describe("checkEntry — blocks", () => {
     expect(v.canSave).toBe(true);
   });
 
+  it("refuses more than the pieces that were converted into this lot", () => {
+    const over = draft({ checked: 99_999_999, accepted: 99_999_999, hold: 0, rejected: 0, defectSum: 0, maxChecked: 1146 });
+    const v = checkEntry(over, EMPTY, TODAY);
+    expect(v.canSave).toBe(false);
+    expect(v.blocks.map((b) => b.code)).toContain("exceeds-converted-quantity");
+    const ok = checkEntry(
+      draft({ checked: 1146, accepted: 1146, hold: 0, rejected: 0, defectSum: 0, maxChecked: 1146 }),
+      EMPTY,
+      TODAY,
+    );
+    expect(ok.blocks.map((b) => b.code)).not.toContain("exceeds-converted-quantity");
+  });
+
   it("refuses a lot code that is not a lot code", () => {
     const v = checkEntry(draft({ lot: "26025-18" }), EMPTY, TODAY);
     expect(v.canSave).toBe(false);
