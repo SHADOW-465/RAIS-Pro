@@ -58,20 +58,19 @@ function GripIcon({ size = 14 }: { size?: number }) {
 
 const pill: React.CSSProperties = {
   height: 32,
-  borderRadius: 30,
+  borderRadius: "var(--radius-md)",
   border: "1px solid var(--border-strong)",
   display: "inline-flex",
   alignItems: "center",
   gap: 6,
   padding: "0 12px",
   cursor: "pointer",
-  boxShadow: "var(--shadow-sm)",
-  fontSize: 11.5,
-  fontWeight: 600,
+  fontSize: "var(--text-sm)",
+  fontWeight: 500,
   fontFamily: "inherit",
 };
 
-/** Masthead control: enter arrange mode, then Fix layout to lock the grid. */
+/** Top-bar control: "Customise" enters arrange mode, then Fix layout locks the grid. Fix layout is the only accent button while editing. */
 export function DashboardLayoutToggle({
   editing,
   dirty,
@@ -124,7 +123,7 @@ export function DashboardLayoutToggle({
     <button
       type="button"
       onClick={onChangeLayout}
-      title="Rearrange dashboard cards"
+      title="Rearrange, hide or reset Home cards"
       style={{
         ...pill,
         background: "var(--surface)",
@@ -132,7 +131,7 @@ export function DashboardLayoutToggle({
       }}
     >
       <Icon name="table" size={13} />
-      Change layout
+      Customise
     </button>
   );
 }
@@ -269,6 +268,8 @@ export default function DashboardBoard({
             }}
             style={{
               gridColumn: `span ${span}`,
+              display: "grid", // children stretch to the row height
+              gridTemplateColumns: "minmax(0, 1fr)",
               minWidth: 0,
               position: "relative",
               opacity: isDrag ? 0.55 : 1,

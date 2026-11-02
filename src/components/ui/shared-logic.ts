@@ -35,6 +35,14 @@ export function formatDelta(
   return { text: `${sign}${Math.abs(rounded).toFixed(digits)} ${unit === "pp" ? "pp" : "%"}`, direction, good };
 }
 
+/** Turns analytics delta text ("↑ 0.30% vs Oct") into a KpiTile delta; null when it has no arrow (e.g. "No prior period"). */
+export function deltaFromArrowText(text: string | null | undefined, lowerIsBetter = true) {
+  const m = /^([↑↓])\s*(.+)$/.exec(text ?? "");
+  if (!m) return null;
+  const direction: Direction = m[1] === "↑" ? "up" : "down";
+  return { text: m[2], direction, good: (direction === "down") === lowerIsBetter };
+}
+
 /** Renders a KPI value without ever leaking NaN/Infinity to the screen. */
 export function formatKpiValue(v: number | string | null | undefined, digits = 1, suffix = ""): string {
   if (v === null || v === undefined || v === "") return "—";

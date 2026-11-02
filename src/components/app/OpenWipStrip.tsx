@@ -44,9 +44,9 @@ export default function OpenWipStrip({
           box-shadow: var(--shadow-sm);
         }
         .wip-action-btn:hover {
-          background: var(--accent-weak) !important;
-          border-color: color-mix(in srgb, var(--accent) 45%, var(--border)) !important;
-          color: var(--accent-hover, var(--accent)) !important;
+          background: var(--surface-3) !important;
+          border-color: var(--border-strong) !important;
+          color: var(--text) !important;
           box-shadow: var(--shadow-sm);
         }
         .wip-action-btn:hover .wip-arrow {
@@ -289,8 +289,8 @@ export default function OpenWipStrip({
             borderRadius: "var(--radius-pill)",
             border: "1px solid var(--border-strong)",
             background: "var(--surface-2)",
-            color: "var(--accent)",
-            fontSize: 12.5,
+            color: "var(--text)",
+            fontSize: 13,
             fontWeight: 600,
             textDecoration: "none",
             whiteSpace: "nowrap",

@@ -111,7 +111,7 @@ function TrendBarChart({
   const { ref: containerRef, width: containerWidth } = useContainerWidth(660);
 
   const series = useMemo(
-    () => [{ id: "current", label: "Current", points, color: "var(--accent)" }, ...overlays],
+    () => [{ id: "current", label: "Current", points, color: "var(--viz-1)" }, ...overlays],
     [points, overlays],
   );
 

@@ -169,6 +169,8 @@
   /* 28px — page title */
   --text-kpi: 1.875rem;
   /* 30px — executive KPI numbers (primary) */
+  --text-kpi-lg: 2.5rem;
+  /* 40px — Home KpiTile value (numbers only) */
   --text-kpi-sm: 1.5rem;
   /* 24px — secondary KPI numbers */
   --text-kpi-word: 1.25rem;

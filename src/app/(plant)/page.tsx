@@ -108,6 +108,14 @@ import { decide } from "@/core/decision/engine";
 import { SEED_DECISION_RULES } from "@/core/decision/seed-rules";
 import type { RecommendationT } from "@/shared/models/decision";
 import Select from "@/components/ui/Select";
+import { KpiTile, PrimaryAction, GhostButton, StatusBadge, EmptyState } from "@/components/ui/primitives";
+import { deltaFromArrowText, type Status } from "@/components/ui/shared-logic";
+
+/** Quiet text link / link-button: accent blue is reserved for the one primary action. */
+const linkStyle: React.CSSProperties = {
+  fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-2)", textDecoration: "underline",
+  textUnderlineOffset: 3, background: "none", border: "none", cursor: "pointer", padding: 0, whiteSpace: "nowrap",
+};
 
 export default function Dashboard() {
   const router = useRouter();
@@ -118,7 +126,13 @@ export default function Dashboard() {
   const { authUser, persona } = usePersona();
   const layoutUser = authUser?.username ?? persona;
   const [layoutEditing, setLayoutEditing] = useState(false);
-  const [layoutDirty, setLayoutDirty] = useState(false);
+  const [dirtyMain, setLayoutDirtyMain] = useState(false);
+  const [dirtyDetail, setLayoutDirtyDetail] = useState(false);
+  const layoutDirty = dirtyMain || dirtyDetail;
+  const [briefOpen, setBriefOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  // Arranging cards needs every card on screen.
+  const showMore = detailOpen || layoutEditing;
   const activeRegistry = registry || EMPTY_REGISTRY;
   const scopeLabel = lotScopeLabel(t, STAGE_LABELS);
   const [selectedSize, setSelectedSize] = useState("Fr16");
@@ -442,10 +456,37 @@ export default function Dashboard() {
     ? [...m.stages].sort((a, b) => b.rejected - a.rejected).find((s) => s.rejected > 0) ?? null
     : null;
   const worstStageByRejs = worstStageRow?.label ?? "—";
-  const wipOpen = useMemo(
-    () => openWip((events ?? []) as AuditEventLike[]).openCount > 0,
-    [events],
-  );
+  const wip = useMemo(() => openWip((events ?? []) as AuditEventLike[]), [events]);
+  const wipOpen = wip.openCount > 0;
+
+  // Same three states the status line shows (analytics decides; nothing re-derived here).
+  const statusTone: Status = !m || m.checked === 0
+    ? "neutral"
+    : m.status.state === "blocked" || m.status.state === "at-risk" ? "critical"
+    : m.status.state === "watch" ? "warning" : "ok";
+
+  const openSizeModal = () => {
+    if (!m) return;
+    openModal(
+      `Size-wise Rejection (${scopeLabel})`,
+      m.sizeWiseInsight,
+      <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center", gap: 16 }}>
+        <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => formatPercent(n, 1) ?? "—"} />
+        <div style={{ paddingTop: 16, borderTop: "1px solid var(--border)" }}><SizeColorLegend sizes={m.sizes.map((s) => s.size)} /></div>
+      </div>,
+      { rows: srcRows({ types: ["inspection", "rejection"] }).filter((r) => r.size), value: m.sizes.length ? (formatRatioPercent(Math.max(...m.sizes.map((s) => Number.isFinite(s.rejRate) ? s.rejRate : 0)), 1) ?? "—") : "—", metricKind: "size" },
+    );
+  };
+
+  /** Primary action: open the brief (recommendations + Create CAPA) and bring it into view. */
+  const reviewIssues = () => {
+    setBriefOpen(true);
+    requestAnimationFrame(() => {
+      const el = document.querySelector('[data-dash-id="ai-brief"]');
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      else router.push("/actions/capa");
+    });
+  };
 
   const getDefectRejRate = (defect: any) => {
     if (!m) return 0;
@@ -594,7 +635,7 @@ export default function Dashboard() {
             dirty={layoutDirty}
             onChangeLayout={() => setLayoutEditing(true)}
             onFixLayout={() => setLayoutEditing(false)}
-            onReset={() => clearLayout(layoutUser)}
+            onReset={() => { clearLayout(layoutUser); clearLayout(`${layoutUser}:detail`); }}
           />
         ) : null
       }
@@ -641,26 +682,11 @@ export default function Dashboard() {
         );
       })()}
       {!isLoading && events && events.length === 0 && (
-        <div style={{ padding: "72px 32px", textAlign: "center" }}>
-          <div className="h1" style={{ marginBottom: 12 }}>
-            No data yet
-          </div>
-          <div className="body" style={{ color: "var(--text-2)", lineHeight: 1.65, maxWidth: 42 * 16, margin: "0 auto 20px" }}>
-            Upload your monthly inspection workbooks on <strong>Staging &amp; Review</strong> to populate the dashboard —
-            the <strong>Visual</strong> size-wise book, the <strong>Valve Integrity</strong> size-wise book (covers Balloon + Valve),
-            and the <strong>Rejection Analysis</strong> book (covers Final inspection). Or key figures in manually via <strong>Data Entry</strong>.
-          </div>
-          <button
-            onClick={() => router.push("/excel/import")}
-            style={{
-              fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 13, cursor: "pointer",
-              color: "var(--on-accent)", background: "var(--accent)", border: "none",
-              padding: "10px 20px", borderRadius: "var(--radius-md)",
-            }}
-          >
-            Go to Staging &amp; Review →
-          </button>
-        </div>
+        <EmptyState
+          title="No data yet"
+          body="Upload your monthly inspection workbooks under Excel files to populate Home: the Visual size-wise book, the Valve Integrity size-wise book (covers Balloon + Valve) and the Rejection Analysis book (covers Final inspection). Or key figures in manually under Log."
+          action={<PrimaryAction onClick={() => router.push("/excel/import")}>Go to Excel files →</PrimaryAction>}
+        />
       )}
 
       {m && (
@@ -681,74 +707,59 @@ export default function Dashboard() {
               />
             )
           ) : (
-            <DashboardBoard userKey={layoutUser} editing={layoutEditing} onDirtyChange={setLayoutDirty}>
-              {/* Section 1: Executive KPIs */}
+            <>
+            <DashboardBoard userKey={layoutUser} editing={layoutEditing} onDirtyChange={setLayoutDirtyMain}>
+              <DashItem id="quality" span={12}>
+                <QualityStatusStrip
+                  status={m.status}
+                  action={layoutEditing ? null : <PrimaryAction onClick={reviewIssues}>Review issues</PrimaryAction>}
+                />
+              </DashItem>
               <DashItem id="kpis" span={12}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
-                <Kpi
-                  primary
-                  label="Overall Rejection"
-                  basis={scopeLabel}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--gap-grid)" }}>
+                <KpiTile
+                  label="Rejection rate"
                   value={pct(m.rate)}
-                  detail={`${num(m.rejected)} rejected · ${num(m.checked)} checked`}
-                  sub={stats.rateDiff}
-                  tone={m.rate > targetRej ? "bad" : "good"}
-                  spark={m.tr}
-                  onClick={() => openModal(
+                  delta={deltaFromArrowText(stats.rateDiff)}
+                  hint={`${num(m.rejected)} of ${num(m.checked)} checked`}
+                  status={statusTone}
+                  onOpen={() => openModal(
                     `${grainLabel} Rejection Rate — Drill-down`,
-                    kpiNarrative("rate", `The rejection rate stands at ${pct(m.rate)} (${num(m.rejected)} of ${num(m.checked)} checked), compared to the target of ${pct(targetRej)} (${stats.rateDiff}).`),
+                    kpiNarrative("rate", `The rejection rate stands at ${pct(m.rate)} (${num(m.rejected)} of ${num(m.checked)} checked, ${pct(m.acceptedRate)} accepted), compared to the target of ${pct(targetRej)} (${stats.rateDiff}).`),
                     <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} /></div>,
                     { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" },
                   )}
                 />
-                <Kpi
-                  primary
-                  label="Overall Accepted"
-                  basis={scopeLabel}
-                  value={pct(m.acceptedRate)}
-                  detail={`${num(m.accepted)} accepted · ${num(m.checked)} checked`}
-                  sub={stats.acceptedDiff}
-                  tone={m.acceptedRate >= (1 - targetRej) ? "good" : "bad"}
-                  spark={m.tr.map(p => ({ ...p, value: 1 - p.value }))}
-                  onClick={() => openModal(
-                    `${grainLabel} Acceptance Rate — Drill-down`,
-                    kpiNarrative("accepted", `Overall accepted rate stands at ${pct(m.acceptedRate)} (${num(m.accepted)} of ${num(m.checked)} checked), compared to the target acceptance of ${pct(1 - targetRej)} (${stats.acceptedDiff}).`),
-                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr.map(p => ({ ...p, value: p.noProduction ? Number.NaN : 1 - p.value }))} target={1 - targetRej} fmt={pct} /></div>,
-                    { rows: rejectionSrc(), value: pct(m.acceptedRate), metricKind: "rejection_rate" },
-                  )}
-                />
-                <Kpi
-                  label="Top Rejecting Stage"
-                  basis={scopeLabel}
+                <KpiTile
+                  word
+                  label="Worst gate"
                   value={worstStageByRejs}
-                  detail={
-                    worstStageRow
-                      ? `${num(worstStageRow.rejected)} rejected · ${num(worstStageRow.checked)} checked`
-                      : undefined
-                  }
-                  sub={worstStageRow ? `${pct(worstStageRow.rejRate)} rejection rate` : "—"}
-                  tone={worstStageRow && worstStageRow.rejRate > targetRej ? "bad" : "warn"}
+                  hint={worstStageRow ? `${pct(worstStageRow.rejRate)} rejection rate · ${num(worstStageRow.rejected)} rejected` : "No rejecting stage in scope"}
+                  status={worstStageRow ? (worstStageRow.rejRate > targetRej ? "critical" : "warning") : "neutral"}
                   // No rejecting stage in scope → nothing to drill into. Opening a
                   // "— — Drill-down" on an empty trace is worse than not opening.
-                  onClick={worstStageRow ? () => openModal(
+                  onOpen={worstStageRow ? () => openModal(
                     `${worstStageRow.label} — Drill-down`,
                     kpiNarrative("bottleneck", `${worstStageRow.label} is the top bottleneck stage, contributing ${num(worstStageRow.rejected)} rejections (${pct(worstStageRow.rejRate)} rejection rate).`),
                     <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><ProcessFlow rows={m.stages} /></div>,
                     { rows: srcRows({ stageId: worstStageRow.stageId, types: ["production", "inspection", "rejection"] }), value: pct(worstStageRow.rejRate), metricKind: "rejection_rate" },
                   ) : undefined}
                 />
-                <Kpi
-                  label="Top Defect"
-                  basis={scopeLabel}
+                <KpiTile
+                  word
+                  label="Worst size"
+                  value={m.worstSize ? m.worstSize.size : "—"}
+                  hint={m.worstSize ? `${pct(m.worstSize.rejRate)} rejection rate · ${num(m.worstSize.rejected)} rejected` : "No size data in scope"}
+                  status={m.worstSize && m.worstSize.rejRate > 0 ? (m.worstSize.rejRate > targetRej ? "critical" : "warning") : "neutral"}
+                  onOpen={m.worstSize ? openSizeModal : undefined}
+                />
+                <KpiTile
+                  word
+                  label="Top defect"
                   value={m.defects[0]?.label ?? "—"}
-                  detail={
-                    m.defects[0]
-                      ? `${num(m.defects[0].rejected)} rejected`
-                      : undefined
-                  }
-                  sub={m.defects[0] ? `${formatPercent(m.defects[0].pct, 1) ?? "—"} of all rejections` : "—"}
-                  tone="warn"
-                  onClick={() => m.defects[0] && openModal(
+                  hint={m.defects[0] ? `${formatPercent(m.defects[0].pct, 1) ?? "—"} of rejections · ${num(m.defects[0].rejected)} rejected` : "No defect data in scope"}
+                  status={m.defects[0] ? "warning" : "neutral"}
+                  onOpen={m.defects[0] ? () => openModal(
                     `Top Defect — ${m.defects[0].label}`,
                     `The top defect category is ${m.defects[0].label}, accounting for ${num(m.defects[0].rejected)} rejects (${formatPercent(m.defects[0].pct, 1) ?? "—"} of all rejections).`,
                     <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><ParetoChart analysis={calculatePareto(m.defects.map(d => ({ label: d.label, value: d.rejected }))) || { items: [], totalDefects: 0, vitalFewCount: 0, vitalFewContribution: 0, criticalAreaText: "" }} showTable={true} /></div>,
@@ -761,34 +772,18 @@ export default function Dashboard() {
                         label: d.label,
                       })),
                     }
-                  )}
+                  ) : undefined}
                 />
-                <Kpi
-                  primary
-                  label="COPQ (₹)"
-                  basis={scopeLabel}
-                  value={rupee(m.copq)}
-                  detail={m.rejected > 0 ? `${num(m.rejected)} rejected units` : undefined}
-                  sub={stats.copqDiff || "Cost of poor quality"}
-                  tone={m.copq > 0 ? "bad" : "good"}
-                  spark={m.copqTrend}
-                  onClick={() => openModal(
-                    `COPQ Trend (${grainLabel})`,
-                    kpiNarrative("copq", `Cost of Poor Quality (COPQ) is ${rupee(m.copq)} for the latest period (${stats.copqDiff}).`),
-                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>,
-                    { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq), metricKind: "copq" },
-                  )}
+                <KpiTile
+                  label="Stalled lots"
+                  value={wip.stalledCount}
+                  hint={`${num(wip.openCount)} open · ${num(wip.unitsWaiting)} units waiting`}
+                  status={wip.stalledCount > 0 ? "warning" : "ok"}
+                  onOpen={() => router.push("/lots/open")}
                 />
               </div>
               </DashItem>
-
-              {wipOpen && (
-                <DashItem id="wip" span={12} handle="start">
-                  <OpenWipStrip events={(events ?? []) as AuditEventLike[]} embedded />
-                </DashItem>
-              )}
-
-              <DashItem id="trend" span={4}>
+              <DashItem id="trend" span={12}>
                 <RejectionTrendCard
                   events={events ?? []}
                   scope={scope}
@@ -799,7 +794,6 @@ export default function Dashboard() {
                   onOpenFullTrend={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${formatRatioPercent(targetRej, 0) ?? "—"} and the period mean limit.`, <div style={{ minHeight: 320, display: "flex", flexDirection: "column" }}><RejectionTrendView events={events ?? []} scope={scope} points={m.tr} target={targetRej} grainLabel={grainLabel} registry={activeRegistry} height={320} variant="detail" /></div>, { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" })}
                 />
               </DashItem>
-
               <DashItem id="by-stage" span={4}>
                 <Card
                   title="Rejection By Stage"
@@ -816,15 +810,25 @@ export default function Dashboard() {
                         onClick={(e) => {
                           e.stopPropagation();
                         }}
-                        style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}
+                        style={linkStyle}
                       >
-                        View stage analysis →
+                        Stage analysis →
                       </a>
                     </div>
                   </div>
                 </Card>
               </DashItem>
-
+                {m.sizes.length > 0 && (
+                <DashItem id="size-ytd" span={4}>
+                  <Card
+                    title="Rejection by Size"
+                    sub={m.worstSize ? `Worst: ${m.worstSize.size} · ${scopeLabel}` : scopeLabel}
+                    onClick={openSizeModal}
+                  >
+                    <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: Number.isFinite(s.rejRate) ? s.rejRate * 100 : 0, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => formatPercent(n, 1) ?? "—"} />
+                  </Card>
+                </DashItem>
+                )}
               <DashItem id="pareto" span={4}>
                 <Card
                   title="Top Defects (Pareto)"
@@ -852,7 +856,7 @@ export default function Dashboard() {
                         display: "grid",
                         gridTemplateColumns: "20px minmax(0, 1.3fr) 55px 70px 60px",
                         gap: "var(--space-2)",
-                        fontSize: 10,
+                        fontSize: "var(--text-xs)",
                         fontWeight: 600,
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
@@ -902,169 +906,49 @@ export default function Dashboard() {
                         onClick={(e) => {
                           e.stopPropagation();
                         }}
-                        style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}
+                        style={linkStyle}
                       >
-                        View defect Pareto →
+                        Defect Pareto →
                       </a>
                     </div>
                   </div>
                 </Card>
               </DashItem>
-
-              <DashItem id="stage-trend" span={12}>
-                <Card
-                  title={`Stage-wise Rejection Trend (${grainLabel})`}
-                  sub="per-stage + Total — hover for values"
-                  onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Each line is a station's rejection rate over its own checked quantity; the Total line is the plant rejection rule for that period. Recomputed from raw counts.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} /></div>, { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" })}
-                >
-                  <MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} height={180} />
-                </Card>
-              </DashItem>
-
-              {m.stageSize.length > 0 && (
-                <DashItem id="heatmap" span={12}>
-                  <Card
-                    title="Stage x Size Concentration"
-                    sub="Rejection rate by stage and catheter size (warmer cells indicate concentration hotspots)"
-                    onClick={() => openModal(
-                      "Stage x Size Concentration",
-                      "Rejection rate for every stage x size combination present in the selected period — darker/warmer cells indicate where quality problems concentrate.",
-                      <div style={{ minHeight: 200 }}><StageSizeHeatmap cells={m.stageSize} /></div>,
-                      { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? (formatRatioPercent(Math.max(...m.stageSize.map((c) => Number.isFinite(c.rejRate) ? c.rejRate : 0)), 1) ?? "—") : "—", metricKind: "rejection_rate" },
-                    )}
-                  >
-                    <StageSizeHeatmap cells={m.stageSize} />
-                  </Card>
-                </DashItem>
-              )}
-
-              {m.sizes.length > 0 && (
-                <DashItem id="size-ytd" span={m.sizeTrend.length > 0 ? 4 : 12}>
-                  <Card
-                    title="Rejection by Size"
-                    sub={m.worstSize ? `Worst: ${m.worstSize.size} · ${scopeLabel}` : scopeLabel}
-                    onClick={() => openModal(`Size-wise Rejection (${scopeLabel})`, m.sizeWiseInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center", gap: 16 }}><BarsH rows={m.sizes.map((s) => ({ label: s.size, value: s.rejRate * 100, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => formatPercent(n, 1) ?? "—"} /><div style={{ paddingTop: 16, borderTop: "1px solid var(--border)" }}><SizeColorLegend sizes={m.sizes.map((s) => s.size)} /></div></div>, { rows: srcRows({ types: ["inspection", "rejection"] }).filter(r => r.size), value: m.sizes.length ? (formatRatioPercent(Math.max(...m.sizes.map((s) => Number.isFinite(s.rejRate) ? s.rejRate : 0)), 1) ?? "—") : "—", metricKind: "size" })}
-                  >
-                    <BarsH rows={m.sizes.map((s) => ({ label: s.size, value: Number.isFinite(s.rejRate) ? s.rejRate * 100 : 0, sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`, color: sizeColorFor(s.size)?.hex }))} fmt={(n) => formatPercent(n, 1) ?? "—"} />
-                  </Card>
-                </DashItem>
-              )}
-
-              {m.sizes.length > 0 && m.sizeTrend.length > 0 && (
-                <DashItem id="size-trend" span={8}>
-                  <Card
-                    title={`Size Trend (${selectedSize})`}
-                    onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} color={trendColor} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—", metricKind: "size" })}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
-                      <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>Size:</span>
-                      {selectedSizeColor && (
-                        <span
-                          aria-hidden="true"
-                          title={`${selectedSize} — ${selectedSizeColor.name}`}
-                          style={{
-                            width: 9,
-                            height: 9,
-                            borderRadius: 3,
-                            flexShrink: 0,
-                            background: selectedSizeColor.hex,
-                            boxShadow: selectedSizeColor.hex === "#FFFFFF" ? "inset 0 0 0 1px var(--border-strong)" : undefined,
-                          }}
-                        />
-                      )}
-                      <Select
-                        value={selectedSize}
-                        onChange={setSelectedSize}
-                        options={(m.sizes.length > 0 ? m.sizes.map((s) => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => ({ value: sz, label: sz }))}
-                        block={false}
-                        mono
-                        size="sm"
-                        ariaLabel="Size for trend"
-                        style={{ minWidth: 92 }}
-                      />
-                    </div>
-                    <LineChart points={m.sizeTrend} fmt={pct} height={180} color={trendColor} />
-                  </Card>
-                </DashItem>
-              )}
-
-              {m.copqTrend.length > 0 && (
-                <DashItem id="copq" span={5}>
-                  <Card
-                    title={`COPQ Trend (${grainLabel})`}
-                    onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq), metricKind: "copq" })}
-                  >
-                    <LineChart points={m.copqTrend} fmt={rupee} height={180} />
-                  </Card>
-                </DashItem>
-              )}
-
-              <DashItem id="audit" span={m.copqTrend.length > 0 ? 7 : 12}>
-                <Card
-                  title="Audit &amp; Verification"
-                  onClick={() => openModal("Audit & Verification", "Integrity is V-004 and V-014 on this scope. Confidence basis is a separate count.", <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable summary={m.audit} integrity={{ state: m.status.state, critical: m.status.integrityIssues.filter((i) => i.severity === "critical").length, open: m.status.integrityIssues.length }} /></div>)}
-                >
-                  <AuditVerificationTable summary={m.audit} integrity={{ state: m.status.state, critical: m.status.integrityIssues.filter((i) => i.severity === "critical").length, open: m.status.integrityIssues.length }} />
-                  <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); router.push("/reports/audit"); }}
-                      style={{
-                        background: "var(--surface-2)",
-                        border: "1px solid var(--border-strong)",
-                        borderRadius: "var(--radius-sm)",
-                        padding: "6px 16px",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        width: "100%"
-                      }}
-                    >
-                      View Audit Trail
-                    </button>
-                  </div>
-                </Card>
-              </DashItem>
-
-              <DashItem id="quality" span={12}>
-                <QualityStatusStrip status={m.status} />
-              </DashItem>
-
-              {m.stages.length > 0 && (
-                <DashItem id="funnel" span={12}>
-                  <Card
-                    title="Production Funnel"
-                    sub={`${num(m.checked)} units entered · First Pass Yield ${pct(m.fpy)} · click a gate to investigate`}
-                  >
-                    <FunnelStrip
-                      stages={m.stages}
-                      entryChecked={m.checked}
-                      fpy={m.fpy}
-                      targetRej={targetRej}
-                      onGateClick={(row) => {
-                        // Mid-path entry: Stage Analysis with gate + period carried (EX-1 / F7).
-                        goInvestigation(router.push.bind(router), "/quality/stage", {
-                          ...m.investigationBase,
-                          stage: row.stageId,
-                          metric: "stage",
-                          label: row.label,
-                        });
-                      }}
-                    />
-                  </Card>
-                </DashItem>
-              )}
-
-              <DashItem id="attention" span={12}>
-                <AttentionRail
-                  m={m}
-                  targetRej={targetRej}
-                  base={m.investigationBase}
-                  onGo={(path, state) => goInvestigation(router.push.bind(router), path, state)}
-                />
-              </DashItem>
-
               <DashItem id="ai-brief" span={12}>
-                <Card title="AI Diagnostics & Actionable Brief">
+                <Card
+                  title="AI Diagnostics & Actionable Brief"
+                  extra={
+                    <button
+                      type="button"
+                      onClick={() => setBriefOpen((v) => !v)}
+                      aria-expanded={briefOpen}
+                      style={{ ...linkStyle, marginLeft: "auto" }}
+                    >
+                      {briefOpen ? "Hide full brief" : "Show full brief"}
+                    </button>
+                  }
+                >
+                  {!briefOpen ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ fontSize: "var(--text-base)", fontWeight: 600, lineHeight: 1.45, color: "var(--text)", maxWidth: "70ch" }}>
+                        {execBrief ? safeBolden(execBrief.headline) : (exec[0] ? safeBolden(exec[0]) : "Diagnostics Brief")}
+                      </div>
+                      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column" }}>
+                        {recommendationCards.slice(0, 3).map((rec, i) => (
+                          <li
+                            key={i}
+                            style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderTop: i === 0 ? "1px solid var(--border)" : "none", borderBottom: "1px solid var(--border)" }}
+                          >
+                            <StatusBadge status={rec.tone === "bad" ? "critical" : rec.tone === "warn" ? "warning" : "neutral"} label={rec.tone === "bad" ? "Critical" : rec.tone === "warn" ? "Warning" : "Info"} />
+                            <span style={{ flex: 1, minWidth: 0, fontSize: "var(--text-md)", lineHeight: 1.5, color: "var(--text)" }}>{safeBolden(rec.text)}</span>
+                            <button type="button" onClick={() => openCapa(i, rec.text, rec.evidence)} style={linkStyle}>
+                              Create CAPA →
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
                   <div style={{
                     display: "grid",
                     gridTemplateColumns: "minmax(0, 1.8fr) 1px minmax(0, 1.2fr)",
@@ -1101,7 +985,7 @@ export default function Dashboard() {
                                   width: 6,
                                   height: 6,
                                   borderRadius: "50%",
-                                  background: "var(--accent)"
+                                  background: "var(--text-3)"
                                 }} />
                                 {safeBolden(bullet)}
                               </li>
@@ -1129,7 +1013,6 @@ export default function Dashboard() {
                                 height: 8,
                                 borderRadius: "50%",
                                 background: "var(--critical)",
-                                boxShadow: "0 0 6px var(--critical)",
                               }} />
                               <span style={{ fontSize: "var(--text-md)", fontWeight: 600, fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }}>
                                 {worstStageRow.label} Bottleneck
@@ -1160,13 +1043,12 @@ export default function Dashboard() {
 
                     {/* Right Side: Action Plan (CAPA Items) */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)", display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)", display: "flex", alignItems: "center", gap: 8 }}>
                         <Icon name="check" size={14} /> Recommended Actions
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, justifyContent: "center" }}>
                         {recommendationCards.slice(0, 3).map((rec, i) => {
-                          const chipColor = rec.tone === "bad" ? "var(--critical)" : rec.tone === "warn" ? "var(--warning)" : "var(--positive)";
-                          const chipText = rec.tone === "bad" ? "Critical" : rec.tone === "warn" ? "Warning" : "Info";
+                                                    const chipText = rec.tone === "bad" ? "Critical" : rec.tone === "warn" ? "Warning" : "Info";
                           return (
                             <div
                               key={i}
@@ -1181,24 +1063,11 @@ export default function Dashboard() {
                               }}
                             >
                               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                                <span
-                                  style={{
-                                    fontSize: 10,
-                                    fontWeight: 600,
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.04em",
-                                    padding: "2px 8px",
-                                    borderRadius: 4,
-                                    color: chipColor,
-                                    background: `color-mix(in srgb, ${chipColor} 12%, transparent)`,
-                                  }}
-                                >
-                                  {chipText}
-                                </span>
+                                <StatusBadge status={rec.tone === "bad" ? "critical" : rec.tone === "warn" ? "warning" : "neutral"} label={chipText} />
                                 <button
                                   type="button"
                                   onClick={() => openCapa(i, rec.text, rec.evidence)}
-                                  style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }}
+                                  style={{ fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text)", textDecoration: "underline", textUnderlineOffset: 3, background: "none", border: "none", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }}
                                 >
                                   Create CAPA →
                                 </button>
@@ -1210,26 +1079,174 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
+                  )}
                 </Card>
               </DashItem>
             </DashboardBoard>
-          )}
 
-          {/* Ask the ledger your own question. Inherits the topbar's date range
-              and stage View so it always answers within the same window as the
-              tiles above it. */}
-          <div style={{ marginTop: "var(--gap-grid)" }}>
-            <ChartBuilder
-              events={events ?? []}
-              storageId="dashboard"
-              base={{ dateFrom: scope.dateFrom, dateTo: scope.dateTo, stageIds: scope.stageIds }}
-              sub={
-                scope.dateFrom && scope.dateTo
-                  ? `Anything the tiles above don't answer. Follows the top bar's range (${scope.dateFrom} to ${scope.dateTo}).`
-                  : "Anything the tiles above don't answer. Follows the range and View in the top bar."
-              }
-            />
-          </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+              <GhostButton onClick={() => setDetailOpen((v) => !v)}>
+                <Icon name={showMore ? "chevron-up" : "chevron-down"} size={14} />
+                {showMore ? "Hide detail" : "Show more detail"}
+              </GhostButton>
+              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+            </div>
+
+            {showMore && (
+              <>
+              <DashboardBoard userKey={`${layoutUser}:detail`} editing={layoutEditing} onDirtyChange={setLayoutDirtyDetail}>
+                {wipOpen && (
+                <DashItem id="wip" span={12} handle="start">
+                  <OpenWipStrip events={(events ?? []) as AuditEventLike[]} embedded />
+                </DashItem>
+                )}
+                {m.stages.length > 0 && (
+                <DashItem id="funnel" span={12}>
+                  <Card
+                    title="Production Funnel"
+                    sub={`${num(m.checked)} units entered · First Pass Yield ${pct(m.fpy)} · click a gate to investigate`}
+                  >
+                    <FunnelStrip
+                      stages={m.stages}
+                      entryChecked={m.checked}
+                      fpy={m.fpy}
+                      targetRej={targetRej}
+                      onGateClick={(row) => {
+                        // Mid-path entry: Stage Analysis with gate + period carried (EX-1 / F7).
+                        goInvestigation(router.push.bind(router), "/quality/stage", {
+                          ...m.investigationBase,
+                          stage: row.stageId,
+                          metric: "stage",
+                          label: row.label,
+                        });
+                      }}
+                    />
+                  </Card>
+                </DashItem>
+                )}
+              <DashItem id="attention" span={12}>
+                <AttentionRail
+                  m={m}
+                  targetRej={targetRej}
+                  base={m.investigationBase}
+                  onGo={(path, state) => goInvestigation(router.push.bind(router), path, state)}
+                />
+              </DashItem>
+              <DashItem id="stage-trend" span={12}>
+                <Card
+                  title={`Stage-wise Rejection Trend (${grainLabel})`}
+                  sub="per-stage + Total — hover for values"
+                  onClick={() => openModal(`Stage-wise Rejection Trend (${grainLabel})`, "Each line is a station's rejection rate over its own checked quantity; the Total line is the plant rejection rule for that period. Recomputed from raw counts.", <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} /></div>, { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" })}
+                >
+                  <MultiLine data={m.cumTrend} stages={[...m.stagesAll.map((s) => ({ stageId: s.stageId, label: s.label })), { stageId: CUM_TOTAL_KEY, label: "Total" }]} height={180} />
+                </Card>
+              </DashItem>
+                {m.stageSize.length > 0 && (
+                <DashItem id="heatmap" span={12}>
+                  <Card
+                    title="Stage x Size Concentration"
+                    sub="Rejection rate by stage and catheter size (warmer cells indicate concentration hotspots)"
+                    onClick={() => openModal(
+                      "Stage x Size Concentration",
+                      "Rejection rate for every stage x size combination present in the selected period — darker/warmer cells indicate where quality problems concentrate.",
+                      <div style={{ minHeight: 200 }}><StageSizeHeatmap cells={m.stageSize} /></div>,
+                      { rows: srcRows({ types: ["production", "inspection"] }), value: m.stageSize.length ? (formatRatioPercent(Math.max(...m.stageSize.map((c) => Number.isFinite(c.rejRate) ? c.rejRate : 0)), 1) ?? "—") : "—", metricKind: "rejection_rate" },
+                    )}
+                  >
+                    <StageSizeHeatmap cells={m.stageSize} />
+                  </Card>
+                </DashItem>
+                )}
+                {m.sizes.length > 0 && m.sizeTrend.length > 0 && (
+                <DashItem id="size-trend" span={6}>
+                  <Card
+                    title={`Size Trend (${selectedSize})`}
+                    onClick={() => openModal(`Size-wise Trend (${selectedSize})`, m.sizeTrendInsight, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.sizeTrend} fmt={pct} color={trendColor} /></div>, { rows: srcRows({ types: ["production", "inspection"], size: selectedSize }), value: m.sizeTrend.length ? pct(m.sizeTrend[m.sizeTrend.length - 1].value) : "—", metricKind: "size" })}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
+                      <span className="muted" style={{ fontSize: "var(--text-xs)", fontWeight: 500 }}>Size:</span>
+                      {selectedSizeColor && (
+                        <span
+                          aria-hidden="true"
+                          title={`${selectedSize} — ${selectedSizeColor.name}`}
+                          style={{
+                            width: 9,
+                            height: 9,
+                            borderRadius: 3,
+                            flexShrink: 0,
+                            background: selectedSizeColor.hex,
+                            boxShadow: selectedSizeColor.hex === "#FFFFFF" ? "inset 0 0 0 1px var(--border-strong)" : undefined,
+                          }}
+                        />
+                      )}
+                      <Select
+                        value={selectedSize}
+                        onChange={setSelectedSize}
+                        options={(m.sizes.length > 0 ? m.sizes.map((s) => s.size) : ["Fr10", "Fr12", "Fr14", "Fr16", "Fr18", "Fr20", "Fr22", "Fr24"]).map((sz) => ({ value: sz, label: sz }))}
+                        block={false}
+                        mono
+                        size="sm"
+                        ariaLabel="Size for trend"
+                        style={{ minWidth: 92 }}
+                      />
+                    </div>
+                    <LineChart points={m.sizeTrend} fmt={pct} height={180} color={trendColor} />
+                  </Card>
+                </DashItem>
+                )}
+                {m.copqTrend.length > 0 && (
+                <DashItem id="copq" span={5}>
+                  <Card
+                    title={`COPQ Trend (${grainLabel})`}
+                    sub={`${rupee(m.copq)} this period`}
+                    onClick={() => openModal(`COPQ Trend (${grainLabel})`, `Cost of poor quality trends across historical periods.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.copqTrend} fmt={rupee} /></div>, { rows: srcRows({ types: ["inspection", "rejection"] }), value: rupee(m.copq), metricKind: "copq" })}
+                  >
+                    <LineChart points={m.copqTrend} fmt={rupee} height={180} />
+                  </Card>
+                </DashItem>
+                )}
+              <DashItem id="audit" span={m.copqTrend.length > 0 ? 7 : 12}>
+                <Card
+                  title="Data checks · Audit &amp; Verification"
+                  onClick={() => openModal("Audit & Verification", "Integrity is V-004 and V-014 on this scope. Confidence basis is a separate count.", <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}><AuditVerificationTable summary={m.audit} integrity={{ state: m.status.state, critical: m.status.integrityIssues.filter((i) => i.severity === "critical").length, open: m.status.integrityIssues.length }} /></div>)}
+                >
+                  <AuditVerificationTable summary={m.audit} integrity={{ state: m.status.state, critical: m.status.integrityIssues.filter((i) => i.severity === "critical").length, open: m.status.integrityIssues.length }} />
+                  <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); router.push("/reports/audit"); }}
+                      style={{
+                        background: "var(--surface)",
+                        border: "1px solid var(--border-strong)",
+                        borderRadius: "var(--radius-md)",
+                        padding: "6px 16px",
+                        fontSize: "var(--text-sm)",
+                        fontWeight: 500,
+                        cursor: "pointer",
+                        width: "100%"
+                      }}
+                    >
+                      View Audit Trail
+                    </button>
+                  </div>
+                </Card>
+              </DashItem>
+              </DashboardBoard>
+              {/* Custom chart: Reports > Custom chart takes this over in phase 11. */}
+              <ChartBuilder
+                events={events ?? []}
+                storageId="dashboard"
+                base={{ dateFrom: scope.dateFrom, dateTo: scope.dateTo, stageIds: scope.stageIds }}
+                sub={
+                  scope.dateFrom && scope.dateTo
+                    ? `Anything the tiles above don't answer. Follows the Scope chip's range (${scope.dateFrom} to ${scope.dateTo}).`
+                    : "Anything the tiles above don't answer. Follows the Scope chip's range and View."
+                }
+              />
+              </>
+            )}
+            </>
+          )}
         </div>
       )}
 
@@ -1337,18 +1354,18 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
                 <span style={{
                   display: "block", height: "100%", borderRadius: 3,
                   width: `${Math.min((passed / denom) * 100, 100)}%`,
-                  background: over ? "var(--critical)" : "var(--accent)",
+                  background: over ? "var(--critical)" : "var(--text-2)",
                 }} />
               </span>
             </button>
             {i < stages.length - 1 && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 6px", flexShrink: 0 }}>
-                <span style={{ fontSize: 11, color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(passed)} →</span>
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(passed)} →</span>
                 {(notYetAtNext ?? 0) > 0 && (
-                  <span style={{ fontSize: 10, color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(notYetAtNext ?? 0)} not yet at next</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: "var(--text-3)", whiteSpace: "nowrap" }}>{num(notYetAtNext ?? 0)} not yet at next</span>
                 )}
                 {overAtNext > 0 && (
-                  <span style={{ fontSize: 10, color: "var(--warning)", whiteSpace: "nowrap" }}>+{num(overAtNext)} over (V-014)</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: "var(--warning)", whiteSpace: "nowrap" }}>+{num(overAtNext)} over (V-014)</span>
                 )}
               </div>
             )}
@@ -1434,7 +1451,7 @@ function AttentionRail({ m, targetRej, base, onGo }: {
             display: "flex", flexDirection: "column", gap: 3,
           }}
         >
-          <span className="kpi-label" style={{ color: "var(--accent)", letterSpacing: "0.04em" }}>{it.label}</span>
+          <span className="kpi-label" style={{ letterSpacing: "0.04em" }}>{it.label}</span>
           <span style={{ fontSize: "var(--text-base)", color: "var(--text)", lineHeight: 1.5, fontWeight: 500 }}>{it.text}</span>
           <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-2)" }}>Investigate →</span>
         </button>
@@ -1443,22 +1460,13 @@ function AttentionRail({ m, targetRej, base, onGo }: {
   );
 }
 
-/** Status surface: ok / watch / at-risk (integrity detail lives on Data Schema). */
-function QualityStatusStrip({ status }: { status: QualityStatusT }) {
-  const tone =
-    status.state === "blocked" || status.state === "at-risk"
-      ? "var(--status-bad)"
-      : status.state === "watch"
-        ? "var(--status-warn)"
-        : "var(--status-good)";
-  const title =
-    status.state === "blocked"
-      ? "Integrity"
-      : status.state === "at-risk"
-        ? "At risk"
-        : status.state === "watch"
-          ? "Watch"
-          : "Within target";
+/** Status line: ok / watch / at-risk badge + reason + target, with the page's one primary action. */
+function QualityStatusStrip({ status, action }: { status: QualityStatusT; action?: React.ReactNode }) {
+  const badge: { status: Status; label: string } =
+    status.state === "blocked" ? { status: "critical", label: "Integrity" }
+    : status.state === "at-risk" ? { status: "critical", label: "At risk" }
+    : status.state === "watch" ? { status: "warning", label: "Watch" }
+    : { status: "ok", label: "Within target" };
   const priorRateText = formatRatioPercent(status.priorRate);
   const targetText = formatRatioPercent(status.targetLimit, 1) ?? "—";
   const watchText = formatRatioPercent(status.watchLimit, 1) ?? "—";
@@ -1469,23 +1477,23 @@ function QualityStatusStrip({ status }: { status: QualityStatusT }) {
     <div
       style={{
         border: "1px solid var(--border)",
-        borderRadius: "var(--radius-md)",
+        borderRadius: "var(--radius-lg)",
         background: "var(--surface)",
-        padding: "10px 14px",
+        padding: "var(--pad-card)",
         display: "flex",
         flexWrap: "wrap",
-        gap: "8px 20px",
-        alignItems: "baseline",
+        gap: "8px 16px",
+        alignItems: "center",
       }}
     >
-      <span className="kpi-label">Quality status</span>
-      <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: tone }}>{title}</span>
-      <span style={{ fontSize: "var(--text-md)", color: "var(--text-2)", lineHeight: 1.5, flex: "1 1 240px" }}>
+      <StatusBadge status={badge.status} label={badge.label} />
+      <span style={{ fontSize: "var(--text-md)", color: "var(--text)", lineHeight: 1.5, flex: "1 1 240px", maxWidth: "70ch" }}>
         {status.state === "blocked"
-          ? "Open data-integrity issues — see Data Schema for the full list."
+          ? "Open data-integrity issues — see Plant setup for the full list."
           : status.reason}
       </span>
       <span className="mono" style={{ fontSize: "var(--text-sm)", color: "var(--text-3)" }}>{prior}</span>
+      {action}
     </div>
   );
 }

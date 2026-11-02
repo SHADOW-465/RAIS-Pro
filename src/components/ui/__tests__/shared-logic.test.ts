@@ -1,4 +1,4 @@
-import { activeFilterCount, formatDelta, formatKpiValue, pageSlice, sortRows, toCsv, STATUS_META } from "../shared-logic";
+import { activeFilterCount, formatDelta, formatKpiValue, deltaFromArrowText, pageSlice, sortRows, toCsv, STATUS_META } from "../shared-logic";
 
 describe("formatDelta", () => {
   it("marks a rejection-rate rise as bad", () => {
@@ -57,4 +57,12 @@ it("pageSlice clamps the page", () => {
 
 it("toCsv escapes quotes/newlines and neutralises formulas", () => {
   expect(toCsv(["a", "b"], [['he said "hi"', "x\ny"], ["=1+1", 5]])).toBe('a,b\r\n"he said ""hi""","x\ny"\r\n\'=1+1,5');
+});
+
+it("deltaFromArrowText parses analytics delta text", () => {
+  expect(deltaFromArrowText("↑ 0.30% vs Oct")).toEqual({ text: "0.30% vs Oct", direction: "up", good: false });
+  expect(deltaFromArrowText("↓ 1.00% vs Oct")?.good).toBe(true);
+  expect(deltaFromArrowText("↓ 1% vs Oct", false)?.good).toBe(false);
+  expect(deltaFromArrowText("No prior period")).toBeNull();
+  expect(deltaFromArrowText(undefined)).toBeNull();
 });

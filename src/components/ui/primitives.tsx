@@ -81,9 +81,11 @@ export interface KpiTileProps {
   hint?: string;
   /** Makes the whole tile a button (opens a DetailDrawer). */
   onOpen?: () => void;
+  /** Value is a name (stage, defect), not a number: sans 20px, truncated with a tooltip. */
+  word?: boolean;
 }
 
-export function KpiTile({ label, value, suffix, digits, delta, status, hint, onOpen }: KpiTileProps) {
+export function KpiTile({ label, value, suffix, digits, delta, status, hint, onOpen, word }: KpiTileProps) {
   const Tag = onOpen ? "button" : "div";
   const arrow = delta?.direction === "up" ? "trend-up" : delta?.direction === "down" ? "trend-down" : "minus";
   const deltaColor = delta?.good === true ? "var(--positive)" : delta?.good === false ? "var(--critical)" : "var(--text-3)";
@@ -101,7 +103,18 @@ export function KpiTile({ label, value, suffix, digits, delta, status, hint, onO
         <span style={{ fontSize: "var(--text-sm)", color: "var(--text-3)", fontWeight: 500 }}>{label}</span>
         {status && <StatusBadge status={status} />}
       </span>
-      <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-kpi)", fontWeight: 600, lineHeight: 1.1 }}>
+      <span
+        title={word ? formatKpiValue(value, digits, suffix) : undefined}
+        style={{
+          fontFamily: word ? "var(--font-sans)" : "var(--font-mono)",
+          fontSize: word ? "var(--text-kpi-word)" : "var(--text-kpi-lg)",
+          fontWeight: 600, lineHeight: word ? 1.3 : 1.1, minHeight: "calc(var(--text-kpi-lg) * 1.1)",
+          overflow: "hidden", overflowWrap: "anywhere",
+          ...(word
+            ? { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }
+            : { display: "flex", alignItems: "center", whiteSpace: "nowrap" as const }),
+        }}
+      >
         {formatKpiValue(value, digits, suffix)}
       </span>
       {(delta || hint) && (

@@ -165,8 +165,8 @@ export function TrendModeSwitcher({
                 padding: "3px 8px",
                 border: "none",
                 borderRight: i === MODES.length - 1 ? "none" : "1px solid var(--border)",
-                background: on ? "color-mix(in srgb, var(--accent) 16%, var(--surface))" : "transparent",
-                color: on ? "var(--accent)" : "var(--text-3)",
+                background: on ? "var(--surface-3)" : "transparent",
+                color: on ? "var(--text)" : "var(--text-3)",
                 cursor: "pointer",
                 lineHeight: 1.2,
               }}
@@ -189,9 +189,9 @@ export function TrendModeSwitcher({
           padding: "3px 8px",
           borderRadius: "var(--radius-sm, 4px)",
           border: "1px solid",
-          borderColor: compareOn ? "var(--accent)" : "var(--border)",
-          background: compareOn ? "color-mix(in srgb, var(--accent) 16%, var(--surface))" : "transparent",
-          color: compareOn ? "var(--accent)" : "var(--text-3)",
+          borderColor: compareOn ? "var(--text)" : "var(--border)",
+          background: compareOn ? "var(--surface-3)" : "transparent",
+          color: compareOn ? "var(--text)" : "var(--text-3)",
           cursor: "pointer",
           lineHeight: 1.2,
         }}
@@ -373,7 +373,7 @@ export function RejectionTrendCard({
             style={{
               fontSize: "var(--text-sm)",
               fontWeight: 600,
-              color: "var(--accent)",
+              color: "var(--text-2)",
               textDecoration: "none",
             }}
           >
@@ -421,7 +421,7 @@ function TrendLegend({
           fontFamily: "var(--font-sans)",
         }}
       >
-        <LegendSwatch color="var(--accent)" label="Current" solid />
+        <LegendSwatch color="var(--viz-1)" label="Current" solid />
         {overlays.map((o) => (
           <LegendSwatch
             key={o.offset}
