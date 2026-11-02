@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
+  batchIdFollowingSize,
   buildBatchId,
   parseBatchId,
   isValidBatchId,
@@ -57,5 +60,22 @@ describe("batch-id bi-directional binding", () => {
     expect(formatBatchIdInput("26f27-14")).toBe("26F27-14");
     expect(formatBatchIdInput("26F27")).toBe("26F27");
     expect(formatBatchIdInput("26F2")).toBe("26F2");
+  });
+});
+
+describe("batchIdFollowingSize", () => {
+  test("the suffix follows the selected size when the lot date matches", () => {
+    expect(batchIdFollowingSize({ batchDate: "2027-01-05", size: "20Fr", currentId: "27A05-14" })).toBe("27A05-20");
+    expect(buildBatchId("2027-01-05", "14Fr")).toBe("27A05-14");
+  });
+
+  test("an empty field and a lot from another day are left alone", () => {
+    expect(batchIdFollowingSize({ batchDate: "2027-01-05", size: "20Fr", currentId: "" })).toBeNull();
+    expect(batchIdFollowingSize({ batchDate: "2027-01-05", size: "20Fr", currentId: "27A06-14" })).toBeNull();
+  });
+
+  test("a disabled field is not rewritten", () => {
+    const src = readFileSync(join(process.cwd(), "src/components/entry/BatchIdField.tsx"), "utf8");
+    expect(src).toMatch(/if \(disabled\) return;\s*const next = batchIdFollowingSize/);
   });
 });

@@ -1,3 +1,4 @@
+import { withNoStore } from "@/lib/http/live-cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getStores } from "@/lib/store";
 import { buildEntryPackage } from "@/lib/transfer/entry-package";
@@ -6,7 +7,7 @@ import { buildEntryPackage } from "@/lib/transfer/entry-package";
  * GET /api/entries/export?channel=direct-entry|all&from=&to=
  * Returns a downloadable JSON package for DB→DB transfer.
  */
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   try {
     const sp = req.nextUrl.searchParams;
     const channel =
@@ -41,3 +42,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const GET = withNoStore(getHandler);

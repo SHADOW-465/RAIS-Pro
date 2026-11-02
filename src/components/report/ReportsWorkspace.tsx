@@ -12,6 +12,8 @@ import {
   listBatchIds,
   type SourceChannel,
 } from "@/lib/analytics/scope";
+import { useLineage } from "@/components/app/LineageContext";
+import { historyNameForLot } from "@/lib/lineage";
 import {
   REPORT_TYPES,
   type ReportType,
@@ -29,6 +31,9 @@ import {
   type WorkspacePreset,
 } from "@/lib/report/workspace-presets";
 import { financialYear, fyLabel } from "@/lib/report/financial-year";
+import { usePlantTotals } from "@/lib/client/use-plant-totals";
+import { overlayReportModel } from "@/lib/analytics/overlay-totals";
+import { SHARED_STATE_EVENT, sharedStateKind } from "@/lib/shared-state/push";
 import type { CalculationPolicyT } from "@/core/policy/policy";
 
 const PRINT_CSS = `
@@ -213,6 +218,7 @@ export default function ReportsWorkspace({
   policy?: CalculationPolicyT;
 }) {
   const { confirm } = useConfirm();
+  const { conversions } = useLineage();
   const years = useMemo(() => listFinancialYearsFromEvents(events), [events]);
   const [reportType, setReportType] = useState<ReportType>("fy-audit-pack");
   const [periodMode, setPeriodMode] = useState<ReportPeriodMode>("financial-year");
@@ -237,9 +243,19 @@ export default function ReportsWorkspace({
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    const listed = listWorkspacePresets();
-    if (listed.ok) setPresets(listed.value);
-    else setMsg({ text: listed.error, tone: "err" });
+    const load = () => {
+      const listed = listWorkspacePresets();
+      if (listed.ok) setPresets(listed.value);
+      else setMsg({ text: listed.error, tone: "err" });
+    };
+    load();
+    const onShared = (ev: globalThis.Event) => {
+      const kind = sharedStateKind(ev);
+      if (kind && kind !== "workspace-presets") return;
+      load();
+    };
+    window.addEventListener(SHARED_STATE_EVENT, onShared);
+    return () => window.removeEventListener(SHARED_STATE_EVENT, onShared);
   }, []);
   useEffect(() => {
     const id = "rw-print-css";
@@ -266,6 +282,34 @@ export default function ReportsWorkspace({
   const sourceChannels: SourceChannel[] = [];
   if (includeExcel) sourceChannels.push("excel");
   if (includeDirectEntry) sourceChannels.push("direct-entry");
+
+  const entryWindow = useMemo(() => {
+    if (periodMode === "financial-year") {
+      const year = financialYear(fyStartYear);
+      return { from: year.from, to: year.to };
+    }
+    if (dateFrom && dateTo) return { from: dateFrom, to: dateTo };
+    return null;
+  }, [periodMode, fyStartYear, dateFrom, dateTo]);
+
+  // Same ledger slice the workspace events already came from. Entry dates
+  // and the report's own channels are the analytics scope, not a second fetch.
+  const serverTotals = usePlantTotals({
+    basis: "entry",
+    entryFrom: entryWindow?.from,
+    entryTo: entryWindow?.to,
+    enabled: entryWindow != null,
+    tweaks: {
+      datePreset: "all",
+      grain: "month",
+      stageView: "cumulative",
+      stageCategories: ["primary", "secondary", "assembly"],
+      includeExcel,
+      includeDirectEntry,
+      excelFiles,
+      batchIds,
+    },
+  }).data;
 
   const built = useMemo(() => {
     const generatedAt = new Date().toISOString();
@@ -437,7 +481,11 @@ export default function ReportsWorkspace({
     };
   }, [printing]);
 
-  const model = built.ok ? built.model : null;
+  const model = useMemo(() => {
+    if (!built.ok) return null;
+    if (!serverTotals) return built.model;
+    return overlayReportModel(built.model, serverTotals);
+  }, [built, serverTotals]);
   const blockReason = !built.ok ? built.error : model && !model.validation.canExport ? model.validation.blockers[0] : null;
   const canPrint = built.ok && !!model?.validation.canExport;
 
@@ -591,6 +639,7 @@ export default function ReportsWorkspace({
                     type="button"
                     className="rw-ghost"
                     aria-pressed={on}
+                    title={b}
                     onClick={() => setBatchIds(on ? batchIds.filter((x) => x !== b) : [...batchIds, b])}
                     style={{
                       display: "block",
@@ -601,7 +650,7 @@ export default function ReportsWorkspace({
                       background: on ? "var(--accent-weak)" : undefined,
                     }}
                   >
-                    {b}
+                    {historyNameForLot(b, conversions)}
                   </button>
                 );
               })}

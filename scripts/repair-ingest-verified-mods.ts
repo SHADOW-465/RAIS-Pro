@@ -109,7 +109,7 @@ async function main() {
       is_direct_entry: e.provenance?.is_direct_entry ?? false,
       payload: getPayload(e),
     }));
-    const { error: insErr } = await db.from("events").upsert(rows, { onConflict: "event_id" });
+    const { error: insErr } = await db.from("events").upsert(rows, { onConflict: "event_id", ignoreDuplicates: true });
     if (insErr) {
       console.log(`  FAIL ${fn}:`, insErr.message);
       continue;

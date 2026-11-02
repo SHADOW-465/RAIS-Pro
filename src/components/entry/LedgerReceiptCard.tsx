@@ -14,6 +14,7 @@ interface LedgerReceiptCardProps {
     savedAt: string;
     synced: boolean;
     error?: string | null;
+    conversionError?: string | null;
   } | null;
   lastIssues: {
     batchId: string;
@@ -177,6 +178,28 @@ export default function LedgerReceiptCard({
               </strong>
             </div>
           </div>
+
+          {receipt.conversionError && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 10,
+                padding: "10px 12px",
+                borderRadius: 6,
+                background: "var(--surface)",
+                fontSize: 12.5,
+                color: "var(--critical)",
+                border: "1px solid color-mix(in srgb, var(--critical) 30%, transparent)",
+                lineHeight: 1.45,
+              }}
+            >
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Batch conversion not recorded</div>
+              <div>{receipt.conversionError}</div>
+              <div style={{ marginTop: 6, color: "var(--text-2)", fontWeight: 400 }}>
+                The quantities above are saved, but this lot is not linked to its original batch.
+              </div>
+            </div>
+          )}
 
           {blockReason && (
             <div

@@ -4,10 +4,11 @@
 // that belongs to a file uploaded in a PAST browser session — every event's
 // provenance.fileHash already points here (raw_files is populated on every
 // upload by /api/archive-upload); Verify Mode just wasn't reading it back.
+import { withNoStore } from "@/lib/http/live-cache";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const hash = req.nextUrl.searchParams.get("hash");
   if (!hash) {
     return NextResponse.json({ error: "hash is required" }, { status: 400 });
@@ -36,7 +37,8 @@ export async function GET(req: NextRequest) {
     headers: {
       "content-type": "application/octet-stream",
       "x-file-name": encodeURIComponent(data.file_name),
-      "cache-control": "private, max-age=3600, immutable",
     },
   });
 }
+
+export const GET = withNoStore(getHandler);

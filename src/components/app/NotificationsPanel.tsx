@@ -9,7 +9,7 @@ import type {
   EntryExceptionPayload,
   EditRequestPayload,
 } from "@/lib/notifications/types";
-import { issueGrant } from "@/lib/entry/edit-grants";
+import { adoptGrant, type EditGrant } from "@/lib/entry/edit-grants";
 import { NOTIFICATIONS_CHANGED, notifyNotificationsChanged } from "@/lib/client/live-signals";
 
 type Tab = "open" | "history";
@@ -77,21 +77,10 @@ export default function NotificationsPanel() {
         return;
       }
       const data = await res.json();
-      if (action === "approve" && n?.type === "edit_request") {
-        const p = n.payload as EditRequestPayload;
-        if (p?.entryKey) {
-          issueGrant({
-            entryKey: p.entryKey,
-            approvedBy: persona,
-            notificationId: id,
-          });
-        } else if (data.grant?.entryKey) {
-          issueGrant({
-            entryKey: data.grant.entryKey,
-            approvedBy: persona,
-            notificationId: id,
-          });
-        }
+      // The server already stored the grant. Caching the returned row here
+      // lets this browser see it without writing a second, different expiry.
+      if (action === "approve" && data.grant?.entryKey) {
+        adoptGrant(data.grant as EditGrant);
       }
       setAckNote((prev) => {
         const next = { ...prev };

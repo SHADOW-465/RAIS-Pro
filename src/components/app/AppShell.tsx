@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef, useCallback, type ReactNode } from "react";
 import Icon, { type IconName } from "@/components/editorial/Icon";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import { useEvents } from "@/components/app/EventsContext";
+import { prefetchNav, routeReadsLedger } from "@/lib/client/page-data";
 import { useConfirm } from "@/components/ui/ConfirmContext";
 import DatePicker from "@/components/ui/DatePicker";
 import {
@@ -36,11 +38,13 @@ import {
   personaDef,
   type PersonaId,
 } from "@/lib/persona";
+import { sidebarCollapsed as sidebarCollapsedPref, navSectionsCollapsed } from "@/lib/ui-prefs";
 import { useCommandPaletteHotkey } from "@/components/app/CommandPaletteHotkey";
+import SharedStateBanner from "@/components/app/SharedStateBanner";
 import { canReport } from "@/lib/report/blocks";
 import { subscribeNavBanner, emitNavBanner, type NavBanner } from "@/lib/analytics/nav-banner";
 import { usePersona } from "@/components/app/PersonaContext";
-import { useActiveMetric } from "@/components/app/ActiveMetricContext";
+import { ActiveMetricProvider, useActiveMetric } from "@/components/app/ActiveMetricContext";
 
 // Heavy chrome — code-split; only fetched when the operator opens the surface.
 const CommandPalette = dynamic(() => import("@/components/app/CommandPalette"), {
@@ -164,7 +168,6 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-const NAV_COLLAPSE_KEY = "moid_nav_collapsed";
 
 // Global stage scope. "cumulative" = all stages combined; the rest scope every
 // screen (KPIs, trends, view-source, SPC) to a single inspection process.
@@ -200,7 +203,7 @@ const SCOPE_CONTROLS: Partial<Record<NavKey, ("view" | "interval" | "range" | "s
   audit: ["range", "sources"],
 };
 
-export default function AppShell({
+function AppShellView({
   active, trustScore: trustScoreProp, statusCounts, dateRange, children, presetId: _presetId,
   toolbarExtra, wide,
 }: {
@@ -217,9 +220,10 @@ export default function AppShell({
   wide?: boolean;
 }) {
   const router = useRouter();
-  const { events, refreshEvents } = useEvents();
+  const queryClient = useQueryClient();
+  const { events, refreshEvents, isLoading: eventsLoading, error: eventsError } = useEvents();
   const { t, setTweak } = useTweaks();
-  const { registry, policy, configured: registryConfigured } = useRegistry();
+  const { registry, policy, configured: registryConfigured, isLoading: registryLoading } = useRegistry();
   const {
     persona,
     setPersona,
@@ -402,10 +406,7 @@ export default function AppShell({
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [dateMinMax, setDateMinMax] = useState<{ min: string; max: string } | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.localStorage.getItem("rais_sidebar_collapsed") === "true";
-    }
-    return false;
+    return sidebarCollapsedPref.get() ?? false;
   });
 
   // Floating Ask MOID — multi-turn task agent (enter / report / guide)
@@ -843,9 +844,7 @@ export default function AppShell({
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
       const next = !prev;
-      try {
-        window.localStorage.setItem("rais_sidebar_collapsed", String(next));
-      } catch {}
+      sidebarCollapsedPref.set(next);
       return next;
     });
   };
@@ -1044,12 +1043,8 @@ export default function AppShell({
 
   // Load persisted sidebar section collapse state once on mount.
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(NAV_COLLAPSE_KEY);
-      if (raw) setCollapsedSections(JSON.parse(raw));
-    } catch {
-      // ignore malformed/unavailable localStorage
-    }
+    const saved = navSectionsCollapsed.get();
+    if (saved) setCollapsedSections(saved);
   }, []);
 
   // Calculate active navigation element coordinates relative to <nav> container
@@ -1118,11 +1113,7 @@ export default function AppShell({
   function toggleSection(title: string) {
     setCollapsedSections((prev) => {
       const next = { ...prev, [title]: !prev[title] };
-      try {
-        window.localStorage.setItem(NAV_COLLAPSE_KEY, JSON.stringify(next));
-      } catch {
-        // ignore write failures (private browsing, quota, etc.)
-      }
+      navSectionsCollapsed.set(next);
       return next;
     });
   }
@@ -1168,19 +1159,28 @@ export default function AppShell({
 
   // Footer health is the integrity scan for the header scope — the same
   // V-004 / V-014 check Data Schema shows. Callers cannot zero it out.
+  // The scan needs BOTH the ledger and the calculation policy: scoped under the
+  // default policy while /api/schema is still in flight it counts differently
+  // (123 vs 124), and an unloaded or failed ledger would read as 0. Until both
+  // have arrived the counts are null and the footer shows a loading dash.
+  const footerReady = events != null && !eventsLoading && !eventsError && !registryLoading;
   const integrityHealth = useMemo(() => {
-    const ev = events ?? [];
-    if (ev.length === 0) return { anomalies: 0, alerts: 0 };
-    const q = qualityStatus(ev, resolveScope(ev, t, policy));
+    if (!footerReady || !events) return null;
+    if (events.length === 0) return { anomalies: 0, alerts: 0 };
+    const q = qualityStatus(events, resolveScope(events, t, policy));
     const critical = q.integrityIssues.filter((i) => i.severity === "critical").length;
     return { anomalies: q.integrityIssues.length, alerts: critical };
-  }, [events, t, policy]);
+  }, [footerReady, events, t, policy]);
   const sc = {
     capa: statusCounts?.capa ?? 0,
     overdue: statusCounts?.overdue ?? 0,
-    anomalies: integrityHealth.anomalies,
-    alerts: integrityHealth.alerts,
+    anomalies: integrityHealth?.anomalies ?? null,
+    alerts: integrityHealth?.alerts ?? null,
   };
+  // Screens that do not read the ledger never start that fetch. A dash there
+  // means "not computed on this page", which is different from still loading.
+  const integrityPending =
+    eventsLoading || (events == null && routeReadsLedger(active) && !eventsError);
 
   // Grouped View options. "Stations" only lists stages that:
   //   1) have ledger data, AND
@@ -1401,6 +1401,24 @@ export default function AppShell({
                     <button key={n.key} disabled={n.soon}
                       data-nav-active={isActive}
                       data-nav-spotlight={isSpotlight || undefined}
+                      onMouseEnter={() => {
+                        if (n.href) {
+                          void prefetchNav(queryClient, n.key, {
+                            datePreset: t.datePreset,
+                            dateFrom: t.dateFrom,
+                            dateTo: t.dateTo,
+                          }, authUser?.username ?? "");
+                        }
+                      }}
+                      onFocus={() => {
+                        if (n.href) {
+                          void prefetchNav(queryClient, n.key, {
+                            datePreset: t.datePreset,
+                            dateFrom: t.dateFrom,
+                            dateTo: t.dateTo,
+                          }, authUser?.username ?? "");
+                        }
+                      }}
                       onClick={() => {
                         if (n.key === "ask") {
                           setShowChatWidget(true);
@@ -2265,6 +2283,7 @@ export default function AppShell({
           maxWidth: wide ? "none" : "1400px",
           margin: wide ? 0 : "0 auto",
         }}>
+        <SharedStateBanner />
         {banner && (
           <div
             role="status"
@@ -2312,10 +2331,10 @@ export default function AppShell({
         boxShadow: "var(--shadow-sm)"
       }}>
         <div style={{ display: "flex", gap: "clamp(12px, 1.5vw, 24px)" }}>
-          <Status tone="var(--critical)" label="Active Alerts" value={`${sc.alerts ?? 0} Critical`} />
+          <Status tone="var(--critical)" label="Active Alerts" value={sc.alerts == null ? (integrityPending ? "…" : "—") : `${sc.alerts} Critical`} />
           <Status tone="var(--positive)" label="Pending CAPA" value={`${sc.capa ?? 0} Actions`} />
           <Status tone="var(--warning)" label="Overdue Actions" value={`${sc.overdue ?? 0}`} />
-          <Status tone="var(--warning)" label="Data Anomalies" value={`${sc.anomalies ?? 0}`} />
+          <Status tone="var(--warning)" label="Data Anomalies" value={sc.anomalies == null ? (integrityPending ? "…" : "—") : `${sc.anomalies}`} />
         </div>
       </footer>
 
@@ -2575,6 +2594,16 @@ export default function AppShell({
         M
       </button>
     </div>
+  );
+}
+
+/** The spotlight is shell state. Ledger, schema and lineage sit above the page
+ *  (those screens call the hooks before they render this shell). */
+export default function AppShell(props: React.ComponentProps<typeof AppShellView>) {
+  return (
+    <ActiveMetricProvider>
+      <AppShellView {...props} />
+    </ActiveMetricProvider>
   );
 }
 

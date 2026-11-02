@@ -1,6 +1,14 @@
 import type { AgentSession, EntrySlots, ReportSlots, TaskKind, TaskStatus } from "./types";
 
-const STORAGE_KEY = "moid_agent_session_v1";
+import { z } from "zod";
+import { slot } from "@/lib/storage";
+
+const sessionSlot = slot({
+  name: "agent-session",
+  area: "session",
+  schema: z.looseObject({ taskId: z.string(), kind: z.string(), status: z.string() }) as unknown as z.ZodType<AgentSession>,
+  legacyKeys: ["moid_agent_session_v1"],
+});
 
 export function newSession(kind: TaskKind, status: TaskStatus = "collecting"): AgentSession {
   const now = new Date().toISOString();
@@ -50,35 +58,16 @@ export function mergeReportSlots(base: ReportSlots, next: ReportSlots): ReportSl
 
 export function loadSession(): AgentSession | null {
   if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as AgentSession;
-  } catch {
-    return null;
-  }
+  return sessionSlot.get() ?? null;
 }
 
 export function saveSession(session: AgentSession | null): void {
   if (typeof window === "undefined") return;
-  try {
-    if (!session || session.status === "done" || session.status === "idle") {
-      sessionStorage.removeItem(STORAGE_KEY);
-      return;
-    }
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  } catch {
-    /* quota */
-  }
+  if (!session || session.status === "done" || session.status === "idle") sessionSlot.remove();
+  else sessionSlot.set(session); // quota: the conversation just won't survive a reload
 }
 
 export function clearSession(): null {
-  if (typeof window !== "undefined") {
-    try {
-      sessionStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* */
-    }
-  }
+  sessionSlot.remove();
   return null;
 }

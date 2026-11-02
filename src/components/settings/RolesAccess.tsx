@@ -27,6 +27,7 @@ import {
 } from "@/lib/access/tree";
 import { grantsFromRole } from "@/lib/access/catalog";
 import { useRegistry } from "@/components/app/RegistryContext";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
 import { NAV_ROUTES, ROUTED_NAV_KEYS } from "@/lib/nav-keys";
 import type { PersonaCapabilities } from "@/lib/persona";
 
@@ -215,6 +216,7 @@ export default function RolesAccess() {
         setError(data?.error ?? "Request failed.");
         return null;
       }
+      await invalidateAfterWrite("roles");
       await load();
       return data;
     } catch (e) {
@@ -278,6 +280,7 @@ export default function RolesAccess() {
         setError(data?.error ?? "Could not create the login.");
         return;
       }
+      await invalidateAfterWrite("roles");
       setNotice(
         `Created ${newUsername}. Give them this password directly — it is stored hashed and cannot be shown again.`,
       );

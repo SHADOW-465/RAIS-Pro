@@ -42,7 +42,6 @@ export const FRENCH_SIZES = [
 /** FBC product variants on the shop floor (filter also offers "All Type"). */
 export const PRODUCT_TYPES = ["2 way", "3 way", "Female"] as const;
 export type ProductType = (typeof PRODUCT_TYPES)[number];
-export const PRODUCT_TYPE_STORAGE_KEY = "moid_product_type";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Catheter category / type / size cascade — same rules as the shop-floor
@@ -387,4 +386,3 @@ export const SECONDARY_BINS = [
   "Staging",
 ] as const;
 
-export const SHIFT_STORAGE_KEY = "disposafe_shift_batches";

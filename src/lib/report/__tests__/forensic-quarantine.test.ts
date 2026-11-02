@@ -13,7 +13,7 @@ describe("forensic quarantine", () => {
     expect(src("src/components/report/ReportDocument.tsx")).not.toMatch(/ForensicBook/);
     expect(src("src/components/report/AuditReportDocument.tsx")).not.toMatch(/ForensicBook/);
     expect(src("src/components/report/ReportsWorkspace.tsx")).not.toMatch(/ForensicBook/);
-    expect(src("src/app/reports/page.tsx")).not.toMatch(/ForensicBook/);
+    expect(src("src/app/(plant)/reports/page.tsx")).not.toMatch(/ForensicBook/);
   });
 
   it("forensic-book is not an addable block", () => {

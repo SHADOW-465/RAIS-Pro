@@ -5,14 +5,15 @@ import {
   sizeOfLot,
 } from "./ids";
 import { parseBatchId } from "@/lib/entry/batch-id";
-import { resolveStageId } from "@/core/ontology/plant-catalog";
+import { resolveStageId, STAGE_LABELS } from "@/core/ontology/plant-catalog";
+import { conversionDateError, latestServerDay } from "./dates";
+import { transferQtyError } from "./quantity-flow";
 import {
   ConversionError,
+  normalizeReasonCategory,
   type BatchConversion,
   type CreateConversionInput,
 } from "./types";
-
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 function outgoing(rows: BatchConversion[], from: string): BatchConversion | undefined {
   return rows.find((r) => r.fromBatch === from);
@@ -53,13 +54,23 @@ function descendants(rows: BatchConversion[], batch: string): Set<string> {
 export function planConversion(
   input: CreateConversionInput,
   existing: BatchConversion[],
+  now = new Date(),
 ): BatchConversion {
-  const reason = (input.reason ?? "").trim();
-  if (!reason) throw new ConversionError("reason-required", "Record why the size changed.");
-
-  if (!ISO_DAY.test(input.convertedOn ?? "")) {
-    throw new ConversionError("invalid-date", "Conversion date must be YYYY-MM-DD.");
+  const reasonCategory = normalizeReasonCategory(input.reasonCategory);
+  if (!reasonCategory) {
+    throw new ConversionError(
+      "reason-category-required",
+      "Choose why the size changed: rework, regrade, or size reclassification.",
+    );
   }
+  const reasonNote = (input.reasonNote ?? "").trim();
+  if (!reasonNote) {
+    throw new ConversionError("reason-note-required", "Add a note saying what happened.");
+  }
+  const reason = `${reasonCategory}: ${reasonNote}`;
+
+  const dateError = conversionDateError(input.convertedOn, latestServerDay(now));
+  if (dateError) throw new ConversionError("invalid-date", dateError);
 
   const changedQty = input.changedQty;
   if (!Number.isInteger(changedQty) || changedQty <= 0) {
@@ -73,6 +84,13 @@ export function planConversion(
   const fromBatch = canonLot(input.fromBatch);
   if (!fromBatch) {
     throw new ConversionError("invalid-from", "Original batch ID is not a valid lot code.");
+  }
+
+  if (input.lotKnown === false) {
+    throw new ConversionError(
+      "unknown-lot",
+      `Lot ${fromBatch} has no entries in the ledger, so there is nothing to convert. Pick an existing lot.`,
+    );
   }
 
   const toBatch = canonLot(input.toBatch || proposedConvertedBatchId(fromBatch, input.toSize) || "");
@@ -98,12 +116,21 @@ export function planConversion(
     );
   }
 
+  // One conversion per lot (pending client decision). An identical repeat is
+  // a no-op; anything else is refused loudly rather than keeping the old row.
   const already = outgoing(existing, fromBatch);
   if (already) {
-    if (already.toBatch === toBatch) return already;
+    // A row stored before quantities were recorded has changedQty 0 (unknown),
+    // so a repeat of it cannot be told apart from a changed quantity.
+    if (already.toBatch === toBatch && (already.changedQty === changedQty || already.changedQty === 0)) {
+      return already;
+    }
+    const was = `${fromBatch} was already converted to ${already.toBatch} (${already.changedQty.toLocaleString("en-US")} pieces).`;
     throw new ConversionError(
       "already-converted",
-      `${fromBatch} already converted to ${already.toBatch}.`,
+      already.toBatch === toBatch
+        ? `${was} A lot can only be converted once, so the quantity cannot be changed to ${changedQty.toLocaleString("en-US")}.`
+        : `${was} A lot can only be converted once, so it cannot also be converted to ${toBatch}.`,
     );
   }
 
@@ -115,9 +142,22 @@ export function planConversion(
     );
   }
 
+  if (input.targetHasLedger) {
+    throw new ConversionError(
+      "target-has-ledger",
+      `${toBatch} already has ledger entries. Converting into it would merge unrelated lots. Pick a new lot code that has no entries.`,
+    );
+  }
+
   // Cycle: converting into an ancestor, or onward into self via a loop.
   if (ancestors(existing, fromBatch).has(toBatch) || descendants(existing, toBatch).has(fromBatch)) {
     throw new ConversionError("cycle", `${fromBatch} and ${toBatch} are already on the same lineage.`);
+  }
+
+  if (input.eligibleQty !== undefined) {
+    const label = STAGE_LABELS[stageId] ?? stageId;
+    const over = transferQtyError(changedQty, input.eligibleQty, label);
+    if (over) throw new ConversionError("qty-exceeds-eligible", over);
   }
 
   return {
@@ -130,6 +170,8 @@ export function planConversion(
     stageId,
     convertedOn: input.convertedOn,
     reason,
+    reasonCategory,
+    reasonNote,
     createdAt: new Date().toISOString(),
     createdBy: input.createdBy.trim() || "unknown",
   };

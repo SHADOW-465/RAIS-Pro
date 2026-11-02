@@ -4,14 +4,14 @@
 // Uploads to ledger (POST /api/ingest) and manages local shift operational queue.
 // Preserves all append-only event ledger and deterministic validation invariants.
 
+import { loadShiftBatches, persistShiftBatches } from "@/lib/entry/shift-batches";
+import { entryHeaderOperator, entryHeaderShift, entryProductType } from "@/lib/ui-prefs";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmContext";
 import {
   MATRIX_STAGES,
   ENTRY_ROLES,
   toEntryRole,
-  SHIFT_STORAGE_KEY,
-  PRODUCT_TYPE_STORAGE_KEY,
   sizesFor,
   typeIsSelectable,
   productTypeFor,
@@ -79,6 +79,7 @@ import {
   readShiftWindowConfig,
 } from "@/lib/entry/shift-window";
 import { entryKey, hasValidGrant } from "@/lib/entry/edit-grants";
+import { SHARED_STATE_EVENT } from "@/lib/shared-state/push";
 import { toStageDayRecord } from "@/lib/entry/to-stage-day-record";
 import { collectEntryReasons, remarksFromReasons } from "@/lib/entry/exception-reasons";
 import { formatLedgerBlockReason } from "@/lib/entry/format-ingest-error";
@@ -151,19 +152,8 @@ interface BatchDraft {
   remarks: string;
 }
 
-function loadShift(): ShiftBatchRecord[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(SHIFT_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as ShiftBatchRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function persistShift(rows: ShiftBatchRecord[]) {
-  localStorage.setItem(SHIFT_STORAGE_KEY, JSON.stringify(rows));
-}
+const loadShift = loadShiftBatches;
+const persistShift = persistShiftBatches;
 
 export default function BatchMatrixEntry({
   onSynced,
@@ -252,6 +242,8 @@ export default function BatchMatrixEntry({
     savedAt: string;
     synced: boolean;
     error?: string | null;
+    /** Ledger entry saved, but the batch-conversion record was refused. */
+    conversionError?: string | null;
   } | null>(null);
 
   const [lastIssues, setLastIssues] = useState<{
@@ -350,6 +342,13 @@ export default function BatchMatrixEntry({
   }, [conversionFlow, batchId]);
 
   const activeConversionFlow = conversionFlow ?? lineageConversion;
+  // A converted lot holds only the pieces that moved. Before a quantity is
+  // chosen the original lot's available count is the ceiling.
+  const convertedCap = activeConversionFlow
+    ? (activeConversionFlow.changedQty ?? 0) > 0
+      ? activeConversionFlow.changedQty
+      : (activeConversionFlow.originalAccepted ?? null)
+    : null;
 
   // Keep form state synchronized when a batch conversion is being authored
   useEffect(() => {
@@ -386,8 +385,9 @@ export default function BatchMatrixEntry({
     }
     const qty = conversionFlow.changedQty ?? 0;
     if (qty > 0) {
+      // Accepted is for the operator to enter: the moved pieces are not
+      // inspected on the new size yet.
       setChecked(qty);
-      setAccept(qty);
       userTouchedQty.current = true;
     }
   }, [conversionFlow, setEditing, schema]);
@@ -401,17 +401,16 @@ export default function BatchMatrixEntry({
     if (stageId !== start) return;
     if (userTouchedQty.current || checked > 0) return;
     setChecked(qty);
-    setAccept(qty);
   }, [conversionFlow, lineageConversion, stageId, checked]);
 
   // Load shift records & local draft on mount
   useEffect(() => {
     setSaved(loadShift());
-    const op = localStorage.getItem("rais_hdr_operator");
+    const op = entryHeaderOperator.get();
     if (op) setOperator(toEntryRole(op));
-    const sh = localStorage.getItem("rais_hdr_shift");
+    const sh = entryHeaderShift.get();
     if (sh) setShift(sh);
-    const pt = localStorage.getItem(PRODUCT_TYPE_STORAGE_KEY);
+    const pt = entryProductType.get();
     if (pt) applyProductType(pt);
 
     const d = loadDraft<BatchDraft>(draftKey);
@@ -479,6 +478,28 @@ export default function BatchMatrixEntry({
     const id = window.setInterval(() => setTick((t) => t + 1), 60_000);
     return () => window.clearInterval(id);
   }, []);
+
+  const batchIdRef = useRef(batchId);
+  batchIdRef.current = batchId;
+  // A grant or shift window saved on another browser arrives through the
+  // plant document. Fill a lot pin only when this form has not started one.
+  useEffect(() => {
+    const onShared = (ev: Event) => {
+      setTick((n) => n + 1);
+      const kind = (ev as CustomEvent<{ kind?: string }>).detail?.kind;
+      if (kind !== "lot-memory") return;
+      const mem = readLotMemory();
+      if (!mem?.on) return;
+      if (batchIdRef.current.trim()) return;
+      setLotMemoryOn(true);
+      setBatchId(mem.batchId);
+      if (mem.batchDate) setBatchDate(mem.batchDate);
+      if (mem.size) setSize(mem.size);
+      if (mem.productType) applyProductType(mem.productType);
+    };
+    window.addEventListener(SHARED_STATE_EVENT, onShared);
+    return () => window.removeEventListener(SHARED_STATE_EVENT, onShared);
+  }, [applyProductType]);
 
   // Autosave draft
   useEffect(() => {
@@ -858,6 +879,7 @@ export default function BatchMatrixEntry({
           capturesRejected: showReject,
           capturesDefects: !hideDefects,
           editing: !!editingId,
+          maxChecked: convertedCap,
         },
         ledgerSummary,
         today(),
@@ -881,6 +903,7 @@ export default function BatchMatrixEntry({
       showReject,
       hideDefects,
       editingId,
+      convertedCap,
       ledgerSummary,
       processSchema,
       occupied,
@@ -1428,8 +1451,64 @@ export default function BatchMatrixEntry({
     });
   }
 
+  /** Record the lineage edge for a converted lot. Returns why it failed, or null. */
+  async function recordConversion(rec: ShiftBatchRecord): Promise<string | null> {
+    if (!activeConversionFlow?.fromBatch || !activeConversionFlow?.toSize) return null;
+    try {
+      const posted = await fetch("/api/batch-conversions", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromBatch: activeConversionFlow.fromBatch,
+          toSize: activeConversionFlow.toSize,
+          toBatch: rec.batchId,
+          changedQty: activeConversionFlow.changedQty ?? rec.checked,
+          stageId: activeConversionFlow.stageId || rec.stageId,
+          convertedOn: rec.date,
+          reason: activeConversionFlow.reason || "Customer / process",
+        }),
+      });
+      const body = (await posted.json().catch(() => null)) as
+        | { conversion?: BatchConversion; error?: string }
+        | null;
+      if (!posted.ok) {
+        return body?.error || `The conversion was not recorded (server said ${posted.status}).`;
+      }
+      if (body?.conversion) noteConversion(body.conversion);
+      await refreshConversions().catch(() => {});
+      return null;
+    } catch (e) {
+      return `The conversion was not recorded: ${e instanceof Error ? e.message : "could not reach the server"}.`;
+    }
+  }
+
   async function finalizeSave(rec: ShiftBatchRecord) {
+    // A conversion being authored here is validated against the original lot
+    // BEFORE anything reaches the ledger, so a refused conversion leaves no
+    // orphan entry behind. A lot opened from an existing conversion keeps the
+    // old order: its edge already exists.
+    const authoring = Boolean(conversionFlow?.fromBatch && conversionFlow?.toSize);
     setSaving(true);
+    if (authoring) {
+      const refused = await recordConversion(rec);
+      if (refused) {
+        setReceipt({
+          batchId: rec.batchId,
+          stageName: rec.processName,
+          size: rec.size,
+          checked: rec.checked,
+          accept: rec.accept,
+          reject: rec.reject,
+          savedAt: rec.savedAt,
+          synced: false,
+          error: `Nothing was saved. ${refused}`,
+        });
+        setSaving(false);
+        return;
+      }
+    }
     try {
       const revising = saved.some((b) => b.id === rec.id);
       const issues = await commitRecord(rec);
@@ -1441,36 +1520,14 @@ export default function BatchMatrixEntry({
       setSaved(next);
       persistShift(next);
 
-      localStorage.setItem("rais_hdr_operator", rec.operator);
-      localStorage.setItem("rais_hdr_shift", rec.shift);
-      if (rec.productType) localStorage.setItem(PRODUCT_TYPE_STORAGE_KEY, String(rec.productType));
+      entryHeaderOperator.set(rec.operator);
+      entryHeaderShift.set(rec.shift);
+      if (rec.productType) entryProductType.set(String(rec.productType));
 
-      if (activeConversionFlow?.fromBatch && activeConversionFlow?.toSize) {
-        try {
-          const posted = await fetch("/api/batch-conversions", {
-            method: "POST",
-            credentials: "same-origin",
-            cache: "no-store",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fromBatch: activeConversionFlow.fromBatch,
-              toSize: activeConversionFlow.toSize,
-              toBatch: rec.batchId,
-              changedQty: activeConversionFlow.changedQty ?? rec.checked,
-              stageId: activeConversionFlow.stageId || rec.stageId,
-              convertedOn: rec.date,
-              reason: activeConversionFlow.reason || "Customer / process",
-            }),
-          });
-          if (posted.ok) {
-            const body = (await posted.json().catch(() => null)) as { conversion?: BatchConversion } | null;
-            if (body?.conversion) noteConversion(body.conversion);
-            await refreshConversions().catch(() => {});
-          }
-        } catch {
-          /* non-blocking */
-        }
-      }
+      // Opened from an existing conversion: the ledger entry is saved, and the
+      // idempotent lineage write can still be refused. Say so on the receipt
+      // instead of letting the operator believe it was recorded.
+      const conversionError = authoring ? null : await recordConversion(rec);
 
       setReceipt({
         batchId: rec.batchId,
@@ -1481,6 +1538,7 @@ export default function BatchMatrixEntry({
         reject: rec.reject,
         savedAt: rec.savedAt,
         synced: true,
+        conversionError,
       });
 
       setEditing(null);

@@ -78,6 +78,8 @@ export interface EntryDraft {
   capturesDefects: boolean;
   /** Set when revising an existing row rather than creating one. */
   editing?: boolean;
+  /** Converted lot: the pieces that moved to this size. Checked cannot exceed it. */
+  maxChecked?: number | null;
 }
 
 /** One entry already on the ledger, folded from its events. */
@@ -216,6 +218,15 @@ export function checkEntry(
       code: "nothing-checked",
       severity: "block",
       message: "No quantity has been entered.",
+    });
+  }
+
+  if (draft.maxChecked != null && draft.maxChecked > 0 && draft.checked > draft.maxChecked) {
+    blocks.push({
+      code: "exceeds-converted-quantity",
+      severity: "block",
+      message: `Only ${draft.maxChecked.toLocaleString("en-US")} pieces were converted to ${lot}, but ${draft.checked.toLocaleString("en-US")} were entered.`,
+      action: `Enter ${draft.maxChecked.toLocaleString("en-US")} or fewer.`,
     });
   }
 

@@ -7,6 +7,7 @@
 // Deny-by-omission only works if the client can tell "no access" apart from
 // "no idea", so the server answers with both.
 
+import { withNoStore } from "@/lib/http/live-cache";
 import { NextRequest, NextResponse } from "next/server";
 import {
   NAV_COOKIE,
@@ -16,8 +17,9 @@ import {
   verifySessionToken,
 } from "@/lib/auth/session";
 import { resolveRole } from "@/lib/auth/roles";
+import { isPlantAdmin } from "@/lib/auth/guard";
 
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const session = await verifySessionToken(token);
   if (!session) {
@@ -34,6 +36,9 @@ export async function GET(req: NextRequest) {
   const res = NextResponse.json({
     authEnabled: true,
     user: { username: session.u, role: role.roleId },
+    // Settings → Administrative is shown only when this is true. The routes
+    // behind it check the same thing (requireAdmin), so hiding is not the guard.
+    admin: isPlantAdmin(session.u),
     role: {
       roleId: role.roleId,
       label: role.label,
@@ -55,3 +60,5 @@ export async function GET(req: NextRequest) {
   );
   return res;
 }
+
+export const GET = withNoStore(getHandler);

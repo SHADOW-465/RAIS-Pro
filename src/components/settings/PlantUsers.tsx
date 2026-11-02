@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import Icon from "@/components/editorial/Icon";
 import Select from "@/components/ui/Select";
 import { personaDef, type RoleId } from "@/lib/persona";
+import { invalidateAfterWrite } from "@/lib/client/invalidate";
 
 interface PlantUser {
   username: string;
@@ -97,6 +98,7 @@ export default function PlantUsers() {
         setError(data?.error ?? "Request failed.");
         return false;
       }
+      await invalidateAfterWrite("roles");
       await load();
       return true;
     } finally {
