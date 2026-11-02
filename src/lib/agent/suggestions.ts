@@ -1,6 +1,7 @@
 // Role-aware starter chips + context-aware tips for Ask MOID.
 
 import type { PersonaId } from "@/lib/persona";
+import { modernPath } from "@/lib/nav-keys";
 
 export interface StarterChip {
   label: string;
@@ -28,7 +29,7 @@ export function contextTips(opts: {
     );
   }
 
-  if (path.startsWith("/data-entry")) {
+  if (path.startsWith("/log/entry")) {
     return opts.canWrite
       ? "You’re on **Data Entry** — paste quantities here and I’ll draft a save (with confirm)."
       : "You’re on **Data Entry** (view-only role). Switch persona to enter, or ask for a summary instead.";
@@ -87,21 +88,22 @@ export function roleStarterChips(persona: PersonaId | string): StarterChip[] {
 }
 
 /** Spotlight nav key after howto — client pulses sidebar item. */
-export function spotlightNavFromHref(href: string): string | null {
+export function spotlightNavFromHref(rawHref: string): string | null {
+  const href = modernPath(rawHref);
   if (href === "/" || href === "") return "dashboard";
-  if (href.startsWith("/data-entry")) return "data-entry";
-  if (href.startsWith("/workbooks")) return "workbooks";
-  if (href.startsWith("/staging")) return "staging";
-  if (href.startsWith("/stage-analysis")) return "stage";
-  if (href.startsWith("/size-analysis")) return "size";
-  if (href.startsWith("/defect-analysis")) return "defect";
-  if (href.startsWith("/spc")) return "spc";
-  if (href.startsWith("/process-flow")) return "process-flow";
-  if (href.startsWith("/copq")) return "copq";
+  if (href.startsWith("/log/entry")) return "data-entry";
+  if (href.startsWith("/excel/files")) return "workbooks";
+  if (href.startsWith("/excel/import")) return "staging";
+  if (href.startsWith("/quality/stage")) return "stage";
+  if (href.startsWith("/quality/size")) return "size";
+  if (href.startsWith("/quality/defect")) return "defect";
+  if (href.startsWith("/quality/spc")) return "spc";
+  if (href.startsWith("/quality/flow")) return "process-flow";
+  if (href.startsWith("/cost")) return "copq";
+  if (href.startsWith("/actions/capa")) return "capa";
+  if (href.startsWith("/reports/audit")) return "audit";
   if (href.startsWith("/reports")) return "reports";
-  if (href.startsWith("/capa")) return "capa";
-  if (href.startsWith("/audit")) return "audit";
-  if (href.startsWith("/schema")) return "schema";
-  if (href.startsWith("/settings")) return "settings";
+  if (href.startsWith("/setup/schema")) return "schema";
+  if (href.startsWith("/setup/settings")) return "settings";
   return null;
 }

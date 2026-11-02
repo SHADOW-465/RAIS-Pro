@@ -193,7 +193,7 @@ export default function NotificationsPanel() {
             </div>
           </div>
           <a
-            href="/alerts"
+            href="/actions/alerts"
             style={{
               display: "block",
               padding: "4px 8px 10px",

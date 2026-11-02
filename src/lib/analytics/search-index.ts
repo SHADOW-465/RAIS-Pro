@@ -109,7 +109,7 @@ export function searchJumpTargets(
         kind: "batch",
         label: `Batch ${b}`,
         sub: "Jump to Data Entry (filter by batch id in grid)",
-        href: `/data-entry?batch=${encodeURIComponent(b)}`,
+        href: `/log/entry?batch=${encodeURIComponent(b)}`,
         navKey: "data-entry",
         score: sc,
       });
@@ -125,7 +125,7 @@ export function searchJumpTargets(
         kind: "stage",
         label,
         sub: "Stage analysis · this gate",
-        href: `/stage-analysis?stage=${encodeURIComponent(st)}&metric=stage`,
+        href: `/quality/stage?stage=${encodeURIComponent(st)}&metric=stage`,
         navKey: "stage",
         score: sc,
       });
@@ -140,7 +140,7 @@ export function searchJumpTargets(
         kind: "size",
         label: `Size ${sz}`,
         sub: "Size analysis",
-        href: `/size-analysis?size=${encodeURIComponent(sz)}&metric=size`,
+        href: `/quality/size?size=${encodeURIComponent(sz)}&metric=size`,
         navKey: "size",
         score: sc,
       });
@@ -155,7 +155,7 @@ export function searchJumpTargets(
         kind: "defect",
         label: df,
         sub: "Defect analysis",
-        href: `/defect-analysis?metric=defect&label=${encodeURIComponent(df)}`,
+        href: `/quality/defect?metric=defect&label=${encodeURIComponent(df)}`,
         navKey: "defect",
         score: sc,
       });

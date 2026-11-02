@@ -26,7 +26,7 @@ const SUPERVISOR: RoleRecord = {
   label: "Supervisor — Moulding",
   title: "Line oversight",
   initial: "S",
-  homeHref: "/data-entry",
+  homeHref: "/log/entry",
   navAllow: ["dashboard", "data-entry", "hold"],
   capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
   grants: ["screen.dashboard", "screen.data-entry", "screen.hold", "permission.write"],
@@ -61,7 +61,7 @@ test("a plant-created role gets ITS definition, not a fallback to full access", 
 
   expect(body.user.role).toBe("supervisor.moulding");
   expect(body.role.label).toBe("Supervisor — Moulding");
-  expect(body.role.homeHref).toBe("/data-entry");
+  expect(body.role.homeHref).toBe("/log/entry");
   expect(body.role.navAllow).toEqual(["dashboard", "data-entry", "hold"]);
   // The screens that would have appeared under the old union fallback.
   for (const denied of ["settings", "schema", "copq", "audit", "reports"]) {

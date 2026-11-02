@@ -40,7 +40,7 @@ export default function DefectRemedyShowcase({
           Primary · Secondary · Tertiary remedies
         </span>
         <a
-          href="/remedies"
+          href="/actions/remedies"
           style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-text)", textDecoration: "none" }}
         >
           Manage remedies →

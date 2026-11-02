@@ -30,7 +30,14 @@ import { resolveScope, DEFAULT_STAGE_CATEGORIES, stageCategoryOf } from "@/lib/a
 import { trustScore as computeTrustScore } from "@/lib/analytics/trust";
 import { qualityStatus } from "@/lib/analytics/status";
 
-import { NAV_ROUTES, type NavKey } from "@/lib/nav-keys";
+import {
+  NAV_ROUTES,
+  NAV_DESTINATIONS,
+  NAV_SECTIONS as NAV_GROUPS,
+  NAV_SECTION_LABELS,
+  destinationForKey,
+  type NavKey,
+} from "@/lib/nav-keys";
 export type { NavKey };
 import {
   PERSONAS,
@@ -41,6 +48,7 @@ import {
 import { sidebarCollapsed as sidebarCollapsedPref, navSectionsCollapsed } from "@/lib/ui-prefs";
 import { useCommandPaletteHotkey } from "@/components/app/CommandPaletteHotkey";
 import SharedStateBanner from "@/components/app/SharedStateBanner";
+import DestinationTabs from "@/components/app/DestinationTabs";
 import { canReport } from "@/lib/report/blocks";
 import { subscribeNavBanner, emitNavBanner, type NavBanner } from "@/lib/analytics/nav-banner";
 import { usePersona } from "@/components/app/PersonaContext";
@@ -100,7 +108,12 @@ interface WidgetMessage {
 }
 
 interface NavItem {
+  /** Destination id (home, log, quality, …). */
+  id: string;
+  /** Screen the item opens: the first tab the signed-in role may see. */
   key: NavKey;
+  /** Every screen that lives under this destination (any of them = active). */
+  keys: readonly NavKey[];
   label: string;
   icon: IconName;
   href?: string;
@@ -115,57 +128,19 @@ interface NavSection {
   items: NavItem[];
 }
 
-// Operator path first: Dashboard → daily entry → one-time Excel import.
-// Analysis pages are pure views of the same event ledger.
-/** Icons and grouping are chrome and live here; labels and hrefs come from the
- *  one route table so the sidebar cannot drift from Jump and the guide. */
-const nav = (key: NavKey, icon: NavItem["icon"], extra: Partial<NavItem> = {}): NavItem => ({
-  key,
-  label: NAV_ROUTES[key].label,
-  href: NAV_ROUTES[key].href ?? undefined,
-  icon,
-  ...extra,
-});
-
-const NAV_SECTIONS: NavSection[] = [
-  { title: "Overview", items: [nav("dashboard", "table")] },
-  {
-    title: "Your data",
-    items: [
-      nav("data-entry", "file"),
-      nav("batch-conversion", "split"),
-      // One destination, two tabs (Import - Files). They used to be two sidebar
-      // entries that linked to each other in their own body copy.
-      nav("workbooks", "folder"),
-    ],
-  },
-  {
-    title: "Analysis",
-    items: [
-      nav("stage", "trend-up"),
-      nav("size", "tally"),
-      nav("defect", "spark"),
-      nav("hold", "alert"),
-      nav("open-lots", "history"),
-      nav("spc", "trend-down"),
-      nav("process-flow", "split"),
-      nav("copq", "lightning"),
-    ],
-  },
-  {
-    title: "Management",
-    items: [
-      nav("reports", "print"),
-      nav("capa", "check"),
-      nav("remedies", "spark"),
-      nav("alerts", "alert"),
-      nav("audit", "search"),
-      nav("schema", "split"),
-      nav("settings", "external"),
-    ],
-  },
-];
-
+/** Icons are chrome and live here; ids, labels, grouping and tab membership
+ *  come from NAV_DESTINATIONS so the sidebar, tab bar and Jump cannot drift. */
+const DESTINATION_ICONS: Record<string, IconName> = {
+  home: "table",
+  log: "file",
+  excel: "folder",
+  quality: "trend-up",
+  lots: "history",
+  cost: "lightning",
+  actions: "check",
+  reports: "print",
+  setup: "external",
+};
 
 // Global stage scope. "cumulative" = all stages combined; the rest scope every
 // screen (KPIs, trends, view-source, SPC) to a single inspection process.
@@ -408,9 +383,20 @@ function AppShellView({
   // created matched nothing and fell through to the default persona — a
   // full-access GM — so a supervisor saw every screen, Settings included.
   const visibleNavSections = useMemo(() => {
-    return NAV_SECTIONS.map((section) => ({
-      ...section,
-      items: section.items.filter((n) => allowsNav(n.key)),
+    return NAV_GROUPS.map((group) => ({
+      title: NAV_SECTION_LABELS[group],
+      items: NAV_DESTINATIONS.filter((d) => d.group === group).flatMap((d): NavItem[] => {
+        const open = d.keys.find((k) => allowsNav(k));
+        if (!open) return [];
+        return [{
+          id: d.id,
+          key: open,
+          keys: d.keys,
+          label: d.label,
+          icon: DESTINATION_ICONS[d.id] ?? "table",
+          href: NAV_ROUTES[open].href ?? undefined,
+        }];
+      }),
     })).filter((section) => section.items.length > 0);
   }, [allowsNav]);
 
@@ -1376,12 +1362,12 @@ function AppShellView({
                 </div>
  
                 {(!isCollapsed || sidebarCollapsed) && section.items.map((n) => {
-                  const isActive = n.key === active;
+                  const isActive = n.keys.includes(active);
                   const isAnalyticsChild = n.indent;
-                  const isSpotlight = spotlightNav === n.key;
+                  const isSpotlight = !!spotlightNav && n.keys.includes(spotlightNav as NavKey);
  
                   return (
-                    <button key={n.key} disabled={n.soon}
+                    <button key={n.id} disabled={n.soon}
                       data-nav-active={isActive}
                       data-nav-spotlight={isSpotlight || undefined}
                       onMouseEnter={() => {
@@ -1526,7 +1512,7 @@ function AppShellView({
           whiteSpace: "nowrap",
           flexShrink: 0,
         }}>
-          {NAV_ROUTES[active].label}
+          {destinationForKey(active)?.label ?? NAV_ROUTES[active].label}
         </h1>
 
         <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center" }}>
@@ -1780,6 +1766,7 @@ function AppShellView({
             </button>
           </div>
         )}
+        <DestinationTabs active={active} />
         {children}
         </div>
       </main>

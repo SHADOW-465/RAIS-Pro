@@ -278,7 +278,7 @@ export default function OpenWipStrip({
 
         {/* Right Action CTA Button */}
         <a
-          href="/open-lots"
+          href="/lots/open"
           className="wip-action-btn"
           style={{
             marginLeft: "auto",
@@ -324,7 +324,7 @@ function LotChip({ lot }: { lot: BatchProgress }) {
 
   return (
     <a
-      href={`/audit?batch=${encodeURIComponent(lot.batch)}`}
+      href={`/reports/audit?batch=${encodeURIComponent(lot.batch)}`}
       title={`${lot.doneCount}/${lot.totalCount} gates cleared · currently waiting at ${nextStage ?? "next gate"} (${lot.daysIdle} days idle). Click to view batch audit trail.`}
       className="lot-chip-hover"
       style={{

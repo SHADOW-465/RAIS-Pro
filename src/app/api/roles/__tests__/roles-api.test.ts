@@ -35,7 +35,7 @@ const supervisor = (over: Record<string, unknown> = {}) => ({
   roleId: "supervisor.moulding",
   label: "Supervisor — Moulding",
   title: "Line oversight",
-  homeHref: "/data-entry",
+  homeHref: "/log/entry",
   grants: [
     screenGrantId("dashboard"),
     screenGrantId("data-entry"),

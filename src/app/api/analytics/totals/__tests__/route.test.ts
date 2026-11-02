@@ -16,7 +16,7 @@ const role = (over: Partial<RoleRecord>): RoleRecord => ({
   label: "Supervisor — Moulding",
   title: "",
   initial: "S",
-  homeHref: "/data-entry",
+  homeHref: "/log/entry",
   navAllow: ["dashboard", "data-entry"],
   capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
   grants: [],

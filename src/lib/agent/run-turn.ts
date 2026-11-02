@@ -871,8 +871,8 @@ export function turnAfterIngestSuccess(draft: import("./types").EntryDraft): Tur
         `• Checked **${s.checked}** · Accepted **${s.acceptedGood ?? 0}** · Rejected **${s.rejected ?? defectSum(s.defects)}**\n\n` +
         `Dashboard and analysis will include this row.`,
       actions: [
-        { id: "entry", label: "Open Data Entry", kind: "navigate", href: "/data-entry" },
-        { id: "audit", label: "Open Audit Trail", kind: "navigate", href: "/audit" },
+        { id: "entry", label: "Open Data Entry", kind: "navigate", href: "/log/entry" },
+        { id: "audit", label: "Open Audit Trail", kind: "navigate", href: "/reports/audit" },
         { id: "again", label: "Enter another", kind: "chip", chipText: "enter assembly data" },
       ],
       autoTools: [],
@@ -887,7 +887,7 @@ export function turnAfterIngestFailure(message: string, session: AgentSession | 
       text: `Could not save: ${message}\n\nYou can fix the draft and confirm again, or open Data Entry.`,
       actions: [
         { id: "confirm", label: "Retry Confirm", kind: "confirm_ingest" },
-        { id: "entry", label: "Open Data Entry", kind: "navigate", href: "/data-entry" },
+        { id: "entry", label: "Open Data Entry", kind: "navigate", href: "/log/entry" },
         { id: "cancel", label: "Cancel", kind: "cancel", chipText: "cancel" },
       ],
       autoTools: [],

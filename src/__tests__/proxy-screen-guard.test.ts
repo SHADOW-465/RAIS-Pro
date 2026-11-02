@@ -38,7 +38,7 @@ const SUP = { role: "supervisor.moulding", nav: ["dashboard", "data-entry", "hol
 
 describe("unchanged behaviour", () => {
   test("no session still redirects a page to /login", async () => {
-    const res = await proxy(await req("/spc"));
+    const res = await proxy(await req("/quality/spc"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/login");
   });
@@ -50,7 +50,7 @@ describe("unchanged behaviour", () => {
 
 describe("a screen the role does not have", () => {
   test("redirects to the dashboard, flagged so the app can say why", async () => {
-    const res = await proxy(await req("/settings", SUP));
+    const res = await proxy(await req("/setup/settings", SUP));
     expect(res.status).toBe(307);
     const to = new URL(res.headers.get("location") as string);
     expect(to.pathname).toBe("/");
@@ -58,18 +58,18 @@ describe("a screen the role does not have", () => {
   });
 
   test("covers sub-routes, so /settings/rules is not a way in", async () => {
-    const res = await proxy(await req("/settings/rules", SUP));
+    const res = await proxy(await req("/setup/settings/rules", SUP));
     expect(new URL(res.headers.get("location") as string).pathname).toBe("/");
   });
 
   // Redirecting to a screen they also lack would bounce forever.
   test("falls back to a screen they DO have when the dashboard is denied", async () => {
-    const res = await proxy(await req("/settings", { role: "r", nav: ["data-entry"] }));
-    expect(new URL(res.headers.get("location") as string).pathname).toBe("/data-entry");
+    const res = await proxy(await req("/setup/settings", { role: "r", nav: ["data-entry"] }));
+    expect(new URL(res.headers.get("location") as string).pathname).toBe("/log/entry");
   });
 
   test("lets a screen they do have straight through", async () => {
-    const res = await proxy(await req("/hold", SUP));
+    const res = await proxy(await req("/lots/hold", SUP));
     expect(res.status).toBe(200);
     expect(res.headers.get("x-moid-role")).toBe("supervisor.moulding");
   });
@@ -77,22 +77,22 @@ describe("a screen the role does not have", () => {
 
 describe("every uncertainty fails open", () => {
   test("no nav cookie at all", async () => {
-    expect((await proxy(await req("/settings", { role: SUP.role }))).status).toBe(200);
+    expect((await proxy(await req("/setup/settings", { role: SUP.role }))).status).toBe(200);
   });
 
   test("an unreadable or tampered nav cookie", async () => {
-    expect((await proxy(await req("/settings", { role: SUP.role, navToken: "junk" }))).status).toBe(200);
+    expect((await proxy(await req("/setup/settings", { role: SUP.role, navToken: "junk" }))).status).toBe(200);
   });
 
   test("an expired nav cookie", async () => {
-    const res = await proxy(await req("/settings", { ...SUP, ttl: -1 }));
+    const res = await proxy(await req("/setup/settings", { ...SUP, ttl: -1 }));
     expect(res.status).toBe(200);
   });
 
   // The GM widened this role a moment ago; the cookie is one page load stale.
   // Honouring it would bounce someone away from a screen they now have.
   test("a nav cookie issued for a different role than the session names", async () => {
-    const res = await proxy(await req("/settings", { role: SUP.role, navRole: "operator", nav: ["dashboard"] }));
+    const res = await proxy(await req("/setup/settings", { role: SUP.role, navRole: "operator", nav: ["dashboard"] }));
     expect(res.status).toBe(200);
   });
 

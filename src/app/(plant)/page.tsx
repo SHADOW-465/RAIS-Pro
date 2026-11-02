@@ -651,7 +651,7 @@ export default function Dashboard() {
             and the <strong>Rejection Analysis</strong> book (covers Final inspection). Or key figures in manually via <strong>Data Entry</strong>.
           </div>
           <button
-            onClick={() => router.push("/staging")}
+            onClick={() => router.push("/excel/import")}
             style={{
               fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 13, cursor: "pointer",
               color: "var(--on-accent)", background: "var(--accent)", border: "none",
@@ -812,7 +812,7 @@ export default function Dashboard() {
                     </div>
                     <div style={{ marginTop: "var(--space-2)", display: "flex" }}>
                       <a
-                        href="/stage-analysis"
+                        href="/quality/stage"
                         onClick={(e) => {
                           e.stopPropagation();
                         }}
@@ -898,7 +898,7 @@ export default function Dashboard() {
                     </div>
                     <div style={{ marginTop: "var(--space-2)", display: "flex" }}>
                       <a
-                        href="/defect-analysis"
+                        href="/quality/defect"
                         onClick={(e) => {
                           e.stopPropagation();
                         }}
@@ -1007,7 +1007,7 @@ export default function Dashboard() {
                   <AuditVerificationTable summary={m.audit} integrity={{ state: m.status.state, critical: m.status.integrityIssues.filter((i) => i.severity === "critical").length, open: m.status.integrityIssues.length }} />
                   <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
                     <button
-                      onClick={(e) => { e.stopPropagation(); router.push("/audit"); }}
+                      onClick={(e) => { e.stopPropagation(); router.push("/reports/audit"); }}
                       style={{
                         background: "var(--surface-2)",
                         border: "1px solid var(--border-strong)",
@@ -1042,7 +1042,7 @@ export default function Dashboard() {
                       targetRej={targetRej}
                       onGateClick={(row) => {
                         // Mid-path entry: Stage Analysis with gate + period carried (EX-1 / F7).
-                        goInvestigation(router.push.bind(router), "/stage-analysis", {
+                        goInvestigation(router.push.bind(router), "/quality/stage", {
                           ...m.investigationBase,
                           stage: row.stageId,
                           metric: "stage",
@@ -1385,7 +1385,7 @@ function AttentionRail({ m, targetRej, base, onGo }: {
     items.push({
       label: "Worst gate",
       text: `${worstStage.label} holds ${formatPercent(worstStage.contributionPct, 0) ?? "—"} of all rejections (${pct(worstStage.rejRate)} rate${Number.isFinite(worstStage.rejRate) && worstStage.rejRate > targetRej ? ", over target" : ""}).`,
-      path: "/stage-analysis",
+      path: "/quality/stage",
       state: {
         ...base,
         stage: worstStage.stageId,
@@ -1398,7 +1398,7 @@ function AttentionRail({ m, targetRej, base, onGo }: {
     items.push({
       label: "Top defect",
       text: `${topDefect.label} accounts for ${formatPercent(topDefect.pct, 0) ?? "—"} of rejections (${num(topDefect.rejected)} units).`,
-      path: "/defect-analysis",
+      path: "/quality/defect",
       state: {
         ...base,
         metric: "defect",
@@ -1410,7 +1410,7 @@ function AttentionRail({ m, targetRej, base, onGo }: {
     items.push({
       label: "Worst size",
       text: `Size ${m.worstSize.size} rejects at ${pct(m.worstSize.rejRate)} — the highest of any size.`,
-      path: "/size-analysis",
+      path: "/quality/size",
       state: {
         ...base,
         size: m.worstSize.size,

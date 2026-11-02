@@ -16,13 +16,13 @@ describe("resolveGuide", () => {
     const r = resolveGuide("How do I enter today's data?", ctx());
     expect(r.mode).toMatch(/howto|workflow/);
     expect(r.steps?.length).toBeGreaterThan(2);
-    expect(r.actions.some((a) => a.href === "/data-entry")).toBe(true);
+    expect(r.actions.some((a) => a.href === "/log/entry")).toBe(true);
   });
 
   it("navigates to defect analysis on open request", () => {
     const r = resolveGuide("Open defect analysis", ctx());
     expect(r.mode).toBe("navigate");
-    expect(r.actions[0]?.href).toBe("/defect-analysis");
+    expect(r.actions[0]?.href).toBe("/quality/defect");
     expect(r.actions[0]?.auto).toBe(true);
   });
 
@@ -39,7 +39,7 @@ describe("resolveGuide", () => {
   it("explains plant schema on where-is", () => {
     const r = resolveGuide("Where is the plant schema?", ctx());
     expect(r.mode).toBe("howto");
-    expect(r.actions[0]?.href).toBe("/schema");
+    expect(r.actions[0]?.href).toBe("/setup/schema");
   });
 
   it("returns first-setup workflow for get started", () => {

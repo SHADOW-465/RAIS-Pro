@@ -18,14 +18,14 @@ function n(over: Partial<PlantNotification> & { payload?: PlantNotification["pay
 }
 
 test("pageFromPath maps data-entry and hold", () => {
-  expect(pageFromPath("/data-entry")).toBe("data-entry");
-  expect(pageFromPath("/hold")).toBe("hold");
+  expect(pageFromPath("/log/entry")).toBe("data-entry");
+  expect(pageFromPath("/lots/hold")).toBe("hold");
   expect(pageFromPath("/")).toBe("dashboard");
 });
 
 test("a Visual exception sits on Data Entry · Assembly · Visual", () => {
   const place = classifyAlert(
-    n({ payload: { stageId: "visual", path: "/data-entry", reason: "x", date: "2026-08-15" } }),
+    n({ payload: { stageId: "visual", path: "/log/entry", reason: "x", date: "2026-08-15" } }),
   );
   expect(place.page).toBe("data-entry");
   expect(place.process).toBe("assembly");
@@ -34,7 +34,7 @@ test("a Visual exception sits on Data Entry · Assembly · Visual", () => {
 });
 
 test("production-dipping alias is primary / Dipping", () => {
-  const place = classifyAlert(n({ payload: { stageId: "production-dipping", path: "/data-entry" } }));
+  const place = classifyAlert(n({ payload: { stageId: "production-dipping", path: "/log/entry" } }));
   expect(place.process).toBe("primary");
   expect(place.stageId).toBe("production");
 });

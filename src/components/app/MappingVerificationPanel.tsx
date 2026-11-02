@@ -315,7 +315,7 @@ export default function MappingVerificationPanel({
             <p className="small" style={{ margin: "0 0 10px", color: "var(--text-2)", lineHeight: 1.45 }}>
               These were found in the Excel but are not on your master catalog yet.
               Tick to <strong>add them to Plant Schema</strong> (they show on{" "}
-              <a href="/schema" style={{ color: "var(--accent)", fontWeight: 600 }}>
+              <a href="/setup/schema" style={{ color: "var(--accent)", fontWeight: 600 }}>
                 Plant Schema
               </a>{" "}
               immediately after confirm). Leave unticked to load numbers without changing the master schema.

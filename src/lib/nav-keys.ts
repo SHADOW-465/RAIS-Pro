@@ -64,31 +64,31 @@ export interface NavRoute {
 
 export const NAV_ROUTES: Record<NavKey, NavRoute> = {
   dashboard: { label: "Dashboard", href: "/", keywords: "home status factory overview", section: "overview" },
-  "data-entry": { label: "Data Entry", href: "/data-entry", keywords: "batch matrix log capture", section: "data" },
+  "data-entry": { label: "Data Entry", href: "/log/entry", keywords: "batch matrix log capture", section: "data" },
   "batch-conversion": {
     label: "Batch Conversion",
-    href: "/batch-conversion",
+    href: "/log/conversion",
     keywords: "lineage size conversion convert lot french fr identity",
     section: "data",
   },
-  staging: { label: "Import from Excel", href: "/staging", keywords: "excel upload import", section: "data" },
-  workbooks: { label: "Excel Data", href: "/workbooks", keywords: "mod ontology files", section: "data" },
-  stage: { label: "By Stage", href: "/stage-analysis", keywords: "gate visual balloon valve", section: "analysis" },
-  size: { label: "By Size", href: "/size-analysis", keywords: "fr french size", section: "analysis" },
-  defect: { label: "By Defect", href: "/defect-analysis", keywords: "pareto reason", section: "analysis" },
-  hold: { label: "Hold Quantity", href: "/hold", keywords: "hold rework visual lot stage", section: "analysis" },
-  "open-lots": { label: "Open Lots", href: "/open-lots", keywords: "wip stalled waiting batch open complete", section: "analysis" },
-  spc: { label: "SPC & Control Charts", href: "/spc", keywords: "control chart xbar", section: "analysis" },
-  "process-flow": { label: "Process Flow", href: "/process-flow", keywords: "fpy flow", section: "analysis" },
-  copq: { label: "Cost of Rejection", href: "/copq", keywords: "cost rupee money", section: "analysis" },
+  staging: { label: "Import from Excel", href: "/excel/import", keywords: "excel upload import", section: "data" },
+  workbooks: { label: "Excel Data", href: "/excel/files", keywords: "mod ontology files", section: "data" },
+  stage: { label: "By Stage", href: "/quality/stage", keywords: "gate visual balloon valve", section: "analysis" },
+  size: { label: "By Size", href: "/quality/size", keywords: "fr french size", section: "analysis" },
+  defect: { label: "By Defect", href: "/quality/defect", keywords: "pareto reason", section: "analysis" },
+  hold: { label: "Hold Quantity", href: "/lots/hold", keywords: "hold rework visual lot stage", section: "analysis" },
+  "open-lots": { label: "Open Lots", href: "/lots/open", keywords: "wip stalled waiting batch open complete", section: "analysis" },
+  spc: { label: "SPC & Control Charts", href: "/quality/spc", keywords: "control chart xbar", section: "analysis" },
+  "process-flow": { label: "Process Flow", href: "/quality/flow", keywords: "fpy flow", section: "analysis" },
+  copq: { label: "Cost of Rejection", href: "/cost", keywords: "cost rupee money", section: "analysis" },
   reports: { label: "Reports", href: "/reports", keywords: "print monthly pack", section: "management" },
-  capa: { label: "CAPA & Actions", href: "/capa", keywords: "action owner", section: "management" },
-  remedies: { label: "Defect Remedies", href: "/remedies", keywords: "remedy description primary secondary tertiary spike dip", section: "management" },
-  alerts: { label: "Alerts", href: "/alerts", keywords: "notification history timeline exception", section: "management" },
+  capa: { label: "CAPA & Actions", href: "/actions/capa", keywords: "action owner", section: "management" },
+  remedies: { label: "Defect Remedies", href: "/actions/remedies", keywords: "remedy description primary secondary tertiary spike dip", section: "management" },
+  alerts: { label: "Alerts", href: "/actions/alerts", keywords: "notification history timeline exception", section: "management" },
   ask: { label: "Ask MOID", href: null, keywords: "assistant copilot chat", section: "management" },
-  audit: { label: "Audit Trail", href: "/audit", keywords: "provenance trust", section: "management" },
-  schema: { label: "Plant Schema", href: "/schema", keywords: "registry stages defects", section: "management" },
-  settings: { label: "Settings", href: "/settings", keywords: "target cost theme", section: "management" },
+  audit: { label: "Audit Trail", href: "/reports/audit", keywords: "provenance trust", section: "management" },
+  schema: { label: "Plant Schema", href: "/setup/schema", keywords: "registry stages defects", section: "management" },
+  settings: { label: "Settings", href: "/setup/settings", keywords: "target cost theme", section: "management" },
 };
 
 /** Destinations that are actually routes — everything Jump can navigate to. */
@@ -126,4 +126,94 @@ export function navKeyForPath(pathname: string): NavKey | null {
     }
   }
   return best;
+}
+
+/**
+ * The sidebar: nine destinations, each owning one or more of the screens
+ * above as tabs. NavKey stays the unit of ACCESS (roles, nav cookie, proxy), so
+ * a role that may open By Stage but not SPC still gets a Quality destination
+ * with only the tabs it has. Destinations are chrome only.
+ */
+export interface NavDestination {
+  id: string;
+  label: string;
+  /** Sidebar group, same ids as NAV_SECTIONS. */
+  group: NavSectionId;
+  /** Screens that live under it, in tab order. */
+  keys: readonly NavKey[];
+}
+
+export const NAV_DESTINATIONS: readonly NavDestination[] = [
+  { id: "home", label: "Home", group: "overview", keys: ["dashboard"] },
+  { id: "log", label: "Log", group: "data", keys: ["data-entry", "batch-conversion"] },
+  { id: "excel", label: "Excel files", group: "data", keys: ["staging", "workbooks"] },
+  { id: "quality", label: "Quality", group: "analysis", keys: ["stage", "process-flow", "size", "defect", "spc"] },
+  { id: "lots", label: "Lots", group: "analysis", keys: ["open-lots", "hold"] },
+  { id: "cost", label: "Cost", group: "analysis", keys: ["copq"] },
+  { id: "actions", label: "Actions", group: "management", keys: ["capa", "remedies", "alerts"] },
+  { id: "reports", label: "Reports", group: "management", keys: ["reports", "audit"] },
+  { id: "setup", label: "Plant setup", group: "management", keys: ["schema", "settings"] },
+];
+
+/** Tab label for a screen inside its destination. */
+export const NAV_TAB_LABELS: Partial<Record<NavKey, string>> = {
+  "data-entry": "Data entry",
+  "batch-conversion": "Batch conversion",
+  staging: "Import",
+  workbooks: "Files",
+  stage: "Stages",
+  "process-flow": "Flow",
+  size: "Sizes",
+  defect: "Defects",
+  spc: "SPC",
+  "open-lots": "Open lots",
+  hold: "Hold",
+  capa: "CAPA",
+  remedies: "Remedies",
+  alerts: "Alerts history",
+  reports: "Reports",
+  audit: "Audit trail",
+  schema: "Plant schema",
+  settings: "Settings",
+};
+
+/** The destination a screen belongs to (null for panel-only keys like Ask). */
+export function destinationForKey(key: NavKey): NavDestination | null {
+  return NAV_DESTINATIONS.find((d) => d.keys.includes(key)) ?? null;
+}
+
+/**
+ * Old (pre-regroup) URL to its new home. next.config.ts turns this into
+ * redirects so bookmarks, stored notification links and role homeHrefs keep
+ * working. Query strings are carried across by Next.
+ */
+export const LEGACY_ROUTES: Record<string, string> = {
+  "/data-entry": "/log/entry",
+  "/batch-conversion": "/log/conversion",
+  "/staging": "/excel/import",
+  "/workbooks": "/excel/files",
+  "/stage-analysis": "/quality/stage",
+  "/size-analysis": "/quality/size",
+  "/defect-analysis": "/quality/defect",
+  "/spc": "/quality/spc",
+  "/process-flow": "/quality/flow",
+  "/open-lots": "/lots/open",
+  "/hold": "/lots/hold",
+  "/copq": "/cost",
+  "/capa": "/actions/capa",
+  "/remedies": "/actions/remedies",
+  "/alerts": "/actions/alerts",
+  "/audit": "/reports/audit",
+  "/schema": "/setup/schema",
+  "/settings": "/setup/settings",
+};
+
+/** Rewrite a pre-regroup path (stored links, old agent hrefs) to its current URL; anything else is returned unchanged. */
+export function modernPath(path: string): string {
+  for (const [from, to] of Object.entries(LEGACY_ROUTES)) {
+    if (path === from || /^[/?#]/.test(path.slice(from.length)) && path.startsWith(from)) {
+      return to + path.slice(from.length);
+    }
+  }
+  return path;
 }

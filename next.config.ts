@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import type { NextConfig } from "next";
+import { LEGACY_ROUTES } from "./src/lib/nav-keys";
 
 // One id per build, shared by Next's own build id and the client bundle
 // (NEXT_PUBLIC_BUILD_ID), so an open tab can ask /api/version whether it is
@@ -30,6 +31,15 @@ const nextConfig: NextConfig = {
   // Tree-shake large packages that ship multi-entry barrels (faster cold parse).
   experimental: {
     optimizePackageImports: ["zod", "ai"],
+  },
+  // Pre-regroup URLs (21 screens) forward to their new tab. Temporary (307) so
+  // a later tab rename never gets stuck in a browser cache. Sub-paths follow
+  // (/settings/rules); query strings are carried by Next.
+  async redirects() {
+    return Object.entries(LEGACY_ROUTES).flatMap(([from, to]) => [
+      { source: from, destination: to, permanent: false },
+      { source: `${from}/:path+`, destination: `${to}/:path+`, permanent: false },
+    ]);
   },
   // Compress responses when not behind a CDN that already does gzip.
   compress: true,

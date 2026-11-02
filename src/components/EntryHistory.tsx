@@ -593,7 +593,7 @@ export default function EntryHistory({
             {canEraseLedger ? (
               <>
                 Erasing a saved row lives in the{" "}
-                <a href="/audit" style={{ color: "var(--accent)", fontWeight: 600 }}>
+                <a href="/reports/audit" style={{ color: "var(--accent)", fontWeight: 600 }}>
                   Audit trail
                 </a>
                 , where the full provenance is visible.
@@ -1474,7 +1474,7 @@ function HistoryBatch({
 
           <p className="muted" style={{ margin: 0, fontSize: "var(--text-xs)" }}>
             <a
-              href={`/audit?batch=${encodeURIComponent(g.batch)}`}
+              href={`/reports/audit?batch=${encodeURIComponent(g.batch)}`}
               style={{ color: "var(--accent)", fontWeight: 600 }}
             >
               Open in Audit trail

@@ -237,7 +237,7 @@ export default function CapaComposerModal({
                     Tracked in CAPA &amp; Action Items. Close this window or open the register to edit it.
                   </div>
                 </div>
-                <a href="/capa" style={openRegisterBtn}>Open register →</a>
+                <a href="/actions/capa" style={openRegisterBtn}>Open register →</a>
               </div>
             ) : (
               <>

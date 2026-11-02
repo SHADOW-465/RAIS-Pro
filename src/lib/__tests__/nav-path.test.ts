@@ -17,18 +17,18 @@ describe("navKeyForPath", () => {
 
   test("the dashboard is matched exactly, not as a prefix of everything", () => {
     expect(navKeyForPath("/")).toBe("dashboard");
-    expect(navKeyForPath("/spc")).toBe("spc");
+    expect(navKeyForPath("/quality/spc")).toBe("spc");
   });
 
   // Settings has real sub-routes; resolving one to null would let a role
   // without Settings walk straight into /settings/rules.
   test("a sub-route resolves to its parent screen", () => {
-    expect(navKeyForPath("/settings/rules")).toBe("settings");
-    expect(navKeyForPath("/data-entry/anything/deeper")).toBe("data-entry");
+    expect(navKeyForPath("/setup/settings/rules")).toBe("settings");
+    expect(navKeyForPath("/log/entry/anything/deeper")).toBe("data-entry");
   });
 
   test("a trailing slash changes nothing", () => {
-    expect(navKeyForPath("/settings/")).toBe("settings");
+    expect(navKeyForPath("/setup/settings/")).toBe("settings");
   });
 
   test("non-screens resolve to null", () => {
@@ -37,7 +37,7 @@ describe("navKeyForPath", () => {
     }
   });
 
-  // "/hold" must not swallow "/holdings"; prefix matching is on path segments.
+  // "/lots/hold" must not swallow "/holdings"; prefix matching is on path segments.
   test("a longer path that merely starts with a screen's name is not that screen", () => {
     expect(navKeyForPath("/holdings")).toBeNull();
   });

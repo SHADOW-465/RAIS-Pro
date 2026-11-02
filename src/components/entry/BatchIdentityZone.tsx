@@ -647,7 +647,7 @@ export default function BatchIdentityZone({
           <div style={{ marginTop: "auto", paddingTop: 8 }}>
             <a
               href={(() => {
-                if (!batchId) return "/batch-conversion";
+                if (!batchId) return "/log/conversion";
                 const p = new URLSearchParams();
                 p.set("fromBatch", batchId);
                 p.set("date", date);
@@ -656,7 +656,7 @@ export default function BatchIdentityZone({
                 if (accepted != null && accepted > 0) p.set("accepted", String(accepted));
                 if (hold != null && hold > 0) p.set("hold", String(hold));
                 if (reject != null && reject > 0) p.set("reject", String(reject));
-                return `/batch-conversion?${p.toString()}`;
+                return `/log/conversion?${p.toString()}`;
               })()}
               title={
                 batchId

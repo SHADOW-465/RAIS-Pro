@@ -479,7 +479,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                       const code = resolveRemedyKey(it.label);
                       return (
                         <a
-                          href={`/remedies?code=${encodeURIComponent(code)}`}
+                          href={`/actions/remedies?code=${encodeURIComponent(code)}`}
                           onClick={(e) => e.stopPropagation()}
                           style={{
                             fontSize: 11,

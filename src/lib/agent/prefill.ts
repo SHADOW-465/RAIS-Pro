@@ -83,7 +83,7 @@ export function prefillDataEntryHref(draft: EntryDraft): string {
   if (s.size) q.set("size", s.size);
   if (s.macro) q.set("macro", s.macro);
   if (s.stageId) q.set("stage", s.stageId);
-  return `/data-entry?${q.toString()}`;
+  return `/log/entry?${q.toString()}`;
 }
 
 /** Shareable investigation URL for current origin + path + scope. */

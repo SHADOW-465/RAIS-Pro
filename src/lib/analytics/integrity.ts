@@ -73,7 +73,7 @@ export function integrityAuditHref(issue: IntegrityIssue): string {
   }
   if (issue.stated != null && Number.isFinite(issue.stated)) q.set("stated", String(issue.stated));
   if (issue.computed != null && Number.isFinite(issue.computed)) q.set("computed", String(issue.computed));
-  return `/audit?${q.toString()}`;
+  return `/reports/audit?${q.toString()}`;
 }
 
 /**
@@ -81,12 +81,12 @@ export function integrityAuditHref(issue: IntegrityIssue): string {
  * Operators fix numbers here after seeing the mismatch on Audit.
  */
 export function integrityFixHref(issue: IntegrityIssue): string | null {
-  if (!issue.batch && !issue.date) return "/data-entry";
+  if (!issue.batch && !issue.date) return "/log/entry";
   const q = new URLSearchParams();
   if (issue.batch) q.set("batch", issue.batch);
   if (issue.date) q.set("date", issue.date);
   if (issue.stageId) q.set("stage", issue.stageId);
-  return `/data-entry?${q.toString()}`;
+  return `/log/entry?${q.toString()}`;
 }
 
 /** Parse focus params from an Audit / Schema deep link. */

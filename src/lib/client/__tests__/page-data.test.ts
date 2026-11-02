@@ -8,7 +8,7 @@ const LAST_90: LedgerDateTweaks = { datePreset: "last-90-days", dateFrom: "", da
 describe("which URL mounts a ledger fetch", () => {
   test("login is not a screen, and nested settings still is", () => {
     expect(navKeyForPath("/login")).toBeNull();
-    expect(navKeyForPath("/settings/rules")).toBe("settings");
+    expect(navKeyForPath("/setup/settings/rules")).toBe("settings");
     expect(routeReadsLedger("settings")).toBe(true);
   });
 });

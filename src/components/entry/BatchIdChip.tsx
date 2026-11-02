@@ -104,7 +104,7 @@ export default function BatchIdChip({
     [displayText],
   );
 
-  const dataEntryHref = `/data-entry?batch=${encodeURIComponent(batchId)}`;
+  const dataEntryHref = `/log/entry?batch=${encodeURIComponent(batchId)}`;
 
   const handleOpenEntry = useCallback(
     (e: React.MouseEvent | React.KeyboardEvent) => {
@@ -117,7 +117,7 @@ export default function BatchIdChip({
 
   const resolvedConversionHref =
     conversionHref ??
-    (ctParts ? `/batch-conversion?batch=${encodeURIComponent(ctParts.mainCode)}` : null);
+    (ctParts ? `/log/conversion?batch=${encodeURIComponent(ctParts.mainCode)}` : null);
 
   const handleOpenConversion = useCallback(
     (e: React.MouseEvent | React.KeyboardEvent) => {

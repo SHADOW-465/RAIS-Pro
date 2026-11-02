@@ -166,7 +166,7 @@ describe("integrity deep-link focus", () => {
 
   it("builds audit href with coordinates", () => {
     const href = integrityAuditHref(sample);
-    expect(href.startsWith("/audit?")).toBe(true);
+    expect(href.startsWith("/reports/audit?")).toBe(true);
     const q = new URLSearchParams(href.split("?")[1]);
     expect(q.get("view")).toBe("batch");
     expect(q.get("range")).toBe("all");
@@ -178,7 +178,7 @@ describe("integrity deep-link focus", () => {
   });
 
   it("builds data-entry fix href with batch", () => {
-    expect(integrityFixHref(sample)).toBe("/data-entry?batch=25A28&date=2026-07-01&stage=visual");
+    expect(integrityFixHref(sample)).toBe("/log/entry?batch=25A28&date=2026-07-01&stage=visual");
   });
 
   it("round-trips parseIntegrityFocus", () => {
@@ -393,14 +393,14 @@ describe("investigation state", () => {
   });
 
   it("builds mid-path href with carried scope", () => {
-    const href = investigationHref("/stage-analysis", {
+    const href = investigationHref("/quality/stage", {
       grain: "month",
       from: "2026-07-01",
       to: "2026-07-31",
       stage: "visual",
       metric: "stage",
     });
-    expect(href).toContain("/stage-analysis?");
+    expect(href).toContain("/quality/stage?");
     expect(href).toContain("grain=month");
     expect(href).toContain("stage=visual");
     expect(href).toContain("from=2026-07-01");

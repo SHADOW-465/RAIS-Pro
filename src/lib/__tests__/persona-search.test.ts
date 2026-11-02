@@ -128,8 +128,8 @@ describe("persona nav filter", () => {
   it("every role lands on a page that role can see", () => {
     const HOME_NAV: Record<string, string> = {
       "/": "dashboard",
-      "/data-entry": "data-entry",
-      "/staging": "staging",
+      "/log/entry": "data-entry",
+      "/excel/import": "staging",
     };
     for (const id of PERSONA_ORDER) {
       const home = PERSONAS[id].homeHref;
@@ -140,7 +140,7 @@ describe("persona nav filter", () => {
   });
 
   it("the operator lands on Data Entry, the GM on the dashboard", () => {
-    expect(PERSONAS.operator.homeHref).toBe("/data-entry");
+    expect(PERSONAS.operator.homeHref).toBe("/log/entry");
     expect(PERSONAS.gm.homeHref).toBe("/");
     expect(PERSONAS.owner.homeHref).toBe("/");
   });

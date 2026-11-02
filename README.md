@@ -10,7 +10,7 @@ Repo name is `RAIS-Pro` for historical reasons; the product is **MOID**
 
 ## What it does
 
-1. **Import** a workbook at `/staging`. It is snapshotted losslessly, profiled,
+1. **Import** a workbook at `/excel/import`. It is snapshotted losslessly, profiled,
    and its columns are resolved to canonical roles (stage / date / checked /
    rejected / defect / size).
 2. **Verify** the mapping. A human confirms or overrides each column, then
@@ -20,7 +20,7 @@ Repo name is `RAIS-Pro` for historical reasons; the product is **MOID**
    recomputed from scratch (the sheet's own formulas are never trusted), flagged
    where they don't balance, corrected by the operator, and appended to the
    event ledger.
-4. **Enter ongoing data** at `/data-entry`, on a grid generated from that same
+4. **Enter ongoing data** at `/log/entry`, on a grid generated from that same
    schema — the plant's own defect names, in the sheet's own order.
 5. **Read** — dashboard, stage / size / defect analysis, SPC, COPQ, process
    flow, reports, CAPA, and a full audit trail, all derived deterministically
@@ -60,13 +60,16 @@ src/
 │  ├─ layout.tsx           Root — fonts, TweaksProvider, EventsProvider, RegistryProvider
 │  ├─ page.tsx             Dashboard (factory overview, KPIs, trends)
 │  ├─ globals.css          Design tokens, data-attr theme modes
-│  ├─ staging/             Import → verify mappings → review → publish
-│  ├─ workbooks/           Uploaded files, their MOD lineage, per-file stats
-│  ├─ schema/              Data Schema — the master plant catalog + learned mappings
-│  ├─ data-entry/          Batch matrix + period grid + entry ledger
-│  ├─ stage-analysis/  size-analysis/  defect-analysis/  spc/  copq/  process-flow/
-│  ├─ reports/  capa/  audit/  chat/  settings/
+│  ├─ log/                 entry/ (batch matrix + period grid + ledger), conversion/
+│  ├─ excel/               import/ (verify mappings → review → publish), files/ (uploads, MOD lineage)
+│  ├─ quality/             stage/  flow/  size/  defect/  spc/
+│  ├─ lots/                open/  hold/
+│  ├─ cost/                Cost of rejection
+│  ├─ actions/             capa/  remedies/  alerts/
+│  ├─ reports/             reports + audit/ (audit trail)
+│  ├─ setup/               schema/ (master plant catalog)  settings/ (GM only)
 │  └─ api/                 see route table below
+│  (the 21 pre-regroup URLs, e.g. /stage-analysis, redirect via LEGACY_ROUTES in lib/nav-keys.ts)
 ├─ components/
 │  ├─ app/                 AppShell (nav + scope), widgets (charts/KPIs), CommandPalette,
 │  │                       EventsContext, RegistryContext, MappingVerificationPanel

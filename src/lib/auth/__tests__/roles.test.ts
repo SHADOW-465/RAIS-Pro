@@ -25,7 +25,7 @@ const SUPERVISOR: RoleRecord = {
   label: "Supervisor — Moulding",
   title: "Line oversight",
   initial: "S",
-  homeHref: "/data-entry",
+  homeHref: "/log/entry",
   navAllow: ["dashboard", "data-entry", "hold", "open-lots", "defect"],
   capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
   grants: ["screen.dashboard", "screen.data-entry", "permission.write"],

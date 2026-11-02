@@ -133,7 +133,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
     initial: "D",
     // Lands where the work is. A GM opens the plant's state; an operator opens
     // the form they are about to fill.
-    homeHref: "/data-entry",
+    homeHref: "/log/entry",
     // Hide under Management: Data Schema, Settings.
     navAllow: [
       "data-entry",

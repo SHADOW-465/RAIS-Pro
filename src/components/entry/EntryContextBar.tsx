@@ -206,7 +206,7 @@ export default function EntryContextBar({
           </div>
 
           <a
-            href="/schema"
+            href="/setup/schema"
             style={{
               display: "inline-flex",
               alignItems: "center",

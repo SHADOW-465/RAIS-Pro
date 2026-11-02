@@ -115,7 +115,7 @@ export function investigationKey(state: InvestigationState): string {
 }
 
 /**
- * Build a mid-path URL: `/stage-analysis?grain=month&stage=visual&from=…`
+ * Build a mid-path URL: `/quality/stage?grain=month&stage=visual&from=…`
  * Path should start with `/`. Empty optional fields are omitted.
  */
 export function investigationHref(
@@ -170,7 +170,7 @@ export function listInvestigationRecents(): InvestigationRecent[] {
 
 /**
  * Navigate with carried investigation scope and record a recent.
- * Prefer this over bare `router.push("/stage-analysis")`.
+ * Prefer this over bare `router.push("/quality/stage")`.
  */
 export function goInvestigation(
   push: (href: string) => void,

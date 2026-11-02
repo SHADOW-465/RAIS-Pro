@@ -1,7 +1,7 @@
 // Place an alert on the plant: which page, which process, which station.
 // Grouping and the timeline are derived here so the Alerts page never invents them.
 
-import { NAV_ROUTES, type NavKey } from "@/lib/nav-keys";
+import { NAV_ROUTES, modernPath, type NavKey } from "@/lib/nav-keys";
 import {
   STAGE_CATEGORIES,
   STAGE_LABELS,
@@ -31,7 +31,7 @@ function str(v: unknown): string | null {
 }
 
 export function pageFromPath(path: string | null | undefined): NavKey {
-  const p = (path ?? "").trim();
+  const p = modernPath((path ?? "").trim());
   if (!p || p === "/") return p === "/" ? "dashboard" : "data-entry";
   let best: NavKey | null = null;
   let bestLen = 0;
