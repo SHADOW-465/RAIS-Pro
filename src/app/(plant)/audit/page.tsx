@@ -17,6 +17,7 @@ import {
 import { useEvents } from "@/components/app/EventsContext";
 import { useLineage } from "@/components/app/LineageContext";
 import { useTweaks } from "@/components/editorial/TweaksContext";
+import { useScopedRange } from "@/lib/client/use-scoped-range";
 import DatePicker from "@/components/ui/DatePicker";
 import { useConfirm } from "@/components/ui/ConfirmContext";
 import AppShell from "@/components/app/AppShell";
@@ -288,8 +289,7 @@ export default function AuditPage() {
   const { canEraseLedger } = usePersona();
 
   const [viewMode, setViewMode] = useState<ViewMode>("batch");
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
+  const { from: dateFrom, to: dateTo, setFrom: setDateFrom, setTo: setDateTo } = useScopedRange();
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");

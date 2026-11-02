@@ -10,7 +10,7 @@ import { useRegistry } from "@/components/app/RegistryContext";
 import { useEvents } from "@/components/app/EventsContext";
 import { prefetchNav, routeReadsLedger } from "@/lib/client/page-data";
 import { useConfirm } from "@/components/ui/ConfirmContext";
-import DatePicker from "@/components/ui/DatePicker";
+import ScopeChip from "@/components/app/ScopeChip";
 import {
   rejectionRate,
   stagesFor,
@@ -26,7 +26,7 @@ import {
   type InvestigationState,
 } from "@/lib/analytics";
 import type { DashboardConfig } from "@/types/dashboard";
-import { resolveScope, DEFAULT_STAGE_CATEGORIES, stageCategoryOf, dateBounds, presetDateWindow } from "@/lib/analytics/scope";
+import { resolveScope, DEFAULT_STAGE_CATEGORIES, stageCategoryOf } from "@/lib/analytics/scope";
 import { trustScore as computeTrustScore } from "@/lib/analytics/trust";
 import { qualityStatus } from "@/lib/analytics/status";
 
@@ -159,8 +159,6 @@ const NAV_SECTIONS: NavSection[] = [
       nav("capa", "check"),
       nav("remedies", "spark"),
       nav("alerts", "alert"),
-      // No href: Ask MOID is the side panel, not a route.
-      nav("ask", "comment", { aiBadge: true }),
       nav("audit", "search"),
       nav("schema", "split"),
       nav("settings", "external"),
@@ -203,6 +201,39 @@ const SCOPE_CONTROLS: Partial<Record<NavKey, ("view" | "interval" | "range" | "s
   audit: ["range", "sources"],
 };
 
+const topbarBtn: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  height: 36,
+  padding: "0 12px",
+  borderRadius: "var(--radius-md)",
+  border: "1px solid var(--border-strong)",
+  background: "var(--surface)",
+  color: "var(--text)",
+  fontFamily: "inherit",
+  fontSize: "var(--text-md)",
+  fontWeight: 500,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
+
+const menuRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 8,
+  width: "100%",
+  minHeight: 36,
+  padding: "6px 8px",
+  border: "none",
+  borderRadius: "var(--radius-sm)",
+  background: "transparent",
+  color: "var(--text)",
+  fontFamily: "inherit",
+  cursor: "pointer",
+};
+
 function AppShellView({
   active, trustScore: trustScoreProp, statusCounts, dateRange, children, presetId: _presetId,
   toolbarExtra, wide,
@@ -238,10 +269,6 @@ function AppShellView({
   } = usePersona();
   const { notify } = useConfirm();
   const [mounted, setMounted] = useState(false);
-  const [showPicker, setShowPicker] = useState(false);
-  /** Draft From/To while the Custom range form is open. Live tweaks (and KPIs)
-   *  stay on the previous preset until Apply with both dates. */
-  const [customDraft, setCustomDraft] = useState<{ from: string; to: string } | null>(null);
   const [showPersonaMenu, setShowPersonaMenu] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [banner, setBanner] = useState<NavBanner | null>(null);
@@ -399,7 +426,6 @@ function AppShellView({
   // pill would tween in from its (-1000, 0) placeholder — reading as "always
   // slides in from the top-left" — on every single tab change.
   const [highlightReady, setHighlightReady] = useState(!!lastPos);
-  const [showViewMenu, setShowViewMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
   const [viewStages, setViewStages] = useState<{ id: string; label: string }[]>([]);
@@ -1019,28 +1045,6 @@ function AppShellView({
     }
   }
 
-  useEffect(() => {
-    if (!showPicker) {
-      setCustomDraft(null);
-      return;
-    }
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(".date-picker-container")) {
-        setShowPicker(false);
-      }
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShowPicker(false);
-    };
-    window.addEventListener("click", handleClick);
-    window.addEventListener("keydown", handleKey);
-    return () => {
-      window.removeEventListener("click", handleClick);
-      window.removeEventListener("keydown", handleKey);
-    };
-  }, [showPicker]);
-
   // Load persisted sidebar section collapse state once on mount.
   useEffect(() => {
     const saved = navSectionsCollapsed.get();
@@ -1117,27 +1121,6 @@ function AppShellView({
       return next;
     });
   }
-
-  // Close the View dropdown on outside click / Escape — same pattern as the
-  // Date Range picker above.
-  useEffect(() => {
-    if (!showViewMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(".view-picker-container")) {
-        setShowViewMenu(false);
-      }
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShowViewMenu(false);
-    };
-    window.addEventListener("click", handleClick);
-    window.addEventListener("keydown", handleKey);
-    return () => {
-      window.removeEventListener("click", handleClick);
-      window.removeEventListener("keydown", handleKey);
-    };
-  }, [showViewMenu]);
 
   // If Sources turns off the section that owns the pinned station, drop the pin
   // so the View chip doesn't show a station outside the active sections.
@@ -1520,595 +1503,149 @@ function AppShellView({
 
       </aside>
 
-      {/* Topbar / Masthead */}
-      <header className="app-topbar" style={{ 
-        gridArea: "top", 
-        background: "var(--bg)", 
-        margin: "0 var(--space-4) 0 var(--space-4)", 
+      {/* Topbar: title · one Scope chip · Export, Ask, bell, Jump, user menu */}
+      <header className="app-topbar" style={{
+        gridArea: "top",
+        background: "var(--bg)",
+        margin: "0 var(--space-4)",
         padding: "var(--space-4) 0 0 0",
-        display: "flex", 
-        alignItems: "center", 
-        justifyContent: "space-between", 
-        position: "sticky", 
-        top: 0, 
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-4)",
+        position: "sticky",
+        top: 0,
         zIndex: 50,
         height: "calc(var(--header-h) + var(--space-4))",
         boxSizing: "border-box",
-        transition: "background-color var(--duration-medium, 300ms) var(--ease-out)"
       }}>
-        {/* Scope selectors + Universal Holiday toggle */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-          <div style={{ 
-            display: scopeControls.length > 0 ? "flex" : "none", 
-            alignItems: "center", 
-            gap: 8, 
-            background: "var(--surface)", 
-            border: "1px solid var(--border-strong)", 
-            borderRadius: "30px", 
-            padding: "4px 10px", 
-            boxShadow: "var(--shadow-sm)",
-            height: 38
-          }}>
-          {showView && (
-          <div className="view-picker-container" style={{ display: "flex", alignItems: "center", position: "relative" }}>
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowViewMenu(!showViewMenu);
-                setShowPicker(false);
-                setShowSourcesPanel(false);
-              }}
-              title="View"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 600,
-                borderRadius: "20px",
-                padding: "3px 8px",
-                background: showViewMenu ? "var(--accent-weak)" : "var(--surface-2)",
-                color: showViewMenu ? "var(--accent)" : "var(--text)",
-                cursor: "pointer",
-                maxWidth: 160,
-              }}
-            >
-              <Icon name="table" size={11} style={{ color: "var(--text-3)", flexShrink: 0 }} />
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentView.label}</span>
-              <Icon name="arrow-right" size={9} style={{ transform: "rotate(90deg)", color: "var(--text-3)", flexShrink: 0 }} />
-            </div>
+        <h1 style={{
+          margin: 0,
+          fontSize: "var(--text-lg)",
+          fontWeight: 600,
+          color: "var(--text)",
+          whiteSpace: "nowrap",
+          flexShrink: 0,
+        }}>
+          {NAV_ROUTES[active].label}
+        </h1>
 
-            {showViewMenu && (
-              <div
-                className="dropdown-panel"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  position: "absolute",
-                  top: "100%",
-                  left: 0,
-                  marginTop: 6,
-                  background: "var(--surface)",
-                  border: "1px solid var(--border-strong)",
-                  borderRadius: "var(--radius-md)",
-                  boxShadow: "var(--shadow-lg)",
-                  padding: 8,
-                  zIndex: 200,
-                  width: 260,
-                  maxHeight: 420,
-                  overflowY: "auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                }}
-              >
-                <ViewMenuGroup
-                  label="Factory Overview"
-                  options={[{ id: "cumulative", label: "Factory Overview" }]}
-                  activeId={t.stageView}
-                  onSelect={(id) => { setTweak("stageView", id); setShowViewMenu(false); }}
-                />
-                <ViewMenuGroup
-                  label="Stations"
-                  options={stationOptions}
-                  emptyLabel={
-                    enabledSections.size === 0
-                      ? "Enable a section in Sources first"
-                      : enabledSections.has("assembly") && enabledSections.size === 1
-                        ? "No assembly stations with data yet — enable Primary/Secondary in Sources for those stations"
-                        : "No stations have data in the selected sections"
-                  }
-                  activeId={t.stageView}
-                  onSelect={(id) => { setTweak("stageView", id); setShowViewMenu(false); }}
-                />
-              </div>
-            )}
-          </div>
-          )}
-
-          {showView && (showInterval || showRange) && (
-            <div style={{ width: 1, height: 16, background: "var(--border)" }} />
-          )}
-
-          {/* Period: grain (D/W/M/FY) + date window as one control */}
-          {(showInterval || showRange) && (
-          <div
-            className="date-picker-container"
-            style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}
-          >
-            {showInterval && (
-            <div style={{
-              display: "flex",
-              borderRadius: "20px",
-              padding: 2,
-              background: "var(--surface-2)",
-              alignItems: "center",
-            }}>
-              {(["day", "week", "month", "fy"] as const).map((g) => {
-                const activeGrain = t.grain === g;
-                const isDay = g === "day";
-                const isSuggested = isDay || suggestedGrain === g;
-                return (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setTweak("grain", g)}
-                    title={isDay ? "Day — Daily resolution (Recommended & Default)" : isSuggested ? `${g.toUpperCase()} (Suggested)` : g.toUpperCase()}
-                    style={{
-                      padding: "2px 8px",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      borderRadius: 10,
-                      background: activeGrain ? "var(--accent)" : "transparent",
-                      color: activeGrain ? "var(--text-invert)" : "var(--text-2)",
-                      transition: "all 0.12s ease",
-                      textTransform: "uppercase",
-                      position: "relative",
-                      border: "none",
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {g === "fy" ? "FY" : g[0]}
-                    {isSuggested && (
-                      <span style={{
-                        position: "absolute",
-                        top: 1,
-                        right: 1,
-                        width: 4,
-                        height: 4,
-                        borderRadius: "50%",
-                        background: activeGrain ? "var(--text-invert)" : "var(--accent)",
-                      }} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            )}
-
-            {showRange && (
-            <>
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                const next = !showPicker;
-                setShowPicker(next);
-                if (next && t.datePreset === "custom") {
-                  setCustomDraft({ from: t.dateFrom, to: t.dateTo });
-                }
-                setShowViewMenu(false);
-                setShowSourcesPanel(false);
-              }}
-              title="Date range"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                fontSize: 12,
-                fontWeight: 600,
-                borderRadius: "20px",
-                padding: "3px 8px",
-                background: showPicker ? "var(--accent-weak)" : "var(--surface-2)",
-                color: showPicker ? "var(--accent)" : "var(--text)",
-                cursor: "pointer",
-                maxWidth: 180,
-              }}
-            >
-              <Icon name="file" size={11} style={{ color: "var(--text-3)", flexShrink: 0 }} />
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {rangeLabel}
-              </span>
-              <Icon name="arrow-right" size={9} style={{ transform: "rotate(90deg)", color: "var(--text-3)", flexShrink: 0 }} />
-            </div>
-
-            {showPicker && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  position: "absolute",
-                  top: "100%",
-                  left: 0,
-                  marginTop: 6,
-                  background: "var(--surface)",
-                  border: "1px solid var(--border-strong)",
-                  borderRadius: "var(--radius-md)",
-                  boxShadow: "var(--shadow-lg)",
-                  padding: 12,
-                  zIndex: 200,
-                  width: 260,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
-                <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)" }}>
-                  Date range
-                </div>
-                {(["all", "this-day", "this-week", "last-week", "this-month", "last-month", "last-3-months", "last-12-months", "this-fy", "custom"] as const).map((preset) => {
-                  const customActive = customDraft !== null || t.datePreset === "custom";
-                  const selected =
-                    preset === "custom"
-                      ? customActive
-                      : customDraft === null && (t.datePreset === preset || (preset === "last-3-months" && t.datePreset === "last-3-month"));
-                  return (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => {
-                      if (preset === "custom") {
-                        setCustomDraft((prev) =>
-                          prev ?? {
-                            from: t.datePreset === "custom" ? t.dateFrom : "",
-                            to: t.datePreset === "custom" ? t.dateTo : "",
-                          },
-                        );
-                        return;
-                      }
-                      setCustomDraft(null);
-                      const { from: start, to: end } = presetDateWindow(preset, events);
-                      setTweak("dateFrom", start);
-                      setTweak("dateTo", end);
-                      setTweak("datePreset", preset);
-                      setShowPicker(false);
-                    }}
-                    style={{
-                      padding: "6px 8px",
-                      fontSize: 12,
-                      fontWeight: selected ? 600 : 500,
-                      background: selected ? "var(--accent-weak)" : "transparent",
-                      color: selected ? "var(--accent)" : "var(--text)",
-                      border: "none",
-                      borderRadius: "var(--radius-sm)",
-                      textAlign: "left",
-                      cursor: "pointer",
-                      width: "100%",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {preset === "all" && "All data"}
-                    {preset === "this-day" && (
-                      <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                        <span>This day</span>
-                        <span
-                          style={{
-                            fontSize: 9.5,
-                            fontWeight: 600,
-                            padding: "1px 6px",
-                            borderRadius: 4,
-                            background: "color-mix(in srgb, var(--accent) 18%, var(--surface-2))",
-                            color: "var(--accent)",
-                            letterSpacing: "0.02em",
-                          }}
-                        >
-                          Recommended
-                        </span>
-                      </span>
-                    )}
-                    {preset === "this-week" && "This week"}
-                    {preset === "last-week" && "Last week"}
-                    {preset === "this-month" && "This month"}
-                    {preset === "last-month" && "Last month"}
-                    {preset === "last-3-months" && "Last 3 months"}
-                    {preset === "last-12-months" && "Last 12 months"}
-                    {preset === "this-fy" && "This FY"}
-                    {preset === "custom" && "Custom range…"}
-                  </button>
-                  );
-                })}
-
-                {customDraft !== null && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 600, textTransform: "uppercase" }}>Range picker</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const { max: dataMax } = dateBounds(events ?? []);
-                          const anchor = dataMax ? new Date(`${dataMax}T00:00:00Z`) : new Date();
-                          const y = anchor.getUTCFullYear();
-                          const m = anchor.getUTCMonth();
-                          const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
-                          const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-                          const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-                          setCustomDraft({ from: start, to: end });
-                        }}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "var(--accent)",
-                          fontSize: 10.5,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          padding: "1px 4px",
-                          borderRadius: "var(--radius-xs)",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        This month
-                      </button>
-                    </div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span style={{ fontSize: 10, color: "var(--text-3)", width: 30 }}>From</span>
-                      <DatePicker
-                        value={customDraft.from}
-                        onChange={(d) => setCustomDraft((prev) => ({ from: d, to: prev?.to ?? "" }))}
-                        ariaLabel="Topbar from date"
-                        size="sm"
-                      />
-                    </div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span style={{ fontSize: 10, color: "var(--text-3)", width: 30 }}>To</span>
-                      <DatePicker
-                        value={customDraft.to}
-                        onChange={(d) => setCustomDraft((prev) => ({ from: prev?.from ?? "", to: d }))}
-                        ariaLabel="Topbar to date"
-                        size="sm"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      disabled={!customDraft.from || !customDraft.to}
-                      onClick={() => {
-                        if (!customDraft.from || !customDraft.to) return;
-                        setTweak("dateFrom", customDraft.from);
-                        setTweak("dateTo", customDraft.to);
-                        setTweak("datePreset", "custom");
-                        setCustomDraft(null);
-                        setShowPicker(false);
-                      }}
-                      style={{
-                        marginTop: 4,
-                        padding: "6px 8px",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        background: "var(--accent)",
-                        color: "var(--on-accent)",
-                        border: "none",
-                        borderRadius: "var(--radius-sm)",
-                        cursor: customDraft.from && customDraft.to ? "pointer" : "default",
-                        opacity: customDraft.from && customDraft.to ? 1 : 0.45,
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      Apply
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-            </>
-            )}
-          </div>
-          )}
-
-          {(showRange || showInterval || showView) && showSources && (
-            <div style={{ width: 1, height: 16, background: "var(--border)" }} />
-          )}
-
-          {showSources && (
-          <div
-            role="button"
-            tabIndex={0}
-            aria-haspopup="dialog"
-            aria-expanded={showSourcesPanel}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowSourcesPanel(true);
-              setShowPicker(false);
-              setShowViewMenu(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setShowSourcesPanel(true);
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center" }}>
+          {scopeControls.length > 0 && (
+            <ScopeChip
+              events={events}
+              controls={{ view: showView, interval: showInterval, range: showRange, sources: showSources }}
+              suggestedGrain={suggestedGrain}
+              rangeLabel={rangeLabel}
+              sourcesLabel={sourcesLabel}
+              viewLabel={currentView.label}
+              stationOptions={stationOptions}
+              stationsEmptyLabel={
+                enabledSections.size === 0
+                  ? "Enable a section in Sources first"
+                  : enabledSections.has("assembly") && enabledSections.size === 1
+                    ? "No assembly stations with data yet. Enable Primary/Secondary in Sources."
+                    : "No stations have data in the selected sections"
               }
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              borderRadius: "20px",
-              padding: "3px 10px",
-              background:
-                showSourcesPanel || sourcesScoped
-                  ? "var(--accent-weak)"
-                  : "var(--surface-2)",
-              color:
-                showSourcesPanel || sourcesScoped
-                  ? "var(--accent)"
-                  : "var(--text)",
-              cursor: "pointer",
-              maxWidth: 180,
-            }}
-            title="Sources, sections, batches & Excel files"
-          >
-            <Icon name="split" size={11} style={{ color: "var(--text-3)", flexShrink: 0 }} />
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {sourcesLabel}
-            </span>
-            <Icon name="arrow-right" size={9} style={{ transform: "rotate(90deg)", color: "var(--text-3)", flexShrink: 0 }} />
-          </div>
+              onOpenSources={() => setShowSourcesPanel(true)}
+            />
           )}
         </div>
 
-        {/* Universal Holiday toggle button */}
-        {scopeControls.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setTweak("showCalendarHolidays", !(t.showCalendarHolidays ?? true))}
-            title={(t.showCalendarHolidays ?? true) ? "Holidays feature active across dashboard (click to deactivate)" : "Click to activate Holidays feature across dashboard"}
-            style={{
-              height: 38,
-              borderRadius: "30px",
-              border: "1px solid",
-              borderColor: (t.showCalendarHolidays ?? true) ? "var(--accent)" : "var(--border-strong)",
-              background: (t.showCalendarHolidays ?? true)
-                ? "color-mix(in srgb, var(--accent) 14%, var(--surface))"
-                : "var(--surface)",
-              color: (t.showCalendarHolidays ?? true) ? "var(--accent)" : "var(--text-3)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "0 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              boxShadow: "var(--shadow-sm)",
-              transition: "all 0.15s ease",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <span style={{ fontSize: 11, color: (t.showCalendarHolidays ?? true) ? "var(--accent)" : "var(--text-3)" }}>★</span>
-            <span>{(t.showCalendarHolidays ?? true) ? "Holidays Active" : "Holidays Off"}</span>
-          </button>
-        )}
-      </div>
-
-        {/* right profile / actions: styled cleanly in pillbox cards */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {toolbarExtra}
-          {/* Jump / command palette */}
+
+          {/* Export: report builder (analysis screens) · entries JSON (data-entry) · audit ZIP (else) */}
           <button
             type="button"
-            onClick={() => setPaletteOpen(true)}
-            title="Jump (Ctrl+K)"
-            style={{
-              height: 32,
-              borderRadius: "30px",
-              border: "1px solid var(--border-strong)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "0 12px",
-              background: "var(--surface)",
-              cursor: "pointer",
-              boxShadow: "var(--shadow-sm)",
-              fontSize: 11.5,
-              fontWeight: 600,
-              color: "var(--text-2)",
-              fontFamily: "inherit",
-            }}
+            onClick={() => (canReport(active) ? setReportOpen(true) : void handleExport())}
+            disabled={exporting}
+            title={
+              canReport(active)
+                ? "Build a report from this screen"
+                : active === "data-entry"
+                  ? "Configure and download data entries"
+                  : "Download the audit data package"
+            }
+            style={topbarBtn}
           >
-            <Icon name="search" size={13} />
+            <Icon name="print" size={16} aria-hidden />
+            {exporting ? "Exporting…" : canReport(active) ? "Export report" : active === "data-entry" ? "Export entries" : "Export"}
+          </button>
+
+          {/* Ask MOID: the single entry point (sidebar item and floating button retired) */}
+          <button
+            type="button"
+            onClick={() => setShowChatWidget((v) => !v)}
+            aria-expanded={showChatWidget}
+            title="Ask MOID: guide, navigate, summarize"
+            style={{ ...topbarBtn, background: showChatWidget ? "var(--surface-2)" : "var(--surface)" }}
+          >
+            <Icon name="comment" size={16} aria-hidden />
+            Ask
+          </button>
+
+          <NotificationsPanel />
+
+          {/* Jump / command palette */}
+          <button type="button" onClick={() => setPaletteOpen(true)} title="Jump (Ctrl+K)" style={topbarBtn}>
+            <Icon name="search" size={16} aria-hidden />
             Jump
             <kbd style={{
-              fontSize: 9,
+              fontSize: "var(--text-xs)",
               fontFamily: "var(--font-mono)",
               border: "1px solid var(--border)",
-              borderRadius: 3,
-              padding: "1px 4px",
+              borderRadius: "var(--radius-xs)",
+              padding: "0 4px",
               color: "var(--text-3)",
             }}>⌘K</kbd>
           </button>
 
-          {/* Theme Toggle */}
-          <button 
-            onClick={toggleTheme}
-            style={{ 
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              border: "1px solid var(--border-strong)",
-              display: "grid",
-              placeItems: "center",
-              background: "var(--surface)",
-              cursor: "pointer",
-              boxShadow: "var(--shadow-sm)",
-              transition: "transform 0.2s"
-            }}>
-            <Icon name={mounted && isDark ? "sun" : "moon"} size={14} />
-          </button>
-
-          {/* Role selector — sidebar visibility only; no auth / data impact */}
+          {/* User menu: role switch (when allowed), theme, sign out */}
           <div style={{ position: "relative" }}>
             <button
               type="button"
               onClick={() => setShowPersonaMenu((v) => !v)}
-              title="Switch dashboard role view"
-              aria-haspopup="listbox"
+              title="Account, role and theme"
+              aria-haspopup="menu"
               aria-expanded={showPersonaMenu}
-              style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: 8, 
-                background: "var(--surface)", 
-                border: "1px solid var(--border-strong)", 
-                borderRadius: "30px", 
-                padding: "2px 10px 2px 2px", 
-                boxShadow: "var(--shadow-sm)", 
-                height: 32,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                maxWidth: 220,
-              }}
+              style={{ ...topbarBtn, padding: "0 8px 0 4px", maxWidth: 220 }}
             >
-              <div style={{ 
-                width: 26, 
-                height: 26, 
-                borderRadius: "50%", 
-                background: "var(--surface-3)", 
-                color: "var(--text)", 
-                display: "grid", 
+              <span style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: "var(--surface-3)",
+                color: "var(--text)",
+                display: "grid",
                 placeItems: "center",
-                fontFamily: "var(--font-display)",
+                fontSize: "var(--text-xs)",
                 fontWeight: 600,
-                fontSize: 11,
-                border: "1px solid var(--border-strong)",
                 flexShrink: 0,
               }}>
                 {activePersona.initial}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", textAlign: "left", minWidth: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {activePersona.label}
-                </span>
-                <span className="muted" style={{ fontSize: 9, lineHeight: 1.1 }}>
-                  {authEnabled ? "Signed in" : activePersona.title}
-                </span>
-              </div>
+              </span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activePersona.label}</span>
+              <Icon name="chevron-down" size={16} style={{ color: "var(--text-3)", flexShrink: 0 }} aria-hidden />
             </button>
             {showPersonaMenu && (
               <div
-                role="listbox"
+                role="menu"
                 aria-label={personaLocked ? "Account" : "Dashboard role"}
                 style={{
                   position: "absolute",
                   top: "100%",
                   right: 0,
-                  marginTop: 6,
+                  marginTop: 8,
                   background: "var(--surface)",
                   border: "1px solid var(--border-strong)",
-                  borderRadius: "var(--radius-md)",
+                  borderRadius: "var(--radius-lg)",
                   boxShadow: "var(--shadow-lg)",
-                  padding: 6,
+                  padding: 8,
                   zIndex: 220,
-                  width: 240,
+                  width: 260,
                 }}
               >
-                <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)", padding: "4px 8px 6px" }}>
+                <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--text-3)", padding: "4px 8px 8px" }}>
                   {personaLocked ? "Signed in" : "Dashboard role"}
                 </div>
                 {!personaLocked &&
@@ -2119,116 +1656,48 @@ function AppShellView({
                       <button
                         key={id}
                         type="button"
-                        role="option"
-                        aria-selected={on}
+                        role="menuitemradio"
+                        aria-checked={on}
                         onClick={() => setPersonaAndStore(id)}
-                        style={{
-                          width: "100%",
-                          textAlign: "left",
-                          border: "none",
-                          borderRadius: "var(--radius-sm)",
-                          padding: "8px 10px",
-                          cursor: "pointer",
-                          background: on ? "var(--accent-weak)" : "transparent",
-                          fontFamily: "inherit",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 1,
-                        }}
+                        style={{ ...menuRow, background: on ? "var(--surface-2)" : "transparent" }}
                       >
-                        <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>{p.label}</span>
-                        <span style={{ fontSize: 11, color: "var(--text-3)" }}>{p.title}</span>
+                        <span style={{ display: "flex", flexDirection: "column", gap: 2, textAlign: "left" }}>
+                          <span style={{ fontSize: "var(--text-md)", fontWeight: on ? 600 : 500 }}>{p.label}</span>
+                          <span className="muted" style={{ fontSize: "var(--text-xs)" }}>{p.title}</span>
+                        </span>
+                        {on && <Icon name="check" size={16} aria-hidden />}
                       </button>
                     );
                   })}
                 {personaLocked && (
-                  <div style={{ padding: "6px 10px 10px", fontSize: 12, color: "var(--text-2)", lineHeight: 1.4 }}>
+                  <div style={{ padding: "4px 8px 12px", fontSize: "var(--text-sm)", color: "var(--text-2)", lineHeight: 1.5 }}>
                     Role is set by your account ({activePersona.label}). It cannot be switched from the UI.
                   </div>
                 )}
-                {authEnabled && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowPersonaMenu(false);
-                      void signOut();
-                    }}
-                    style={{
-                      width: "100%",
-                      textAlign: "left",
-                      border: "none",
-                      borderTop: "1px solid var(--border)",
-                      borderRadius: "var(--radius-sm)",
-                      padding: "10px",
-                      cursor: "pointer",
-                      background: "transparent",
-                      fontFamily: "inherit",
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      color: "var(--status-bad)",
-                      marginTop: 4,
-                    }}
-                  >
-                    Sign out
+                <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
+                  <button type="button" role="menuitem" onClick={toggleTheme} style={menuRow}>
+                    <span style={{ fontSize: "var(--text-md)", fontWeight: 500 }}>
+                      {mounted && isDark ? "Switch to light theme" : "Switch to dark theme"}
+                    </span>
+                    <Icon name={mounted && isDark ? "sun" : "moon"} size={16} aria-hidden />
                   </button>
-                )}
+                  {authEnabled && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShowPersonaMenu(false);
+                        void signOut();
+                      }}
+                      style={{ ...menuRow, color: "var(--status-bad)" }}
+                    >
+                      <span style={{ fontSize: "var(--text-md)", fontWeight: 500 }}>Sign out</span>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
-
-          <NotificationsPanel />
-
-          {/* Export: report builder (analysis screens) · entries JSON (data-entry) · audit ZIP (else) */}
-          <button 
-            onClick={() => (canReport(active) ? setReportOpen(true) : void handleExport())} 
-            disabled={exporting} 
-            title={
-              canReport(active)
-                ? "Build a report from this screen"
-                : active === "data-entry"
-                  ? "Configure and download data entries"
-                  : "Download the audit data package"
-            }
-            style={{
-              background: "var(--surface)",
-              color: "var(--text)", 
-              border: "1px solid var(--border-strong)", 
-              borderRadius: "30px", 
-              padding: "6px 14px", 
-              fontSize: 11.5, 
-              fontWeight: 600, 
-              cursor: "pointer", 
-              display: "inline-flex", 
-              gap: 6, 
-              alignItems: "center",
-              boxShadow: "var(--shadow-sm)",
-              transition: "all 0.2s ease",
-              minHeight: 32
-            }}
-            onMouseOver={(e) => {
-              if (!exporting) {
-                e.currentTarget.style.background = "var(--accent)";
-                e.currentTarget.style.color = "var(--text-invert)";
-                e.currentTarget.style.borderColor = "var(--accent)";
-              }
-            }}
-            onMouseOut={(e) => {
-              if (!exporting) {
-                e.currentTarget.style.background = "var(--surface)";
-                e.currentTarget.style.color = "var(--text)";
-                e.currentTarget.style.borderColor = "var(--border-strong)";
-              }
-            }}
-          >
-            <Icon name="print" size={11} /> 
-            {exporting
-              ? "Exporting…"
-              : canReport(active)
-                ? "Export report"
-                : active === "data-entry"
-                  ? "Export entries"
-                  : "Export"}
-          </button>
         </div>
       </header>
 
@@ -2342,7 +1811,7 @@ function AppShellView({
       {showChatWidget && (
         <div style={{
           position: "fixed",
-          bottom: 84,
+          top: "calc(var(--header-h) + var(--space-8))",
           right: 24,
           width: 360,
           height: 480,
@@ -2565,35 +2034,6 @@ function AppShellView({
         </div>
       )}
 
-      {/* Floating M Toggle Button */}
-      <button 
-        onClick={() => setShowChatWidget(!showChatWidget)}
-        title="Ask MOID — guide, navigate, summarize"
-        style={{
-          position: "fixed",
-          bottom: 24,
-          right: 24,
-          width: 48,
-          height: 48,
-          borderRadius: "50%",
-          background: "var(--accent)",
-          color: "var(--on-accent)",
-          border: "none",
-          cursor: "pointer",
-          display: "grid",
-          placeItems: "center",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
-          zIndex: 1000,
-          fontWeight: 600,
-          fontSize: 18,
-          fontFamily: "var(--font-sans)",
-          transition: "transform 0.2s"
-        }}
-        onMouseOver={(e) => { e.currentTarget.style.transform = "scale(1.08)"; }}
-        onMouseOut={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-      >
-        M
-      </button>
     </div>
   );
 }
@@ -2607,64 +2047,6 @@ export default function AppShell(props: React.ComponentProps<typeof AppShellView
     </ActiveMetricProvider>
   );
 }
-
-/** One labeled group of options inside the View dropdown panel. Renders
- *  nothing (not even the header) when there are no options and no emptyLabel
- *  was given, so the Factory Overview group (always exactly one option)
- *  reads cleanly. */
-function ViewMenuGroup({ label, options, activeId, onSelect, emptyLabel }: {
-  label: string;
-  options: { id: string; label: string }[];
-  activeId: string;
-  onSelect: (id: string) => void;
-  emptyLabel?: string;
-}) {
-  if (options.length === 0 && !emptyLabel) return null;
-  return (
-    <div>
-      <div style={{
-        fontSize: 10,
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: "0.05em",
-        color: "var(--text-3)",
-        padding: "6px 8px 4px",
-      }}>
-        {label}
-      </div>
-      {options.length === 0 ? (
-        <div className="muted" style={{ fontSize: 11.5, padding: "4px 8px 8px" }}>{emptyLabel}</div>
-      ) : (
-        options.map((v) => {
-          const active = activeId === v.id;
-          return (
-            <button
-              key={v.id}
-              onClick={() => onSelect(v.id)}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "6px 8px",
-                fontSize: 12.5,
-                fontWeight: active ? 600 : 500,
-                background: active ? "var(--accent-weak)" : "transparent",
-                color: active ? "var(--accent)" : "var(--text)",
-                border: "none",
-                borderRadius: "var(--radius-sm)",
-                cursor: "pointer",
-              }}
-            >
-              {v.label}
-            </button>
-          );
-        })
-      )}
-    </div>
-  );
-}
-
-
 
 function Status({ tone, label, value }: { tone: string; label: string; value: string }) {
   return (

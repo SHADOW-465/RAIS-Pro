@@ -112,17 +112,16 @@ export default function NotificationsPanel() {
           position: "relative",
           background: "var(--surface)",
           border: "1px solid var(--border-strong)",
-          borderRadius: "50%",
-          width: 32,
-          height: 32,
+          borderRadius: "var(--radius-md)",
+          width: 36,
+          height: 36,
           display: "grid",
           placeItems: "center",
           cursor: "pointer",
-          boxShadow: "var(--shadow-sm)",
           color: "var(--text)",
         }}
       >
-        <Icon name="alert" size={14} />
+        <Icon name="bell" size={16} aria-hidden />
         {count > 0 && (
           <span
             style={{
@@ -132,9 +131,10 @@ export default function NotificationsPanel() {
               minWidth: 16,
               height: 16,
               borderRadius: 8,
-              background: "var(--accent)",
-              color: "var(--on-accent)",
-              fontSize: 9,
+              background: "var(--status-bad)",
+              color: "var(--text-invert)",
+              fontSize: "var(--text-xs)",
+              fontFamily: "var(--font-mono)",
               fontWeight: 600,
               display: "grid",
               placeItems: "center",

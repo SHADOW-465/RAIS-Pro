@@ -5,6 +5,7 @@ import AppShell from "@/components/app/AppShell";
 import { usePersona } from "@/components/app/PersonaContext";
 import { useConfirm } from "@/components/ui/ConfirmContext";
 import DatePicker from "@/components/ui/DatePicker";
+import { useScopedRange } from "@/lib/client/use-scoped-range";
 import type { PlantNotification } from "@/lib/notifications/types";
 import { NOTIFICATIONS_CHANGED, notifyNotificationsChanged } from "@/lib/client/live-signals";
 import { invalidateAfterWrite } from "@/lib/client/invalidate";
@@ -26,8 +27,7 @@ export default function AlertsPage() {
   const [openCount, setOpenCount] = useState(0);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [grain, setGrain] = useState<TimelineGrain>("day");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const { from, to, setFrom, setTo, clear: clearRange } = useScopedRange();
   const [groupBy, setGroupBy] = useState<AlertGroupBy>("page");
   const [period, setPeriod] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -173,7 +173,7 @@ export default function AlertsPage() {
                 <DatePicker value={to} onChange={setTo} ariaLabel="To date" />
               </div>
               {(from || to) && (
-                <button type="button" onClick={() => { setFrom(""); setTo(""); }} style={ghostBtn}>
+                <button type="button" onClick={clearRange} style={ghostBtn}>
                   Clear range
                 </button>
               )}
