@@ -7,6 +7,7 @@ import {
   EventPageError,
   pageEvents,
   parseEventLimit,
+  parseEventOffset,
 } from "../event-page";
 
 function row(eventId: string, recordedAt: string): Event {
@@ -24,10 +25,11 @@ test("defaultEventRange is the inclusive UTC span from today-30 through today", 
   });
 });
 
-test("parseEventLimit clamps into 1..1000", () => {
+test("parseEventLimit defaults to 1000 and clamps into 1..2500", () => {
   expect(parseEventLimit(null)).toBe(1000);
   expect(parseEventLimit("0")).toBe(1);
-  expect(parseEventLimit("1001")).toBe(1000);
+  expect(parseEventLimit("1001")).toBe(1001);
+  expect(parseEventLimit("9999")).toBe(2500);
   expect(parseEventLimit("nope")).toBe(1000);
   expect(parseEventLimit("250")).toBe(250);
 });
@@ -66,4 +68,17 @@ test("a cursor is strictly after its row when timestamps differ", () => {
 
 test("a mangled cursor is rejected", () => {
   expect(() => pageEvents([row("a", "2026-01-01T00:00:00.000Z")], { cursor: "%%%" })).toThrow(EventPageError);
+});
+
+test("offset pages cover every row once and a cursor still wins", () => {
+  const events = Array.from({ length: 25 }, (_, i) => row(`e${String(i).padStart(3, "0")}`, "2026-01-01T00:00:00Z"));
+  const seen = [0, 10, 20].flatMap((offset) => pageEvents(events, { limit: 10, offset }).events.map((e) => e.eventId));
+  expect(new Set(seen).size).toBe(25);
+  expect(pageEvents(events, { limit: 10, offset: 20 }).nextCursor).toBeNull();
+  expect(pageEvents(events, { limit: 10, offset: 99 }).events).toHaveLength(0);
+  const first = pageEvents(events, { limit: 10 });
+  expect(pageEvents(events, { limit: 10, cursor: first.nextCursor, offset: 0 }).events[0].eventId).toBe("e010");
+  expect(parseEventOffset(null)).toBeNull();
+  expect(parseEventOffset("-1")).toBeNull();
+  expect(parseEventOffset("2500")).toBe(2500);
 });
