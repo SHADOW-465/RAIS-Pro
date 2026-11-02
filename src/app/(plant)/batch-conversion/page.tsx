@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import AppShell from "@/components/app/AppShell";
 import BatchMatrixEntry from "@/components/BatchMatrixEntry";
 import EntryHistory from "@/components/EntryHistory";
+import { normalizeReasonCategory } from "@/lib/lineage/types";
+import ConversionRecords from "@/components/app/ConversionRecords";
+import { REASON_OPTIONS, canUndoConversion, conversionReasonBody, conversionReasonError } from "@/lib/client/conversion-actions";
 import { useEvents } from "@/components/app/EventsContext";
 import { useLineage } from "@/components/app/LineageContext";
 import { usePersona } from "@/components/app/PersonaContext";
@@ -85,7 +88,8 @@ function reuseLot(batchId: string, date: string, size: string | null): EntryHydr
 }
 
 export default function BatchConversionPage() {
-  const { canWrite } = usePersona();
+  const { canWrite, authUser, persona } = usePersona();
+  const canUndo = canUndoConversion(authUser?.role ?? persona, canWrite);
   const { events } = useEvents();
   const { conversions, error: loadError, refreshConversions, noteConversion } = useLineage();
   const { t } = useTweaks();
@@ -359,7 +363,7 @@ export default function BatchConversionPage() {
     // Never prefill new size with the original size — that yields the same ID.
     if (sz && sizeOfLot(from || "") !== sz) setToSize(sz);
     if (d) setConvertedOn(d);
-    if (r) setReason(r);
+    if (r) setReason(normalizeReasonCategory(r) ?? "");
     const view = params.get("view");
     if (view === "source" || view === "converted") setFocusPanel(view);
   }, []);
@@ -468,6 +472,11 @@ export default function BatchConversionPage() {
       setFormError("Your role cannot record conversions.");
       return;
     }
+    const reasonError = conversionReasonError(reason, notes);
+    if (reasonError) {
+      setFormError(reasonError);
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/batch-conversions", {
@@ -480,7 +489,7 @@ export default function BatchConversionPage() {
           changedQty,
           stageId: changeStageId,
           convertedOn,
-          reason: notes.trim() ? `${reason.trim()} — ${notes.trim()}` : reason.trim(),
+          ...conversionReasonBody(reason, notes),
         }),
       });
       const data = (await res.json()) as { conversion?: BatchConversion; error?: string };
@@ -558,8 +567,8 @@ export default function BatchConversionPage() {
       setFromBatch(c.fromBatch);
       if (c.toSize) setToSize(c.toSize);
       if (c.convertedOn) setConvertedOn(c.convertedOn);
-      setReason(c.reason);
-      setNotes("");
+      setReason(c.reasonCategory ?? "");
+      setNotes(c.reasonNote ?? "");
       setChangeStageId(c.stageId || "");
       setChangedQtyInput(c.changedQty > 0 ? String(c.changedQty) : "");
       setFocusBatch(view === "converted" ? c.toBatch : c.fromBatch);
@@ -738,11 +747,24 @@ export default function BatchConversionPage() {
 
           <label style={labelStyle}>
             Reason
-            <input
+            <Select
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Customer / process"
-              aria-label="Reason for conversion"
+              onChange={setReason}
+              options={REASON_OPTIONS}
+              placeholder="Pick reason"
+              ariaLabel="Reason category"
+              variant="pill"
+              size="sm"
+            />
+          </label>
+
+          <label style={labelStyle}>
+            Note
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="What happened"
+              aria-label="Conversion note"
               style={{ ...inputStyle, fontFamily: "inherit" }}
               required
             />
@@ -959,6 +981,8 @@ export default function BatchConversionPage() {
         </div>
 
         {activeTab === "history" ? (
+          <>
+          <ConversionRecords conversions={conversions} canUndo={canUndo} onChanged={refreshConversions} />
           <EntryHistory
             events={historyEvents}
             onEdit={handleEdit}
@@ -969,6 +993,7 @@ export default function BatchConversionPage() {
             emptyTitle="No batch conversions recorded yet."
             emptyHint="Lots Audit Trail marks as converted appear here, along with recorded size changes. Ordinary production lots stay on Audit Trail and Data Entry."
           />
+          </>
         ) : fromBatch ? (
           <>
             <style>{`
