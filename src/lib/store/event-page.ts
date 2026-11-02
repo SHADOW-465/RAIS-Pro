@@ -12,7 +12,10 @@ export class EventPageError extends Error {
   }
 }
 
-const PAGE_MAX = 1000;
+const PAGE_DEFAULT = 1000;
+/** Largest page a caller may ask for. ~1.1 KB per row keeps 2500 rows near
+ *  2.8 MB, under Vercel's 4.5 MB response cap. */
+const PAGE_MAX = 2500;
 
 /** Inclusive UTC window: today−30 through today. Pure so tests can pin `now`. */
 export function defaultEventRange(now: Date): { from: string; to: string } {
@@ -23,9 +26,9 @@ export function defaultEventRange(now: Date): { from: string; to: string } {
 }
 
 export function parseEventLimit(raw: string | null): number {
-  if (raw == null || raw.trim() === "") return PAGE_MAX;
+  if (raw == null || raw.trim() === "") return PAGE_DEFAULT;
   const n = Number(raw);
-  if (!Number.isFinite(n)) return PAGE_MAX;
+  if (!Number.isFinite(n)) return PAGE_DEFAULT;
   return Math.min(PAGE_MAX, Math.max(1, Math.trunc(n)));
 }
 
@@ -67,18 +70,30 @@ function afterCursor(e: Event, cursor: { t: string; id: string }): boolean {
   return e.eventId > cursor.id;
 }
 
+/** Non-negative integer offset, or null when absent/invalid. */
+export function parseEventOffset(raw: string | null): number | null {
+  if (raw == null || raw.trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.trunc(n);
+}
+
 export function pageEvents(
   events: Event[],
-  opts: { limit?: number; cursor?: string | null } = {},
+  opts: { limit?: number; cursor?: string | null; offset?: number | null } = {},
 ): { events: Event[]; nextCursor: string | null } {
-  const limit = opts.limit ?? PAGE_MAX;
+  const limit = opts.limit ?? PAGE_DEFAULT;
   if (!Number.isInteger(limit) || limit < 1 || limit > PAGE_MAX) {
     throw new EventPageError("Invalid limit");
   }
   const sorted = [...events].sort(compareEvents);
   const cursor = opts.cursor ? decodeEventCursor(opts.cursor) : null;
   let start = 0;
-  if (cursor) {
+  if (!cursor && opts.offset != null) {
+    // Offset pages let the client fetch the rest of the ledger in parallel
+    // once the first page reports the total. A cursor still wins.
+    start = Math.min(sorted.length, opts.offset);
+  } else if (cursor) {
     const idx = sorted.findIndex((e) => afterCursor(e, cursor));
     start = idx < 0 ? sorted.length : idx;
   }

@@ -26,7 +26,7 @@ import { scopeEventsForRole } from "@/lib/access/scope";
 import { dateBounds } from "@/lib/analytics/scope";
 import type { Event, EventFilter } from "@/lib/store/types";
 import { LIVE_CACHE, withNoStore } from "@/lib/http/live-cache";
-import { defaultEventRange, EventPageError, pageEvents, parseEventLimit } from "@/lib/store/event-page";
+import { defaultEventRange, EventPageError, pageEvents, parseEventLimit, parseEventOffset } from "@/lib/store/event-page";
 
 export const dynamic = "force-dynamic";
 
@@ -106,6 +106,7 @@ async function getHandler(req: NextRequest) {
       page = pageEvents(data, {
         limit: parseEventLimit(sp.get("limit")),
         cursor: sp.get("cursor") || null,
+        offset: parseEventOffset(sp.get("offset")),
       });
     } catch (err) {
       if (err instanceof EventPageError) {
@@ -120,6 +121,7 @@ async function getHandler(req: NextRequest) {
         count: page.events.length,
         total: data.length,
         nextCursor: page.nextCursor,
+        offset: parseEventOffset(sp.get("offset")),
         from: from ?? null,
         to: to ?? null,
         backend,

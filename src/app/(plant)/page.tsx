@@ -599,9 +599,47 @@ export default function Dashboard() {
         ) : null
       }
     >
-      {isLoading && (
+      {isLoading && !serverTotals && (
         <PageLoader message="Initializing the intelligence ledger..." minHeight="60vh" />
       )}
+      {isLoading && serverTotals && (() => {
+        // Server totals land in a few seconds; the full ledger (charts,
+        // drill-downs) keeps loading behind them, so the GM sees the key
+        // numbers first instead of a full-page spinner.
+        const head = headlineFigures(serverTotals.headlines);
+        const topDefect = serverTotals.defects?.[0];
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }} aria-busy="true">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+              <Kpi
+                primary
+                label="Overall Rejection"
+                basis={scopeLabel}
+                value={pct(head.rate)}
+                detail={`${num(head.rejected)} rejected · ${num(head.checked)} checked`}
+                tone={head.rate > targetRej ? "bad" : "good"}
+              />
+              <Kpi
+                primary
+                label="Overall Accepted"
+                basis={scopeLabel}
+                value={pct(head.acceptedRate)}
+                detail={`${num(head.accepted)} accepted · ${num(head.checked)} checked`}
+                tone={head.acceptedRate >= 1 - targetRej ? "good" : "bad"}
+              />
+              <Kpi label="First Pass Yield" basis={scopeLabel} value={pct(head.fpy)} />
+              <Kpi
+                label="Top Defect"
+                basis={scopeLabel}
+                value={topDefect?.label ?? "—"}
+                detail={topDefect ? `${num(topDefect.rejected)} rejected` : undefined}
+              />
+            </div>
+            <div className="muted" style={{ fontSize: 12 }}>Loading charts and detail…</div>
+            <PageLoader minHeight="40vh" />
+          </div>
+        );
+      })()}
       {!isLoading && events && events.length === 0 && (
         <div style={{ padding: "72px 32px", textAlign: "center" }}>
           <div className="h1" style={{ marginBottom: 12 }}>

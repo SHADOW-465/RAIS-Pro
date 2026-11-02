@@ -82,28 +82,92 @@ export async function fetchPlantTotals(body: PlantTotalsRequest): Promise<PlantT
   return (await res.json()) as PlantTotals;
 }
 
+/** Rows per ledger page. The server caps a page at 2500 (~2.8 MB). */
+const EVENT_PAGE = 2500;
+/** Parallel page reads after the first one. Each read re-runs the effective
+ *  ledger query on the server, so keep this small. */
+const EVENT_PAGE_PARALLEL = 4;
+
+type EventsPage = { events?: Event[]; nextCursor?: unknown; total?: unknown; offset?: unknown };
+
+function eventsUrl(range: { from?: string; to?: string; span?: "all" }, extra: Record<string, string>): string {
+  const qs = new URLSearchParams();
+  if (range.from) qs.set("from", range.from);
+  if (range.to) qs.set("to", range.to);
+  if (range.span === "all" && !range.from && !range.to) qs.set("span", "all");
+  for (const [k, v] of Object.entries(extra)) qs.set(k, v);
+  const q = qs.toString();
+  return `/api/events${q ? `?${q}` : ""}`;
+}
+
+async function readEventsPage(url: string): Promise<{ status: number; data?: EventsPage }> {
+  const res = await fetch(url, {
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
+  if (res.status === 401) return { status: 401 };
+  if (!res.ok) throw new Error(`events ${res.status}`);
+  return { status: res.status, data: (await res.json()) as EventsPage };
+}
+
+/**
+ * The whole ledger window. Page one reports the total; when the server
+ * understands `offset` (it echoes it back) the remaining pages are read in
+ * parallel instead of one after another, which was the 30-40 s first load.
+ * If any page disagrees on the total (a write landed mid-read) or the server
+ * is older, it falls back to the sequential cursor walk. Rows are de-duplicated
+ * by eventId either way.
+ */
 export async function fetchEvents(range: { from?: string; to?: string; span?: "all" }): Promise<EventsPayload> {
-  const events: Event[] = [];
-  let cursor: string | null = null;
-  // A response with no nextCursor (this server, or an older one) is the last page.
+  const first = await readEventsPage(eventsUrl(range, { limit: String(EVENT_PAGE), offset: "0" }));
+  if (first.status === 401) return { events: [], unauthorized: true };
+  const head = first.data!;
+  const firstRows = head.events ?? [];
+  const nextCursor = typeof head.nextCursor === "string" && head.nextCursor ? head.nextCursor : null;
+  if (!nextCursor) return { events: firstRows, unauthorized: false };
+
+  const total = typeof head.total === "number" ? head.total : null;
+  if (total != null && head.offset === 0) {
+    const offsets: number[] = [];
+    for (let o = firstRows.length; o < total; o += EVENT_PAGE) offsets.push(o);
+    const pages: EventsPage[] = new Array(offsets.length);
+    let consistent = true;
+    let next = 0;
+    const worker = async () => {
+      while (next < offsets.length) {
+        const i = next++;
+        const r = await readEventsPage(eventsUrl(range, { limit: String(EVENT_PAGE), offset: String(offsets[i]) }));
+        if (r.status === 401) throw new Error("events 401");
+        pages[i] = r.data!;
+        if (r.data!.total !== total) consistent = false;
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(EVENT_PAGE_PARALLEL, offsets.length) }, worker));
+    if (consistent) {
+      const seen = new Set<string>();
+      const events: Event[] = [];
+      for (const e of [firstRows, ...pages.map((p) => p.events ?? [])].flat()) {
+        if (seen.has(e.eventId)) continue;
+        seen.add(e.eventId);
+        events.push(e);
+      }
+      if (events.length === total) return { events, unauthorized: false };
+    }
+  }
+
+  // Sequential cursor walk. An older server (no offset echo) continues from
+  // page one; a ledger that changed mid-read starts over.
+  const resume = head.offset !== 0;
+  const events: Event[] = resume ? [...firstRows] : [];
+  let cursor: string | null = resume ? nextCursor : null;
   for (let page = 0; page < 10000; page++) {
-    const qs = new URLSearchParams();
-    if (range.from) qs.set("from", range.from);
-    if (range.to) qs.set("to", range.to);
-    if (range.span === "all" && !range.from && !range.to) qs.set("span", "all");
-    if (cursor) qs.set("cursor", cursor);
-    const q = qs.toString();
-    const res = await fetch(`/api/events${q ? `?${q}` : ""}`, {
-      credentials: "same-origin",
-      cache: "no-store",
-      headers: { Accept: "application/json" },
-    });
-    if (res.status === 401) {
+    const r = await readEventsPage(eventsUrl(range, cursor ? { limit: String(EVENT_PAGE), cursor } : { limit: String(EVENT_PAGE) }));
+    if (r.status === 401) {
       if (events.length === 0) return { events: [], unauthorized: true };
       throw new Error("events 401");
     }
-    if (!res.ok) throw new Error(`events ${res.status}`);
-    const data = (await res.json()) as { events?: Event[]; nextCursor?: unknown };
+    const data = r.data!;
     events.push(...(data.events ?? []));
     cursor = typeof data.nextCursor === "string" && data.nextCursor ? data.nextCursor : null;
     if (!cursor) break;
