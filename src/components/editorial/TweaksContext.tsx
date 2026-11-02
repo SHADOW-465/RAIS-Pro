@@ -17,7 +17,19 @@ export interface Tweaks {
   theme: Theme;
   showBeams: boolean;
   grain: "day" | "week" | "month" | "fy";
-  datePreset: "all" | "this-month" | "last-90-days" | "last-12-months" | "this-fy" | "custom";
+  datePreset:
+    | "all"
+    | "this-day"
+    | "this-week"
+    | "last-week"
+    | "this-month"
+    | "last-month"
+    | "last-3-months"
+    | "last-3-month"
+    | "last-90-days"
+    | "last-12-months"
+    | "this-fy"
+    | "custom";
   dateFrom: string;
   dateTo: string;
   /** Global stage scope: "cumulative" (all stages combined) or a registry stageId.
@@ -54,7 +66,7 @@ export interface Tweaks {
 export const TWEAK_DEFAULTS: Tweaks = {
   theme: "light",
   showBeams: true,
-  grain: "month",
+  grain: "day",
   datePreset: "all",
   dateFrom: "",
   dateTo: "",

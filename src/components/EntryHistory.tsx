@@ -230,6 +230,9 @@ export default function EntryHistory({
   initialBatch,
   grain = "month",
   batchLabel,
+  initialScope = "mine",
+  emptyTitle,
+  emptyHint,
 }: {
   events: AuditEventLike[];
   /** Open this station's recorded row on the entry form for correction. */
@@ -246,10 +249,14 @@ export default function EntryHistory({
   grain?: Grain;
   /** Optional display name, e.g. `26I17-16 CT 26I17-18` for a converted lot. */
   batchLabel?: (batch: string) => string;
+  /** Data Entry defaults to typed-here; Batch Conversion / Audit-style lists use all. */
+  initialScope?: SourceScope;
+  emptyTitle?: string;
+  emptyHint?: string;
 }) {
   const { canEraseLedger } = usePersona();
   const [search, setSearch] = useState(initialSearch);
-  const [scope, setScope] = useState<SourceScope>("mine");
+  const [scope, setScope] = useState<SourceScope>(initialScope);
   const [status, setStatus] = useState<StatusScope>(initialStatus);
   const [ledgerFilter, setLedgerFilter] = useState<LedgerScope>("all");
   const [groupByLedger, setGroupByLedger] = useState(false);
@@ -844,7 +851,13 @@ export default function EntryHistory({
       </div>
 
       {groups.length === 0 ? (
-        <EmptyState searching={searching} query={search.trim()} scope={scope} />
+        <EmptyState
+          searching={searching}
+          query={search.trim()}
+          scope={scope}
+          emptyTitle={emptyTitle}
+          emptyHint={emptyHint}
+        />
       ) : (
         <div>
           <div
@@ -1530,18 +1543,32 @@ function SegGroup({
   );
 }
 
-function EmptyState({ searching, query, scope }: { searching: boolean; query: string; scope: SourceScope }) {
+function EmptyState({
+  searching,
+  query,
+  scope,
+  emptyTitle,
+  emptyHint,
+}: {
+  searching: boolean;
+  query: string;
+  scope: SourceScope;
+  emptyTitle?: string;
+  emptyHint?: string;
+}) {
   return (
     <div style={{ padding: "48px 24px", textAlign: "center", display: "grid", gap: 8, justifyItems: "center" }}>
       <p style={{ margin: 0, fontSize: "var(--text-base)", fontWeight: 600 }}>
-        {searching ? `Nothing matches “${query}”` : "No batches saved yet"}
+        {searching ? `Nothing matches “${query}”` : emptyTitle || "No batches saved yet"}
       </p>
       <p className="muted" style={{ margin: 0, fontSize: "var(--text-sm)", maxWidth: "44ch", lineHeight: "var(--leading-body)" }}>
         {searching
           ? "Try a batch id like 26F27-14, a stage name, or a defect code."
-          : scope === "mine"
-            ? "Batches you save under Log a batch appear here, with a progress bar showing which assembly gates are done."
-            : "Nothing in the ledger for this filter yet — import a workbook or log a batch."}
+          : emptyHint
+            ? emptyHint
+            : scope === "mine"
+              ? "Batches you save under Log a batch appear here, with a progress bar showing which assembly gates are done."
+              : "Nothing in the ledger for this filter yet — import a workbook or log a batch."}
       </p>
     </div>
   );

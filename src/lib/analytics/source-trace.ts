@@ -369,7 +369,10 @@ export function toSourceRows(
       type,
       kind,
       defectCode,
-      batch: typeof batch === "string" && batch.trim() ? batch.trim() : null,
+      batch:
+        typeof batch === "string" && batch.trim()
+          ? (canonicalBatchId(batch.trim()) ?? batch.trim())
+          : null,
       qty: raw.quantity ?? raw.statedValue ?? "—",
       file: prov.file ?? "Manual Entry",
       fileHash: prov.fileHash ?? null,

@@ -1,10 +1,10 @@
 // src/components/ParetoChart.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import type { ParetoAnalysis } from "@/lib/analytics/pareto";
 import { ZoomButton } from "@/components/app/widgets";
-import { useTweaks } from "@/components/editorial/TweaksContext";
+import { isRemedyComplete, lookupRemedy, resolveRemedyKey, useRemedyBook } from "@/lib/remedy-store";
 import {
   useContainerWidth,
   getBaseSpacing,
@@ -53,6 +53,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
   const [zoom, setZoom] = useState(1.0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
+  const remedyBook = useRemedyBook();
 
   const { ref: containerRef, width: containerWidth } = useContainerWidth(820);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -367,6 +368,18 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                     {items[hover].contribution.toFixed(1)}%
                   </strong>
                 </div>
+                {(() => {
+                  const rec = lookupRemedy(remedyBook, items[hover].label);
+                  const ready = isRemedyComplete(rec);
+                  return (
+                    <div>
+                      <span style={{ color: "var(--text-3)", marginRight: 5 }}>Remedy:</span>
+                      <strong style={{ color: ready ? "var(--positive)" : "var(--warning)" }}>
+                        {ready ? "Fed" : "Needs feed"}
+                      </strong>
+                    </div>
+                  );
+                })()}
                 <div
                   style={{
                     padding: "3px 10px",
@@ -434,6 +447,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                 <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 700 }}>Contribution %</th>
                 <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 700 }}>Cumulative %</th>
                 <th style={{ padding: "8px 12px", textAlign: "center", fontFamily: "var(--font-display)", fontWeight: 700 }}>Classification</th>
+                <th style={{ padding: "8px 12px", textAlign: "center", fontFamily: "var(--font-display)", fontWeight: 700 }}>Feed</th>
               </tr>
             </thead>
             <tbody>
@@ -457,6 +471,27 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                     }}>
                       {it.isVitalFew ? "Vital Few" : "Useful Many"}
                     </span>
+                  </td>
+                  <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                    {(() => {
+                      const rec = lookupRemedy(remedyBook, it.label);
+                      const ready = isRemedyComplete(rec);
+                      const code = resolveRemedyKey(it.label);
+                      return (
+                        <a
+                          href={`/remedies?code=${encodeURIComponent(code)}`}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: ready ? "var(--positive)" : "var(--warning)",
+                            textDecoration: "none",
+                          }}
+                        >
+                          {ready ? "Fed" : "Needs feed"}
+                        </a>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}

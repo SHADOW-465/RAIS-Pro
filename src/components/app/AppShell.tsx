@@ -24,7 +24,7 @@ import {
   type InvestigationState,
 } from "@/lib/analytics";
 import type { DashboardConfig } from "@/types/dashboard";
-import { resolveScope, DEFAULT_STAGE_CATEGORIES, stageCategoryOf, dateBounds } from "@/lib/analytics/scope";
+import { resolveScope, DEFAULT_STAGE_CATEGORIES, stageCategoryOf, dateBounds, presetDateWindow } from "@/lib/analytics/scope";
 import { trustScore as computeTrustScore } from "@/lib/analytics/trust";
 import { qualityStatus } from "@/lib/analytics/status";
 
@@ -315,8 +315,19 @@ export default function AppShell({
     switch (t.datePreset) {
       case "all":
         return "All data";
+      case "this-day":
+        return "This day";
+      case "this-week":
+        return "This week";
+      case "last-week":
+        return "Last week";
       case "this-month":
         return "This month";
+      case "last-month":
+        return "Last month";
+      case "last-3-months":
+      case "last-3-month":
+        return "Last 3mo";
       case "last-90-days":
         return "Last 90d";
       case "last-12-months":
@@ -841,27 +852,25 @@ export default function AppShell({
 
   const getSuggestedGrain = (): "day" | "week" | "month" | "fy" => {
     let days = 30;
-    if (t.datePreset === "this-month") {
+    if (t.datePreset === "this-day") {
+      days = 1;
+    } else if (t.datePreset === "this-week" || t.datePreset === "last-week") {
+      days = 7;
+    } else if (t.datePreset === "this-month" || t.datePreset === "last-month") {
       days = 30;
-    } else if (t.datePreset === "last-90-days") {
+    } else if (t.datePreset === "last-3-months" || t.datePreset === "last-3-month" || t.datePreset === "last-90-days") {
       days = 90;
     } else if (t.datePreset === "last-12-months" || t.datePreset === "this-fy") {
       days = 365;
     } else if (t.datePreset === "all") {
-      if (dateMinMax) {
-        const d1 = new Date(dateMinMax.min + "T00:00:00Z");
-        const d2 = new Date(dateMinMax.max + "T00:00:00Z");
-        days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
-      } else {
-        days = 365;
-      }
+      return "day";
     } else if (t.datePreset === "custom") {
       if (t.dateFrom && t.dateTo) {
         const d1 = new Date(t.dateFrom + "T00:00:00Z");
         const d2 = new Date(t.dateTo + "T00:00:00Z");
         days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
       } else {
-        return "month";
+        return "day";
       }
     }
 
@@ -871,7 +880,7 @@ export default function AppShell({
     return "fy";
   };
 
-  const suggestedGrain = mounted ? getSuggestedGrain() : "month";
+  const suggestedGrain = mounted ? getSuggestedGrain() : "day";
 
 
 
@@ -917,22 +926,9 @@ export default function AppShell({
       const max = dates[dates.length - 1];
       setDateMinMax({ min, max });
 
-      // Auto-suggest grain on initial load if preset is all
+      // Day is default and recommended when opening the dashboard
       if (t.datePreset === "all") {
-        const d1 = new Date(min + "T00:00:00Z");
-        const d2 = new Date(max + "T00:00:00Z");
-        const days = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000));
-        let suggested: "day" | "week" | "month" | "fy" = "month";
-        if (days < 90) {
-          suggested = "day";
-        } else if (days < 365) {
-          suggested = "week";
-        } else if (days <= 1095) {
-          suggested = "month";
-        } else {
-          suggested = "fy";
-        }
-        setTweak("grain", suggested);
+        setTweak("grain", "day");
       }
     }
   }, [events, t.datePreset, setTweak]);
@@ -946,7 +942,13 @@ export default function AppShell({
       lastDateSettingsRef.current = { preset: t.datePreset, from: t.dateFrom, to: t.dateTo };
       
       let days = 30;
-      if (t.datePreset === "last-90-days") {
+      if (t.datePreset === "this-day") {
+        days = 1;
+      } else if (t.datePreset === "this-week" || t.datePreset === "last-week") {
+        days = 7;
+      } else if (t.datePreset === "this-month" || t.datePreset === "last-month") {
+        days = 30;
+      } else if (t.datePreset === "last-3-months" || t.datePreset === "last-3-month" || t.datePreset === "last-90-days") {
         days = 90;
       } else if (t.datePreset === "last-12-months" || t.datePreset === "this-fy") {
         days = 365;
@@ -1625,13 +1627,14 @@ export default function AppShell({
             }}>
               {(["day", "week", "month", "fy"] as const).map((g) => {
                 const activeGrain = t.grain === g;
-                const isSuggested = suggestedGrain === g;
+                const isDay = g === "day";
+                const isSuggested = isDay || suggestedGrain === g;
                 return (
                   <button
                     key={g}
                     type="button"
                     onClick={() => setTweak("grain", g)}
-                    title={isSuggested ? `${g.toUpperCase()} (Suggested)` : g.toUpperCase()}
+                    title={isDay ? "Day — Daily resolution (Recommended & Default)" : isSuggested ? `${g.toUpperCase()} (Suggested)` : g.toUpperCase()}
                     style={{
                       padding: "2px 8px",
                       fontSize: 10,
@@ -1723,12 +1726,12 @@ export default function AppShell({
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)" }}>
                   Date range
                 </div>
-                {(["all", "this-month", "last-90-days", "last-12-months", "this-fy", "custom"] as const).map((preset) => {
+                {(["all", "this-day", "this-week", "last-week", "this-month", "last-month", "last-3-months", "last-12-months", "this-fy", "custom"] as const).map((preset) => {
                   const customActive = customDraft !== null || t.datePreset === "custom";
                   const selected =
                     preset === "custom"
                       ? customActive
-                      : customDraft === null && t.datePreset === preset;
+                      : customDraft === null && (t.datePreset === preset || (preset === "last-3-months" && t.datePreset === "last-3-month"));
                   return (
                   <button
                     key={preset}
@@ -1744,20 +1747,9 @@ export default function AppShell({
                         return;
                       }
                       setCustomDraft(null);
-                      if (preset === "this-month") {
-                        const { max: dataMax } = dateBounds(events ?? []);
-                        const anchor = dataMax ? new Date(`${dataMax}T00:00:00Z`) : new Date();
-                        const y = anchor.getUTCFullYear();
-                        const m = anchor.getUTCMonth();
-                        const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
-                        const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-                        const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-                        setTweak("dateFrom", start);
-                        setTweak("dateTo", end);
-                      } else {
-                        setTweak("dateFrom", "");
-                        setTweak("dateTo", "");
-                      }
+                      const { from: start, to: end } = presetDateWindow(preset, events);
+                      setTweak("dateFrom", start);
+                      setTweak("dateTo", end);
                       setTweak("datePreset", preset);
                       setShowPicker(false);
                     }}
@@ -1776,8 +1768,29 @@ export default function AppShell({
                     }}
                   >
                     {preset === "all" && "All data"}
+                    {preset === "this-day" && (
+                      <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                        <span>This day</span>
+                        <span
+                          style={{
+                            fontSize: 9.5,
+                            fontWeight: 700,
+                            padding: "1px 6px",
+                            borderRadius: 4,
+                            background: "color-mix(in srgb, var(--accent) 18%, var(--surface-2))",
+                            color: "var(--accent)",
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          Recommended
+                        </span>
+                      </span>
+                    )}
+                    {preset === "this-week" && "This week"}
+                    {preset === "last-week" && "Last week"}
                     {preset === "this-month" && "This month"}
-                    {preset === "last-90-days" && "Last 90 days"}
+                    {preset === "last-month" && "Last month"}
+                    {preset === "last-3-months" && "Last 3 months"}
                     {preset === "last-12-months" && "Last 12 months"}
                     {preset === "this-fy" && "This FY"}
                     {preset === "custom" && "Custom range…"}

@@ -19,7 +19,12 @@ import {
   type AuditEventLike,
   type AuditEntryRow,
 } from "@/lib/analytics/audit-sessions";
-import { hydrateFromAuditRow, hydrateFromBatchGroup, type EntryHydrate } from "@/lib/entry/hydrate-entry";
+import {
+  hydrateFromAuditRow,
+  hydrateFromBatchGroup,
+  mirrorStationToLot,
+  type EntryHydrate,
+} from "@/lib/entry/hydrate-entry";
 import { type ConversionFlowInfo } from "@/components/entry/BatchIdentityZone";
 import ConversionEntryPanel from "@/components/entry/ConversionEntryPanel";
 import {
@@ -28,7 +33,12 @@ import {
   conversionFlowLabel,
   historyNameForLot,
   eligibleTransferQty,
+  fullConversionQty,
   transferQtyError,
+  eventsForConversionHistory,
+  conversionHistoryLabel,
+  lineageRowsForHistory,
+  buildAuditConversionLookup,
   type BatchConversion,
   type LineageNode,
 } from "@/lib/lineage";
@@ -83,6 +93,9 @@ export default function BatchConversionPage() {
   const [toSize, setToSize] = useState("");
   const [changeStageId, setChangeStageId] = useState("");
   const [changedQtyInput, setChangedQtyInput] = useState("");
+  // Whole-lot conversion: the full station quantity moves and the original
+  // lot's figures are mirrored onto the converted lot.
+  const [fullConversion, setFullConversion] = useState(false);
   const [schema, setSchema] = useState<ResolvedEntrySchema | null>(null);
   const [convertedOn, setConvertedOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [reason, setReason] = useState("");
@@ -142,7 +155,7 @@ export default function BatchConversionPage() {
     return sizeOfLot(fromBatch);
   }, [fromBatchGroup, fromBatch]);
 
-  const changedQty = /^\d+$/.test(changedQtyInput) ? Number(changedQtyInput) : 0;
+  const typedQty = /^\d+$/.test(changedQtyInput) ? Number(changedQtyInput) : 0;
 
   const stageOptions = useMemo(() => {
     const resolved = schema ?? resolveEntrySchema(null);
@@ -176,7 +189,33 @@ export default function BatchConversionPage() {
     stageOptions.find((o) => o.value === changeStageId)?.label ||
     (changeStageId ? STAGE_LABELS[resolveStageId(changeStageId) ?? ""] ?? changeStageId : "");
 
-  const qtyError = transferQtyError(changedQty, stageAvailable, stageLabel);
+  const fullQty =
+    stageBucket
+      ? fullConversionQty(stageBucket)
+      : fromBatchGroup && changeStageId
+        ? 0
+        : null;
+
+  const changedQty = fullConversion ? (fullQty ?? 0) : typedQty;
+
+  const qtyError = fullConversion
+    ? fullQty === 0
+      ? `The original lot has no quantity at ${stageLabel}. Pick a station it has already reached.`
+      : null
+    : transferQtyError(changedQty, stageAvailable, stageLabel);
+
+  const toggleFullConversion = () => {
+    const next = !fullConversion;
+    setFullConversion(next);
+    setFormOk(null);
+    setFormError(null);
+    // The whole lot changed size from the start: default to its first station.
+    if (next && !changeStageId && fromBatchGroup?.stages[0]) {
+      setChangeStageId(fromBatchGroup.stages[0].stageId);
+    }
+  };
+
+  const toSizeFr = toSize ? (toSize.endsWith("Fr") ? toSize : `${toSize}Fr`) : null;
 
   const previewId = toSize ? proposedConvertedBatchId(fromBatch, toSize) : null;
   const convertedName = previewId && previewId !== (fromBatch && formatBatchIdInput(fromBatch))
@@ -217,14 +256,20 @@ export default function BatchConversionPage() {
     };
   }, [fromBatch, convertedName, toSize, fromSize, convertedOn, reason, changedQty, changeStageId, stageAvailable]);
 
-  const convertedLotIds = useMemo(() => new Set(conversions.map((c) => c.toBatch)), [conversions]);
-  const historyEvents = useMemo(() => {
-    if (convertedLotIds.size === 0) return [];
-    return ((events ?? []) as AuditEventLike[]).filter((e) => {
-      const b = batchOf(e);
-      return !!b && convertedLotIds.has(b);
-    });
-  }, [events, convertedLotIds]);
+  const conversionLookup = useMemo(
+    () => buildAuditConversionLookup(batchGroups, conversions),
+    [batchGroups, conversions],
+  );
+
+  const historyEvents = useMemo(
+    () => eventsForConversionHistory((events ?? []) as AuditEventLike[], conversions, conversionLookup),
+    [events, conversions, conversionLookup],
+  );
+
+  const lineageRows = useMemo(
+    () => lineageRowsForHistory(conversions, conversionLookup),
+    [conversions, conversionLookup],
+  );
 
   const sizeOptions = useMemo(
     () =>
@@ -307,7 +352,10 @@ export default function BatchConversionPage() {
       setChangedQtyInput(String(Math.trunc(seededQty)));
     }
 
-    if (from) setFromBatch(formatBatchIdInput(from));
+    if (from) {
+      setFromBatch(formatBatchIdInput(from));
+      setActiveTab("matrix");
+    }
     // Never prefill new size with the original size — that yields the same ID.
     if (sz && sizeOfLot(from || "") !== sz) setToSize(sz);
     if (d) setConvertedOn(d);
@@ -339,7 +387,7 @@ export default function BatchConversionPage() {
 
   useEffect(() => {
     if (!convertedName) return;
-    const key = `${convertedName}|${changeStageId}|${changedQty}|${convertedOn}|${toSize}|${convertBatchGroup?.rowCount ?? 0}`;
+    const key = `${convertedName}|${changeStageId}|${changedQty}|${convertedOn}|${toSize}|${convertBatchGroup?.rowCount ?? 0}|${fullConversion}`;
     if (hydrateKey.current === key) return;
     hydrateKey.current = key;
     const recorded = hydrateFromBatchGroup(convertBatchGroup, {
@@ -363,6 +411,22 @@ export default function BatchConversionPage() {
       setEntryReady(true);
       return;
     }
+    const mirrored = fullConversion
+      ? mirrorStationToLot(fromBatchGroup, {
+          stageId: stageBucket?.stageId ?? changeStageId,
+          batchId: convertedName,
+          date: convertedOn,
+          size: toSizeFr,
+        })
+      : null;
+    if (mirrored) {
+      pushedLot.current = convertedName;
+      setHydrate({ ...mirrored, stageId: changeStageId });
+      setEntryReady(true);
+      setActiveTab("matrix");
+      setFocusBatch(convertedName);
+      return;
+    }
     openEntryFor({
       batchId: convertedName,
       date: convertedOn,
@@ -374,7 +438,7 @@ export default function BatchConversionPage() {
       productType: fromBatchGroup?.stages[0]?.rows[0]?.productType ?? null,
       stageId: changeStageId,
     });
-  }, [conversionReady, convertedName, changeStageId, changedQty, convertedOn, toSize, fromBatchGroup, convertBatchGroup, openEntryFor]);
+  }, [conversionReady, convertedName, changeStageId, changedQty, convertedOn, toSize, toSizeFr, fromBatchGroup, convertBatchGroup, stageBucket, fullConversion, openEntryFor]);
 
   useEffect(() => {
     if (!focusBatch) {
@@ -430,7 +494,20 @@ export default function BatchConversionPage() {
       setFocusBatch(row.toBatch);
       setChangeStageId(row.stageId);
       setChangedQtyInput(String(row.changedQty));
-      openEntryFor({
+      const mirrored = fullConversion
+        ? mirrorStationToLot(fromBatchGroup, {
+            stageId: stageBucket?.stageId ?? row.stageId,
+            batchId: row.toBatch,
+            date: row.convertedOn,
+            size: row.toSize,
+          })
+        : null;
+      if (mirrored) {
+        pushedLot.current = row.toBatch;
+        setHydrate({ ...mirrored, stageId: row.stageId });
+        setEntryReady(true);
+        setActiveTab("matrix");
+      } else openEntryFor({
         batchId: row.toBatch,
         date: row.convertedOn,
         size: row.toSize,
@@ -449,12 +526,16 @@ export default function BatchConversionPage() {
   }
 
   const handleEdit = (row: AuditEntryRow) => {
+    setFromBatch(row.batch);
+    setChangeStageId(row.stageId);
     setHydrate(hydrateFromAuditRow(row, "edit"));
     setActiveTab("matrix");
     setEntryReady(true);
   };
 
   const handleReuse = (row: AuditEntryRow) => {
+    setFromBatch(row.batch);
+    setChangeStageId(row.stageId);
     setHydrate(hydrateFromAuditRow(row, "reuse-lot"));
     setActiveTab("matrix");
     setEntryReady(true);
@@ -475,8 +556,8 @@ export default function BatchConversionPage() {
   const loadRecordedConversion = useCallback(
     (c: BatchConversion, view: "source" | "converted") => {
       setFromBatch(c.fromBatch);
-      setToSize(c.toSize);
-      setConvertedOn(c.convertedOn);
+      if (c.toSize) setToSize(c.toSize);
+      if (c.convertedOn) setConvertedOn(c.convertedOn);
       setReason(c.reason);
       setNotes("");
       setChangeStageId(c.stageId || "");
@@ -546,7 +627,9 @@ export default function BatchConversionPage() {
               A. Conversion details
             </h2>
             <p className="muted" style={{ fontSize: 12, margin: "2px 0 0" }}>
-              Only the quantity you enter moves to the new size. The rest stays on the original lot.
+              {fullConversion
+                ? "Entire lot converts. The original lot's figures are mirrored onto the converted lot; nothing stays behind."
+                : "Only the quantity you enter moves to the new size. The rest stays on the original lot."}
             </p>
           </div>
           {flowLabel && (
@@ -711,22 +794,53 @@ export default function BatchConversionPage() {
               size="sm"
             />
           </label>
-          <label style={labelStyle}>
-            Quantity changed
+          <div style={labelStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <label htmlFor="conversion-qty">Quantity changed</label>
+              <button
+                type="button"
+                onClick={toggleFullConversion}
+                aria-pressed={fullConversion}
+                disabled={!fromBatch}
+                title="The whole original lot changed size. Mirror every figure onto the converted lot."
+                style={{
+                  height: 22,
+                  padding: "0 9px",
+                  borderRadius: 999,
+                  border: `1px solid ${fullConversion ? "var(--accent)" : "var(--border-strong)"}`,
+                  background: fullConversion
+                    ? "color-mix(in srgb, var(--accent) 14%, var(--surface))"
+                    : "var(--surface-2)",
+                  color: fullConversion ? "var(--accent)" : "var(--text-2)",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: fromBatch ? "pointer" : "not-allowed",
+                  opacity: fromBatch ? 1 : 0.5,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {fullConversion ? "✓ Entire lot" : "Convert entire lot"}
+              </button>
+            </div>
             <input
-              value={changedQtyInput}
+              id="conversion-qty"
+              value={fullConversion ? (fullQty != null ? String(fullQty) : "") : changedQtyInput}
               onChange={(e) => {
                 setChangedQtyInput(e.target.value.replace(/[^\d]/g, ""));
                 setFormOk(null);
                 setFormError(null);
               }}
+              readOnly={fullConversion}
               inputMode="numeric"
-              placeholder="0"
+              placeholder={fullConversion ? "Pick a station" : "0"}
               aria-label="Quantity changed"
-              style={inputStyle}
+              style={{
+                ...inputStyle,
+                ...(fullConversion ? { color: "var(--accent)", fontWeight: 700, cursor: "default" } : null),
+              }}
               required
             />
-          </label>
+          </div>
           <label style={labelStyle}>
             Notes
             <input
@@ -740,7 +854,11 @@ export default function BatchConversionPage() {
           <p className="muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.45, color: qtyError ? "var(--warning)" : undefined }}>
             {qtyError
               ? qtyError
-              : stageAvailable != null && stageAvailable > 0
+              : fullConversion && fullQty != null && fullQty > 0
+                ? `Entire lot: all ${fullQty.toLocaleString()} at ${stageLabel} move to ${convertedName ?? "the new size"}. Checked, accepted, hold, rejected and defects are mirrored onto the converted lot.`
+                : fullConversion
+                  ? "Pick the station where the whole lot changed size. Its full quantity moves to the converted lot."
+                  : stageAvailable != null && stageAvailable > 0
                 ? `${stageLabel} on the original lot has ${stageAvailable.toLocaleString()} available. Enter how many of those changed size. The rest stay on the original lot.`
                 : "Pick the station where the size changes. Entry on the new lot starts there and continues to the end."}
           </p>
@@ -835,7 +953,7 @@ export default function BatchConversionPage() {
             onSelect={(id) => setActiveTab(id as EntryMode)}
             items={[
               { id: "matrix", label: "Log batches" },
-              { id: "history", label: "Converted history" },
+              { id: "history", label: "Conversion history" },
             ]}
           />
         </div>
@@ -846,7 +964,10 @@ export default function BatchConversionPage() {
             onEdit={handleEdit}
             onReuse={handleReuse}
             grain={t.grain}
-            batchLabel={(batch) => historyNameForLot(batch, conversions)}
+            initialScope="all"
+            batchLabel={(batch) => conversionHistoryLabel(batch, conversions, conversionLookup)}
+            emptyTitle="No batch conversions recorded yet."
+            emptyHint="Lots Audit Trail marks as converted appear here, along with recorded size changes. Ordinary production lots stay on Audit Trail and Data Entry."
           />
         ) : fromBatch ? (
           <>
@@ -920,122 +1041,6 @@ export default function BatchConversionPage() {
           </p>
         )}
       </section>
-
-      <section
-        aria-label="Audit trail and batch lineage"
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-lg)",
-          padding: "14px 16px 16px",
-          boxShadow: "var(--shadow-1)",
-          marginBottom: 24,
-        }}
-      >
-        <h2 className="h3" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-          C. Audit trail & batch lineage
-        </h2>
-        <p className="muted" style={{ fontSize: 12, margin: "2px 0 12px" }}>
-          Click either batch ID to open that lot in the mirrored entry panels. History is the
-          recorded conversion, not the current form.
-        </p>
-
-        {chain && chain.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: 12,
-              fontFamily: "var(--font-mono)",
-              fontSize: 13,
-              fontWeight: 700,
-            }}
-          >
-            {chain.map((node, i) => (
-              <span key={node.batch} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                {i > 0 && (
-                  <span style={{ color: "var(--accent)", fontSize: 11, letterSpacing: "0.06em" }}>CT</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => revealPanel(node.origin ? "source" : "converted")}
-                  style={{
-                    ...inputStyle,
-                    width: "auto",
-                    height: 30,
-                    padding: "0 10px",
-                    cursor: "pointer",
-                    fontWeight: 800,
-                    borderColor: node.origin ? "var(--border-strong)" : "color-mix(in srgb, var(--accent) 45%, var(--border))",
-                  }}
-                >
-                  {node.batch}
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        {conversions.length > 0 ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-              <thead>
-                <tr>
-                  <th style={thLeft}>Original</th>
-                  <th style={thLeft}>Converted</th>
-                  <th style={th}>Changed</th>
-                  <th style={thLeft}>At</th>
-                  <th style={th}>On</th>
-                  <th style={thLeft}>By</th>
-                  <th style={thLeft}>Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {conversions.map((c) => (
-                  <tr key={c.id}>
-                    <td style={tdMono}>
-                      <button
-                        type="button"
-                        onClick={() => loadRecordedConversion(c, "source")}
-                        style={idBtn}
-                        title={`Open original ${c.fromBatch}`}
-                      >
-                        {c.fromBatch}
-                      </button>
-                      <span style={sizeBit}>{c.fromSize}</span>
-                    </td>
-                    <td style={tdMono}>
-                      <button
-                        type="button"
-                        onClick={() => loadRecordedConversion(c, "converted")}
-                        style={idBtn}
-                        title={`Open converted ${c.toBatch}`}
-                      >
-                        {c.toBatch}
-                      </button>
-                      <span style={sizeBit}>{c.toSize}</span>
-                    </td>
-                    <td style={tdMuted}>{c.changedQty > 0 ? c.changedQty.toLocaleString() : "—"}</td>
-                    <td style={tdMuted}>
-                      {c.stageId ? STAGE_LABELS[resolveStageId(c.stageId) ?? ""] ?? c.stageId : "—"}
-                    </td>
-                    <td style={tdMuted}>{c.convertedOn}</td>
-                    <td style={tdMuted}>{c.createdBy || "—"}</td>
-                    <td style={tdMuted}>{c.reason}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-            No recorded conversions yet. Recording one writes an immutable lineage edge and keeps
-            the original lot as the parent identity.
-          </p>
-        )}
-      </section>
     </AppShell>
   );
 }
@@ -1047,47 +1052,4 @@ const labelStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
   color: "var(--text-2)",
-};
-
-const th: CSSProperties = {
-  textAlign: "right",
-  padding: "8px 10px",
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: "0.04em",
-  textTransform: "uppercase",
-  color: "var(--text-3)",
-  borderBottom: "1px solid var(--border)",
-  whiteSpace: "nowrap",
-};
-const thLeft: CSSProperties = { ...th, textAlign: "left" };
-const tdMono: CSSProperties = {
-  padding: "8px 10px",
-  fontFamily: "var(--font-mono)",
-  fontWeight: 700,
-  letterSpacing: "0.03em",
-  borderBottom: "1px solid var(--border)",
-};
-const tdMuted: CSSProperties = {
-  padding: "8px 10px",
-  color: "var(--text-3)",
-  borderBottom: "1px solid var(--border)",
-};
-const sizeBit: CSSProperties = {
-  marginLeft: 8,
-  color: "var(--text-3)",
-  fontWeight: 500,
-};
-const idBtn: CSSProperties = {
-  background: "none",
-  border: "none",
-  padding: 0,
-  color: "inherit",
-  font: "inherit",
-  fontFamily: "var(--font-mono)",
-  fontWeight: 800,
-  letterSpacing: "0.03em",
-  cursor: "pointer",
-  textDecoration: "underline",
-  textUnderlineOffset: 3,
 };

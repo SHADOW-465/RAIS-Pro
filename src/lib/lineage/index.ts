@@ -14,6 +14,7 @@ export { getLineageStore } from "./store";
 export {
   chipFromQty,
   eligibleTransferQty,
+  fullConversionQty,
   transferQtyError,
   qtyFromRows,
   qtyMapFromGroup,
@@ -27,3 +28,23 @@ export {
   type FlowBand,
 } from "./quantity-flow";
 export { attachConversionHalves, type AuditBatchGroupWithConvert } from "./audit-halves";
+export {
+  isValidRecordedConversion,
+  conversionHistoryLotIds,
+  conversionHistoryLabel,
+  lineageRowsForHistory,
+  eventsForConversionHistory,
+} from "./conversion-history";
+export {
+  buildProcessLotGrouping,
+  scopeRowsForProcessLots,
+  formatConvertBatchCode,
+  parseConvertBatchParts,
+  buildAuditConversionLookup,
+  type LotSourceCategory,
+  type LotCategoryMeta,
+  type ProcessLotGrouping,
+  type ConvertBatchBreakdown,
+  type AuditBatchConvertInfo,
+  type AuditConversionLookup,
+} from "./open-lot-groups";

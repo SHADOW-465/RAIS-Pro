@@ -4,6 +4,7 @@ import {
   fyContaining,
   scopeEvents,
   resolveScope,
+  presetDateWindow,
   isDirectEntryEvent,
   listExcelSourceFiles,
   listBatchIds,
@@ -741,5 +742,115 @@ describe("describeActiveScope / plant default", () => {
     });
     expect(describeSourceFilter(scope)).toMatch(/full plant/i);
     expect(describeSourceFilter(scope)).toMatch(/Assembly/i);
+  });
+
+  describe("datePreset windows (this-day, this-week, this-month, last-month, last-3-months)", () => {
+    const ev1 = makeEv({ eventId: "e1", day: "2026-08-10" });
+    const ev2 = makeEv({ eventId: "e2", day: "2026-09-15" });
+    const ev3 = makeEv({ eventId: "e3", day: "2026-10-24" }); // anchor = 2026-10-24
+    const events = [ev1, ev2, ev3];
+
+    it("resolves 'this-day' anchored on the latest event day", () => {
+      const win = presetDateWindow("this-day", events);
+      expect(win).toEqual({ from: "2026-10-24", to: "2026-10-24" });
+
+      const scope = resolveScope(events, {
+        grain: "day",
+        datePreset: "this-day",
+        dateFrom: "",
+        dateTo: "",
+        stageCategories: ["assembly"],
+      });
+      expect(scope.dateFrom).toBe("2026-10-24");
+      expect(scope.dateTo).toBe("2026-10-24");
+      expect(scopeEvents(events, scope).map((e) => e.eventId)).toEqual(["e3"]);
+    });
+
+    it("resolves 'this-week' to the plant's 7-day weekOfMonth bucket", () => {
+      // 2026-10-24 is day 24, which is in W4: days 22-28
+      const win = presetDateWindow("this-week", events);
+      expect(win).toEqual({ from: "2026-10-22", to: "2026-10-28" });
+
+      const scope = resolveScope(events, {
+        grain: "day",
+        datePreset: "this-week",
+        dateFrom: "",
+        dateTo: "",
+        stageCategories: ["assembly"],
+      });
+      expect(scope.dateFrom).toBe("2026-10-22");
+      expect(scope.dateTo).toBe("2026-10-28");
+    });
+
+    it("resolves 'last-week' to the previous weekOfMonth bucket", () => {
+      // Previous week before W4 (22-28) in Oct is W3: 15-21
+      const win = presetDateWindow("last-week", events);
+      expect(win).toEqual({ from: "2026-10-15", to: "2026-10-21" });
+
+      const scope = resolveScope(events, {
+        grain: "day",
+        datePreset: "last-week",
+        dateFrom: "",
+        dateTo: "",
+        stageCategories: ["assembly"],
+      });
+      expect(scope.dateFrom).toBe("2026-10-15");
+      expect(scope.dateTo).toBe("2026-10-21");
+
+      // When anchor is in W1 (e.g. 2026-10-02), last-week is W5 of previous month (Sep 29-30)
+      const earlyEvent = makeEv({ eventId: "e0", day: "2026-10-02" });
+      const winPrevMonth = presetDateWindow("last-week", [earlyEvent]);
+      expect(winPrevMonth).toEqual({ from: "2026-09-29", to: "2026-09-30" });
+    });
+
+    it("resolves 'this-month' to the full calendar month of the anchor", () => {
+      const win = presetDateWindow("this-month", events);
+      expect(win).toEqual({ from: "2026-10-01", to: "2026-10-31" });
+
+      const scope = resolveScope(events, {
+        grain: "day",
+        datePreset: "this-month",
+        dateFrom: "",
+        dateTo: "",
+        stageCategories: ["assembly"],
+      });
+      expect(scope.dateFrom).toBe("2026-10-01");
+      expect(scope.dateTo).toBe("2026-10-31");
+      expect(scopeEvents(events, scope).map((e) => e.eventId)).toEqual(["e3"]);
+    });
+
+    it("resolves 'last-month' to the previous full calendar month", () => {
+      // Previous month before Oct 2026 is September (30 days)
+      const win = presetDateWindow("last-month", events);
+      expect(win).toEqual({ from: "2026-09-01", to: "2026-09-30" });
+
+      const scope = resolveScope(events, {
+        grain: "day",
+        datePreset: "last-month",
+        dateFrom: "",
+        dateTo: "",
+        stageCategories: ["assembly"],
+      });
+      expect(scope.dateFrom).toBe("2026-09-01");
+      expect(scope.dateTo).toBe("2026-09-30");
+      expect(scopeEvents(events, scope).map((e) => e.eventId)).toEqual(["e2"]);
+    });
+
+    it("resolves 'last-3-months' to 3 months prior up to the anchor date", () => {
+      const win = presetDateWindow("last-3-months", events);
+      expect(win).toEqual({ from: "2026-07-24", to: "2026-10-24" });
+
+      const scope = resolveScope(events, {
+        grain: "week",
+        datePreset: "last-3-months",
+        dateFrom: "",
+        dateTo: "",
+        stageCategories: ["assembly"],
+      });
+      expect(scope.dateFrom).toBe("2026-07-24");
+      expect(scope.dateTo).toBe("2026-10-24");
+      // All 3 events (Aug 10, Sep 15, Oct 24) fall inside July 24 - Oct 24
+      expect(scopeEvents(events, scope).map((e) => e.eventId)).toEqual(["e1", "e2", "e3"]);
+    });
   });
 });

@@ -21,6 +21,7 @@ import {
   seriesColor,
 } from "@/components/app/widgets";
 import ParetoChart from "@/components/ParetoChart";
+import DefectRemedyShowcase from "@/components/DefectRemedyShowcase";
 import { calculatePareto } from "@/lib/analytics/pareto";
 import {
   byDefect,
@@ -55,6 +56,7 @@ export default function DefectAnalysisPage() {
   const [modalMetricKind, setModalMetricKind] = useState<SourceMetricKind>("pareto");
   const [modalInitialShowSource, setModalInitialShowSource] = useState(false);
   const [modalDefaultSourceTab, setModalDefaultSourceTab] = useState<"batches" | "history">("batches");
+  const [modalRankedDefects, setModalRankedDefects] = useState<{ code: string; label: string }[]>([]);
   const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
   const [targetRej, setTargetRej] = useState(0.10);
   const [defectMetric, setDefectMetric] = useState<"qty" | "rate">("qty");
@@ -80,7 +82,12 @@ export default function DefectAnalysisPage() {
     title: string,
     insight: string | string[],
     content: React.ReactNode,
-    source?: { rows: SourceRow[]; value: string; metricKind?: SourceMetricKind },
+    source?: {
+      rows: SourceRow[];
+      value: string;
+      metricKind?: SourceMetricKind;
+      rankedDefects?: { code: string; label: string }[];
+    },
     options?: { initialShowSource?: boolean; defaultSourceTab?: "batches" | "history" }
   ) => {
     setModalTitle(title);
@@ -89,6 +96,7 @@ export default function DefectAnalysisPage() {
     setModalSourceRows(source?.rows);
     setModalPrimaryValue(source?.value);
     setModalMetricKind(source?.metricKind ?? "pareto");
+    setModalRankedDefects(source?.rankedDefects ?? []);
     setModalInitialShowSource(options?.initialShowSource ?? false);
     setModalDefaultSourceTab(options?.defaultSourceTab ?? "batches");
     setModalOpen(true);
@@ -213,6 +221,10 @@ export default function DefectAnalysisPage() {
             perStage: p.perDefect,
           }));
           const totalRejected = m.defects.reduce((s, d) => s + d.rejected, 0);
+          const rankedDefects = m.defects.slice(0, 3).map((d) => ({
+            code: d.defectCode || d.label,
+            label: d.label,
+          }));
 
           const donutData = chartDefects.map((d) => ({
             label: d.label,
@@ -256,11 +268,12 @@ export default function DefectAnalysisPage() {
                       <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                         <ParetoChart analysis={chartData} />
                       </div>,
-                      { rows: srcRows({ types: ["rejection"] }), value: num(totalRejected) }
+                      { rows: srcRows({ types: ["rejection"] }), value: num(totalRejected), rankedDefects }
                     )
                   }
                 >
                   <ParetoChart analysis={chartData} showTable={false} />
+                  <DefectRemedyShowcase ranked={rankedDefects} compact />
                 </Card>
               </div>
 
@@ -533,7 +546,7 @@ export default function DefectAnalysisPage() {
                               <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                                 <LineChart points={points} fmt={fmtFn} color={color} stage={d.label} metric={isRate ? "Defect Share" : "Rejected"} />
                               </div>,
-                              { rows: srcRows({ types: ["rejection"], defectCode: d.defectCode ?? undefined }), value: isRate ? `${d.pct.toFixed(1)}%` : num(d.rejected) },
+                              { rows: srcRows({ types: ["rejection"], defectCode: d.defectCode ?? undefined }), value: isRate ? `${d.pct.toFixed(1)}%` : num(d.rejected), rankedDefects: [{ code: d.defectCode || d.label, label: d.label }] },
                               { initialShowSource: true, defaultSourceTab: "batches" }
                             )
                           }
@@ -557,7 +570,7 @@ export default function DefectAnalysisPage() {
                                     <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                                       <LineChart points={points} fmt={fmtFn} color={color} stage={d.label} metric={isRate ? "Defect Share" : "Rejected"} />
                                     </div>,
-                                    { rows: srcRows({ types: ["rejection"], defectCode: d.defectCode ?? undefined }), value: isRate ? `${d.pct.toFixed(1)}%` : num(d.rejected) },
+                                    { rows: srcRows({ types: ["rejection"], defectCode: d.defectCode ?? undefined }), value: isRate ? `${d.pct.toFixed(1)}%` : num(d.rejected), rankedDefects: [{ code: d.defectCode || d.label, label: d.label }] },
                                     { initialShowSource: true, defaultSourceTab: "batches" }
                                   );
                                 }}
@@ -598,7 +611,7 @@ export default function DefectAnalysisPage() {
                                     <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                                       <LineChart points={points} fmt={fmtFn} color={color} stage={d.label} metric={isRate ? "Defect Share" : "Rejected"} />
                                     </div>,
-                                    { rows: srcRows({ types: ["rejection"], defectCode: d.defectCode ?? undefined }), value: isRate ? `${d.pct.toFixed(1)}%` : num(d.rejected) },
+                                    { rows: srcRows({ types: ["rejection"], defectCode: d.defectCode ?? undefined }), value: isRate ? `${d.pct.toFixed(1)}%` : num(d.rejected), rankedDefects: [{ code: d.defectCode || d.label, label: d.label }] },
                                     { initialShowSource: true, defaultSourceTab: "history" }
                                   );
                                 }}
@@ -744,6 +757,7 @@ export default function DefectAnalysisPage() {
         rawSheets={rawSheets}
         initialShowSource={modalInitialShowSource}
         defaultSourceTab={modalDefaultSourceTab}
+        rankedDefects={modalRankedDefects}
       >
         {modalContent}
       </FloatingDetailModal>

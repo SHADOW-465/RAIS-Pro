@@ -20,6 +20,13 @@ test("batch-id helpers were not rewritten for conversion", () => {
   expect(src).not.toMatch(/lineage/);
 });
 
+test("conversion page history is derived from lineage plus Audit CT lookup, not the full ledger", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/batch-conversion/page.tsx"), "utf8");
+  expect(src).toMatch(/eventsForConversionHistory/);
+  expect(src).toMatch(/buildAuditConversionLookup/);
+  expect(src).toMatch(/eventsForConversionHistory\([\s\S]*conversionLookup/);
+});
+
 test("conversion page mounts two BatchMatrixEntry panels on the shared component", () => {
   const src = readFileSync(join(process.cwd(), "src/app/batch-conversion/page.tsx"), "utf8");
   expect(src).toMatch(/tone="source"/);

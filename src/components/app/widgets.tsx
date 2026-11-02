@@ -911,6 +911,13 @@ export function GaugeChart({ value, label, subtext }: { value: number; label: st
   );
 }
 
+export type ChartOverlay = {
+  id: string;
+  label: string;
+  points: SeriesPoint[];
+  color: string;
+};
+
 export function LineChart({
   points,
   target,
@@ -922,6 +929,7 @@ export function LineChart({
   height = 280,
   compact,
   strokeWidth = 2.25,
+  overlays,
 }: {
   points: SeriesPoint[];
   target?: number;
@@ -934,6 +942,8 @@ export function LineChart({
   compact?: boolean;
   /** Line thickness — the builder's "weight" control. Default matches every existing caller. */
   strokeWidth?: number;
+  /** Historical series aligned onto the current x-axis. Drawn behind the current line. */
+  overlays?: ChartOverlay[];
 }) {
   const [zoom, setZoom] = useState(1.0);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -963,7 +973,10 @@ export function LineChart({
   const plotH = H - padTop - padBottom;
   const axisY = H - padBottom;
   const v = points.filter((p) => !p.noProduction && Number.isFinite(p.value)).map((p) => p.value);
-  const dataMax = Math.max(0, ...v);
+  const overlayVals = (overlays ?? []).flatMap((o) =>
+    o.points.filter((p) => !p.noProduction && Number.isFinite(p.value)).map((p) => p.value),
+  );
+  const dataMax = Math.max(0, ...v, ...overlayVals);
   let defaultMax = 0.05;
   let isPercent = false;
   try {
@@ -1284,6 +1297,56 @@ export function LineChart({
             </g>
           )}
 
+          {(overlays ?? []).map((overlay) => {
+            const live = overlay.points.map((p) => !p.noProduction && Number.isFinite(p.value));
+            const oSeg = splitSegments(live, startIdx, endIdx);
+            const oRun = (r: number[]) =>
+              r.map((i, k) => `${k ? "L" : "M"} ${x(i)} ${y(overlay.points[i].value)}`).join(" ");
+            const oPath = oSeg.runs.map(oRun).join(" ");
+            const oBridge = oSeg.bridges
+              .map(([a, b]) => `M ${x(a)} ${y(overlay.points[a].value)} L ${x(b)} ${y(overlay.points[b].value)}`)
+              .join(" ");
+            return (
+              <g key={overlay.id} opacity={0.72} pointerEvents="none">
+                {oPath && (
+                  <path
+                    d={oPath}
+                    fill="none"
+                    stroke={overlay.color}
+                    strokeWidth={Math.max(1, strokeWidth - 0.75)}
+                    strokeDasharray="5,3"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                )}
+                {oBridge && (
+                  <path
+                    d={oBridge}
+                    fill="none"
+                    stroke={overlay.color}
+                    strokeWidth={1}
+                    strokeDasharray="2,4"
+                    opacity={0.45}
+                  />
+                )}
+                {overlay.points.map((p, i) => {
+                  if (i < startIdx || i > endIdx || p.noProduction || !Number.isFinite(p.value)) return null;
+                  return (
+                    <circle
+                      key={`${overlay.id}-${i}`}
+                      cx={x(i)}
+                      cy={y(p.value)}
+                      r={hover === i ? 3.5 : 2}
+                      fill={overlay.color}
+                      stroke="var(--surface)"
+                      strokeWidth={1}
+                    />
+                  );
+                })}
+              </g>
+            );
+          })}
+
           {/* Area + stroke: fully painted by default. draw-line animation is
               screen-only — print freezes animations at their initial state, which
               left stroke-dashoffset:1 (invisible line, dots only). */}
@@ -1434,6 +1497,19 @@ export function LineChart({
             ...(points[hover].checked ? [{ label: "Checked", value: num(points[hover].checked!) }] : []),
             { label: "Stage", value: activeStage }
           );
+          for (const overlay of overlays ?? []) {
+            const op = overlay.points[hover];
+            if (!op) continue;
+            if (op.noProduction || !Number.isFinite(op.value)) {
+              tipRows.push({ label: overlay.label, value: "No production recorded", color: overlay.color });
+            } else {
+              tipRows.push({
+                label: overlay.label,
+                value: `${fmt(op.value)} · ${num(op.rejected ?? 0)} / ${num(op.checked ?? 0)}`,
+                color: overlay.color,
+              });
+            }
+          }
           if (cal?.isHoliday || cal?.isSunday) {
             tipRows.push({
               label: "Shift Note",

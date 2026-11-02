@@ -5,7 +5,7 @@
 // shared, auditable. See core/policy/policy.ts.
 
 import { type Scope, scopeEvents, periodsIn, periodBucket, periodLabel, policyOf } from "./scope";
-import { byStage } from "./rejection";
+import { byStage, totalRejected } from "./rejection";
 import type { Event } from "@/lib/store/types";
 import { DEFAULT_POLICY } from "@/core/policy/policy";
 
@@ -13,10 +13,6 @@ export interface COPQResult {
   value: number; // in INR
   byStage: Record<string, number>;
 }
-
-/** Fallback for a stage the policy has no weight for (a gate added by hand on
- *  Data Schema). Same 0.6 the old table used for Visual. */
-const UNKNOWN_STAGE_WEIGHT = 0.6;
 
 export function getFinishedCost(scope?: Scope): number {
   return (scope ? policyOf(scope) : DEFAULT_POLICY).unitCostInr;
@@ -38,22 +34,19 @@ export function copq(events: Event[], scope: Scope): COPQResult | null {
   const ev = scopeEvents(events, scope);
   if (ev.length === 0) return { value: 0, byStage: {} };
 
-  const stages = byStage(events, scope);
+  // COPQ = rejected pieces × piece price. Every scrapped piece costs the full
+  // unit price (₹5 → 18,223 rejected = ₹91,115), so the figure always
+  // reconciles with the "rejected" count shown next to it. Partial "cost sunk
+  // at each gate" weights are deliberately NOT applied: a stored plant policy
+  // with fractional weights silently made COPQ disagree with rejected × price.
+  const cost = policyOf(scope).unitCostInr;
   const byStageCost: Record<string, number> = {};
-  let totalCost = 0;
-
-  const policy = policyOf(scope);
-  const cost = policy.unitCostInr;
-
-  for (const s of stages) {
-    const weight = policy.stageCostWeights[s.stageId] ?? UNKNOWN_STAGE_WEIGHT;
-    const stageCost = s.rejected * (cost * weight);
-    byStageCost[s.stageId] = stageCost;
-    totalCost += stageCost;
+  for (const s of byStage(events, scope)) {
+    byStageCost[s.stageId] = s.rejected * cost;
   }
 
   return {
-    value: totalCost,
+    value: totalRejected(events, scope).value * cost,
     byStage: byStageCost,
   };
 }

@@ -51,7 +51,14 @@ import { canonicalBatchId } from "@/lib/entry/batch-id";
 import LotProgress from "@/components/LotProgress";
 import EntryRevisionHistory from "@/components/entry/EntryRevisionHistory";
 import BatchIdChip from "@/components/entry/BatchIdChip";
-import { attachConversionHalves, historyNameForLot, type AuditBatchGroupWithConvert } from "@/lib/lineage";
+import {
+  attachConversionHalves,
+  historyNameForLot,
+  buildAuditConversionLookup,
+  formatConvertBatchCode,
+  type AuditBatchGroupWithConvert,
+  type AuditBatchConvertInfo,
+} from "@/lib/lineage";
 import { usePersona } from "@/components/app/PersonaContext";
 import Select from "@/components/ui/Select";
 import { sortStageIds, stageCategoryOf, STAGE_CATEGORIES } from "@/core/ontology/plant-catalog";
@@ -88,7 +95,7 @@ function compactRange(from: string, to: string): string {
   return `${fmt(from, !sameMonth)}–${fmt(to, true)}`;
 }
 
-const AUDIT_ROW_COLS = "16px minmax(96px, 1.1fr) minmax(90px, 0.9fr) minmax(280px, 2.5fr) 78px 78px 78px 62px";
+const AUDIT_ROW_COLS = "16px minmax(175px, 1.45fr) minmax(90px, 0.9fr) minmax(260px, 2.3fr) 78px 78px 78px 62px";
 
 function TrackPills({ lineStatus }: { lineStatus: LineStatus }) {
   return (
@@ -292,13 +299,9 @@ export default function AuditPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "open" | "complete">("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [typeStoredFilter, setTypeStoredFilter] = useState("all");
+  const [batchKindFilter, setBatchKindFilter] = useState<"all" | "grouped" | "ok" | "converted">("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "batch-asc" | "batch-desc" | "volume-desc" | "rejection-desc">("newest");
   const [page, setPage] = useState(0);
-
-  const batchLabel = useCallback(
-    (b: string) => (b && b !== "(no batch)" ? historyNameForLot(b, conversions) : b),
-    [conversions],
-  );
 
   /** Which batches are expanded */
   const [openBatch, setOpenBatch] = useState<string | null>(null);
@@ -330,7 +333,7 @@ export default function AuditPage() {
 
   useEffect(() => {
     setPage(0);
-  }, [searchQuery, typeFilter, stageFilter, sourceFilter, sizeFilter, statusFilter, categoryFilter, typeStoredFilter, sortOrder, dateFrom, dateTo, viewMode]);
+  }, [searchQuery, typeFilter, stageFilter, sourceFilter, sizeFilter, statusFilter, categoryFilter, typeStoredFilter, batchKindFilter, sortOrder, dateFrom, dateTo, viewMode]);
 
   const commentsMap = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -394,6 +397,32 @@ export default function AuditPage() {
   const allRows = useMemo(
     () => buildEntryRows(datedEvents, commentsMap),
     [datedEvents, commentsMap],
+  );
+
+  const allBatchGroups = useMemo(
+    () => groupByBatchThenStage(allRows),
+    [allRows],
+  );
+
+  const conversionLookup = useMemo(
+    () => buildAuditConversionLookup(allBatchGroups, conversions),
+    [allBatchGroups, conversions],
+  );
+
+  const batchLabel = useCallback(
+    (b: string) => {
+      if (!b || b === "(no batch)") return b;
+      const canon = canonicalBatchId(b) ?? b.trim().toUpperCase();
+      const info = conversionLookup.byBatch[canon] ?? conversionLookup.byBatch[b];
+      if (info?.isConverted && info.displayCode) return info.displayCode;
+      const explicit = historyNameForLot(b, conversions);
+      if (explicit !== b) {
+        const parts = explicit.split(/\s+CT\s+/i);
+        if (parts.length === 2) return formatConvertBatchCode(parts[0], parts[1]);
+      }
+      return b;
+    },
+    [conversionLookup, conversions],
   );
 
   /** Offer only sizes that actually exist in range — never a dead option. */
@@ -513,6 +542,15 @@ export default function AuditPage() {
         return statusFilter === "complete" ? complete : !complete;
       });
     }
+    if (batchKindFilter === "ok" || batchKindFilter === "converted") {
+      groups = groups.filter((g) => {
+        const canon = canonicalBatchId(g.batch) ?? g.batch.trim().toUpperCase();
+        const isConv = Boolean(
+          (conversionLookup.byBatch[canon] ?? conversionLookup.byBatch[g.batch])?.isConverted,
+        );
+        return batchKindFilter === "converted" ? isConv : !isConv;
+      });
+    }
     const sorted = [...groups].sort((a, b) => {
       const aLabel = batchLabel(a.batch) || a.batch;
       const bLabel = batchLabel(b.batch) || b.batch;
@@ -525,7 +563,7 @@ export default function AuditPage() {
       return 0;
     });
     return attachConversionHalves(sorted, conversions);
-  }, [entryRows, statusFilter, sortOrder, batchProgress, batchLabel, conversions]);
+  }, [entryRows, statusFilter, batchKindFilter, conversionLookup, sortOrder, batchProgress, batchLabel, conversions]);
 
   /**
    * Erase a displayed row from the ledger. This is the ONLY erase path in the
@@ -888,6 +926,262 @@ export default function AuditPage() {
               />
             )}
           </div>
+
+          {/* Dedicated Batch Grouping Bar: OK batch (26J16-24) vs Convert batch (26J16-24 CT 22) */}
+          {viewMode === "batch" && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                paddingTop: 8,
+                borderTop: "1px dashed var(--border)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "var(--text-3)",
+                      marginRight: 2,
+                    }}
+                  >
+                    Batch Grouping:
+                  </span>
+                  {(
+                    [
+                      {
+                        id: "all" as const,
+                        label: "All Batches",
+                        count: conversionLookup.totalCount,
+                        tone: "var(--text)",
+                        bgActive: "var(--surface-3, var(--surface-2))",
+                        borderActive: "var(--border-strong)",
+                      },
+                      {
+                        id: "ok" as const,
+                        label: "✓ OK Batch",
+                        codeHint: "26J16-24",
+                        count: conversionLookup.okCount,
+                        tone: "var(--positive)",
+                        bgActive: "color-mix(in srgb, var(--positive) 14%, var(--surface-2))",
+                        borderActive: "color-mix(in srgb, var(--positive) 50%, var(--border))",
+                      },
+                      {
+                        id: "converted" as const,
+                        label: "⇄ Convert Batch",
+                        codeHint: "26J16-24 CT 22",
+                        count: conversionLookup.convertedCount,
+                        tone: "var(--accent)",
+                        bgActive: "color-mix(in srgb, var(--accent) 15%, var(--surface-2))",
+                        borderActive: "color-mix(in srgb, var(--accent) 55%, var(--border))",
+                      },
+                      {
+                        id: "grouped" as const,
+                        label: "⊞ Group OK + Convert (CT)",
+                        count: conversionLookup.totalCount,
+                        tone: "var(--accent)",
+                        bgActive: "color-mix(in srgb, var(--accent) 14%, var(--surface-2))",
+                        borderActive: "color-mix(in srgb, var(--accent) 50%, var(--border))",
+                      },
+                    ] as const
+                  ).map((btn) => {
+                    const active = batchKindFilter === btn.id;
+                    return (
+                      <button
+                        key={btn.id}
+                        type="button"
+                        onClick={() => setBatchKindFilter(btn.id)}
+                        style={{
+                          padding: "5px 11px",
+                          borderRadius: 8,
+                          border: `1px solid ${active ? btn.borderActive : "var(--border)"}`,
+                          background: active ? btn.bgActive : "var(--surface-2)",
+                          color: active ? btn.tone : "var(--text-2)",
+                          fontWeight: active ? 700 : 600,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          boxShadow: active ? "var(--shadow-1)" : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <span>{btn.label}</span>
+                        {"codeHint" in btn && btn.codeHint && (
+                          <span
+                            style={{
+                              fontFamily: "var(--font-mono)",
+                              fontSize: 10.5,
+                              padding: "1px 5px",
+                              borderRadius: 4,
+                              background: "var(--surface)",
+                              color: "var(--text-3)",
+                              border: "1px solid var(--border)",
+                            }}
+                          >
+                            {btn.codeHint}
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontFamily: "var(--font-mono)",
+                            fontWeight: 700,
+                            padding: "1px 6px",
+                            borderRadius: 999,
+                            background: active
+                              ? `color-mix(in srgb, ${btn.tone} 18%, var(--surface))`
+                              : "var(--surface)",
+                            color: btn.tone,
+                            border: "1px solid var(--border)",
+                          }}
+                        >
+                          {btn.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Nomenclature structure guide matching Image 2 when filtering/grouping by OK or Convert batch */}
+              {batchKindFilter !== "all" && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                    gap: 10,
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  {/* OK batch structure box */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      background: "var(--surface)",
+                      border:
+                        batchKindFilter === "ok"
+                          ? "1px solid color-mix(in srgb, var(--positive) 45%, var(--border))"
+                          : "1px solid var(--border)",
+                    }}
+                  >
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--positive)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      OK batch format
+                    </div>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                      {[
+                        { code: "26", tag: "Year" },
+                        { code: "J", tag: "Month" },
+                        { code: "16", tag: "Day" },
+                        { code: "-", tag: "" },
+                        { code: "24", tag: "Size" },
+                      ].map((seg, i) =>
+                        seg.code === "-" ? (
+                          <span key={i} style={{ color: "var(--text-3)", fontWeight: 700 }}>-</span>
+                        ) : (
+                          <span
+                            key={i}
+                            style={{
+                              display: "inline-flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                              background: "var(--surface-2)",
+                              border: "1px solid var(--border)",
+                            }}
+                          >
+                            <strong style={{ color: "var(--text)", fontSize: 12 }}>{seg.code}</strong>
+                            <span style={{ fontSize: 9, color: "var(--text-3)", fontFamily: "var(--font-sans)" }}>{seg.tag}</span>
+                          </span>
+                        ),
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Convert batch structure box */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      background: "var(--surface)",
+                      border:
+                        batchKindFilter === "converted" || batchKindFilter === "grouped"
+                          ? "1px solid color-mix(in srgb, var(--accent) 45%, var(--border))"
+                          : "1px solid var(--border)",
+                    }}
+                  >
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      Convert batch format
+                    </div>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                      {[
+                        { code: "26", tag: "Year", accent: false },
+                        { code: "J", tag: "Month", accent: false },
+                        { code: "16", tag: "Day", accent: false },
+                        { code: "-", tag: "", accent: false },
+                        { code: "24", tag: "Main size", accent: false },
+                        { code: "CT", tag: "Convert", accent: true },
+                        { code: "22", tag: "Convert size", accent: true },
+                      ].map((seg, i) =>
+                        seg.code === "-" ? (
+                          <span key={i} style={{ color: "var(--text-3)", fontWeight: 700 }}>-</span>
+                        ) : (
+                          <span
+                            key={i}
+                            style={{
+                              display: "inline-flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                              background: seg.accent
+                                ? "color-mix(in srgb, var(--accent) 14%, var(--surface-2))"
+                                : "var(--surface-2)",
+                              border: seg.accent
+                                ? "1px solid color-mix(in srgb, var(--accent) 45%, var(--border))"
+                                : "1px solid var(--border)",
+                            }}
+                          >
+                            <strong style={{ color: seg.accent ? "var(--accent)" : "var(--text)", fontSize: 12 }}>
+                              {seg.code}
+                            </strong>
+                            <span style={{ fontSize: 9, color: "var(--text-3)", fontFamily: "var(--font-sans)" }}>
+                              {seg.tag}
+                            </span>
+                          </span>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* —— Focus chip when deep-linked from Schema —— */}
@@ -989,35 +1283,17 @@ export default function AuditPage() {
                 <span style={{ textAlign: "right" }}>Rejected</span>
                 <span style={{ textAlign: "right" }}>Rate</span>
               </div>
-              {groupByPeriod(pageSlice as AuditBatchGroup[], t.grain || "month").map((p) => (
-                <div key={p.period}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "baseline",
-                      gap: 10,
-                      padding: "10px 16px 6px",
-                      borderBottom: "1px solid var(--border)",
-                      background: "var(--surface)",
-                      position: "sticky",
-                      top: 0,
-                      zIndex: 1,
-                    }}
-                  >
-                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text)" }}>
-                      {p.label}
-                    </span>
-                    <span className="small" style={{ color: "var(--text-3)" }}>
-                      {p.batchCount} {p.batchCount === 1 ? "lot" : "lots"} · {p.rowCount}{" "}
-                      {p.rowCount === 1 ? "entry" : "entries"}
-                    </span>
-                  </div>
-                  {p.groups.map((raw) => {
-                    const g = raw as AuditBatchGroupWithConvert;
-                    return (
+              {(() => {
+                const renderBatchRow = (raw: AuditBatchGroup) => {
+                  const g = raw as AuditBatchGroupWithConvert;
+                  const canon = canonicalBatchId(g.batch) ?? g.batch.trim().toUpperCase();
+                  const convertInfo =
+                    conversionLookup.byBatch[canon] ?? conversionLookup.byBatch[g.batch] ?? null;
+                  return (
                     <BatchAccordion
                       key={g.batch}
                       group={g}
+                      convertInfo={convertInfo}
                       open={openBatch === g.batch}
                       activeStage={stageTab[g.batch] ?? g.stages[0]?.stageId ?? ""}
                       onToggle={() => selectBatch(g.batch)}
@@ -1036,10 +1312,116 @@ export default function AuditPage() {
                       focus={focusIssue}
                       batchLabel={batchLabel}
                     />
+                  );
+                };
+
+                if (batchKindFilter === "grouped") {
+                  const sliceGroups = pageSlice as AuditBatchGroup[];
+                  const convertedSlice = sliceGroups.filter((g) => {
+                    const canon = canonicalBatchId(g.batch) ?? g.batch.trim().toUpperCase();
+                    return Boolean(
+                      (conversionLookup.byBatch[canon] ?? conversionLookup.byBatch[g.batch])?.isConverted,
                     );
-                  })}
-                </div>
-              ))}
+                  });
+                  const okSlice = sliceGroups.filter((g) => {
+                    const canon = canonicalBatchId(g.batch) ?? g.batch.trim().toUpperCase();
+                    return !Boolean(
+                      (conversionLookup.byBatch[canon] ?? conversionLookup.byBatch[g.batch])?.isConverted,
+                    );
+                  });
+
+                  const sections = [
+                    {
+                      key: "converted",
+                      title: "⇄ Convert Batch (CT)",
+                      subtitle: "Year · Month · Day - Main size · CT · Convert size (e.g. 26J16-24 CT 22)",
+                      tone: "var(--accent)",
+                      items: convertedSlice,
+                    },
+                    {
+                      key: "ok",
+                      title: "✓ OK Batch",
+                      subtitle: "Year · Month · Day - Size (e.g. 26J16-24)",
+                      tone: "var(--positive)",
+                      items: okSlice,
+                    },
+                  ];
+
+                  return sections.map((sec) => {
+                    if (sec.items.length === 0) return null;
+                    return (
+                      <div key={sec.key}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 10,
+                            flexWrap: "wrap",
+                            padding: "10px 16px 8px",
+                            borderBottom: "1px solid var(--border)",
+                            background: `color-mix(in srgb, ${sec.tone} 8%, var(--surface))`,
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 1,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: "var(--text-sm)", fontWeight: 800, color: sec.tone }}>
+                              {sec.title}
+                            </span>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-mono)",
+                                fontSize: 11,
+                                fontWeight: 700,
+                                padding: "1px 7px",
+                                borderRadius: 999,
+                                background: "var(--surface)",
+                                color: sec.tone,
+                                border: `1px solid color-mix(in srgb, ${sec.tone} 40%, var(--border))`,
+                              }}
+                            >
+                              {sec.items.length} {sec.items.length === 1 ? "batch" : "batches"}
+                            </span>
+                            <span className="small" style={{ color: "var(--text-3)" }}>
+                              {sec.subtitle}
+                            </span>
+                          </div>
+                        </div>
+                        {sec.items.map(renderBatchRow)}
+                      </div>
+                    );
+                  });
+                }
+
+                return groupByPeriod(pageSlice as AuditBatchGroup[], t.grain || "month").map((p) => (
+                  <div key={p.period}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: 10,
+                        padding: "10px 16px 6px",
+                        borderBottom: "1px solid var(--border)",
+                        background: "var(--surface)",
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 1,
+                      }}
+                    >
+                      <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text)" }}>
+                        {p.label}
+                      </span>
+                      <span className="small" style={{ color: "var(--text-3)" }}>
+                        {p.batchCount} {p.batchCount === 1 ? "lot" : "lots"} · {p.rowCount}{" "}
+                        {p.rowCount === 1 ? "entry" : "entries"}
+                      </span>
+                    </div>
+                    {p.groups.map(renderBatchRow)}
+                  </div>
+                ));
+              })()}
             </div>
           ) : viewMode === "sessions" ? (
             <div>
@@ -1077,6 +1459,7 @@ export default function AuditPage() {
 
 function BatchAccordion({
   group: g,
+  convertInfo,
   open,
   activeStage,
   onToggle,
@@ -1090,6 +1473,7 @@ function BatchAccordion({
   batchLabel,
 }: {
   group: AuditBatchGroupWithConvert;
+  convertInfo?: AuditBatchConvertInfo | null;
   open: boolean;
   activeStage: string;
   onToggle: () => void;
@@ -1231,6 +1615,81 @@ function BatchAccordion({
             gap: 14,
           }}
         >
+          {/* Convert batch / OK batch breakdown banner matching Image 2 */}
+          {convertInfo?.breakdown && convertInfo.isConverted && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                flexWrap: "wrap",
+                padding: "8px 12px",
+                borderRadius: 8,
+                background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
+                border: "1px solid color-mix(in srgb, var(--accent) 35%, var(--border))",
+              }}
+            >
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 12 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 800, color: "var(--accent)", textTransform: "uppercase", marginRight: 4, fontFamily: "var(--font-sans)" }}>
+                  Convert batch:
+                </span>
+                {[
+                  { code: convertInfo.breakdown.year, tag: "Year", accent: false },
+                  { code: convertInfo.breakdown.month, tag: "Month", accent: false },
+                  { code: convertInfo.breakdown.day, tag: "Day", accent: false },
+                  { code: "-", tag: "", accent: false },
+                  { code: convertInfo.breakdown.mainSize, tag: "Main size", accent: false },
+                  { code: "CT", tag: "Convert", accent: true },
+                  { code: convertInfo.breakdown.convertSize ?? "", tag: "Convert size", accent: true },
+                ].map((seg, idx) =>
+                  seg.code === "-" ? (
+                    <span key={idx} style={{ color: "var(--text-3)", fontWeight: 700 }}>-</span>
+                  ) : (
+                    <span
+                      key={idx}
+                      style={{
+                        display: "inline-flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        background: seg.accent
+                          ? "color-mix(in srgb, var(--accent) 16%, var(--surface-2))"
+                          : "var(--surface-2)",
+                        border: seg.accent
+                          ? "1px solid color-mix(in srgb, var(--accent) 45%, var(--border))"
+                          : "1px solid var(--border)",
+                      }}
+                    >
+                      <strong style={{ color: seg.accent ? "var(--accent)" : "var(--text)", fontSize: 12 }}>
+                        {seg.code}
+                      </strong>
+                      <span style={{ fontSize: 9, color: "var(--text-3)", fontFamily: "var(--font-sans)" }}>
+                        {seg.tag}
+                      </span>
+                    </span>
+                  ),
+                )}
+              </div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--text-2)" }}>
+                {convertInfo.fromBatch && (
+                  <span>
+                    Main OK batch:{" "}
+                    <strong style={{ fontFamily: "var(--font-mono)", color: "var(--text)" }}>
+                      {convertInfo.fromBatch}
+                    </strong>
+                  </span>
+                )}
+                {convertInfo.convertedAtStage && (
+                  <span>
+                    · Entered at <strong style={{ color: "var(--accent)" }}>{convertInfo.convertedAtStage}</strong>
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Lane status cards */}
           {lineStatus && lineStatus.lanes.length > 0 && (
             <div

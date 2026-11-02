@@ -4,6 +4,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
+import { useLineage } from "@/components/app/LineageContext";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { Card, Kpi, LineChart, Donut, seriesColor } from "@/components/app/widgets";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
@@ -15,6 +16,12 @@ import {
   type ProcessId,
   type OpenLotRow,
 } from "@/lib/analytics";
+import {
+  buildProcessLotGrouping,
+  scopeRowsForProcessLots,
+  type ProcessLotGrouping,
+  type LotSourceCategory,
+} from "@/lib/lineage";
 import type { AuditEventLike } from "@/lib/analytics/audit-sessions";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("en-IN");
@@ -28,10 +35,8 @@ const PROCESS_COLOR: Record<ProcessId, string> = {
 export default function OpenLotsPage() {
   const { t } = useTweaks();
   const { events: contextEvents, isLoading } = useEvents();
+  const { conversions } = useLineage();
   const events = (contextEvents ?? []) as AuditEventLike[];
-  const [lotQuery, setLotQuery] = useState("");
-  const [group, setGroup] = useState<"open" | "complete" | "stalled" | ProcessId>("open");
-
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
@@ -41,6 +46,8 @@ export default function OpenLotsPage() {
   const [modalMetricKind, setModalMetricKind] = useState<SourceMetricKind>("generic");
   const [modalInitialShowSource, setModalInitialShowSource] = useState(true);
   const [modalDefaultSourceTab, setModalDefaultSourceTab] = useState<"batches" | "history">("batches");
+  const [modalLotGrouping, setModalLotGrouping] = useState<ProcessLotGrouping | undefined>(undefined);
+  const [modalInitialLotCategory, setModalInitialLotCategory] = useState<"all" | LotSourceCategory>("all");
 
   const srcRows = (filter: Parameters<typeof toSourceRows>[1] = {}): SourceRow[] =>
     toSourceRows(events, filter);
@@ -50,7 +57,12 @@ export default function OpenLotsPage() {
     insight: string | string[],
     content: React.ReactNode,
     source?: { rows: SourceRow[]; value: string; metricKind?: SourceMetricKind },
-    options?: { initialShowSource?: boolean; defaultSourceTab?: "batches" | "history" }
+    options?: {
+      initialShowSource?: boolean;
+      defaultSourceTab?: "batches" | "history";
+      lotGrouping?: ProcessLotGrouping;
+      initialLotCategory?: "all" | LotSourceCategory;
+    }
   ) => {
     setModalTitle(title);
     setModalInsight(insight);
@@ -60,6 +72,8 @@ export default function OpenLotsPage() {
     setModalMetricKind(source?.metricKind ?? "generic");
     setModalInitialShowSource(options?.initialShowSource ?? true);
     setModalDefaultSourceTab(options?.defaultSourceTab ?? "batches");
+    setModalLotGrouping(options?.lotGrouping);
+    setModalInitialLotCategory(options?.initialLotCategory ?? "all");
     setModalOpen(true);
   };
 
@@ -73,34 +87,6 @@ export default function OpenLotsPage() {
     [events, t.grain, t.dateFrom, t.dateTo],
   );
 
-  const q = lotQuery.trim().toUpperCase();
-  const filtered = report.lots.filter((l) => !q || l.batch.includes(q));
-
-  const grouped: { key: string; label: string; color?: string; rows: OpenLotRow[] }[] = [
-    {
-      key: "complete",
-      label: "Line complete — Dipping, Secondary, and Assembly all done",
-      rows: filtered.filter((l) => l.lineComplete),
-    },
-    {
-      key: "stalled",
-      label: "Stalled — no gate in 3+ days",
-      color: "var(--warning)",
-      rows: filtered.filter((l) => l.stalled),
-    },
-    ...PROCESS_ORDER.map((p) => ({
-      key: p,
-      label: `Waiting on ${processLabel(p)}`,
-      color: PROCESS_COLOR[p],
-      rows: filtered.filter((l) => l.open && l.waitingOn === p),
-    })),
-  ];
-
-  const visibleGroups =
-    group === "open"
-      ? grouped.filter((g) => g.key !== "complete")
-      : grouped.filter((g) => g.key === group);
-
   const openLotsBatches = useMemo(() => new Set(report.lots.filter((l) => l.open).map((l) => l.batch)), [report.lots]);
   const stalledBatches = useMemo(() => new Set(report.lots.filter((l) => l.stalled).map((l) => l.batch)), [report.lots]);
   const completeBatches = useMemo(() => new Set(report.lots.filter((l) => l.lineComplete).map((l) => l.batch)), [report.lots]);
@@ -109,6 +95,25 @@ export default function OpenLotsPage() {
   const openRows = useMemo(() => allRows.filter((r) => Boolean(r.batch && openLotsBatches.has(r.batch))), [allRows, openLotsBatches]);
   const stalledRows = useMemo(() => allRows.filter((r) => Boolean(r.batch && stalledBatches.has(r.batch))), [allRows, stalledBatches]);
   const completeRows = useMemo(() => allRows.filter((r) => Boolean(r.batch && completeBatches.has(r.batch))), [allRows, completeBatches]);
+
+  const overallGrouping = useMemo(
+    () => buildProcessLotGrouping(report.lots, conversions),
+    [report.lots, conversions]
+  );
+
+  const startedRows = useMemo(
+    () => scopeRowsForProcessLots(allRows, overallGrouping),
+    [allRows, overallGrouping]
+  );
+
+  const processGroupings = useMemo(
+    () => ({
+      primary: buildProcessLotGrouping(report.lots, conversions, { process: "primary" }),
+      secondary: buildProcessLotGrouping(report.lots, conversions, { process: "secondary" }),
+      assembly: buildProcessLotGrouping(report.lots, conversions, { process: "assembly" }),
+    }),
+    [report.lots, conversions]
+  );
 
   const renderCardChips = (
     onBatches: (e: React.MouseEvent) => void,
@@ -357,21 +362,21 @@ export default function OpenLotsPage() {
                 title="Complete vs waiting"
                 sub="Waiting lots use their process colour"
                 extra={renderCardChips(
-                  (e) =>
+                  () =>
                     openModal(
                       "Complete vs waiting — Lot Breakdown",
                       "Lots that have finished the line vs lots waiting at each stage.",
                       <Donut data={mixDonut} />,
-                      { rows: allRows, value: `${report.lineCompleteCount} / ${report.startedCount} complete` },
-                      { initialShowSource: true, defaultSourceTab: "batches" }
+                      { rows: startedRows, value: `${report.lineCompleteCount} / ${report.startedCount} complete` },
+                      { initialShowSource: true, defaultSourceTab: "batches", lotGrouping: overallGrouping }
                     ),
-                  (e) =>
+                  () =>
                     openModal(
                       "Complete vs waiting — Lot Breakdown",
                       "Lots that have finished the line vs lots waiting at each stage.",
                       <Donut data={mixDonut} />,
-                      { rows: allRows, value: `${report.lineCompleteCount} / ${report.startedCount} complete` },
-                      { initialShowSource: true, defaultSourceTab: "history" }
+                      { rows: startedRows, value: `${report.lineCompleteCount} / ${report.startedCount} complete` },
+                      { initialShowSource: true, defaultSourceTab: "history", lotGrouping: overallGrouping }
                     )
                 )}
                 onClick={() =>
@@ -379,8 +384,8 @@ export default function OpenLotsPage() {
                     "Complete vs waiting — Lot Breakdown",
                     "Lots that have finished the line vs lots waiting at each stage.",
                     <Donut data={mixDonut} />,
-                    { rows: allRows, value: `${report.lineCompleteCount} / ${report.startedCount} complete` },
-                    { initialShowSource: true, defaultSourceTab: "batches" }
+                    { rows: startedRows, value: `${report.lineCompleteCount} / ${report.startedCount} complete` },
+                    { initialShowSource: true, defaultSourceTab: "batches", lotGrouping: overallGrouping }
                   )
                 }
               >
@@ -390,7 +395,7 @@ export default function OpenLotsPage() {
                 title="Process complete / not complete"
                 sub="Among lots that have started the line"
                 extra={renderCardChips(
-                  (e) =>
+                  () =>
                     openModal(
                       "Process complete / not complete",
                       "Clearance comparison across Dipping, Secondary, and Assembly.",
@@ -407,10 +412,10 @@ export default function OpenLotsPage() {
                           ))}
                         </div>
                       ),
-                      { rows: allRows, value: `${report.startedCount} lots started` },
-                      { initialShowSource: true, defaultSourceTab: "batches" }
+                      { rows: startedRows, value: `${report.startedCount} lots started` },
+                      { initialShowSource: true, defaultSourceTab: "batches", lotGrouping: overallGrouping }
                     ),
-                  (e) =>
+                  () =>
                     openModal(
                       "Process complete / not complete",
                       "Clearance comparison across Dipping, Secondary, and Assembly.",
@@ -427,8 +432,8 @@ export default function OpenLotsPage() {
                           ))}
                         </div>
                       ),
-                      { rows: allRows, value: `${report.startedCount} lots started` },
-                      { initialShowSource: true, defaultSourceTab: "history" }
+                      { rows: startedRows, value: `${report.startedCount} lots started` },
+                      { initialShowSource: true, defaultSourceTab: "history", lotGrouping: overallGrouping }
                     )
                 )}
                 onClick={() =>
@@ -448,8 +453,8 @@ export default function OpenLotsPage() {
                         ))}
                       </div>
                     ),
-                    { rows: allRows, value: `${report.startedCount} lots started` },
-                    { initialShowSource: true, defaultSourceTab: "batches" }
+                    { rows: startedRows, value: `${report.startedCount} lots started` },
+                    { initialShowSource: true, defaultSourceTab: "batches", lotGrouping: overallGrouping }
                   )
                 }
               >
@@ -478,67 +483,61 @@ export default function OpenLotsPage() {
               }}
             >
               {report.processMix.map((p) => {
-                const pBatches = new Set(
-                  report.lots
-                    .filter((l) => l.processes[p.process]?.done > 0 || l.waitingOn === p.process)
-                    .map((l) => l.batch)
-                );
-                const pRows = allRows.filter((r) => Boolean(r.batch && pBatches.has(r.batch)));
-                const rowsToUse = pRows.length > 0 ? pRows : allRows;
+                const grouping = processGroupings[p.process];
+                const scopedRows = scopeRowsForProcessLots(allRows, grouping, p.process);
+                const rowsToUse = scopedRows.length > 0 ? scopedRows : startedRows;
                 const donutEl = (
                   <Donut
                     data={[
-                      { label: "Complete", value: p.complete, color: PROCESS_COLOR[p.process] },
                       {
-                        label: "Not complete",
-                        value: p.incomplete,
+                        label: "Completed",
+                        value: grouping.completedCount,
+                        color: PROCESS_COLOR[p.process],
+                      },
+                      {
+                        label: "Not completed",
+                        value: grouping.notCompletedCount,
                         color: "color-mix(in srgb, var(--text-3) 35%, transparent)",
+                      },
+                      {
+                        label: "Converted batch",
+                        value: grouping.convertedCount,
+                        color: "var(--accent)",
                       },
                     ].filter((d) => d.value > 0)}
                   />
                 );
+                const openProcessSource = (
+                  defaultSourceTab: "batches" | "history" = "batches",
+                  initialLotCategory: "all" | LotSourceCategory = "all"
+                ) =>
+                  openModal(
+                    `${p.label} — Process Source`,
+                    `${grouping.completedCount} completed · ${grouping.notCompletedCount} not completed · ${grouping.convertedCount} converted batch.`,
+                    donutEl,
+                    {
+                      rows: rowsToUse,
+                      value: `${grouping.completedCount} / ${grouping.totalCount} complete`,
+                    },
+                    {
+                      initialShowSource: true,
+                      defaultSourceTab,
+                      lotGrouping: grouping,
+                      initialLotCategory,
+                    }
+                  );
+
                 return (
                   <Card
                     key={p.process}
                     title={p.label}
                     extra={renderCardChips(
-                      (e) =>
-                        openModal(
-                          `${p.label} — Process Source`,
-                          `${p.complete} complete · ${p.incomplete} incomplete lots.`,
-                          donutEl,
-                          {
-                            rows: rowsToUse,
-                            value: `${p.complete} / ${p.complete + p.incomplete} complete`,
-                          },
-                          { initialShowSource: true, defaultSourceTab: "batches" }
-                        ),
-                      (e) =>
-                        openModal(
-                          `${p.label} — Process Source`,
-                          `${p.complete} complete · ${p.incomplete} incomplete lots.`,
-                          donutEl,
-                          {
-                            rows: rowsToUse,
-                            value: `${p.complete} / ${p.complete + p.incomplete} complete`,
-                          },
-                          { initialShowSource: true, defaultSourceTab: "history" }
-                        )
+                      () => openProcessSource("batches", "all"),
+                      () => openProcessSource("history", "all")
                     )}
-                    onClick={() =>
-                      openModal(
-                        `${p.label} — Process Source`,
-                        `${p.complete} complete · ${p.incomplete} incomplete lots.`,
-                        donutEl,
-                        {
-                          rows: rowsToUse,
-                          value: `${p.complete} / ${p.complete + p.incomplete} complete`,
-                        },
-                        { initialShowSource: true, defaultSourceTab: "batches" }
-                      )
-                    }
+                    onClick={() => openProcessSource("batches", "all")}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                       <span
                         style={{
                           width: 10,
@@ -549,9 +548,86 @@ export default function OpenLotsPage() {
                         }}
                       />
                       <span style={{ fontSize: 12, color: "var(--text-2)" }}>
-                        {p.complete} complete · {p.incomplete} not complete
+                        {grouping.completedCount} complete · {grouping.notCompletedCount} not complete
+                        {grouping.convertedCount > 0 ? ` · ${grouping.convertedCount} converted` : ""}
                       </span>
                     </div>
+
+                    {/* Dedicated source category buttons on the process card */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        marginBottom: 12,
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {(
+                        [
+                          {
+                            key: "completed" as const,
+                            label: "Completed",
+                            count: grouping.completedCount,
+                            color: "var(--positive)",
+                          },
+                          {
+                            key: "not_completed" as const,
+                            label: "Not completed",
+                            count: grouping.notCompletedCount,
+                            color: "var(--warning)",
+                          },
+                          {
+                            key: "converted" as const,
+                            label: "Converted batch",
+                            count: grouping.convertedCount,
+                            color: "var(--accent)",
+                          },
+                        ] as const
+                      ).map((btn) => (
+                        <button
+                          key={btn.key}
+                          type="button"
+                          onClick={() => openProcessSource("batches", btn.key)}
+                          title={`Open ${p.label} source grouped by ${btn.label}`}
+                          style={{
+                            padding: "4px 8px",
+                            borderRadius: 6,
+                            border: `1px solid color-mix(in srgb, ${btn.color} 40%, var(--border))`,
+                            background: `color-mix(in srgb, ${btn.color} 10%, var(--surface-2))`,
+                            color: "var(--text)",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: 99,
+                              background: btn.color,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span>{btn.label}</span>
+                          <span
+                            style={{
+                              fontFamily: "var(--font-mono)",
+                              fontWeight: 700,
+                              color: btn.color,
+                            }}
+                          >
+                            {btn.count}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
                     {donutEl}
                   </Card>
                 );
@@ -564,11 +640,9 @@ export default function OpenLotsPage() {
             {PROCESS_ORDER.map((pid) => {
               const stages = report.stageClearance.filter((s) => s.process === pid);
               if (stages.length === 0) return null;
-              const pBatches = new Set(
-                report.lots.filter((l) => l.processes[pid]?.done > 0).map((l) => l.batch)
-              );
-              const pRows = allRows.filter((r) => Boolean(r.batch && pBatches.has(r.batch)));
-              const rowsToUse = pRows.length > 0 ? pRows : allRows;
+              const grouping = processGroupings[pid];
+              const scopedRows = scopeRowsForProcessLots(allRows, grouping, pid);
+              const rowsToUse = scopedRows.length > 0 ? scopedRows : startedRows;
               const stagesEl = (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {stages.map((s, i) => (
@@ -589,21 +663,21 @@ export default function OpenLotsPage() {
                   title={processLabel(pid)}
                   sub="Lots that have this station vs lots that have not"
                   extra={renderCardChips(
-                    (e) =>
+                    () =>
                       openModal(
                         `${processLabel(pid)} — Stage Split Source`,
                         `Station clearance across lots for ${processLabel(pid)}.`,
                         stagesEl,
-                        { rows: rowsToUse, value: `${pBatches.size} lots traced` },
-                        { initialShowSource: true, defaultSourceTab: "batches" }
+                        { rows: rowsToUse, value: `${grouping.completedCount} / ${grouping.totalCount} complete` },
+                        { initialShowSource: true, defaultSourceTab: "batches", lotGrouping: grouping }
                       ),
-                    (e) =>
+                    () =>
                       openModal(
                         `${processLabel(pid)} — Stage Split Source`,
                         `Station clearance across lots for ${processLabel(pid)}.`,
                         stagesEl,
-                        { rows: rowsToUse, value: `${pBatches.size} lots traced` },
-                        { initialShowSource: true, defaultSourceTab: "history" }
+                        { rows: rowsToUse, value: `${grouping.completedCount} / ${grouping.totalCount} complete` },
+                        { initialShowSource: true, defaultSourceTab: "history", lotGrouping: grouping }
                       )
                   )}
                   onClick={() =>
@@ -611,8 +685,8 @@ export default function OpenLotsPage() {
                       `${processLabel(pid)} — Stage Split Source`,
                       `Station clearance across lots for ${processLabel(pid)}.`,
                       stagesEl,
-                      { rows: rowsToUse, value: `${pBatches.size} lots traced` },
-                      { initialShowSource: true, defaultSourceTab: "batches" }
+                      { rows: rowsToUse, value: `${grouping.completedCount} / ${grouping.totalCount} complete` },
+                      { initialShowSource: true, defaultSourceTab: "batches", lotGrouping: grouping }
                     )
                   }
                 >
@@ -621,170 +695,6 @@ export default function OpenLotsPage() {
               );
             })}
 
-            <section
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-lg)",
-                padding: "16px 18px 18px",
-                boxShadow: "var(--shadow-1)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-end",
-                  gap: 12,
-                  flexWrap: "wrap",
-                  marginBottom: 12,
-                }}
-              >
-                <div>
-                  <h2 className="h3" style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-                    Lots by group
-                  </h2>
-                  <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
-                    Open lots first. Click a chip to filter.
-                  </p>
-                </div>
-                <input
-                  type="search"
-                  value={lotQuery}
-                  onChange={(e) => setLotQuery(e.target.value)}
-                  placeholder="Find lot…"
-                  aria-label="Filter lots"
-                  style={{
-                    height: 34,
-                    padding: "0 12px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border-strong)",
-                    background: "var(--surface-2)",
-                    color: "var(--text)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 13,
-                    width: 200,
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-                {(
-                  [
-                    ["open", "Open"],
-                    ["stalled", "Stalled"],
-                    ["complete", "Line complete"],
-                    ...PROCESS_ORDER.map((p) => [p, processLabel(p)] as const),
-                  ] as const
-                ).map(([key, label]) => {
-                  const active = group === key;
-                  const color =
-                    key === "complete"
-                      ? "var(--positive)"
-                      : key === "stalled"
-                        ? "var(--warning)"
-                        : key === "open"
-                          ? "var(--text-2)"
-                          : PROCESS_COLOR[key as ProcessId];
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setGroup(key)}
-                      style={{
-                        padding: "5px 10px",
-                        borderRadius: 999,
-                        border: active ? `1.5px solid ${color}` : "1px solid var(--border)",
-                        background: active ? "var(--surface)" : "var(--surface-2)",
-                        color: "var(--text)",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {visibleGroups.map((g) => (
-                <div key={g.key} style={{ marginBottom: 16 }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: g.color ?? "var(--text-2)",
-                      marginBottom: 8,
-                    }}
-                  >
-                    {g.label} · {g.rows.length}
-                  </div>
-                  {g.rows.length === 0 ? (
-                    <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-                      None in this group.
-                    </p>
-                  ) : (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                        <thead>
-                          <tr>
-                            <th style={thLeft}>Lot</th>
-                            <th style={th}>Last seen</th>
-                            <th style={th}>Idle</th>
-                            {PROCESS_ORDER.map((p) => (
-                              <th key={p} style={{ ...th, color: PROCESS_COLOR[p] }}>
-                                {processLabel(p)}
-                              </th>
-                            ))}
-                            <th style={thLeft}>Next</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {g.rows.slice(0, 60).map((l) => (
-                            <tr key={l.batch}>
-                              <td style={tdMono}>
-                                <a
-                                  href={`/audit?batch=${encodeURIComponent(l.batch)}`}
-                                  style={{ color: "inherit", textDecoration: "none" }}
-                                >
-                                  {l.batch}
-                                </a>
-                              </td>
-                              <td style={tdMuted}>{l.lastDate ?? "—"}</td>
-                              <td style={tdNum}>
-                                {l.stalled ? (
-                                  <span style={{ color: "var(--warning)", fontWeight: 700 }}>{l.daysIdle}d</span>
-                                ) : (
-                                  `${l.daysIdle}d`
-                                )}
-                              </td>
-                              {PROCESS_ORDER.map((p) => {
-                                const c = l.processes[p];
-                                return (
-                                  <td key={p} style={tdNum}>
-                                    <span style={{ color: c.complete ? PROCESS_COLOR[p] : "var(--text-3)" }}>
-                                      {c.done}/{c.total}
-                                    </span>
-                                  </td>
-                                );
-                              })}
-                              <td style={{ ...tdMuted, color: l.waitingOn ? PROCESS_COLOR[l.waitingOn] : "var(--text-3)" }}>
-                                {l.lineComplete
-                                  ? "—"
-                                  : l.waitingOn
-                                    ? l.processes[l.waitingOn].nextStageLabel ?? processLabel(l.waitingOn)
-                                    : "—"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </section>
           </>
         )}
       </div>
@@ -799,6 +709,8 @@ export default function OpenLotsPage() {
         metricKind={modalMetricKind}
         initialShowSource={modalInitialShowSource}
         defaultSourceTab={modalDefaultSourceTab}
+        lotGrouping={modalLotGrouping}
+        initialLotCategory={modalInitialLotCategory}
       >
         {modalContent}
       </FloatingDetailModal>
@@ -850,36 +762,3 @@ function ProcessSplit({
     </div>
   );
 }
-
-const th: CSSProperties = {
-  textAlign: "right",
-  padding: "8px 10px",
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: "0.04em",
-  textTransform: "uppercase",
-  color: "var(--text-3)",
-  borderBottom: "1px solid var(--border)",
-  whiteSpace: "nowrap",
-};
-const thLeft: CSSProperties = { ...th, textAlign: "left" };
-const tdMono: CSSProperties = {
-  padding: "8px 10px",
-  fontFamily: "var(--font-mono)",
-  fontWeight: 700,
-  letterSpacing: "0.03em",
-  borderBottom: "1px solid var(--border)",
-};
-const tdMuted: CSSProperties = {
-  padding: "8px 10px",
-  color: "var(--text-3)",
-  borderBottom: "1px solid var(--border)",
-};
-const tdNum: CSSProperties = {
-  padding: "8px 10px",
-  textAlign: "right",
-  fontVariantNumeric: "tabular-nums",
-  borderBottom: "1px solid var(--border)",
-  fontFamily: "var(--font-mono)",
-  fontSize: 12.5,
-};

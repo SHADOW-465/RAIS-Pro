@@ -111,7 +111,7 @@ const CARDS: RuleCard[] = [
     key: "unitCostInr",
     section: "cost",
     title: "Finished unit cost",
-    summary: "Basis for COPQ. One plant-wide value — not per browser.",
+    summary: "Price of one piece. COPQ = rejected pieces × this price. One plant-wide value — not per browser.",
     numeric: {
       min: 0,
       max: 100_000,
@@ -960,84 +960,6 @@ export default function CalculationRules() {
                   </article>
                 );
               })}
-
-              {group.id === "cost" && (
-                <article className="rules-decision">
-                  <div className="rules-decision-no" aria-hidden>
-                    {String(CARDS.length + 1).padStart(2, "0")}
-                  </div>
-                  <div className="rules-decision-body">
-                    <header className="rules-decision-head">
-                      <h4 className="rules-decision-title">Cost sunk at each gate</h4>
-                      <p className="rules-decision-summary">
-                        Share of unit cost already spent when a unit is scrapped (0–1). 1.00 = full unit cost.
-                      </p>
-                    </header>
-                    {stages.length === 0 ? (
-                      <div className="rules-empty-block">
-                        <p className="rules-empty-title">No gates yet</p>
-                        <p className="rules-empty">
-                          Add stages on <Link href="/schema">Data Schema</Link>.
-                        </p>
-                      </div>
-                    ) : (
-                      <ul className="rules-weight-list">
-                        {stages.map((s) => {
-                          const val = draft.stageCostWeights[s.stageId] ?? 0.6;
-                          const pctW = Math.round(Math.min(1, Math.max(0, val)) * 100);
-                          const rupees = Number.isFinite(draft.unitCostInr)
-                            ? Math.round(draft.unitCostInr * val)
-                            : null;
-                          return (
-                            <li key={s.stageId} className="rules-weight-row">
-                              <div className="rules-weight-meta">
-                                <span className="rules-weight-name">{s.label ?? s.stageId}</span>
-                                <span className="rules-weight-id">{s.stageId}</span>
-                              </div>
-                              <div className="rules-weight-bar" aria-hidden>
-                                <span className="rules-weight-fill" style={{ width: `${pctW}%` }} />
-                              </div>
-                              <div className="rules-weight-controls">
-                                <label className="settings-input-wrap settings-input-wrap--sm">
-                                  <span className="sr-only">Weight for {s.label ?? s.stageId}</span>
-                                  <input
-                                    type="number"
-                                    className="settings-input rules-weight-input"
-                                    disabled={!canConfigure}
-                                    min={0}
-                                    max={1}
-                                    step={0.05}
-                                    inputMode="decimal"
-                                    value={Number.isFinite(val) ? String(val) : ""}
-                                    onChange={(e) => {
-                                      const n = Number(e.target.value);
-                                      if (!Number.isFinite(n)) return;
-                                      set("stageCostWeights", {
-                                        ...draft.stageCostWeights,
-                                        [s.stageId]: Math.min(1, Math.max(0, n)),
-                                      });
-                                    }}
-                                  />
-                                </label>
-                                <span className="rules-weight-readout">
-                                  {pctW}%
-                                  {rupees != null && (
-                                    <span className="rules-weight-inr"> · ₹{rupees.toLocaleString()}</span>
-                                  )}
-                                </span>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                    <footer className="rules-affects">
-                      <span className="rules-affects-lab">Affects</span>
-                      <span className="rules-affects-text">COPQ by stage</span>
-                    </footer>
-                  </div>
-                </article>
-              )}
             </section>
           );
         })}

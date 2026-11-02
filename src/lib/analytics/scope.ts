@@ -627,7 +627,19 @@ export function dateBounds(events: Event[]): { min?: string; max?: string } {
 
 export interface ScopeTweaks {
   grain: Grain;
-  datePreset: "all" | "this-month" | "last-90-days" | "last-12-months" | "this-fy" | "custom";
+  datePreset:
+    | "all"
+    | "this-day"
+    | "this-week"
+    | "last-week"
+    | "this-month"
+    | "last-month"
+    | "last-3-months"
+    | "last-3-month"
+    | "last-90-days"
+    | "last-12-months"
+    | "this-fy"
+    | "custom";
   dateFrom: string;
   dateTo: string;
   stageView?: string;
@@ -664,6 +676,94 @@ export function stagesInCategories(cats: StageCategory[], known: Record<string, 
 }
 
 /**
+ * Calculates start and end ISO dates (YYYY-MM-DD) for a given datePreset anchored on
+ * dataMax (or today if no events).
+ */
+export function presetDateWindow(
+  preset: ScopeTweaks["datePreset"],
+  events?: Event[] | null,
+): { from: string; to: string } {
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const { max: dataMax } = dateBounds(events ?? []);
+  const anchor = dataMax ? new Date(`${dataMax}T00:00:00Z`) : new Date();
+
+  if (preset === "this-day") {
+    const d = iso(anchor);
+    return { from: d, to: d };
+  }
+  if (preset === "this-week") {
+    const y = anchor.getUTCFullYear();
+    const m = anchor.getUTCMonth() + 1;
+    const d = anchor.getUTCDate();
+    const { startDay, endDay } = weekOfMonthBounds(y, m, d);
+    return {
+      from: `${y}-${String(m).padStart(2, "0")}-${String(startDay).padStart(2, "0")}`,
+      to: `${y}-${String(m).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`,
+    };
+  }
+  if (preset === "last-week") {
+    const y = anchor.getUTCFullYear();
+    const m = anchor.getUTCMonth() + 1;
+    const d = anchor.getUTCDate();
+    const { week, startDay } = weekOfMonthBounds(y, m, d);
+    if (week > 1) {
+      const prevWeek = weekOfMonthBounds(y, m, startDay - 1);
+      return {
+        from: `${y}-${String(m).padStart(2, "0")}-${String(prevWeek.startDay).padStart(2, "0")}`,
+        to: `${y}-${String(m).padStart(2, "0")}-${String(prevWeek.endDay).padStart(2, "0")}`,
+      };
+    } else {
+      const prevDate = new Date(Date.UTC(y, m - 2, 1));
+      const py = prevDate.getUTCFullYear();
+      const pm = prevDate.getUTCMonth() + 1;
+      const lastDayOfPrevMonth = new Date(Date.UTC(py, pm, 0)).getUTCDate();
+      const prevWeek = weekOfMonthBounds(py, pm, lastDayOfPrevMonth);
+      return {
+        from: `${py}-${String(pm).padStart(2, "0")}-${String(prevWeek.startDay).padStart(2, "0")}`,
+        to: `${py}-${String(pm).padStart(2, "0")}-${String(prevWeek.endDay).padStart(2, "0")}`,
+      };
+    }
+  }
+  if (preset === "this-month") {
+    const y = anchor.getUTCFullYear();
+    const m = anchor.getUTCMonth();
+    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    return { from: start, to: end };
+  }
+  if (preset === "last-month") {
+    const prev = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() - 1, 1));
+    const y = prev.getUTCFullYear();
+    const m = prev.getUTCMonth();
+    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    return { from: start, to: end };
+  }
+  if (preset === "last-3-months" || preset === "last-3-month") {
+    const p = new Date(anchor);
+    p.setUTCMonth(p.getUTCMonth() - 3);
+    return { from: iso(p), to: iso(anchor) };
+  }
+  if (preset === "last-90-days") {
+    return { from: iso(new Date(anchor.getTime() - 90 * 86400000)), to: iso(anchor) };
+  }
+  if (preset === "last-12-months") {
+    const p = new Date(anchor);
+    p.setUTCFullYear(p.getUTCFullYear() - 1);
+    return { from: iso(p), to: iso(anchor) };
+  }
+  if (preset === "this-fy") {
+    const m = anchor.getUTCMonth();
+    const y = anchor.getUTCFullYear();
+    const fy = m >= 3 ? y : y - 1; // fiscal year Apr–Mar
+    return { from: `${fy}-04-01`, to: `${fy + 1}-03-31` };
+  }
+  return { from: "", to: "" };
+}
+
+/**
  * The single source of truth for turning the header controls into a Scope.
  * Date presets anchor on the DATA's latest date (never a hardcoded "today"), so
  * "Last 90 days" actually lands on real data. `stageView !== "cumulative"` scopes
@@ -674,10 +774,6 @@ export function resolveScope(
   t: ScopeTweaks,
   policy: CalculationPolicyT = DEFAULT_POLICY,
 ): Scope {
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
-  const { max: dataMax } = dateBounds(events);
-  const anchor = dataMax ? new Date(`${dataMax}T00:00:00Z`) : new Date();
-
   let from: string | undefined = t.dateFrom || undefined;
   let to: string | undefined = t.dateTo || undefined;
 
@@ -688,32 +784,16 @@ export function resolveScope(
       from = undefined;
       to = undefined;
     }
-  } else if (t.datePreset === "this-month") {
-    const y = anchor.getUTCFullYear();
-    const m = anchor.getUTCMonth();
-    from = `${y}-${String(m + 1).padStart(2, "0")}-01`;
-    const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-    to = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-  } else if (t.datePreset === "last-90-days") {
-    from = iso(new Date(anchor.getTime() - 90 * 86400000));
-    to = iso(anchor);
-  } else if (t.datePreset === "last-12-months") {
-    const p = new Date(anchor);
-    p.setUTCFullYear(p.getUTCFullYear() - 1);
-    from = iso(p);
-    to = iso(anchor);
-  } else if (t.datePreset === "this-fy") {
-    const m = anchor.getUTCMonth();
-    const y = anchor.getUTCFullYear();
-    const fy = m >= 3 ? y : y - 1; // fiscal year Apr–Mar
-    from = `${fy}-04-01`;
-    to = `${fy + 1}-03-31`;
-  } else {
+  } else if (t.datePreset === "all") {
     // "all" — no date window. Pairing occurredOn min/max with a lot-date
     // filter dropped lots that started before the first recorded-on day
     // (26H01-14: lot 1 Aug, keyed in on 11 Aug → 0 checked / 0%).
     from = undefined;
     to = undefined;
+  } else {
+    const win = presetDateWindow(t.datePreset, events);
+    from = win.from || undefined;
+    to = win.to || undefined;
   }
 
   // A station view pins one stage; otherwise the section filter decides. Both

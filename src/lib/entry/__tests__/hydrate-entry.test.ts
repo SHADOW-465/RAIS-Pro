@@ -1,4 +1,4 @@
-import { defectsFromAuditRow, hydrateFromAuditRow, hydrateFromBatchGroup } from "../hydrate-entry";
+import { defectsFromAuditRow, hydrateFromAuditRow, hydrateFromBatchGroup, mirrorStationToLot } from "../hydrate-entry";
 import type { AuditEntryRow } from "@/lib/analytics/audit-sessions";
 
 function row(over: Partial<AuditEntryRow> = {}): AuditEntryRow {
@@ -96,4 +96,45 @@ test("hydrateFromBatchGroup without ledger rows still locks the lot identity", (
   expect(h?.mode).toBe("reuse-lot");
   expect(h?.batchId).toBe("26I17-30");
   expect(h?.checked).toBe(0);
+});
+
+test("mirrorStationToLot copies the whole station onto the converted lot", () => {
+  const group = {
+    batch: "27A01-14",
+    stages: [
+      {
+        stageId: "visual",
+        rows: [
+          row({ batch: "27A01-14", checked: 6000, accepted: 5800, rework: 100, rejected: 100 }),
+          row({ batch: "27A01-14", checked: 4000, accepted: 3900, rework: 0, rejected: 100, defects: [{ code: "AIR", qty: 5 }] }),
+        ],
+        checkedQty: 10000,
+        acceptedQty: 9700,
+        rejectedQty: 200,
+        rowCount: 2,
+      },
+    ],
+    checkedQty: 10000,
+    acceptedQty: 9700,
+    rejectedQty: 200,
+    rowCount: 2,
+    eventCount: 2,
+    dateFrom: "2026-08-17",
+    dateTo: "2026-08-17",
+    sources: ["manual" as const],
+  };
+  const h = mirrorStationToLot(group, {
+    stageId: "visual",
+    batchId: "27A01-16",
+    date: "2026-11-02",
+    size: "16Fr",
+  });
+  expect(h).not.toBeNull();
+  expect(h!.mode).toBe("reuse-lot");
+  expect(h!.batchId).toBe("27A01-16");
+  expect(h!.size).toBe("16Fr");
+  expect(h!.editingId).toBe("");
+  expect([h!.checked, h!.accepted, h!.hold, h!.rejected]).toEqual([10000, 9700, 100, 200]);
+  expect(h!.defects).toEqual({ AIR: 17, PH: 8 });
+  expect(mirrorStationToLot(group, { stageId: "balloon", batchId: "27A01-16", date: "2026-11-02", size: "16Fr" })).toBeNull();
 });

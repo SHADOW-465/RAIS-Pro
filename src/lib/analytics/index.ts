@@ -2,6 +2,7 @@
 export * from "./scope";
 export * from "./canonical";
 export * from "./rejection";
+export * from "./trend-compare";
 export * from "./finite";
 export * from "./defect";
 export * from "./size";

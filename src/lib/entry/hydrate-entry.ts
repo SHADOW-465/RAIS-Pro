@@ -74,6 +74,51 @@ function emptyHydrate(
 }
 
 /**
+ * Whole-lot conversion: mirror the original lot's station onto the converted
+ * lot. Quantities and defects are summed across every row at the station and
+ * written as a fresh entry on the new identity — the original rows are never
+ * edited. Returns null when the original has nothing at the station.
+ */
+export function mirrorStationToLot(
+  group: AuditBatchGroup | null | undefined,
+  opts: { stageId: string; batchId: string; date: string; size: string | null },
+): EntryHydrate | null {
+  const bucket = group?.stages.find((s) => s.stageId === opts.stageId);
+  if (!bucket || bucket.rows.length === 0) return null;
+  let checked = 0;
+  let accepted = 0;
+  let hold = 0;
+  let rejected = 0;
+  const defects: Record<string, number> = {};
+  for (const r of bucket.rows) {
+    checked += r.checked || 0;
+    accepted += r.accepted || 0;
+    hold += r.rework || 0;
+    rejected += r.rejected || 0;
+    for (const [code, qty] of Object.entries(defectsFromAuditRow(r))) {
+      defects[code] = (defects[code] ?? 0) + qty;
+    }
+  }
+  if (checked <= 0 && accepted <= 0) return null;
+  const first = bucket.rows[0];
+  return {
+    mode: "reuse-lot",
+    batchId: opts.batchId,
+    date: opts.date,
+    stageId: opts.stageId,
+    size: opts.size,
+    productType: first.productType,
+    shift: first.shifts[0] ?? null,
+    checked: checked > 0 ? checked : accepted,
+    accepted,
+    hold,
+    rejected,
+    defects,
+    editingId: "",
+  };
+}
+
+/**
  * Load a conversion panel from a ledger batch group.
  * Prefers the requested station; falls back to the first stage on the lot.
  * Lots with no ledger rows still get a reuse-lot hydrate so identity is locked.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import AppShell from "@/components/app/AppShell";
 import { usePersona } from "@/components/app/PersonaContext";
 import { useEvents } from "@/components/app/EventsContext";
@@ -11,19 +11,22 @@ import {
   catalogDefects,
   isRemedyComplete,
   lookupRemedy,
+  publishUnpublishedLocal,
+  refreshRemedies,
+  resolveRemedyKey,
   saveDefectRemedy,
   saveTrendNote,
   removeTrendNote,
-  useRemedyBook,
+  useRemedySync,
   type TrendNote,
 } from "@/lib/remedy-store";
 import { byDefect, resolveScope } from "@/lib/analytics";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 
 export default function RemediesPage() {
-  const { persona } = usePersona();
-  const canEdit = persona === "gm";
-  const book = useRemedyBook();
+  const { canConfigure } = usePersona();
+  const canEdit = canConfigure;
+  const { book, source, error, unpublishedLocal } = useRemedySync();
   const { events } = useEvents();
   const { registry, policy } = useRegistry();
   const { t } = useTweaks();
@@ -34,12 +37,17 @@ export default function RemediesPage() {
   const [desc, setDesc] = useState("");
   const [remedy, setRemedy] = useState("");
   const [savedNote, setSavedNote] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [savingTrend, setSavingTrend] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const [trendKind, setTrendKind] = useState<"spike" | "dip">("spike");
   const [trendGraph, setTrendGraph] = useState("Rejection trend");
   const [trendPeriod, setTrendPeriod] = useState("");
   const [trendDesc, setTrendDesc] = useState("");
   const [trendRemedy, setTrendRemedy] = useState("");
+  const openedFromQuery = useRef(false);
 
   const catalog = useMemo(() => {
     const authored = catalogDefects();
@@ -81,28 +89,73 @@ export default function RemediesPage() {
     setDesc(rec?.description ?? "");
     setRemedy(rec?.remedy ?? "");
     setSavedNote(null);
+    setSaveError(null);
   }
 
-  function saveActive() {
-    if (!active || !canEdit) return;
-    saveDefectRemedy(active, { description: desc, remedy }, "GM");
-    setSavedNote("Saved.");
+  useEffect(() => {
+    if (openedFromQuery.current) return;
+    if (source === "loading") return;
+    const raw = new URLSearchParams(window.location.search).get("code");
+    if (!raw) return;
+    const key = resolveRemedyKey(raw);
+    if (!catalog.some((d) => d.code === key)) return;
+    openedFromQuery.current = true;
+    openDefect(key);
+    // catalog/book settle after the plant book loads
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog, book, source]);
+
+  async function saveActive() {
+    if (!active || !canEdit || saving) return;
+    setSaving(true);
+    setSavedNote(null);
+    setSaveError(null);
+    try {
+      await saveDefectRemedy(active, { description: desc, remedy });
+      setSavedNote("Saved to the plant book.");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "The plant book rejected this save.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function addTrend() {
-    if (!canEdit) return;
+  async function addTrend() {
+    if (!canEdit || savingTrend) return;
     if (!trendDesc.trim() || !trendRemedy.trim()) return;
-    saveTrendNote({
-      kind: trendKind,
-      graph: trendGraph,
-      period: trendPeriod,
-      description: trendDesc,
-      remedy: trendRemedy,
-      updatedBy: "GM",
-    });
-    setTrendDesc("");
-    setTrendRemedy("");
-    setTrendPeriod("");
+    setSavingTrend(true);
+    setSaveError(null);
+    try {
+      await saveTrendNote({
+        kind: trendKind,
+        graph: trendGraph,
+        period: trendPeriod,
+        description: trendDesc,
+        remedy: trendRemedy,
+      });
+      setTrendDesc("");
+      setTrendRemedy("");
+      setTrendPeriod("");
+      setSavedNote("Saved to the plant book.");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "The plant book rejected this save.");
+    } finally {
+      setSavingTrend(false);
+    }
+  }
+
+  async function publishLocal() {
+    if (!canEdit || publishing || !unpublishedLocal) return;
+    setPublishing(true);
+    setSaveError(null);
+    try {
+      await publishUnpublishedLocal();
+      setSavedNote("Unpublished drafts were written to the plant book.");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Could not publish local drafts.");
+    } finally {
+      setPublishing(false);
+    }
   }
 
   const activeMeta = catalog.find((d) => d.code === active);
@@ -123,17 +176,67 @@ export default function RemediesPage() {
             Defect remedies
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0, maxWidth: "72ch" }}>
-            Feed an explanation and a remedy for every defect. The plant book is the
-            source. This browser's copy is used when that book is not available yet,
-            and it is imported once the plant book is empty. The dashboard Top Defects
-            showcase then names Primary, Secondary, and Tertiary from live ranking.
+            Feed an explanation and a remedy for every defect. Saved feeds live in the
+            plant book, so every authorized user sees the same record on every computer.
+            The dashboard Top Defects showcase then names Primary, Secondary, and Tertiary
+            from live ranking.
           </p>
         </div>
 
         {!canEdit && (
           <p style={{ margin: 0, fontSize: 13, color: "var(--text-2)" }}>
-            View only. The General Manager writes descriptions and remedies.
+            View only. A role with configure access writes descriptions and remedies.
           </p>
+        )}
+
+        {source === "loading" && (
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            Loading plant remedies…
+          </p>
+        )}
+        {(source === "error" || source === "unavailable") && (
+          <div
+            style={{
+              padding: "10px 12px",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--warning)",
+              background: "var(--warning-weak)",
+              color: "var(--text)",
+              fontSize: 13,
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "center",
+            }}
+          >
+            <span>{error || "Plant remedies could not be loaded from the central book."}</span>
+            <button type="button" onClick={() => refreshRemedies()} style={{ ...saveBtn, padding: "6px 10px" }}>
+              Retry
+            </button>
+          </div>
+        )}
+        {unpublishedLocal && canEdit && (
+          <div
+            style={{
+              padding: "10px 12px",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border)",
+              background: "var(--surface-2)",
+              fontSize: 13,
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "center",
+            }}
+          >
+            <span>
+              This browser has unpublished drafts that are not in the plant book.
+              Publish them to share with other users.
+            </span>
+            <button type="button" onClick={() => void publishLocal()} disabled={publishing} style={saveBtn}>
+              {publishing ? "Publishing…" : "Publish local drafts"}
+            </button>
+          </div>
         )}
 
         <DefectRemedyShowcase ranked={ranked} />
@@ -276,11 +379,25 @@ export default function RemediesPage() {
                     style={areaStyle}
                   />
                   {canEdit && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
-                      <button type="button" onClick={saveActive} style={saveBtn}>
-                        Save feed
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+                      <button type="button" onClick={() => void saveActive()} disabled={saving} style={saveBtn}>
+                        {saving ? "Saving…" : "Save feed"}
                       </button>
-                      {savedNote && <span style={{ fontSize: 13, color: "var(--positive)" }}>{savedNote}</span>}
+                      {savedNote && !saveError && (
+                        <span style={{ fontSize: 13, color: "var(--positive)" }}>{savedNote}</span>
+                      )}
+                      {saveError && (
+                        <>
+                          <span style={{ fontSize: 13, color: "var(--critical)" }}>{saveError}</span>
+                          <button
+                            type="button"
+                            onClick={() => active && openDefect(active)}
+                            style={{ ...saveBtn, background: "var(--surface-2)", color: "var(--text)", border: "1px solid var(--border)" }}
+                          >
+                            Load latest
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </>
@@ -362,9 +479,17 @@ export default function RemediesPage() {
                 style={areaStyle}
               />
               {canEdit && (
-                <button type="button" onClick={addTrend} style={{ ...saveBtn, marginTop: 12 }}>
-                  Save note
+                <button
+                  type="button"
+                  onClick={() => void addTrend()}
+                  disabled={savingTrend}
+                  style={{ ...saveBtn, marginTop: 12 }}
+                >
+                  {savingTrend ? "Saving…" : "Save note"}
                 </button>
+              )}
+              {tab === "trends" && saveError && (
+                <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--critical)" }}>{saveError}</p>
               )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -398,7 +523,7 @@ export default function RemediesPage() {
                     {canEdit && (
                       <button
                         type="button"
-                        onClick={() => removeTrendNote(n.id)}
+                        onClick={() => void removeTrendNote(n.id)}
                         style={{
                           border: "none",
                           background: "none",

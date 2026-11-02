@@ -50,6 +50,18 @@ export function eligibleTransferQty(
   return stage.acceptedQty > 0 ? stage.acceptedQty : stage.checkedQty;
 }
 
+/**
+ * Whole-lot conversion: every piece that went through the station carries the
+ * new size, so the converted lot takes the full checked count (accepted when
+ * a station only recorded output).
+ */
+export function fullConversionQty(
+  stage: { acceptedQty: number; checkedQty: number } | null | undefined,
+): number | null {
+  if (!stage) return null;
+  return stage.checkedQty > 0 ? stage.checkedQty : stage.acceptedQty;
+}
+
 export function transferQtyError(
   qty: number,
   eligible: number | null,

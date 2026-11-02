@@ -5,6 +5,7 @@ import {
   qtyFromRows,
   defaultFlowStations,
   eligibleTransferQty,
+  fullConversionQty,
   transferQtyError,
   type FlowStation,
 } from "../quantity-flow";
@@ -132,4 +133,10 @@ test("qtyFromRows sums hold from rework and does not invent values", () => {
     rejected: 250,
   });
   expect(qtyFromRows([])).toEqual({ checked: 0, accepted: 0, hold: 0, rejected: 0 });
+});
+
+test("full conversion moves every piece checked at the station", () => {
+  expect(fullConversionQty({ acceptedQty: 9700, checkedQty: 10000 })).toBe(10000);
+  expect(fullConversionQty({ acceptedQty: 9700, checkedQty: 0 })).toBe(9700);
+  expect(fullConversionQty(null)).toBeNull();
 });

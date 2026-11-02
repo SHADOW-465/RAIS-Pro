@@ -65,12 +65,12 @@ export const DEFAULT_POLICY: CalculationPolicyT = {
   defaultSections: ["assembly"],           // plant-catalog DEFAULT_STAGE_CATEGORIES
   targetRejectionPct: 10,                  // was localStorage rais_settings_target_rejection
   watchRejectionPct: 5,                    // was localStorage rais_settings_watch_rejection
-  unitCostInr: 20,                         // was localStorage rais_settings_finished_cost
-  stageCostWeights: {                      // was localStorage rais_settings_weight_*
-    visual: 0.6,
-    "eye-punching": 0.7,
-    balloon: 0.8,
-    "valve-integrity": 0.9,
+  unitCostInr: 5,                          // ₹5 per piece (disposafe catheter plant piece price)
+  stageCostWeights: {
+    visual: 1.0,
+    "eye-punching": 1.0,
+    balloon: 1.0,
+    "valve-integrity": 1.0,
     final: 1.0,
   },
 };

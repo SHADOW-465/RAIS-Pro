@@ -28,12 +28,18 @@ import {
   fileBasename,
   DETAIL_PAGE_SIZE,
 } from "@/lib/analytics/source-trace";
-import { parseBatchId } from "@/lib/entry/batch-id";
+import { canonicalBatchId, parseBatchId } from "@/lib/entry/batch-id";
 import { sizeColorFor } from "@/lib/entry/size-color";
 import { safeBolden } from "@/components/app/widgets";
+import BatchIdChip from "@/components/entry/BatchIdChip";
+import type {
+  LotSourceCategory,
+  LotCategoryMeta,
+  ProcessLotGrouping,
+} from "@/lib/lineage";
 
 
-export type { SourceRow, SourceMetricKind };
+export type { SourceRow, SourceMetricKind, LotSourceCategory, LotCategoryMeta, ProcessLotGrouping };
 
 export interface SourceBatchItem {
   batchId: string;
@@ -49,6 +55,7 @@ export interface SourceBatchItem {
   entryCount: number;
   defects: { code: string; qty: number }[];
   defectRate: number;
+  categoryMeta?: LotCategoryMeta;
 }
 
 interface FloatingDetailModalProps {
@@ -71,6 +78,10 @@ interface FloatingDetailModalProps {
   initialShowSource?: boolean;
   /** Initial source sub-view mode: "batches" | "history" */
   defaultSourceTab?: "batches" | "history";
+  /** Optional 3-way batch grouping: Completed, Not completed, Converted batch */
+  lotGrouping?: ProcessLotGrouping;
+  /** Initial active category filter when lotGrouping is provided */
+  initialLotCategory?: "all" | LotSourceCategory;
 }
 
 /** A single bezier beam from the computed-value anchor to one highlighted target. */
@@ -150,6 +161,8 @@ export default function FloatingDetailModal({
   rankedDefects = [],
   initialShowSource = false,
   defaultSourceTab = "batches",
+  lotGrouping,
+  initialLotCategory = "all",
 }: FloatingDetailModalProps) {
   void _periodGrain; // retained on the public prop surface; grouping modes removed
   const { t, setTweak } = useTweaks();
@@ -157,6 +170,7 @@ export default function FloatingDetailModal({
   // panel renders one shape regardless of policy.
   const [showSource, setShowSource] = useState(initialShowSource);
   const [sourceSubView, setSourceSubView] = useState<"batches" | "history" | "spreadsheet">(defaultSourceTab);
+  const [lotCategory, setLotCategory] = useState<"all" | LotSourceCategory>(initialLotCategory);
   const [batchSearch, setBatchSearch] = useState("");
   const [batchSort, setBatchSort] = useState<"defects" | "rate" | "asc" | "desc" | "date">("defects");
   const [copiedBatches, setCopiedBatches] = useState(false);
@@ -235,9 +249,21 @@ export default function FloatingDetailModal({
     [sourceRows],
   );
 
+  // Filter rows by active lot category (Completed / Not completed / Converted batch) when lotGrouping is provided
+  const categoryScopedRows = useMemo(() => {
+    if (!lotGrouping) return normalizedAll;
+    return normalizedAll.filter((r) => {
+      const b = canonicalBatchId(r.batch) ?? r.batch?.trim().toUpperCase() ?? "";
+      const meta = lotGrouping.byBatch[b];
+      if (!meta) return false;
+      if (lotCategory === "all") return true;
+      return meta.category === lotCategory;
+    });
+  }, [normalizedAll, lotGrouping, lotCategory]);
+
   const filteredRows = useMemo(
-    () => filterSourceRows(normalizedAll, filters),
-    [normalizedAll, filters],
+    () => filterSourceRows(categoryScopedRows, filters),
+    [categoryScopedRows, filters],
   );
 
   const summary = useMemo(
@@ -262,8 +288,19 @@ export default function FloatingDetailModal({
     if (rejectionProof) {
       return `${(rejectionProof.value * 100).toFixed(2)}%`;
     }
+    if (lotGrouping && lotCategory !== "all") {
+      if (lotCategory === "completed") {
+        return `${lotGrouping.completedCount} / ${lotGrouping.totalCount} completed`;
+      }
+      if (lotCategory === "not_completed") {
+        return `${lotGrouping.notCompletedCount} / ${lotGrouping.totalCount} not completed`;
+      }
+      if (lotCategory === "converted") {
+        return `${lotGrouping.convertedCount} / ${lotGrouping.totalCount} converted`;
+      }
+    }
     return primaryValue ?? "—";
-  }, [rejectionProof, primaryValue]);
+  }, [rejectionProof, primaryValue, lotGrouping, lotCategory]);
 
   // Always flat — no By stage / period / file / type grouping chrome.
   const groups = useMemo(
@@ -271,8 +308,8 @@ export default function FloatingDetailModal({
     [filteredRows, metricKind],
   );
 
-  const stageOpts = useMemo(() => stageOptionsFromRows(normalizedAll), [normalizedAll]);
-  const sizeOpts = useMemo(() => sizeOptionsFromRows(normalizedAll), [normalizedAll]);
+  const stageOpts = useMemo(() => stageOptionsFromRows(categoryScopedRows), [categoryScopedRows]);
+  const sizeOpts = useMemo(() => sizeOptionsFromRows(categoryScopedRows), [categoryScopedRows]);
 
   // Publish this card's verified numbers for "what is this graph?" / "highlight
   // it" in Ask MOID. One place to update instead of the 8 pages that open this
@@ -310,6 +347,7 @@ export default function FloatingDetailModal({
   useEffect(() => {
     if (!isOpen) {
       setShowSource(false);
+      setLotCategory("all");
       setFilters(defaultSourceFilters());
       setSourceSurface("classified");
       setDetailPage(0);
@@ -319,9 +357,10 @@ export default function FloatingDetailModal({
     }
     setShowSource(initialShowSource);
     setSourceSubView(defaultSourceTab);
+    setLotCategory(initialLotCategory);
     setFilters(defaultSourceFilters());
     setDetailPage(0);
-  }, [isOpen, metricKind, title, initialShowSource, defaultSourceTab]);
+  }, [isOpen, metricKind, title, initialShowSource, defaultSourceTab, initialLotCategory]);
 
   const detailRows = groups[0]?.rows ?? [];
   // Fold the kind-split rows into one entry per date·batch·size·stage·file (audit style).
@@ -336,7 +375,8 @@ export default function FloatingDetailModal({
   const batchItems = useMemo<SourceBatchItem[]>(() => {
     const map = new Map<string, SourceBatchItem>();
     for (const e of entryRows) {
-      const bId = e.batch?.trim() || "Unassigned";
+      const rawB = e.batch?.trim() || "";
+      const bId = (rawB ? canonicalBatchId(rawB) ?? rawB.toUpperCase() : "") || "Unassigned";
       let b = map.get(bId);
       if (!b) {
         const parsed = parseBatchId(bId);
@@ -356,6 +396,7 @@ export default function FloatingDetailModal({
           entryCount: 0,
           defects: [],
           defectRate: 0,
+          categoryMeta: lotGrouping?.byBatch[bId],
         };
         map.set(bId, b);
       }
@@ -374,11 +415,41 @@ export default function FloatingDetailModal({
         else b.defects.push({ code: d.code, qty: d.qty });
       }
     }
+
+    // Ensure every batch in lotGrouping (for the active category) appears even if it has 0 entryRows
+    if (lotGrouping) {
+      for (const [bId, meta] of Object.entries(lotGrouping.byBatch)) {
+        if (lotCategory !== "all" && meta.category !== lotCategory) continue;
+        if (!map.has(bId)) {
+          const parsed = parseBatchId(bId);
+          const sizeFr = parsed?.sizeFr || null;
+          const swatch = sizeFr ? sizeColorFor(sizeFr) : null;
+          const fallbackDate = parsed?.date ?? "—";
+          map.set(bId, {
+            batchId: bId,
+            sizeFr,
+            sizeColor: swatch,
+            dateMin: fallbackDate,
+            dateMax: fallbackDate,
+            checkedQty: 0,
+            acceptedQty: 0,
+            rejectedQty: 0,
+            defectQty: 0,
+            stages: meta.convertedAtStage ? [meta.convertedAtStage] : [],
+            entryCount: 0,
+            defects: [],
+            defectRate: 0,
+            categoryMeta: meta,
+          });
+        }
+      }
+    }
+
     for (const b of map.values()) {
       b.defectRate = b.checkedQty > 0 ? (b.rejectedQty / b.checkedQty) * 100 : 0;
     }
     return Array.from(map.values());
-  }, [entryRows]);
+  }, [entryRows, lotGrouping, lotCategory]);
 
   const displayBatches = useMemo(() => {
     const q = batchSearch.trim().toUpperCase();
@@ -388,6 +459,8 @@ export default function FloatingDetailModal({
       if (b.sizeFr && `${b.sizeFr}FR`.includes(q)) return true;
       if (b.stages.some((s) => s.toUpperCase().includes(q))) return true;
       if (b.defects.some((d) => d.code.toUpperCase().includes(q))) return true;
+      if (b.categoryMeta?.fromBatch?.toUpperCase().includes(q)) return true;
+      if (b.categoryMeta?.statusLabel?.toUpperCase().includes(q)) return true;
       return false;
     });
 
@@ -531,8 +604,8 @@ export default function FloatingDetailModal({
   }, [isOpen, handleClose]);
 
   const hasSource = normalizedAll.length > 0;
-  const excelCount = useMemo(() => normalizedAll.filter((r) => !r.isDirect).length, [normalizedAll]);
-  const manualCount = useMemo(() => normalizedAll.filter((r) => r.isDirect).length, [normalizedAll]);
+  const excelCount = useMemo(() => categoryScopedRows.filter((r) => !r.isDirect).length, [categoryScopedRows]);
+  const manualCount = useMemo(() => categoryScopedRows.filter((r) => r.isDirect).length, [categoryScopedRows]);
 
   // A single bezier from the computed-value anchor to the one highlighted target:
   // the highlighted entry row (classified) or the first matched cell (spreadsheet).
@@ -601,7 +674,9 @@ export default function FloatingDetailModal({
 
   const checkedCount = summary.checkedQty;
   const rejectedCount = summary.rejectedQty || summary.defectQty;
-  const effectiveRate = primaryValue ?? (rejectionProof ? `${(rejectionProof.value * 100).toFixed(2)}%` : null);
+  const effectiveRate =
+    (computedDisplay !== "—" ? computedDisplay : primaryValue) ??
+    (rejectionProof ? `${(rejectionProof.value * 100).toFixed(2)}%` : null);
 
   let primaryMetricLabel = "Primary Rate";
   const titleLower = title.toLowerCase();
@@ -1351,6 +1426,83 @@ export default function FloatingDetailModal({
                   />
                 </div>
 
+                {lotGrouping && (
+                  <div style={{ borderTop: "1px dashed var(--border)", paddingTop: 10 }}>
+                    <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6, fontWeight: 600 }}>
+                      Batch Source Grouping ({lotGrouping.totalCount})
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {[
+                        {
+                          key: "completed" as const,
+                          label: "Completed",
+                          count: lotGrouping.completedCount,
+                          color: "var(--positive)",
+                        },
+                        {
+                          key: "not_completed" as const,
+                          label: "Not completed",
+                          count: lotGrouping.notCompletedCount,
+                          color: "var(--warning)",
+                        },
+                        {
+                          key: "converted" as const,
+                          label: "Converted batch",
+                          count: lotGrouping.convertedCount,
+                          color: "var(--accent)",
+                        },
+                      ].map((g) => {
+                        const active = lotCategory === g.key;
+                        return (
+                          <button
+                            key={g.key}
+                            type="button"
+                            onClick={() => {
+                              setLotCategory(active ? "all" : g.key);
+                              setDetailPage(0);
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 8,
+                              padding: "5px 8px",
+                              borderRadius: 6,
+                              border: active
+                                ? `1px solid color-mix(in srgb, ${g.color} 45%, var(--border))`
+                                : "1px solid transparent",
+                              background: active
+                                ? `color-mix(in srgb, ${g.color} 14%, var(--surface-2))`
+                                : "var(--surface)",
+                              cursor: "pointer",
+                              fontSize: 11.5,
+                              color: active ? "var(--text)" : "var(--text-2)",
+                              fontWeight: active ? 700 : 500,
+                              textAlign: "left",
+                            }}
+                          >
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              <span
+                                style={{
+                                  width: 7,
+                                  height: 7,
+                                  borderRadius: 99,
+                                  background: g.color,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              {g.label}
+                            </span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: g.color }}>
+                              {g.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ borderTop: "1px dashed var(--border)", paddingTop: 10 }}>
                   <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>Source mix</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -1549,6 +1701,123 @@ export default function FloatingDetailModal({
                   )}
                 </div>
 
+                {/* Dedicated Source Category Buttons: Completed / Not completed / Converted batch */}
+                {lotGrouping && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      flexWrap: "wrap",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid var(--border)",
+                      background: "var(--surface)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "var(--text-3)",
+                          marginRight: 4,
+                        }}
+                      >
+                        Source Group:
+                      </span>
+                      {(
+                        [
+                          {
+                            key: "all" as const,
+                            label: "All Batches",
+                            count: lotGrouping.totalCount,
+                            color: "var(--text)",
+                            bgActive: "var(--surface-3)",
+                            borderActive: "var(--border-strong)",
+                          },
+                          {
+                            key: "completed" as const,
+                            label: "✓ Completed",
+                            count: lotGrouping.completedCount,
+                            color: "var(--positive)",
+                            bgActive: "color-mix(in srgb, var(--positive) 16%, var(--surface-2))",
+                            borderActive: "color-mix(in srgb, var(--positive) 55%, var(--border))",
+                          },
+                          {
+                            key: "not_completed" as const,
+                            label: "⏳ Not completed",
+                            count: lotGrouping.notCompletedCount,
+                            color: "var(--warning)",
+                            bgActive: "color-mix(in srgb, var(--warning) 16%, var(--surface-2))",
+                            borderActive: "color-mix(in srgb, var(--warning) 55%, var(--border))",
+                          },
+                          {
+                            key: "converted" as const,
+                            label: "⇄ Converted batch",
+                            count: lotGrouping.convertedCount,
+                            color: "var(--accent)",
+                            bgActive: "color-mix(in srgb, var(--accent) 16%, var(--surface-2))",
+                            borderActive: "color-mix(in srgb, var(--accent) 55%, var(--border))",
+                          },
+                        ] as const
+                      ).map((btn) => {
+                        const active = lotCategory === btn.key;
+                        return (
+                          <button
+                            key={btn.key}
+                            type="button"
+                            onClick={() => {
+                              setLotCategory(btn.key);
+                              setDetailPage(0);
+                            }}
+                            style={{
+                              padding: "6px 12px",
+                              borderRadius: 8,
+                              border: `1px solid ${active ? btn.borderActive : "var(--border)"}`,
+                              background: active ? btn.bgActive : "var(--surface-2)",
+                              color: active ? btn.color : "var(--text-2)",
+                              fontWeight: active ? 700 : 600,
+                              fontSize: 12,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 7,
+                              boxShadow: active ? "var(--shadow-1)" : "none",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <span>{btn.label}</span>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontFamily: "var(--font-mono)",
+                                fontWeight: 700,
+                                padding: "1px 7px",
+                                borderRadius: 999,
+                                background: active
+                                  ? `color-mix(in srgb, ${btn.color} 20%, var(--surface))`
+                                  : "var(--surface)",
+                                color: btn.color,
+                                border: "1px solid var(--border)",
+                              }}
+                            >
+                              {btn.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
+                      {lotGrouping.completedCount} completed + {lotGrouping.notCompletedCount} not completed +{" "}
+                      {lotGrouping.convertedCount} converted = {lotGrouping.totalCount}
+                    </span>
+                  </div>
+                )}
+
                 {/* Option 1: Batches ID View (like 3rd image) */}
                 {sourceSubView === "batches" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1653,112 +1922,371 @@ export default function FloatingDetailModal({
                         No batches match “{batchSearch}”.
                       </div>
                     ) : (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-                          gap: 10,
-                          maxHeight: "56vh",
-                          overflowY: "auto",
-                          paddingRight: 4,
-                        }}
-                      >
-                        {displayBatches.map((b) => (
-                          <button
-                            key={b.batchId}
-                            type="button"
-                            onClick={() => handleSelectBatch(b.batchId)}
-                            title={`Click to view data entry history for batch ${b.batchId}`}
-                            style={{
-                              textAlign: "left",
-                              padding: "10px 12px",
-                              borderRadius: 10,
-                              border: "1px solid var(--border-strong)",
-                              borderLeft: b.sizeColor
-                                ? `4px solid ${b.sizeColor.hex}`
-                                : "4px solid var(--border-strong)",
-                              background: "var(--surface)",
-                              color: "var(--text)",
-                              cursor: "pointer",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 6,
-                              boxShadow: "var(--shadow-1)",
-                              transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.transform = "translateY(-1px)";
-                              e.currentTarget.style.boxShadow = "var(--shadow-2)";
-                              e.currentTarget.style.borderColor = "var(--accent)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.transform = "none";
-                              e.currentTarget.style.boxShadow = "var(--shadow-1)";
-                              e.currentTarget.style.borderColor = "var(--border-strong)";
-                            }}
-                          >
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 800, color: "var(--text)" }}>
-                                {b.batchId}
-                              </span>
-                              {b.sizeFr && (
-                                <span
+                      (() => {
+                        const renderBatchTile = (b: SourceBatchItem) => {
+                          const cat = b.categoryMeta?.category;
+                          const catColor =
+                            cat === "completed"
+                              ? "var(--positive)"
+                              : cat === "converted"
+                                ? "var(--accent)"
+                                : cat === "not_completed"
+                                  ? "var(--warning)"
+                                  : null;
+
+                          return (
+                            <button
+                              key={b.batchId}
+                              type="button"
+                              onClick={() => handleSelectBatch(b.batchId)}
+                              style={{
+                                textAlign: "left",
+                                padding: "10px 12px",
+                                borderRadius: 10,
+                                border: "1px solid var(--border-strong)",
+                                borderLeft: b.sizeColor
+                                  ? `4px solid ${b.sizeColor.hex}`
+                                  : catColor
+                                    ? `4px solid ${catColor}`
+                                    : "4px solid var(--border-strong)",
+                                background: "var(--surface)",
+                                color: "var(--text)",
+                                cursor: "pointer",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 6,
+                                position: "relative",
+                                zIndex: 1,
+                                boxShadow: "var(--shadow-1)",
+                                transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-1px)";
+                                e.currentTarget.style.boxShadow = "var(--shadow-2)";
+                                e.currentTarget.style.borderColor = "var(--accent)";
+                                e.currentTarget.style.zIndex = "25";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "none";
+                                e.currentTarget.style.boxShadow = "var(--shadow-1)";
+                                e.currentTarget.style.borderColor = "var(--border-strong)";
+                                e.currentTarget.style.zIndex = "1";
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, minHeight: 22 }}>
+                                <BatchIdChip
+                                  batchId={b.batchId}
+                                  label={cat === "converted" && b.categoryMeta?.convertBatchCode ? b.categoryMeta.convertBatchCode : undefined}
+                                  style={{ fontSize: 12.5 }}
+                                  showDataEntry
+                                />
+                                {b.sizeFr && (
+                                  <span
+                                    style={{
+                                      fontSize: 10,
+                                      fontFamily: "var(--font-mono)",
+                                      fontWeight: 700,
+                                      padding: "1px 5px",
+                                      borderRadius: 4,
+                                      background: b.sizeColor
+                                        ? `color-mix(in srgb, ${b.sizeColor.hex} 18%, var(--surface-2))`
+                                        : "var(--surface-2)",
+                                      color:
+                                        b.sizeColor?.hex === "#FFFFFF"
+                                          ? "var(--text)"
+                                          : (b.sizeColor?.hex ?? "var(--text-2)"),
+                                      border: "1px solid var(--border)",
+                                    }}
+                                  >
+                                    {b.sizeFr}Fr
+                                  </span>
+                                )}
+                              </div>
+
+                              {b.categoryMeta && (
+                                <div
                                   style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 4,
+                                    padding: "2px 6px",
+                                    borderRadius: 5,
                                     fontSize: 10,
                                     fontFamily: "var(--font-mono)",
-                                    fontWeight: 700,
-                                    padding: "1px 5px",
-                                    borderRadius: 4,
-                                    background: b.sizeColor
-                                      ? `color-mix(in srgb, ${b.sizeColor.hex} 18%, var(--surface-2))`
-                                      : "var(--surface-2)",
-                                    color:
-                                      b.sizeColor?.hex === "#FFFFFF"
-                                        ? "var(--text)"
-                                        : (b.sizeColor?.hex ?? "var(--text-2)"),
-                                    border: "1px solid var(--border)",
+                                    fontWeight: 600,
+                                    background: `color-mix(in srgb, ${catColor ?? "var(--border)"} 12%, var(--surface-2))`,
+                                    color: catColor ?? "var(--text-2)",
+                                    border: `1px solid color-mix(in srgb, ${catColor ?? "var(--border)"} 28%, var(--border))`,
                                   }}
                                 >
-                                  {b.sizeFr}Fr
-                                </span>
+                                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {cat === "completed"
+                                      ? `✓ ${b.categoryMeta.statusLabel}`
+                                      : cat === "converted"
+                                        ? b.categoryMeta.breakdown
+                                          ? `⇄ ${b.categoryMeta.breakdown.mainSize}Fr → CT ${b.categoryMeta.breakdown.convertSize}Fr`
+                                          : `⇄ ${b.categoryMeta.fromBatch ? `From ${b.categoryMeta.fromBatch}` : b.categoryMeta.statusLabel}`
+                                        : `⏳ ${b.categoryMeta.statusLabel}`}
+                                  </span>
+                                  {cat === "converted" && b.categoryMeta.convertedAtStage && (
+                                    <span style={{ fontSize: 9.5, color: "var(--text-3)", flexShrink: 0 }}>
+                                      {b.categoryMeta.convertedAtStage}
+                                    </span>
+                                  )}
+                                </div>
                               )}
-                            </div>
 
-                            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", fontFamily: "var(--font-mono)" }}>
-                                {(b.rejectedQty || b.defectQty).toLocaleString("en-IN")}{" "}
-                                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--text-3)" }}>rejected</span>
-                              </span>
-                              {b.defectRate > 0 && (
-                                <span style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-3)", fontWeight: 600 }}>
-                                  {b.defectRate.toFixed(1)}%
+                              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", fontFamily: "var(--font-mono)" }}>
+                                  {(b.rejectedQty || b.defectQty).toLocaleString("en-IN")}{" "}
+                                  <span style={{ fontSize: 10, fontWeight: 500, color: "var(--text-3)" }}>rejected</span>
                                 </span>
-                              )}
-                            </div>
+                                {b.defectRate > 0 && (
+                                  <span style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-3)", fontWeight: 600 }}>
+                                    {b.defectRate.toFixed(1)}%
+                                  </span>
+                                )}
+                              </div>
 
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: 4,
+                                  fontSize: 10,
+                                  color: "var(--text-3)",
+                                  borderTop: "1px dashed var(--border)",
+                                  paddingTop: 5,
+                                  marginTop: 2,
+                                }}
+                              >
+                                <span style={{ fontFamily: "var(--font-mono)" }}>
+                                  {b.dateMin === b.dateMax ? b.dateMin.slice(5) : `${b.dateMin.slice(5)} → ${b.dateMax.slice(5)}`}
+                                </span>
+                                <span style={{ color: "var(--accent)", fontWeight: 600, display: "inline-flex", alignItems: "center" }}>
+                                  History →
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        };
+
+                        if (lotGrouping && lotCategory === "all") {
+                          const sections: {
+                            key: LotSourceCategory;
+                            title: string;
+                            subtitle: string;
+                            color: string;
+                            items: SourceBatchItem[];
+                          }[] = [
+                            {
+                              key: "completed",
+                              title: "✓ Completed Batches",
+                              subtitle: "Completed all required stages for this scope",
+                              color: "var(--positive)",
+                              items: displayBatches.filter((b) => b.categoryMeta?.category === "completed"),
+                            },
+                            {
+                              key: "not_completed",
+                              title: "⏳ Not Completed Batches",
+                              subtitle: "Waiting on required station entries",
+                              color: "var(--warning)",
+                              items: displayBatches.filter((b) => b.categoryMeta?.category === "not_completed"),
+                            },
+                            {
+                              key: "converted",
+                              title: "⇄ Converted Batches",
+                              subtitle: "Converted or re-routed from another batch",
+                              color: "var(--accent)",
+                              items: displayBatches.filter((b) => b.categoryMeta?.category === "converted"),
+                            },
+                          ];
+
+                          return (
                             <div
                               style={{
                                 display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                gap: 4,
-                                fontSize: 10,
-                                color: "var(--text-3)",
-                                borderTop: "1px dashed var(--border)",
-                                paddingTop: 5,
-                                marginTop: 2,
+                                flexDirection: "column",
+                                gap: 16,
+                                maxHeight: "56vh",
+                                overflowY: "auto",
+                                paddingRight: 4,
                               }}
                             >
-                              <span style={{ fontFamily: "var(--font-mono)" }}>
-                                {b.dateMin === b.dateMax ? b.dateMin.slice(5) : `${b.dateMin.slice(5)} → ${b.dateMax.slice(5)}`}
-                              </span>
-                              <span style={{ color: "var(--accent)", fontWeight: 600, display: "inline-flex", alignItems: "center" }}>
-                                History →
-                              </span>
+                              {sections.map((sec) => {
+                                if (sec.items.length === 0) return null;
+                                const secRej = sec.items.reduce(
+                                  (acc, b) => acc + (b.rejectedQty || b.defectQty),
+                                  0,
+                                );
+                                return (
+                                  <div
+                                    key={sec.key}
+                                    style={{
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      gap: 10,
+                                      padding: "12px 14px",
+                                      borderRadius: 12,
+                                      border: `1px solid color-mix(in srgb, ${sec.color} 30%, var(--border))`,
+                                      background: `color-mix(in srgb, ${sec.color} 4%, var(--surface))`,
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        gap: 10,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                        <span
+                                          style={{
+                                            fontSize: 13,
+                                            fontWeight: 800,
+                                            color: sec.color,
+                                          }}
+                                        >
+                                          {sec.title}
+                                        </span>
+                                        <span
+                                          style={{
+                                            fontFamily: "var(--font-mono)",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            padding: "2px 8px",
+                                            borderRadius: 999,
+                                            background: `color-mix(in srgb, ${sec.color} 15%, var(--surface-2))`,
+                                            color: sec.color,
+                                            border: `1px solid color-mix(in srgb, ${sec.color} 35%, var(--border))`,
+                                          }}
+                                        >
+                                          {sec.items.length} batches
+                                        </span>
+                                        <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>
+                                          · {sec.subtitle}
+                                        </span>
+                                      </div>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                        <span
+                                          style={{
+                                            fontSize: 11.5,
+                                            fontFamily: "var(--font-mono)",
+                                            color: "var(--text-2)",
+                                          }}
+                                        >
+                                          <strong style={{ color: "var(--accent)" }}>
+                                            {secRej.toLocaleString("en-IN")}
+                                          </strong>{" "}
+                                          rejected
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setLotCategory(sec.key)}
+                                          style={{
+                                            padding: "4px 10px",
+                                            borderRadius: 6,
+                                            border: `1px solid color-mix(in srgb, ${sec.color} 40%, var(--border))`,
+                                            background: "var(--surface)",
+                                            color: sec.color,
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                          }}
+                                        >
+                                          Focus group →
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <div
+                                      style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+                                        gap: 10,
+                                      }}
+                                    >
+                                      {sec.items.map(renderBatchTile)}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          </button>
-                        ))}
-                      </div>
+                          );
+                        }
+
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {lotGrouping && lotCategory !== "all" && (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: 10,
+                                  padding: "8px 12px",
+                                  borderRadius: 8,
+                                  background: "var(--surface)",
+                                  border: "1px solid var(--border)",
+                                  fontSize: 12,
+                                }}
+                              >
+                                <span style={{ color: "var(--text-2)" }}>
+                                  Optimized view for{" "}
+                                  <strong
+                                    style={{
+                                      color:
+                                        lotCategory === "completed"
+                                          ? "var(--positive)"
+                                          : lotCategory === "converted"
+                                            ? "var(--accent)"
+                                            : "var(--warning)",
+                                    }}
+                                  >
+                                    {lotCategory === "completed"
+                                      ? "Completed"
+                                      : lotCategory === "converted"
+                                        ? "Converted batch"
+                                        : "Not completed"}
+                                  </strong>{" "}
+                                  ({displayBatches.length} batches)
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setLotCategory("all")}
+                                  style={{
+                                    padding: "3px 9px",
+                                    borderRadius: 6,
+                                    border: "1px solid var(--border-strong)",
+                                    background: "var(--surface-2)",
+                                    color: "var(--text)",
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Show all 3 categories
+                                </button>
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+                                gap: 10,
+                                maxHeight: "56vh",
+                                overflowY: "auto",
+                                paddingRight: 4,
+                              }}
+                            >
+                              {displayBatches.map(renderBatchTile)}
+                            </div>
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
                 )}
@@ -1938,7 +2466,7 @@ export default function FloatingDetailModal({
                                     color: "var(--text-2)",
                                   }}
                                 >
-                                  {e.batch || "—"}
+                                  {e.batch ? <BatchIdChip batchId={e.batch} showDataEntry /> : "—"}
                                   {e.confirmedDistinctFrom && (
                                     <div
                                       title={`Confirmed a different lot from ${e.confirmedDistinctFrom} despite matching checked/accepted/rejected counts — not a duplicate entry.`}

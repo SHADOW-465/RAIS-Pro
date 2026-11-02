@@ -27,6 +27,7 @@ import {
   STAGE_CATEGORIES,
   DEFAULT_STAGE_CATEGORIES,
   dateBounds,
+  presetDateWindow,
 } from "@/lib/analytics/scope";
 import {
   STAGES,
@@ -1258,19 +1259,13 @@ function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: 
 
   const hasRange = !!(t.dateFrom || t.dateTo || (t.datePreset && t.datePreset !== "all"));
 
-  const getThisMonthDates = () => {
-    const { max: dataMax } = dateBounds(events);
-    const anchor = dataMax ? new Date(`${dataMax}T00:00:00Z`) : new Date();
-    const y = anchor.getUTCFullYear();
-    const m = anchor.getUTCMonth();
-    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
-    const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-    return { start, end };
-  };
-
   const label = useMemo(() => {
+    if (t.datePreset === "this-day") return "This day";
+    if (t.datePreset === "this-week") return "This week";
+    if (t.datePreset === "last-week") return "Last week";
     if (t.datePreset === "this-month") return "This month";
+    if (t.datePreset === "last-month") return "Last month";
+    if (t.datePreset === "last-3-months" || t.datePreset === "last-3-month") return "Last 3m";
     if (t.dateFrom && t.dateTo) {
       const fmt = (iso: string) => {
         const d = new Date(iso + "T00:00:00");
@@ -1364,7 +1359,7 @@ function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: 
             top: "calc(100% + 6px)",
             right: 0,
             zIndex: 350,
-            width: 250,
+            width: 260,
             padding: 12,
             background: "var(--surface)",
             border: "1px solid var(--border-strong)",
@@ -1394,45 +1389,66 @@ function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: 
             )}
           </div>
 
-          {/* Quick preset for This Month */}
-          <button
-            type="button"
-            onClick={() => {
-              const { start, end } = getThisMonthDates();
-              setTweak("datePreset", "this-month");
-              setTweak("dateFrom", start);
-              setTweak("dateTo", end);
-            }}
-            style={{
-              padding: "6px 10px",
-              borderRadius: 8,
-              border: t.datePreset === "this-month"
-                ? "1px solid color-mix(in srgb, var(--accent) 55%, var(--border))"
-                : "1px solid var(--border-strong)",
-              background: t.datePreset === "this-month" ? "var(--accent-weak)" : "var(--surface-2)",
-              color: t.datePreset === "this-month" ? "var(--accent-text, var(--accent))" : "var(--text)",
-              fontSize: 12,
-              fontWeight: t.datePreset === "this-month" ? 700 : 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              fontFamily: "inherit",
-              transition: "all var(--duration-fast) var(--ease-out)",
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            <span>This month</span>
-            {t.datePreset === "this-month" && (
-              <span style={{ fontSize: 10, marginLeft: 2 }}>✓</span>
-            )}
-          </button>
+          {/* Quick presets: This day, This week, Last week, This month */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+            {([
+              { id: "this-day", label: "This day", recommended: true },
+              { id: "this-week", label: "This week" },
+              { id: "last-week", label: "Last week" },
+              { id: "this-month", label: "This month" },
+            ] as const).map(({ id, label: pLabel, ...rest }) => {
+              const active = t.datePreset === id;
+              const isRec = "recommended" in rest && rest.recommended;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    const { from: start, to: end } = presetDateWindow(id, events);
+                    setTweak("datePreset", id);
+                    setTweak("dateFrom", start);
+                    setTweak("dateTo", end);
+                  }}
+                  style={{
+                    padding: "6px 8px",
+                    borderRadius: 8,
+                    border: active
+                      ? "1px solid color-mix(in srgb, var(--accent) 55%, var(--border))"
+                      : "1px solid var(--border-strong)",
+                    background: active ? "var(--accent-weak)" : "var(--surface-2)",
+                    color: active ? "var(--accent-text, var(--accent))" : "var(--text)",
+                    fontSize: 11.5,
+                    fontWeight: active ? 700 : 500,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 4,
+                    fontFamily: "inherit",
+                    transition: "all var(--duration-fast) var(--ease-out)",
+                  }}
+                >
+                  <span>{pLabel}</span>
+                  {active ? (
+                    <span style={{ fontSize: 10, marginLeft: 2 }}>✓</span>
+                  ) : isRec ? (
+                    <span
+                      style={{
+                        fontSize: 8.5,
+                        fontWeight: 700,
+                        padding: "1px 4px",
+                        borderRadius: 3,
+                        background: "color-mix(in srgb, var(--accent) 18%, var(--surface-3, var(--surface-2)))",
+                        color: "var(--accent)",
+                      }}
+                    >
+                      Rec
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

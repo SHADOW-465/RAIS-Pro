@@ -11,6 +11,7 @@ import Icon from "@/components/editorial/Icon";
 import type { SourceRow, SourceMetricKind } from "@/components/FloatingDetailModal";
 import OpenWipStrip from "@/components/app/OpenWipStrip";
 import DashboardBoard, { DashItem, DashboardLayoutToggle, clearLayout } from "@/components/app/DashboardBoard";
+import { RejectionTrendCard, RejectionTrendView } from "@/components/app/RejectionTrendCard";
 import { usePersona } from "@/components/app/PersonaContext";
 import type { AuditEventLike } from "@/lib/analytics/audit-sessions";
 import { draftFromRecommendation, blankDraft, titleFromText, type CapaRecord } from "@/lib/capa-store";
@@ -25,7 +26,6 @@ import {
   ProcessFlow,
   GaugeChart,
   AuditVerificationTable,
-  ScopeBasis,
   StageSizeHeatmap,
   pct,
   rupee,
@@ -644,8 +644,7 @@ export default function Dashboard() {
             <DashboardBoard userKey={layoutUser} editing={layoutEditing} onDirtyChange={setLayoutDirty}>
               {/* Section 1: Executive KPIs */}
               <DashItem id="kpis" span={12}>
-              <ScopeBasis />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)", marginTop: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "var(--gap-grid)" }}>
                 <Kpi
                   primary
                   label="Overall Rejection"
@@ -718,7 +717,7 @@ export default function Dashboard() {
                       value: m.defects[0].rejected.toLocaleString(),
                       metricKind: "pareto",
                       rankedDefects: m.defects.slice(0, 3).map((d) => ({
-                        code: d.label,
+                        code: d.defectCode || d.label,
                         label: d.label,
                       })),
                     }
@@ -750,30 +749,15 @@ export default function Dashboard() {
               )}
 
               <DashItem id="trend" span={4}>
-                <Card
-                  title="Rejection Trend"
-                  sub={`Target (${formatRatioPercent(targetRej, 0) ?? "—"}) & Mean`}
-                  onClick={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${formatRatioPercent(targetRej, 0) ?? "—"} and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" })}
-                >
-                  <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
-                    <div style={{ flex: 1, minHeight: 180, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <LineChart points={m.tr} target={targetRej} fmt={pct} mean height={180} />
-                    </div>
-                    <div style={{ marginTop: "var(--space-2)", display: "flex" }}>
-                      <a
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${formatRatioPercent(targetRej, 0) ?? "—"} and the period mean limit.`, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><LineChart points={m.tr} target={targetRej} fmt={pct} mean /></div>, { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" });
-                        }}
-                        style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}
-                      >
-                        View full trend →
-                      </a>
-                    </div>
-                  </div>
-                </Card>
+                <RejectionTrendCard
+                  events={events ?? []}
+                  scope={scope}
+                  points={m.tr}
+                  target={targetRej}
+                  grainLabel={grainLabel}
+                  registry={activeRegistry}
+                  onOpenFullTrend={() => openModal(`Rejection Trend (${grainLabel})`, `${grainLabel} rejection trend lines compared to the target limit of ${formatRatioPercent(targetRej, 0) ?? "—"} and the period mean limit.`, <div style={{ minHeight: 320, display: "flex", flexDirection: "column" }}><RejectionTrendView events={events ?? []} scope={scope} points={m.tr} target={targetRej} grainLabel={grainLabel} registry={activeRegistry} height={320} variant="detail" /></div>, { rows: rejectionSrc(), value: pct(m.rate), metricKind: "rejection_rate" })}
+                />
               </DashItem>
 
               <DashItem id="by-stage" span={4}>
@@ -816,7 +800,7 @@ export default function Dashboard() {
                       value: num(m.defects.reduce((s, d) => s + d.rejected, 0)),
                       metricKind: "pareto",
                       rankedDefects: m.defects.slice(0, 3).map((d) => ({
-                        code: d.label,
+                        code: d.defectCode || d.label,
                         label: d.label,
                       })),
                     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
 import { useEvents } from "@/components/app/EventsContext";
@@ -36,7 +36,6 @@ export default function HoldQuantityPage() {
   const { events: contextEvents, isLoading } = useEvents();
   const { policy } = useRegistry();
   const events = contextEvents ? (contextEvents as any[]) : null;
-  const [lotQuery, setLotQuery] = useState("");
 
   const scope: Scope = useMemo(
     () => resolveScope(events ?? [], t, policy),
@@ -63,12 +62,6 @@ export default function HoldQuantityPage() {
   chartStages.forEach((s, i) => {
     colorByStageId[s.stageId] = seriesColor(i);
   });
-
-  const q = lotQuery.trim().toUpperCase();
-  const batchRows = (report?.batches ?? []).filter(
-    (b) => !q || b.batch.includes(q),
-  );
-  const matrixStages = chartStages.length > 0 ? chartStages : report?.stages ?? [];
 
   return (
     <AppShell active="hold" dateRange={latestPeriodLabel}>
@@ -269,147 +262,9 @@ export default function HoldQuantityPage() {
                 />
               </Card>
             </div>
-
-            <section
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-lg)",
-                padding: "16px 18px 18px",
-                boxShadow: "var(--shadow-1)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-end",
-                  gap: 12,
-                  flexWrap: "wrap",
-                  marginBottom: 12,
-                }}
-              >
-                <div>
-                  <h2
-                    className="h3"
-                    style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--text)" }}
-                  >
-                    Stagewise HOLD by lot
-                  </h2>
-                  <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
-                    One row per lot. Columns follow the line. Empty cells have no HOLD at that station.
-                  </p>
-                </div>
-                <input
-                  type="search"
-                  value={lotQuery}
-                  onChange={(e) => setLotQuery(e.target.value)}
-                  placeholder="Find lot…"
-                  aria-label="Filter lots"
-                  style={{
-                    height: 34,
-                    padding: "0 12px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border-strong)",
-                    background: "var(--surface-2)",
-                    color: "var(--text)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 13,
-                    width: 200,
-                  }}
-                />
-              </div>
-
-              {batchRows.length === 0 ? (
-                <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-                  {report.lotCount === 0
-                    ? "No lots recorded HOLD in this range."
-                    : "No lots match that code."}
-                </p>
-              ) : (
-                <div style={{ overflowX: "auto" }}>
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 13,
-                    }}
-                  >
-                    <thead>
-                      <tr>
-                        <th style={thLeft}>Lot</th>
-                        <th style={th}>Date</th>
-                        {matrixStages.map((s) => (
-                          <th key={s.stageId} style={th}>
-                            {s.label}
-                          </th>
-                        ))}
-                        <th style={th}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {batchRows.slice(0, 80).map((b) => (
-                        <tr key={b.batch}>
-                          <td style={tdMono}>{b.batch}</td>
-                          <td style={tdMuted}>{b.date ?? "—"}</td>
-                          {matrixStages.map((s) => {
-                            const v = b.byStage[s.stageId] ?? 0;
-                            return (
-                              <td key={s.stageId} style={tdNum}>
-                                {v > 0 ? fmtPcs(v) : "—"}
-                              </td>
-                            );
-                          })}
-                          <td style={{ ...tdNum, fontWeight: 700 }}>{fmtPcs(b.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {batchRows.length > 80 && (
-                    <p className="muted" style={{ fontSize: 12, margin: "10px 0 0" }}>
-                      Showing 80 of {batchRows.length} lots. Narrow the lot search to see the rest.
-                    </p>
-                  )}
-                </div>
-              )}
-            </section>
           </>
         )}
       </div>
     </AppShell>
   );
 }
-
-const th: CSSProperties = {
-  textAlign: "right",
-  padding: "8px 10px",
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: "0.04em",
-  textTransform: "uppercase",
-  color: "var(--text-3)",
-  borderBottom: "1px solid var(--border)",
-  whiteSpace: "nowrap",
-};
-const thLeft: CSSProperties = { ...th, textAlign: "left" };
-const tdMono: CSSProperties = {
-  padding: "8px 10px",
-  fontFamily: "var(--font-mono)",
-  fontWeight: 700,
-  letterSpacing: "0.03em",
-  borderBottom: "1px solid var(--border)",
-  color: "var(--text)",
-};
-const tdMuted: CSSProperties = {
-  padding: "8px 10px",
-  color: "var(--text-3)",
-  borderBottom: "1px solid var(--border)",
-  fontVariantNumeric: "tabular-nums",
-};
-const tdNum: CSSProperties = {
-  padding: "8px 10px",
-  textAlign: "right",
-  fontVariantNumeric: "tabular-nums",
-  borderBottom: "1px solid var(--border)",
-  color: "var(--text)",
-};
