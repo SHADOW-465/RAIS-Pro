@@ -36,7 +36,7 @@ export default function DefectRemedyShowcase({
           borderBottom: "1px solid var(--border)",
         }}
       >
-        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
           Primary · Secondary · Tertiary remedies
         </span>
         <a
@@ -76,7 +76,7 @@ export default function DefectRemedyShowcase({
               <div
                 style={{
                   fontSize: 10.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   letterSpacing: "0.04em",
                   textTransform: "uppercase",
                   color: "var(--accent)",
@@ -88,7 +88,7 @@ export default function DefectRemedyShowcase({
               <div
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontWeight: 800,
+                  fontWeight: 600,
                   fontSize: 15,
                   color: "var(--text)",
                 }}

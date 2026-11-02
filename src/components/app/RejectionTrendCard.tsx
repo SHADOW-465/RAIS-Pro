@@ -161,7 +161,7 @@ export function TrendModeSwitcher({
               style={{
                 fontFamily: "var(--font-sans)",
                 fontSize: 11,
-                fontWeight: on ? 700 : 500,
+                fontWeight: on ? 600 : 500,
                 padding: "3px 8px",
                 border: "none",
                 borderRight: i === MODES.length - 1 ? "none" : "1px solid var(--border)",
@@ -185,7 +185,7 @@ export function TrendModeSwitcher({
         style={{
           fontFamily: "var(--font-sans)",
           fontSize: 11,
-          fontWeight: compareOn ? 700 : 500,
+          fontWeight: compareOn ? 600 : 500,
           padding: "3px 8px",
           borderRadius: "var(--radius-sm, 4px)",
           border: "1px solid",
@@ -389,7 +389,7 @@ function chipStyle(on: boolean, color: string): CSSProperties {
   return {
     fontFamily: "var(--font-mono)",
     fontSize: 10,
-    fontWeight: 700,
+    fontWeight: 600,
     padding: "2px 6px",
     borderRadius: 3,
     border: `1px solid ${on ? color : "var(--border)"}`,
@@ -431,7 +431,7 @@ function TrendLegend({
           />
         ))}
         <LegendSwatch color="var(--critical)" label="Target" dashed />
-        <LegendSwatch color="#C8421C" label="Mean" dashed />
+        <LegendSwatch color="var(--text-3)" label="Mean" dashed />
       </div>
       {comparison && <CompareSummary comparison={comparison} compareOffset={compareOffset} />}
     </div>
@@ -476,7 +476,7 @@ function CompareSummary({
 }) {
   const tone =
     cmp.improved === true
-      ? "var(--positive, #16a34a)"
+      ? "var(--positive)"
       : cmp.deltaRatio != null && cmp.deltaRatio !== 0
         ? "var(--critical)"
         : "var(--text-3)";
@@ -528,7 +528,7 @@ function SummaryCell({
       <div style={{ fontSize: 9.5, color: "var(--text-3)", fontWeight: 600, letterSpacing: "0.02em" }}>{label}</div>
       <div
         className="mono"
-        style={{ fontSize: 12.5, fontWeight: 700, color: color ?? "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+        style={{ fontSize: 12.5, fontWeight: 600, color: color ?? "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
       >
         {value}
       </div>

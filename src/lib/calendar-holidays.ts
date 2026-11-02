@@ -334,13 +334,13 @@ export function resolveCalendarSeries(points: MinimalPoint[]): CalendarPointCont
         statusBadge = "📅 SUN OFF";
         statusLabel = "Weekly Off (Sunday)";
         statusDescription = "Plant closed for standard Sunday weekly off.";
-        statusColor = "var(--warning, #f59e0b)";
+        statusColor = "var(--warning)";
       } else if (!isLive) {
         status = "unplanned_break";
         statusBadge = "⚠️ BREAK";
         statusLabel = "Unplanned Break / No Production";
         statusDescription = `Scheduled working day (${cal.weekdayFull}) with no production recorded.`;
-        statusColor = "var(--critical, #dc2626)";
+        statusColor = "var(--critical)";
       } else if (cal.isHoliday || cal.isSunday) {
         status = "holiday_working";
         statusBadge = "⚡ OT / SHIFT";
@@ -348,7 +348,7 @@ export function resolveCalendarSeries(points: MinimalPoint[]): CalendarPointCont
           ? `Active on Holiday (${cal.holidayName})`
           : "Sunday Overtime / Special Shift";
         statusDescription = "Production and quality inspection were active on this holiday.";
-        statusColor = "var(--positive, #16a34a)";
+        statusColor = "var(--positive)";
       }
     } else {
       // Non-day grain (month/week/fy)

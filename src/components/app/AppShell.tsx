@@ -1278,7 +1278,7 @@ function AppShellView({
             {!sidebarCollapsed && (
               <span style={{ 
                 fontFamily: "var(--font-sans)", 
-                fontWeight: 800, 
+                fontWeight: 600, 
                 fontSize: 16, 
                 letterSpacing: "-0.01em",
                 display: "inline-flex"
@@ -1307,7 +1307,7 @@ function AppShellView({
             onMouseOver={(e) => {
               if (e.currentTarget) {
                 e.currentTarget.style.background = "var(--accent)";
-                e.currentTarget.style.color = "#FFFFFF";
+                e.currentTarget.style.color = "var(--on-accent)";
                 e.currentTarget.style.borderColor = "var(--accent)";
               }
             }}
@@ -1377,7 +1377,7 @@ function AppShellView({
                   >
                     <span className="muted" style={{
                       fontSize: 9,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
                       color: sectionHeaderColor,
@@ -1456,7 +1456,7 @@ function AppShellView({
                         boxShadow: isSpotlight ? "0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)" : undefined,
                         cursor: n.soon ? "default" : "pointer",
                         fontSize: isAnalyticsChild ? 11.5 : 12.5,
-                        fontWeight: isActive || isSpotlight ? 700 : 500,
+                        fontWeight: isActive || isSpotlight ? 600 : 500,
                         textAlign: "left",
                         transition: "padding 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), gap 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.15s ease, box-shadow 0.2s ease",
                         position: "relative",
@@ -1488,11 +1488,11 @@ function AppShellView({
                         {n.badge ? (
                           <span style={{
                             background: "var(--critical)",
-                            color: "#fff",
+                            color: "var(--text-invert)",
                             fontSize: 10,
                             borderRadius: "var(--radius-sm)",
                             padding: "2px 6px",
-                            fontWeight: 700,
+                            fontWeight: 600,
                             fontFamily: "var(--font-mono)"
                           }}>{n.badge}</span>
                         ) : null}
@@ -1503,7 +1503,7 @@ function AppShellView({
                             fontSize: 9,
                             borderRadius: 4,
                             padding: "1px 5px",
-                            fontWeight: 800,
+                            fontWeight: 600,
                             border: "1px solid var(--border)"
                           }}>AI</span>
                         ) : null}
@@ -1656,7 +1656,7 @@ function AppShellView({
                     style={{
                       padding: "2px 8px",
                       fontSize: 10,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       borderRadius: 10,
                       background: activeGrain ? "var(--accent)" : "transparent",
                       color: activeGrain ? "var(--text-invert)" : "var(--text-2)",
@@ -1741,7 +1741,7 @@ function AppShellView({
                   gap: 8,
                 }}
               >
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)" }}>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-3)" }}>
                   Date range
                 </div>
                 {(["all", "this-day", "this-week", "last-week", "this-month", "last-month", "last-3-months", "last-12-months", "this-fy", "custom"] as const).map((preset) => {
@@ -1774,7 +1774,7 @@ function AppShellView({
                     style={{
                       padding: "6px 8px",
                       fontSize: 12,
-                      fontWeight: selected ? 700 : 500,
+                      fontWeight: selected ? 600 : 500,
                       background: selected ? "var(--accent-weak)" : "transparent",
                       color: selected ? "var(--accent)" : "var(--text)",
                       border: "none",
@@ -1792,7 +1792,7 @@ function AppShellView({
                         <span
                           style={{
                             fontSize: 9.5,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             padding: "1px 6px",
                             borderRadius: 4,
                             background: "color-mix(in srgb, var(--accent) 18%, var(--surface-2))",
@@ -1819,7 +1819,7 @@ function AppShellView({
                 {customDraft !== null && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4, borderTop: "1px solid var(--border)", paddingTop: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase" }}>Range picker</span>
+                      <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 600, textTransform: "uppercase" }}>Range picker</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -1837,7 +1837,7 @@ function AppShellView({
                           border: "none",
                           color: "var(--accent)",
                           fontSize: 10.5,
-                          fontWeight: 700,
+                          fontWeight: 600,
                           cursor: "pointer",
                           padding: "1px 4px",
                           borderRadius: "var(--radius-xs)",
@@ -1880,9 +1880,9 @@ function AppShellView({
                         marginTop: 4,
                         padding: "6px 8px",
                         fontSize: 11,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         background: "var(--accent)",
-                        color: "var(--text-invert)",
+                        color: "var(--on-accent)",
                         border: "none",
                         borderRadius: "var(--radius-sm)",
                         cursor: customDraft.from && customDraft.to ? "pointer" : "default",
@@ -1973,7 +1973,7 @@ function AppShellView({
               gap: 6,
               padding: "0 14px",
               fontSize: 12,
-              fontWeight: 700,
+              fontWeight: 600,
               cursor: "pointer",
               fontFamily: "inherit",
               boxShadow: "var(--shadow-sm)",
@@ -2074,7 +2074,7 @@ function AppShellView({
                 display: "grid", 
                 placeItems: "center",
                 fontFamily: "var(--font-display)",
-                fontWeight: 700,
+                fontWeight: 600,
                 fontSize: 11,
                 border: "1px solid var(--border-strong)",
                 flexShrink: 0,
@@ -2082,7 +2082,7 @@ function AppShellView({
                 {activePersona.initial}
               </div>
               <div style={{ display: "flex", flexDirection: "column", textAlign: "left", minWidth: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <span style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {activePersona.label}
                 </span>
                 <span className="muted" style={{ fontSize: 9, lineHeight: 1.1 }}>
@@ -2108,7 +2108,7 @@ function AppShellView({
                   width: 240,
                 }}
               >
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)", padding: "4px 8px 6px" }}>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)", padding: "4px 8px 6px" }}>
                   {personaLocked ? "Signed in" : "Dashboard role"}
                 </div>
                 {!personaLocked &&
@@ -2136,7 +2136,7 @@ function AppShellView({
                           gap: 1,
                         }}
                       >
-                        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{p.label}</span>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>{p.label}</span>
                         <span style={{ fontSize: 11, color: "var(--text-3)" }}>{p.title}</span>
                       </button>
                     );
@@ -2164,8 +2164,8 @@ function AppShellView({
                       background: "transparent",
                       fontFamily: "inherit",
                       fontSize: 12.5,
-                      fontWeight: 700,
-                      color: "var(--status-bad, #b91c1c)",
+                      fontWeight: 600,
+                      color: "var(--status-bad)",
                       marginTop: 4,
                     }}
                   >
@@ -2196,7 +2196,7 @@ function AppShellView({
               borderRadius: "30px", 
               padding: "6px 14px", 
               fontSize: 11.5, 
-              fontWeight: 700, 
+              fontWeight: 600, 
               cursor: "pointer", 
               display: "inline-flex", 
               gap: 6, 
@@ -2358,14 +2358,15 @@ function AppShellView({
           {/* Header */}
           <div style={{
             padding: "14px 18px",
-            background: "var(--accent)",
-            color: "#FFFFFF",
+            background: "var(--surface)",
+            color: "var(--text)",
+            borderBottom: "1px solid var(--border)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between"
           }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <span style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 800 }}>Ask MOID</span>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 600 }}>Ask MOID</span>
               <span style={{ fontSize: 9.5, opacity: 0.8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Guide · Navigate · Summarize</span>
             </div>
             <button 
@@ -2373,7 +2374,7 @@ function AppShellView({
               style={{
                 background: "transparent",
                 border: "none",
-                color: "#FFFFFF",
+                color: "inherit",
                 cursor: "pointer",
                 padding: 4,
                 display: "grid",
@@ -2463,7 +2464,7 @@ function AppShellView({
                             borderRadius: 999,
                             border: "1px solid var(--border-strong)",
                             background: a.kind === "confirm_ingest" || i === 0 ? "var(--accent)" : "var(--bg)",
-                            color: a.kind === "confirm_ingest" || i === 0 ? "#FFFFFF" : "var(--text)",
+                            color: a.kind === "confirm_ingest" || i === 0 ? "var(--on-accent)" : "var(--text)",
                             cursor: "pointer",
                           }}
                         >
@@ -2549,7 +2550,7 @@ function AppShellView({
                 height: 32,
                 borderRadius: "50%",
                 background: "var(--accent)",
-                color: "#FFFFFF",
+                color: "var(--on-accent)",
                 border: "none",
                 cursor: "pointer",
                 display: "grid",
@@ -2576,14 +2577,14 @@ function AppShellView({
           height: 48,
           borderRadius: "50%",
           background: "var(--accent)",
-          color: "#FFFFFF",
+          color: "var(--on-accent)",
           border: "none",
           cursor: "pointer",
           display: "grid",
           placeItems: "center",
           boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
           zIndex: 1000,
-          fontWeight: 800,
+          fontWeight: 600,
           fontSize: 18,
           fontFamily: "var(--font-sans)",
           transition: "transform 0.2s"
@@ -2623,7 +2624,7 @@ function ViewMenuGroup({ label, options, activeId, onSelect, emptyLabel }: {
     <div>
       <div style={{
         fontSize: 10,
-        fontWeight: 700,
+        fontWeight: 600,
         textTransform: "uppercase",
         letterSpacing: "0.05em",
         color: "var(--text-3)",
@@ -2646,7 +2647,7 @@ function ViewMenuGroup({ label, options, activeId, onSelect, emptyLabel }: {
                 textAlign: "left",
                 padding: "6px 8px",
                 fontSize: 12.5,
-                fontWeight: active ? 700 : 500,
+                fontWeight: active ? 600 : 500,
                 background: active ? "var(--accent-weak)" : "transparent",
                 color: active ? "var(--accent)" : "var(--text)",
                 border: "none",

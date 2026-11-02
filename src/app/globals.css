@@ -14,94 +14,80 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Surfaces */
-  --bg: #FAF8F5;
-  /* warm paper background */
-  --surface: #FFFFFF;
-  /* card background */
-  --surface-2: #F3EFEA;
-  /* nested tables / strips */
-  --surface-3: #EAE3DA;
-  /* deep wells */
-  --overlay: rgba(28, 25, 23, 0.4);
+  /* Surfaces — zinc neutrals */
+  --bg: #FAFAFA;          /* zinc-50 page */
+  --surface: #FFFFFF;     /* card */
+  --surface-2: #F4F4F5;   /* zinc-100 nested tables / strips */
+  --surface-3: #E4E4E7;   /* zinc-200 deep wells */
+  --overlay: rgba(9, 9, 11, 0.4);
 
   /* Borders */
-  --border: #EAE3DA;
-  /* crisp light border */
-  --border-strong: #D6CBBF;
-  /* solid divider */
-  --ring: #C8421C;
-  /* burnt orange focus ring */
+  --border: #E4E4E7;        /* zinc-200 */
+  --border-strong: #D4D4D8; /* zinc-300 */
+  --ring: #2563EB;          /* focus ring = accent */
 
-  --text: #1C1917;
-  /* near-black charcoal */
-  --text-2: #2E2A27;
-  /* darker secondary text */
-  --text-3: #45403C;
-  /* darker muted labels */
+  --text: #18181B;   /* zinc-900 */
+  --text-2: #3F3F46; /* zinc-700 */
+  --text-3: #52525B; /* zinc-600 — AA on zinc-50/100 */
   --text-invert: #FFFFFF;
 
-  /* Accent (Burnt Orange) */
-  --accent: #C8421C;
-  --accent-hover: #B03514;
-  --accent-weak: #FDF3F0;
-  --accent-text: #C8421C;
+  /* Accent (blue-600). Reserved for the ONE primary action per screen. */
+  --accent: #2563EB;
+  --accent-hover: #1D4ED8;
+  --accent-weak: #EFF6FF;
+  --accent-text: #1D4ED8;
+  --on-accent: #FFFFFF; /* text/icons sitting on --accent */
 
-  /* Semantic status */
+  /* Semantic status — always paired with an icon or a word, never colour alone */
   --positive: #15803D;
   --positive-weak: #F0FDF4;
   --warning: #B45309;
   --warning-weak: #FEF3C7;
   --critical: #B91C1C;
   --critical-weak: #FEF2F2;
-  /* status aliases */
-  --status-good: var(--positive);
-  --status-warn: var(--warning);
-  --status-bad: var(--critical);
 
-  /* Elevation (minimalist soft shadows) */
-  --shadow-1: 0 1px 2px rgba(28, 25, 23, 0.03);
-  --shadow-2: 0 4px 6px -1px rgba(28, 25, 23, 0.04), 0 2px 4px -1px rgba(28, 25, 23, 0.02);
-  --shadow-3: 0 10px 15px -3px rgba(28, 25, 23, 0.04), 0 4px 6px -2px rgba(28, 25, 23, 0.02);
+  /* Elevation */
+  --shadow-1: 0 1px 2px rgba(9, 9, 11, 0.04);
+  --shadow-2: 0 4px 6px -1px rgba(9, 9, 11, 0.05), 0 2px 4px -1px rgba(9, 9, 11, 0.03);
+  --shadow-3: 0 10px 15px -3px rgba(9, 9, 11, 0.06), 0 4px 6px -2px rgba(9, 9, 11, 0.03);
 
-  /* Data-visualization categorical palette */
-  --viz-1: #C8421C;
-  --viz-2: #4F46E5;
-  --viz-3: #0F766E;
-  --viz-4: #BE123C;
-  --viz-5: #B45309;
-  --viz-6: #0369A1;
-  --viz-7: #4D7C0F;
-  --viz-8: #57534E;
+  /* Data-visualization categorical palette. Deliberately excludes the accent
+     blue and the status hues' exact values so a series never reads as an action
+     or a verdict. viz-1 is the neutral "primary series". */
+  --viz-1: #3F3F46;
+  --viz-2: #0E7490;
+  --viz-3: #7C3AED;
+  --viz-4: #C2410C;
+  --viz-5: #0F766E;
+  --viz-6: #A16207;
+  --viz-7: #BE185D;
+  --viz-8: #A1A1AA;
 }
 
 [data-theme="dark"] {
-  /* Surfaces */
-  --bg: #12100E;
-  /* warm dark background */
-  --surface: #1C1815;
-  /* warm dark surface card */
-  --surface-2: #26211C;
-  --surface-3: #322B25;
+  /* Surfaces — zinc neutrals */
+  --bg: #09090B;
+  --surface: #18181B;
+  --surface-2: #27272A;
+  --surface-3: #3F3F46;
   --overlay: rgba(0, 0, 0, 0.6);
 
   /* Borders */
-  --border: #2C2621;
-  --border-strong: #3D352E;
-  --ring: #FF6B3D;
+  --border: #27272A;
+  --border-strong: #3F3F46;
+  --ring: #60A5FA;
 
-  --text: #FAF8F5;
-  --text-2: #E8DFD3;
-  /* brighter secondary text */
-  --text-3: #BFB2A5;
-  /* brighter muted text */
-  --text-invert: #12100E;
+  --text: #FAFAFA;
+  --text-2: #D4D4D8;
+  --text-3: #A1A1AA;
+  --text-invert: #09090B;
 
-  /* Accent (Electric Burnt Orange) */
-  --accent: #FF6B3D;
-  --accent-hover: #FF875E;
-  --accent-weak: rgba(255, 107, 61, 0.08);
-  --accent-text: #FF6B3D;
+  /* Accent stays blue-600 so white on-accent text keeps AA contrast. */
+  --accent: #2563EB;
+  --accent-hover: #3B82F6;
+  --accent-weak: rgba(59, 130, 246, 0.12);
+  --accent-text: #60A5FA;
+  --on-accent: #FFFFFF;
 
   /* Semantic status */
   --positive: #4ADE80;
@@ -111,11 +97,8 @@
   --critical: #F87171;
   --critical-weak: rgba(248, 113, 113, 0.1);
 
-  /* Elevation.
-     These were all `0 0 0 transparent`, so in dark mode a hovered card, an
-     open menu and a modal had no depth cue at all — every raised surface sat
-     flat on the page. Dark UI can't lean on soft grey shadows, so elevation
-     is carried by a light top hairline plus a deeper cast below. */
+  /* Elevation: dark UI can't lean on soft grey shadows, so it is carried by a
+     light top hairline plus a deeper cast below. */
   --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.03) inset,
     0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-2: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
@@ -124,14 +107,35 @@
     0 14px 32px -8px rgba(0, 0, 0, 0.7);
 
   /* Data-visualization dark palette */
-  --viz-1: #FF6B3D;
-  --viz-2: #818CF8;
-  --viz-3: #2DD4BF;
-  --viz-4: #FB7185;
-  --viz-5: #FBBF24;
-  --viz-6: #38BDF8;
-  --viz-7: #A3E635;
-  --viz-8: #A8A29E;
+  --viz-1: #D4D4D8;
+  --viz-2: #22D3EE;
+  --viz-3: #A78BFA;
+  --viz-4: #FB923C;
+  --viz-5: #2DD4BF;
+  --viz-6: #FACC15;
+  --viz-7: #F472B6;
+  --viz-8: #71717A;
+}
+
+/* Theme-independent aliases. Several components referenced names that were
+   never defined (--ink, --paper, --negative, --shadow-sm …) and silently fell
+   back to hard-coded hex — e.g. the Pareto cumulative line fell back to white
+   on a white card. Map them onto the real tokens. */
+:root {
+  --status-good: var(--positive);
+  --status-warn: var(--warning);
+  --status-bad: var(--critical);
+  --ink: var(--text);
+  --paper: var(--surface);
+  --negative: var(--critical);
+  --negative-weak: var(--critical-weak);
+  --danger: var(--critical);
+  --scrim: var(--overlay);
+  --shadow-xs: var(--shadow-1);
+  --shadow-sm: var(--shadow-1);
+  --shadow-md: var(--shadow-2);
+  --shadow-lg: var(--shadow-3);
+  --shadow-xl: var(--shadow-3);
 }
 
 :root {
@@ -176,26 +180,30 @@
   --tracking-tight: -0.02em;
   --tracking-label: 0.05em;
 
-  /* Layout metrics */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Layout metrics. One radius (0.625rem) for cards, panels, buttons and
+     inputs; the smaller steps are for chips nested inside them. */
+  --radius: 0.625rem;
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius);
   --radius-pill: 9999px;
 
-  --space-1: clamp(2px, 0.3vw, 4px);
-  --space-2: clamp(4px, 0.6vw, 8px);
-  --space-3: clamp(6px, 0.9vw, 12px);
-  --space-4: clamp(8px, 1.2vw, 16px);
-  --space-5: clamp(12px, 1.8vw, 24px);
-  --space-6: clamp(16px, 2.4vw, 32px);
-  --space-7: clamp(24px, 3.6vw, 48px);
-  --space-8: clamp(32px, 4.8vw, 64px);
+  /* Spacing: strict 4/8 grid — 4 8 12 16 24 32 48 64 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
 
   --tap: clamp(32px, 4vh, 40px);
-  --pad-card: clamp(12px, 1.5vw, 18px);
-  --pad-section: clamp(18px, 2.5vw, 32px);
-  --gap-grid: clamp(10px, 1.2vw, 16px);
+  --pad-card: 16px;
+  --pad-section: clamp(16px, 2.5vw, 32px);
+  --gap-grid: 16px;
   --row-h: clamp(36px, 4.5vh, 44px);
 
   --header-h: clamp(46px, 5.5vh, 56px);
@@ -236,7 +244,7 @@ body {
 
 html {
   background: var(--bg);
-  color-scheme: light dark;
+  color-scheme: light;
   /* Stable 16px root — scale steps via rem. Never fluid-shrink the whole app. */
   font-size: 16px;
 }
@@ -257,9 +265,20 @@ body {
   min-height: 100vh;
 }
 
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Weight ceiling is 600: the UA default for b/strong/th is 700. */
+b,
+strong,
+th {
+  font-weight: 600;
+}
+
 ::selection {
   background: var(--accent);
-  color: var(--text-invert);
+  color: var(--on-accent);
 }
 
 button {
@@ -493,7 +512,7 @@ summary:focus-visible,
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--text-invert);
+  color: var(--on-accent);
 }
 
 .btn.primary:hover {
@@ -504,7 +523,7 @@ summary:focus-visible,
 .btn.accent {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--text-invert);
+  color: var(--on-accent);
 }
 
 .btn.accent:hover {
@@ -641,8 +660,8 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .masthead .nameplate {
-  font-family: var(--font-sans), 'Inter', sans-serif;
-  font-weight: 700;
+  font-family: var(--font-sans);
+  font-weight: 600;
   font-size: 20px;
   color: var(--text);
   letter-spacing: -0.02em;
@@ -756,7 +775,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .theme-toggle-icon {
-  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.5s var(--ease-out);
 }
 
 .theme-toggle-btn:hover .theme-toggle-icon {

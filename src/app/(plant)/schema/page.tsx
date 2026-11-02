@@ -1,7 +1,7 @@
 "use client";
 
 /* Hallmark · macrostructure: Workbench · tone: technical · genre: modern-minimal
- * theme: project-locked (Geist + burnt orange #C8421C · AppShell chrome)
+ * theme: project-locked (Geist + burnt orange #2563EB · AppShell chrome)
  * enrichment: none · nav: N/A (AppShell) · brief: master plant schema ownership
  * Pre-emit critique: P5 H5 E5 S5 R4 V4
  *
@@ -651,7 +651,7 @@ export default function SchemaPage() {
             <div
               style={{
                 fontSize: 11,
-                fontWeight: 700,
+                fontWeight: 600,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
                 color: "var(--text-3)",
@@ -666,7 +666,7 @@ export default function SchemaPage() {
               style={{
                 fontFamily: "var(--font-display)",
                 fontSize: 28,
-                fontWeight: 700,
+                fontWeight: 600,
                 margin: "0 0 6px",
                 color: "var(--text)",
                 letterSpacing: "-0.02em",
@@ -740,7 +740,7 @@ export default function SchemaPage() {
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 11,
-              fontWeight: 700,
+              fontWeight: 600,
               letterSpacing: "0.04em",
               textTransform: "uppercase",
               color: "var(--accent)",
@@ -854,7 +854,7 @@ export default function SchemaPage() {
                   className="kpi"
                   style={{
                     fontSize: 28,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     fontVariantNumeric: "tabular-nums",
                     color: "var(--text)",
                     lineHeight: 1,
@@ -888,7 +888,7 @@ export default function SchemaPage() {
             >
               Status
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: configured ? "var(--positive)" : "var(--text-3)" }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: configured ? "var(--positive)" : "var(--text-3)" }}>
               {loading ? "…" : configured ? "Configured" : "Empty"}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 4 }}>
@@ -914,8 +914,8 @@ export default function SchemaPage() {
                   padding: "8px 14px",
                   borderRadius: 8,
                   background: "var(--accent)",
-                  color: "var(--text-invert)",
-                  fontWeight: 700,
+                  color: "var(--on-accent)",
+                  fontWeight: 600,
                   fontSize: 13,
                   textDecoration: "none",
                 }}
@@ -1157,7 +1157,7 @@ export default function SchemaPage() {
                 <div style={{ marginTop: 8 }}>
                   <Link
                     href="/staging"
-                    style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", textDecoration: "none" }}
+                    style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", textDecoration: "none" }}
                   >
                     Open Staging →
                   </Link>
@@ -1383,7 +1383,7 @@ export default function SchemaPage() {
                                 </td>
                                 <td style={td}>
                                   {e.verified ? (
-                                    <span style={{ color: "var(--positive)", fontWeight: 700 }}>✓</span>
+                                    <span style={{ color: "var(--positive)", fontWeight: 600 }}>✓</span>
                                   ) : (
                                     <span style={{ color: "var(--text-3)" }}>—</span>
                                   )}
@@ -1656,7 +1656,7 @@ function IntegrityIssuesPanel({
           {open ? "▾" : "▸"}
         </span>
         <span style={{ flex: "1 1 200px", minWidth: 0 }}>
-          <span style={{ display: "block", fontWeight: 700, fontSize: 13.5, color: titleColor }}>
+          <span style={{ display: "block", fontWeight: 600, fontSize: 13.5, color: titleColor }}>
             {title}
           </span>
           <span style={{ display: "block", fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
@@ -1668,7 +1668,7 @@ function IntegrityIssuesPanel({
         <span
           style={{
             fontSize: 11,
-            fontWeight: 700,
+            fontWeight: 600,
             fontFamily: "var(--font-mono)",
             padding: "3px 8px",
             borderRadius: 999,
@@ -1745,7 +1745,7 @@ function IntegrityIssuesPanel({
                           style={{
                             fontFamily: "var(--font-mono)",
                             fontSize: 11,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             color: sevColor,
                           }}
                         >
@@ -1859,12 +1859,12 @@ const selectStyle: React.CSSProperties = {
 
 const primaryBtn: React.CSSProperties = {
   fontSize: 13,
-  fontWeight: 700,
+  fontWeight: 600,
   padding: "8px 14px",
   borderRadius: 8,
   border: "1px solid var(--accent)",
   background: "var(--accent)",
-  color: "var(--text-invert)",
+  color: "var(--on-accent)",
   cursor: "pointer",
 };
 
@@ -1909,7 +1909,7 @@ const schemaPillDanger: React.CSSProperties = {
 
 const linkBtn: React.CSSProperties = {
   fontSize: 12,
-  fontWeight: 700,
+  fontWeight: 600,
   padding: "4px 8px",
   borderRadius: 6,
   border: "1px solid var(--border)",

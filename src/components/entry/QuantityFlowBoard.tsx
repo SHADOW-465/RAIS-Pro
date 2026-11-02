@@ -7,8 +7,8 @@ const CHIP: CSSProperties = {
   minWidth: 72,
   padding: "6px 10px",
   borderRadius: 4,
-  background: "color-mix(in srgb, #3b82f6 78%, #1e3a5f)",
-  color: "#fff",
+  background: "var(--text-2)",
+  color: "var(--text-invert)",
   display: "flex",
   flexDirection: "column",
   gap: 2,
@@ -17,7 +17,7 @@ const CHIP: CSSProperties = {
 
 const CHIP_LABEL: CSSProperties = {
   fontSize: 9,
-  fontWeight: 700,
+  fontWeight: 600,
   letterSpacing: "0.06em",
   textTransform: "uppercase",
   opacity: 0.9,
@@ -26,7 +26,7 @@ const CHIP_LABEL: CSSProperties = {
 
 const CHIP_VALUE: CSSProperties = {
   fontSize: 16,
-  fontWeight: 800,
+  fontWeight: 600,
   fontFamily: "var(--font-mono)",
   fontVariantNumeric: "tabular-nums",
   lineHeight: 1.15,
@@ -34,7 +34,7 @@ const CHIP_VALUE: CSSProperties = {
 
 const OP: CSSProperties = {
   fontFamily: "var(--font-mono)",
-  fontWeight: 800,
+  fontWeight: 600,
   fontSize: 16,
   color: "var(--text)",
   padding: "0 4px",
@@ -88,11 +88,11 @@ function ConvertBox({
         <span
           style={{
             fontSize: 10,
-            fontWeight: 800,
+            fontWeight: 600,
             letterSpacing: "0.04em",
             textTransform: "uppercase",
-            color: "#fff",
-            background: "var(--accent)",
+            color: "var(--text-invert)",
+            background: "var(--text)",
             padding: "3px 8px",
             borderRadius: 3,
             whiteSpace: "nowrap",
@@ -103,8 +103,8 @@ function ConvertBox({
       )}
       <div
         style={{
-          background: "color-mix(in srgb, var(--accent) 22%, #6b4a1b)",
-          border: "1px solid color-mix(in srgb, var(--accent) 50%, transparent)",
+          background: "var(--text)",
+          border: "1px solid var(--text)",
           borderRadius: 6,
           padding: "8px 10px",
           display: "grid",
@@ -117,10 +117,10 @@ function ConvertBox({
           style={{
             gridColumn: "1 / -1",
             fontSize: 10,
-            fontWeight: 800,
+            fontWeight: 600,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
-            color: "#fff",
+            color: "var(--text-invert)",
             display: "flex",
             justifyContent: "space-between",
             gap: 8,
@@ -140,7 +140,7 @@ function ConvertBox({
         <div
           style={{
             ...CHIP,
-            background: "color-mix(in srgb, #2563eb 70%, #0f172a)",
+            background: "var(--text-3)",
             minWidth: 56,
           }}
         >
@@ -156,10 +156,10 @@ function Mini({ label, value }: { label: string; value: number }) {
   return (
     <div
       style={{
-        background: "color-mix(in srgb, #fff 16%, transparent)",
+        background: "color-mix(in srgb, var(--text-invert) 16%, transparent)",
         borderRadius: 4,
         padding: "4px 6px",
-        color: "#fff",
+        color: "var(--text-invert)",
       }}
     >
       <div style={{ ...CHIP_LABEL, fontSize: 8 }}>{label}</div>
@@ -169,10 +169,10 @@ function Mini({ label, value }: { label: string; value: number }) {
 }
 
 function bandFill(laneId: string, assemblyIndex: number): string {
-  if (laneId === "primary") return "color-mix(in srgb, #d4b896 55%, var(--surface))";
-  if (laneId === "secondary") return "color-mix(in srgb, #8b8f99 38%, var(--surface))";
-  if (assemblyIndex % 2 === 0) return "color-mix(in srgb, #e8c547 42%, var(--surface))";
-  return "color-mix(in srgb, var(--accent) 38%, #e8a050)";
+  if (laneId === "primary") return "color-mix(in srgb, var(--viz-6) 22%, var(--surface))";
+  if (laneId === "secondary") return "color-mix(in srgb, var(--viz-8) 35%, var(--surface))";
+  if (assemblyIndex % 2 === 0) return "color-mix(in srgb, var(--viz-2) 22%, var(--surface))";
+  return "color-mix(in srgb, var(--viz-3) 22%, var(--surface))";
 }
 
 export default function QuantityFlowBoard({
@@ -208,7 +208,7 @@ export default function QuantityFlowBoard({
       >
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-2)" }}>
           We took a batch{" "}
-          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 800, color: "var(--text)" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)" }}>
             {originalBatch || "—"}
           </span>
         </p>
@@ -242,7 +242,7 @@ export default function QuantityFlowBoard({
               <span
                 style={{
                   fontSize: 13,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
                   color: "var(--text)",
@@ -251,7 +251,7 @@ export default function QuantityFlowBoard({
                 {band.label}
               </span>
               {productionTotal > 0 && (
-                <span style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: 18 }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 18 }}>
                   {productionTotal.toLocaleString()}
                 </span>
               )}
@@ -282,7 +282,7 @@ export default function QuantityFlowBoard({
                     onClick={() => onPickChangeStation(band.stageId, band.original.wip)}
                     style={{
                       fontSize: 11,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       color: "var(--accent)",
                       background: "color-mix(in srgb, var(--accent) 12%, var(--surface))",
                       border: "1px solid color-mix(in srgb, var(--accent) 40%, var(--border))",

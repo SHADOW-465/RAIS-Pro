@@ -65,8 +65,8 @@ export function BuildWatcher() {
         alignItems: "center",
         gap: 12,
         padding: "8px 16px",
-        background: "var(--ink, #111)",
-        color: "var(--paper, #fff)",
+        background: "var(--ink)",
+        color: "var(--paper)",
         fontSize: 13,
       }}
     >

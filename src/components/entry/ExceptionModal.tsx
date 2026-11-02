@@ -43,7 +43,7 @@ export default function ExceptionModal({
         position: "fixed",
         inset: 0,
         zIndex: 400,
-        background: "color-mix(in srgb, var(--ink, #0a0a0a) 45%, transparent)",
+        background: "color-mix(in srgb, var(--ink) 45%, transparent)",
         display: "grid",
         placeItems: "center",
         padding: 16,
@@ -64,7 +64,7 @@ export default function ExceptionModal({
       >
         <div
           id="exception-modal-title"
-          style={{ fontWeight: 700, fontSize: 16, marginBottom: 8, color: "var(--text)" }}
+          style={{ fontWeight: 600, fontSize: 16, marginBottom: 8, color: "var(--text)" }}
         >
           {title}
         </div>
@@ -78,8 +78,8 @@ export default function ExceptionModal({
             marginBottom: 12,
             padding: "10px 12px",
             borderRadius: 8,
-            background: "color-mix(in srgb, var(--status-warn, #d97706) 12%, var(--surface))",
-            border: "1px solid color-mix(in srgb, var(--status-warn, #d97706) 35%, var(--border))",
+            background: "color-mix(in srgb, var(--status-warn) 12%, var(--surface))",
+            border: "1px solid color-mix(in srgb, var(--status-warn) 35%, var(--border))",
             fontFamily: "var(--font-mono)",
             fontSize: 12.5,
             display: "flex",
@@ -90,7 +90,7 @@ export default function ExceptionModal({
           {lines.map((l) => (
             <div key={l.label} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
               <span style={{ color: "var(--text-3)" }}>{l.label}</span>
-              <span style={{ fontWeight: 700, color: "var(--text)" }}>{l.value}</span>
+              <span style={{ fontWeight: 600, color: "var(--text)" }}>{l.value}</span>
             </div>
           ))}
         </div>
@@ -155,10 +155,10 @@ export default function ExceptionModal({
               borderRadius: 8,
               border: "none",
               background: ok ? "var(--accent)" : "var(--surface-3)",
-              color: ok ? "var(--text-invert, #fff)" : "var(--text-3)",
+              color: ok ? "var(--text-invert)" : "var(--text-3)",
               cursor: busy || !ok ? "not-allowed" : "pointer",
               fontFamily: "inherit",
-              fontWeight: 700,
+              fontWeight: 600,
               fontSize: 13,
               opacity: busy ? 0.7 : 1,
             }}

@@ -450,7 +450,7 @@ export default function StagingPage() {
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Icon name="alert" size={14} style={{ color: "var(--status-bad)", flexShrink: 0 }} />
-                  <span style={{ fontWeight: 700, fontSize: 13, color: "var(--status-bad)" }}>
+                  <span style={{ fontWeight: 600, fontSize: 13, color: "var(--status-bad)" }}>
                     {invalidRows.length} Invalid Row{invalidRows.length !== 1 ? "s" : ""} — must fix before publishing
                   </span>
                 </div>
@@ -458,15 +458,15 @@ export default function StagingPage() {
                   <button
                     disabled={focusedInvalidIdx === 0}
                     onClick={() => jumpToInvalid(focusedInvalidIdx - 1)}
-                    style={{ padding: "3px 9px", fontSize: 11.5, fontWeight: 700, border: "1px solid var(--border-strong)", borderRadius: 6, background: "var(--bg)", color: "var(--text-2)", cursor: focusedInvalidIdx === 0 ? "not-allowed" : "pointer", opacity: focusedInvalidIdx === 0 ? 0.4 : 1 }}
+                    style={{ padding: "3px 9px", fontSize: 11.5, fontWeight: 600, border: "1px solid var(--border-strong)", borderRadius: 6, background: "var(--bg)", color: "var(--text-2)", cursor: focusedInvalidIdx === 0 ? "not-allowed" : "pointer", opacity: focusedInvalidIdx === 0 ? 0.4 : 1 }}
                   >‹ Prev</button>
-                  <span style={{ fontSize: 11.5, fontWeight: 700, fontFamily: "var(--font-mono)", minWidth: 50, textAlign: "center" }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, fontFamily: "var(--font-mono)", minWidth: 50, textAlign: "center" }}>
                     {focusedInvalidIdx + 1} / {invalidRows.length}
                   </span>
                   <button
                     disabled={focusedInvalidIdx >= invalidRows.length - 1}
                     onClick={() => jumpToInvalid(focusedInvalidIdx + 1)}
-                    style={{ padding: "3px 9px", fontSize: 11.5, fontWeight: 700, border: "1px solid var(--border-strong)", borderRadius: 6, background: "var(--bg)", color: "var(--text-2)", cursor: focusedInvalidIdx >= invalidRows.length - 1 ? "not-allowed" : "pointer", opacity: focusedInvalidIdx >= invalidRows.length - 1 ? 0.4 : 1 }}
+                    style={{ padding: "3px 9px", fontSize: 11.5, fontWeight: 600, border: "1px solid var(--border-strong)", borderRadius: 6, background: "var(--bg)", color: "var(--text-2)", cursor: focusedInvalidIdx >= invalidRows.length - 1 ? "not-allowed" : "pointer", opacity: focusedInvalidIdx >= invalidRows.length - 1 ? 0.4 : 1 }}
                   >Next ›</button>
                 </div>
               </div>
@@ -490,7 +490,7 @@ export default function StagingPage() {
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, fontWeight: 700, color: "var(--text-3)", flexShrink: 0 }}>Row {globalIdx + 1}</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, fontWeight: 600, color: "var(--text-3)", flexShrink: 0 }}>Row {globalIdx + 1}</span>
                             <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", flexShrink: 0 }}>{r.date}</span>
                             <span style={{ fontSize: 11, color: "var(--text-3)", flexShrink: 0 }}>·</span>
                             <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text)" }}>{r.stageLabel}</span>
@@ -513,7 +513,7 @@ export default function StagingPage() {
                               onClick={(e) => { e.stopPropagation(); handleSwapCheckedRejected(r.recordIndex); }}
                               title="Swap Checked ↔ Rejected values"
                               style={{
-                                fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 6, cursor: "pointer",
+                                fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6, cursor: "pointer",
                                 border: "1px solid var(--status-warn)",
                                 background: "color-mix(in srgb, var(--status-warn) 12%, var(--surface))",
                                 color: "var(--status-warn)",
@@ -525,7 +525,7 @@ export default function StagingPage() {
                           )}
                           <button
                             onClick={(e) => { e.stopPropagation(); jumpToInvalid(navIdx); }}
-                            style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 6, cursor: "pointer", border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--text-2)", whiteSpace: "nowrap" }}
+                            style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6, cursor: "pointer", border: "1px solid var(--border-strong)", background: "var(--surface)", color: "var(--text-2)", whiteSpace: "nowrap" }}
                           >→ Jump to row</button>
                         </div>
                       </div>
@@ -633,7 +633,7 @@ export default function StagingPage() {
                                     <span style={{
                                       fontFamily: "var(--font-mono)",
                                       fontSize: 10.5,
-                                      fontWeight: 700,
+                                      fontWeight: 600,
                                       color: isBalanced ? "var(--status-good)" : "var(--status-bad)",
                                       background: isBalanced ? "color-mix(in srgb, var(--status-good) 8%, transparent)" : "color-mix(in srgb, var(--status-bad) 8%, transparent)",
                                       padding: "3px 6px",
@@ -675,7 +675,7 @@ export default function StagingPage() {
                                     title="Click to see what's wrong"
                                     style={{
                                       display: "inline-flex", alignItems: "center", gap: 4,
-                                      padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 700,
+                                      padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600,
                                       border: "1px solid var(--status-bad)",
                                       background: "color-mix(in srgb, var(--status-bad) 12%, transparent)",
                                       color: "var(--status-bad)",
@@ -694,7 +694,7 @@ export default function StagingPage() {
                                   onClick={() => setEditingCommentRow(editingCommentRow === r.recordIndex ? null : r.recordIndex)}
                                   style={{
                                     background: hasComment ? "var(--accent)" : "var(--surface-2)",
-                                    color: hasComment ? "#fff" : "var(--text-2)",
+                                    color: hasComment ? "var(--on-accent)" : "var(--text-2)",
                                     border: "none",
                                     borderRadius: 7,
                                     width: 28,
@@ -711,7 +711,7 @@ export default function StagingPage() {
                                 <td colSpan={totalCols} style={{ padding: 0 }}>
                                   <div className="expand-panel" style={{ padding: "10px 16px 12px 50px", borderBottom: "1px solid var(--border)" }}>
                                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                      <div style={{ fontWeight: 700, fontSize: 10.5, color: "var(--status-bad)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 6 }}>
+                                      <div style={{ fontWeight: 600, fontSize: 10.5, color: "var(--status-bad)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 6 }}>
                                         <span>⚠</span>
                                         <span>Validation Issues for Row {i + 1}:</span>
                                       </div>
@@ -728,7 +728,7 @@ export default function StagingPage() {
                                           <button
                                             onClick={(e) => { e.stopPropagation(); handleSwapCheckedRejected(r.recordIndex); }}
                                             style={{
-                                              fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+                                              fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 6, cursor: "pointer",
                                               border: "1px solid var(--status-warn)",
                                               background: "color-mix(in srgb, var(--status-warn) 12%, var(--surface))",
                                               color: "var(--status-warn)",
@@ -753,7 +753,7 @@ export default function StagingPage() {
 
                 {editingCommentRow !== null && (
                   <div className="comment-box-panel" style={{ marginTop: 16, padding: 12, border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface-2)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13, fontWeight: 700 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13, fontWeight: 600 }}>
                       <span>Add Operator Comment</span>
                       <button onClick={() => setEditingCommentRow(null)} style={{ fontSize: 11, color: "var(--accent)", cursor: "pointer" }}>Close</button>
                     </div>
@@ -791,7 +791,7 @@ export default function StagingPage() {
                       <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>Showing {from}–{to} of {rows.length.toLocaleString()} records</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
                         <button disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} style={pgBtn(page === 0)}>‹ Prev</button>
-                        <span style={{ fontSize: 11.5, fontWeight: 700 }}>{page + 1} / {totalPages}</span>
+                        <span style={{ fontSize: 11.5, fontWeight: 600 }}>{page + 1} / {totalPages}</span>
                         <button disabled={page >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} style={pgBtn(page >= totalPages - 1)}>Next ›</button>
                       </div>
                     </div>
@@ -841,7 +841,7 @@ export default function StagingPage() {
                 <span
                   style={{
                     fontSize: 11,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     padding: "2px 8px",
                     borderRadius: 6,
                     color:
@@ -888,12 +888,12 @@ export default function StagingPage() {
               style={{
                 width: "100%",
                 background: "var(--status-good)",
-                color: "#fff",
+                color: "var(--text-invert)",
                 border: "none",
                 borderRadius: 9,
                 padding: "11px",
                 fontSize: 14,
-                fontWeight: 700,
+                fontWeight: 600,
                 cursor:
                   rows.length && !summary.invalid && !busy ? "pointer" : "not-allowed",
                 opacity: rows.length && !summary.invalid && !busy ? 1 : 0.5,
@@ -928,7 +928,7 @@ export default function StagingPage() {
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "good" | "warn" | "bad" }) {
   const c = tone === "bad" ? "var(--status-bad)" : tone === "good" ? "var(--status-good)" : "var(--text)";
-  return <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13 }}><span className="muted">{label}</span><span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: c }}>{value}</span></div>;
+  return <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13 }}><span className="muted">{label}</span><span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: c }}>{value}</span></div>;
 }
 const sth: React.CSSProperties = { padding: "6px 8px", fontWeight: 600 };
 const std: React.CSSProperties = { padding: "6px 8px" };

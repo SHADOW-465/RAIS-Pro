@@ -80,7 +80,7 @@ export default function ProcessFlowPage() {
     <AppShell active="process-flow" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 800, margin: "0 0 4px", color: "var(--text)" }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text)" }}>
             Process Flow Overview
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
@@ -95,7 +95,7 @@ export default function ProcessFlowPage() {
 
         {!isLoading && (!events || events.length === 0) && (
           <div style={{ padding: "48px 24px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)" }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, marginBottom: 8, color: "var(--text)" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, marginBottom: 8, color: "var(--text)" }}>
               No Data Available
             </div>
             <p className="muted" style={{ fontSize: 13, margin: "0 0 16px" }}>
@@ -104,8 +104,8 @@ export default function ProcessFlowPage() {
             <a
               href="/staging"
               style={{
-                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12.5,
-                color: "var(--paper)", background: "var(--accent)", border: "none",
+                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 12.5,
+                color: "var(--on-accent)", background: "var(--accent)", border: "none",
                 padding: "8px 16px", borderRadius: "var(--radius-md)", cursor: "pointer"
               }}
             >
@@ -152,8 +152,8 @@ function EntryLineFlow({ rows, sectionStageIds }: { rows: StageRow[]; sectionSta
       {groups.map((g, gi) => (
         <section key={g.id}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>{gi + 1}</span>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{g.label}</h3>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--text-3)" }}>{gi + 1}</span>
+            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{g.label}</h3>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {g.stations.map((st) =>
@@ -167,7 +167,7 @@ function EntryLineFlow({ rows, sectionStageIds }: { rows: StageRow[]; sectionSta
                     background: "var(--surface-2)", display: "flex", justifyContent: "space-between", alignItems: "center",
                   }}
                 >
-                  <span style={{ fontWeight: 700, fontSize: 13, color: "var(--text)" }}>{st.label}</span>
+                  <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text)" }}>{st.label}</span>
                   <span className="muted" style={{ fontSize: 11, fontFamily: "var(--font-mono)" }}>no records in this date range</span>
                 </div>
               ),
@@ -196,14 +196,14 @@ function FbcProcessFlow({ stages }: { stages: StageRow[] }) {
             background: hasData ? "var(--surface)" : "var(--surface-2)",
             opacity: step.stageId ? 1 : 0.75,
           }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 11, color: "var(--text-3)", minWidth: 32 }}>{step.code}</span>
-            <span style={{ fontSize: 12, fontWeight: step.stageId ? 700 : 500, color: "var(--text)", flex: 1 }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 11, color: "var(--text-3)", minWidth: 32 }}>{step.code}</span>
+            <span style={{ fontSize: 12, fontWeight: step.stageId ? 600 : 500, color: "var(--text)", flex: 1 }}>
               {step.label}
-              {step.critical && <span title="Critical operation — special control" style={{ color: "var(--critical)", fontWeight: 800, marginLeft: 6 }}>*</span>}
+              {step.critical && <span title="Critical operation — special control" style={{ color: "var(--critical)", fontWeight: 600, marginLeft: 6 }}>*</span>}
             </span>
             {step.stageId ? (
               <span style={{
-                fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: 11.5, padding: "2px 7px", borderRadius: 4,
+                fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 11.5, padding: "2px 7px", borderRadius: 4,
                 color: hasData ? (data!.rejRate > 0.05 ? "var(--critical)" : "var(--positive)") : "var(--text-3)",
                 background: hasData ? (data!.rejRate > 0.05 ? "var(--critical-weak)" : "var(--positive-weak)") : "transparent",
               }}>

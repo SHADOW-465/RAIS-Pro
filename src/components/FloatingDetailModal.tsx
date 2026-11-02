@@ -761,9 +761,9 @@ export default function FloatingDetailModal({
             <span
               style={{
                 fontSize: 9.5,
-                fontWeight: 800,
+                fontWeight: 600,
                 background: "var(--accent)",
-                color: "var(--text-invert)",
+                color: "var(--on-accent)",
                 padding: "2px 8px",
                 borderRadius: 999,
                 textTransform: "uppercase",
@@ -776,7 +776,7 @@ export default function FloatingDetailModal({
               style={{
                 fontFamily: "var(--font-display)",
                 fontSize: 20,
-                fontWeight: 800,
+                fontWeight: 600,
                 color: "var(--text)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -809,7 +809,7 @@ export default function FloatingDetailModal({
                     background: !showSource ? "var(--accent)" : "transparent",
                     color: !showSource ? "var(--text-invert)" : "var(--text-2)",
                     fontSize: 11.5,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: "pointer",
                     display: "inline-flex",
                     alignItems: "center",
@@ -832,7 +832,7 @@ export default function FloatingDetailModal({
                     background: showSource && sourceSubView === "batches" ? "var(--accent)" : "transparent",
                     color: showSource && sourceSubView === "batches" ? "var(--text-invert)" : "var(--text-2)",
                     fontSize: 11.5,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: "pointer",
                     display: "inline-flex",
                     alignItems: "center",
@@ -845,7 +845,7 @@ export default function FloatingDetailModal({
                     style={{
                       fontFamily: "var(--font-mono)",
                       fontSize: 10,
-                      fontWeight: 800,
+                      fontWeight: 600,
                       padding: "1px 6px",
                       borderRadius: 999,
                       background: showSource && sourceSubView === "batches" ? "rgba(255,255,255,0.25)" : "var(--surface-3)",
@@ -868,7 +868,7 @@ export default function FloatingDetailModal({
                     background: showSource && sourceSubView === "history" ? "var(--accent)" : "transparent",
                     color: showSource && sourceSubView === "history" ? "var(--text-invert)" : "var(--text-2)",
                     fontSize: 11.5,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: "pointer",
                     display: "inline-flex",
                     alignItems: "center",
@@ -881,7 +881,7 @@ export default function FloatingDetailModal({
                     style={{
                       fontFamily: "var(--font-mono)",
                       fontSize: 10,
-                      fontWeight: 800,
+                      fontWeight: 600,
                       padding: "1px 6px",
                       borderRadius: 999,
                       background: showSource && sourceSubView === "history" ? "rgba(255,255,255,0.25)" : "var(--surface-3)",
@@ -905,7 +905,7 @@ export default function FloatingDetailModal({
                       background: showSource && sourceSubView === "spreadsheet" ? "var(--accent)" : "transparent",
                       color: showSource && sourceSubView === "spreadsheet" ? "var(--text-invert)" : "var(--text-2)",
                       fontSize: 11.5,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       cursor: "pointer",
                       display: "inline-flex",
                       alignItems: "center",
@@ -933,7 +933,7 @@ export default function FloatingDetailModal({
                   : "var(--surface)",
                 color: (t.showCalendarHolidays ?? true) ? "var(--accent)" : "var(--text-3)",
                 fontSize: 11.5,
-                fontWeight: 700,
+                fontWeight: 600,
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
@@ -989,14 +989,14 @@ export default function FloatingDetailModal({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+                <span style={{ fontSize: 9.5, fontWeight: 600, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
                   {primaryMetricLabel}
                 </span>
                 {isCompliant !== null && (
                   <span
                     style={{
                       fontSize: 8.5,
-                      fontWeight: 800,
+                      fontWeight: 600,
                       padding: "1px 5px",
                       borderRadius: 999,
                       background: isCompliant ? "var(--positive-weak)" : "var(--critical-weak)",
@@ -1008,7 +1008,7 @@ export default function FloatingDetailModal({
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text)", lineHeight: 1.2 }}>
+              <div style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text)", lineHeight: 1.2 }}>
                 {effectiveRate ?? (primaryValue || "—")}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
@@ -1028,10 +1028,10 @@ export default function FloatingDetailModal({
                 gap: 4,
               }}
             >
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 9.5, fontWeight: 600, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
                 Total Units Entered
               </span>
-              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text)", lineHeight: 1.2 }}>
+              <div style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text)", lineHeight: 1.2 }}>
                 {checkedCount > 0 ? checkedCount.toLocaleString("en-IN") : "—"}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
@@ -1051,10 +1051,10 @@ export default function FloatingDetailModal({
                 gap: 4,
               }}
             >
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 9.5, fontWeight: 600, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
                 Total Scrapped Units
               </span>
-              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--accent)", lineHeight: 1.2 }}>
+              <div style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--accent)", lineHeight: 1.2 }}>
                 {rejectedCount > 0 ? rejectedCount.toLocaleString("en-IN") : "—"}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
@@ -1074,10 +1074,10 @@ export default function FloatingDetailModal({
                 gap: 4,
               }}
             >
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 9.5, fontWeight: 600, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
                 Active Batches
               </span>
-              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text)", lineHeight: 1.2 }}>
+              <div style={{ fontSize: 22, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--text)", lineHeight: 1.2 }}>
                 {batchItems.length > 0 ? batchItems.length : (summary.batchCount > 0 ? summary.batchCount : "—")}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
@@ -1097,10 +1097,10 @@ export default function FloatingDetailModal({
                 gap: 4,
               }}
             >
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 9.5, fontWeight: 600, color: "var(--text-3)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--font-mono)" }}>
                 Leading Driver
               </span>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={rankedDefects[0]?.label ?? summary.topDriver?.label ?? "Plant-wide Trace"}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text)", lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={rankedDefects[0]?.label ?? summary.topDriver?.label ?? "Plant-wide Trace"}>
                 {rankedDefects[0]?.label ?? summary.topDriver?.label ?? "Plant-wide Trace"}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
@@ -1126,7 +1126,7 @@ export default function FloatingDetailModal({
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>Timeline & Trend Analysis</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>Timeline & Trend Analysis</span>
                     {summary.dateFrom && summary.dateTo && (
                       <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
                         ({summary.dateFrom} → {summary.dateTo})
@@ -1173,11 +1173,11 @@ export default function FloatingDetailModal({
                       >
                         <Icon name="spark" size={13} />
                       </span>
-                      <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>AI Advisory Insights</span>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>AI Advisory Insights</span>
                       <span
                         style={{
                           fontSize: 9,
-                          fontWeight: 800,
+                          fontWeight: 600,
                           textTransform: "uppercase",
                           letterSpacing: "0.05em",
                           padding: "2px 7px",
@@ -1206,7 +1206,7 @@ export default function FloatingDetailModal({
                             background: "var(--surface-2)",
                             color: "var(--text)",
                             fontSize: 11,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
@@ -1229,7 +1229,7 @@ export default function FloatingDetailModal({
                             background: "var(--surface-2)",
                             color: "var(--text)",
                             fontSize: 11,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
@@ -1276,7 +1276,7 @@ export default function FloatingDetailModal({
                             <div
                               style={{
                                 fontSize: 9.5,
-                                fontWeight: 800,
+                                fontWeight: 600,
                                 textTransform: "uppercase",
                                 letterSpacing: "0.05em",
                                 color: "var(--accent)",
@@ -1326,14 +1326,14 @@ export default function FloatingDetailModal({
                   gap: 12,
                 }}
               >
-                <span className="eyebrow accent" style={{ fontWeight: 700, fontSize: 10.5 }}>
+                <span className="eyebrow accent" style={{ fontWeight: 600, fontSize: 10.5 }}>
                   Computed value
                 </span>
                 <div
                   style={{
                     fontFamily: "var(--font-mono)",
                     fontSize: 28,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     color: "var(--accent)",
                     wordBreak: "break-word",
                     lineHeight: 1.15,
@@ -1373,7 +1373,7 @@ export default function FloatingDetailModal({
                     <div
                       style={{
                         fontSize: 10,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         textTransform: "uppercase",
                         letterSpacing: "0.04em",
                         color: "var(--text-3)",
@@ -1382,7 +1382,7 @@ export default function FloatingDetailModal({
                     >
                       Main driver
                     </div>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>
                       {summary.topDriver.label}
                       <span style={{ color: "var(--accent)", marginLeft: 6, fontFamily: "var(--font-mono)" }}>
                         {summary.topDriver.sharePct.toFixed(0)}%
@@ -1477,7 +1477,7 @@ export default function FloatingDetailModal({
                               cursor: "pointer",
                               fontSize: 11.5,
                               color: active ? "var(--text)" : "var(--text-2)",
-                              fontWeight: active ? 700 : 500,
+                              fontWeight: active ? 600 : 500,
                               textAlign: "left",
                             }}
                           >
@@ -1493,7 +1493,7 @@ export default function FloatingDetailModal({
                               />
                               {g.label}
                             </span>
-                            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: g.color }}>
+                            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: g.color }}>
                               {g.count}
                             </span>
                           </button>
@@ -1588,7 +1588,7 @@ export default function FloatingDetailModal({
                         border: "none",
                         background: sourceSubView === "batches" ? "var(--surface)" : "transparent",
                         color: sourceSubView === "batches" ? "var(--accent)" : "var(--text-2)",
-                        fontWeight: 700,
+                        fontWeight: 600,
                         fontSize: 12,
                         cursor: "pointer",
                         display: "inline-flex",
@@ -1624,7 +1624,7 @@ export default function FloatingDetailModal({
                         border: "none",
                         background: sourceSubView === "history" ? "var(--surface)" : "transparent",
                         color: sourceSubView === "history" ? "var(--accent)" : "var(--text-2)",
-                        fontWeight: 700,
+                        fontWeight: 600,
                         fontSize: 12,
                         cursor: "pointer",
                         display: "inline-flex",
@@ -1661,7 +1661,7 @@ export default function FloatingDetailModal({
                           border: "none",
                           background: sourceSubView === "spreadsheet" ? "var(--surface)" : "transparent",
                           color: sourceSubView === "spreadsheet" ? "var(--accent)" : "var(--text-2)",
-                          fontWeight: 700,
+                          fontWeight: 600,
                           fontSize: 12,
                           cursor: "pointer",
                           display: "inline-flex",
@@ -1685,9 +1685,9 @@ export default function FloatingDetailModal({
                         borderRadius: 8,
                         border: "1px solid var(--border-strong)",
                         background: copiedBatches ? "var(--positive)" : "var(--surface)",
-                        color: copiedBatches ? "#fff" : "var(--text)",
+                        color: copiedBatches ? "var(--text-invert)" : "var(--text)",
                         fontSize: 11.5,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         cursor: "pointer",
                         fontFamily: "var(--font-mono)",
                         display: "inline-flex",
@@ -1720,7 +1720,7 @@ export default function FloatingDetailModal({
                       <span
                         style={{
                           fontSize: 10.5,
-                          fontWeight: 700,
+                          fontWeight: 600,
                           textTransform: "uppercase",
                           letterSpacing: "0.05em",
                           color: "var(--text-3)",
@@ -1780,7 +1780,7 @@ export default function FloatingDetailModal({
                               border: `1px solid ${active ? btn.borderActive : "var(--border)"}`,
                               background: active ? btn.bgActive : "var(--surface-2)",
                               color: active ? btn.color : "var(--text-2)",
-                              fontWeight: active ? 700 : 600,
+                              fontWeight: active ? 600 : 600,
                               fontSize: 12,
                               cursor: "pointer",
                               display: "inline-flex",
@@ -1795,7 +1795,7 @@ export default function FloatingDetailModal({
                               style={{
                                 fontSize: 11,
                                 fontFamily: "var(--font-mono)",
-                                fontWeight: 700,
+                                fontWeight: 600,
                                 padding: "1px 7px",
                                 borderRadius: 999,
                                 background: active
@@ -1985,7 +1985,7 @@ export default function FloatingDetailModal({
                                     style={{
                                       fontSize: 10,
                                       fontFamily: "var(--font-mono)",
-                                      fontWeight: 700,
+                                      fontWeight: 600,
                                       padding: "1px 5px",
                                       borderRadius: 4,
                                       background: b.sizeColor
@@ -2038,7 +2038,7 @@ export default function FloatingDetailModal({
                               )}
 
                               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", fontFamily: "var(--font-mono)" }}>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", fontFamily: "var(--font-mono)" }}>
                                   {(b.rejectedQty || b.defectQty).toLocaleString("en-IN")}{" "}
                                   <span style={{ fontSize: 10, fontWeight: 500, color: "var(--text-3)" }}>rejected</span>
                                 </span>
@@ -2147,7 +2147,7 @@ export default function FloatingDetailModal({
                                         <span
                                           style={{
                                             fontSize: 13,
-                                            fontWeight: 800,
+                                            fontWeight: 600,
                                             color: sec.color,
                                           }}
                                         >
@@ -2157,7 +2157,7 @@ export default function FloatingDetailModal({
                                           style={{
                                             fontFamily: "var(--font-mono)",
                                             fontSize: 11,
-                                            fontWeight: 700,
+                                            fontWeight: 600,
                                             padding: "2px 8px",
                                             borderRadius: 999,
                                             background: `color-mix(in srgb, ${sec.color} 15%, var(--surface-2))`,
@@ -2194,7 +2194,7 @@ export default function FloatingDetailModal({
                                             background: "var(--surface)",
                                             color: sec.color,
                                             fontSize: 11,
-                                            fontWeight: 700,
+                                            fontWeight: 600,
                                             cursor: "pointer",
                                           }}
                                         >
@@ -2476,7 +2476,7 @@ export default function FloatingDetailModal({
                                         padding: "0px 5px",
                                         borderRadius: 999,
                                         fontSize: 9.5,
-                                        fontWeight: 700,
+                                        fontWeight: 600,
                                         fontFamily: "var(--font-sans)",
                                         letterSpacing: 0.2,
                                         color: "var(--accent)",
@@ -2498,7 +2498,7 @@ export default function FloatingDetailModal({
                                 <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color: e.acceptedQty > 0 ? "var(--positive)" : "var(--text)" }}>
                                   {e.acceptedQty > 0 ? e.acceptedQty.toLocaleString() : "—"}
                                 </td>
-                                <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: e.rejectedQty > 0 ? "var(--critical)" : "var(--text)" }}>
+                                <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color: e.rejectedQty > 0 ? "var(--critical)" : "var(--text)" }}>
                                   {e.rejectedQty > 0 ? e.rejectedQty.toLocaleString() : "—"}
                                 </td>
                                 <td style={{ ...td, fontSize: 11.5, lineHeight: 1.45 }}>
@@ -2701,7 +2701,7 @@ function RejectionProofPanel({
         <span
           style={{
             fontSize: 10,
-            fontWeight: 700,
+            fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.04em",
             color: "var(--text-3)",
@@ -2726,7 +2726,7 @@ function RejectionProofPanel({
           }}
         >
           {multi && (
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{sec.label}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>{sec.label}</div>
           )}
 
           {/* Denominator first — you cannot read a rate without it. */}
@@ -2773,7 +2773,7 @@ function RejectionProofPanel({
             <span style={{ color: "var(--text-2)" }}>
               {fmtQty(sec.rejectedQty)} ÷ {fmtQty(sec.checkedQty)}
             </span>
-            <span style={{ fontWeight: 700, color: multi ? "var(--text)" : "var(--accent)" }}>
+            <span style={{ fontWeight: 600, color: multi ? "var(--text)" : "var(--accent)" }}>
               {pct(sec.rate)}
             </span>
           </div>
@@ -2797,7 +2797,7 @@ function RejectionProofPanel({
           <span style={{ color: "var(--text-2)" }}>
             {proof.sections.map((s) => pct(s.rate)).join(" + ")}
           </span>
-          <span style={{ fontWeight: 700, color: "var(--accent)" }}>{total}</span>
+          <span style={{ fontWeight: 600, color: "var(--accent)" }}>{total}</span>
         </div>
       )}
 
@@ -2852,7 +2852,7 @@ function ProofLine({
         borderTop: rule ? "1px solid var(--border)" : undefined,
       }}
     >
-      <span style={{ color: strong ? "var(--text)" : "var(--text-2)", fontWeight: strong ? 700 : 400 }}>
+      <span style={{ color: strong ? "var(--text)" : "var(--text-2)", fontWeight: strong ? 600 : 400 }}>
         {label}
         {hint && (
           <span className="muted" style={{ fontSize: 10, marginLeft: 5 }}>
@@ -2863,7 +2863,7 @@ function ProofLine({
       <span
         style={{
           fontFamily: "var(--font-mono)",
-          fontWeight: strong ? 700 : 600,
+          fontWeight: strong ? 600 : 600,
           color: "var(--text)",
           whiteSpace: "nowrap",
         }}
@@ -2887,7 +2887,7 @@ function MiniStat({ label, value }: { label: string; value: string }) {
       <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase" }}>
         {label}
       </div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text)", marginTop: 2 }}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 600, color: "var(--text)", marginTop: 2 }}>
         {value}
       </div>
     </div>
@@ -2909,7 +2909,7 @@ function Pill({
       onClick={onClick}
       style={{
         fontSize: 11,
-        fontWeight: 700,
+        fontWeight: 600,
         padding: "4px 10px",
         borderRadius: 999,
         cursor: "pointer",
@@ -2943,7 +2943,7 @@ function SpreadsheetPanel({
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase" }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase" }}>
           Source file
         </span>
         <Select
@@ -3040,7 +3040,7 @@ function SpreadsheetPanel({
                                 ...td,
                                 background: isHighlighted ? "var(--accent-weak)" : "transparent",
                                 color: isHighlighted ? "var(--accent)" : "var(--text)",
-                                fontWeight: isHighlighted ? 700 : 400,
+                                fontWeight: isHighlighted ? 600 : 400,
                                 fontFamily: typeof row[col] === "number" ? "var(--font-mono)" : "var(--font-sans)",
                                 textAlign: typeof row[col] === "number" ? "right" : "left",
                                 whiteSpace: "nowrap",
@@ -3066,7 +3066,7 @@ function SpreadsheetPanel({
 function modeChip(active: boolean): React.CSSProperties {
   return {
     fontSize: 11.5,
-    fontWeight: 700,
+    fontWeight: 600,
     padding: "6px 12px",
     borderRadius: 999,
     cursor: "pointer",
@@ -3099,5 +3099,5 @@ const pageBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const th: React.CSSProperties = { padding: "8px 12px", fontWeight: 800, fontSize: 11 };
+const th: React.CSSProperties = { padding: "8px 12px", fontWeight: 600, fontSize: 11 };
 const td: React.CSSProperties = { padding: "8px 12px", color: "var(--text)", verticalAlign: "middle" };

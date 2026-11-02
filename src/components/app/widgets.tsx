@@ -95,14 +95,14 @@ export function ChartTip({ leftPx, topPx, below, title, rows }: {
         transition: "left 0.1s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.1s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1)"
       }}
     >
-      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: rows.length ? 5 : 0, fontFamily: "var(--font-sans)" }}>{title}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text)", marginBottom: rows.length ? 5 : 0, fontFamily: "var(--font-sans)" }}>{title}</div>
       {rows.map((r, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, fontSize: 11.5, lineHeight: 1.7 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--text-2)" }}>
             {r.color && <span style={{ width: 8, height: 8, borderRadius: 2, background: r.color, display: "inline-block" }} />}
             {r.label}
           </span>
-          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{r.value}</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)" }}>{r.value}</span>
         </div>
       ))}
     </div>
@@ -141,7 +141,7 @@ export function ZoomButton({
         alignItems: "center",
         justifyContent: "center",
         fontSize: isMultiChar ? (compact ? 8.5 : 9) : (compact ? 10.5 : 12),
-        fontWeight: 700,
+        fontWeight: 600,
         fontFamily: "var(--font-mono)",
         color: active ? "var(--accent)" : "var(--text-2)",
         background: hovered || active ? "var(--surface-2)" : "transparent",
@@ -297,7 +297,7 @@ function YScaleBar({
             color: mode === "auto" ? "var(--text-2)" : "var(--accent)",
             fontFamily: "var(--font-mono)",
             fontSize: 9.5,
-            fontWeight: 700,
+            fontWeight: 600,
             cursor: "pointer",
             lineHeight: 1,
             transition: "all 0.12s ease",
@@ -331,7 +331,7 @@ function YScaleBar({
               gap: 1,
             }}
           >
-            <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", padding: "2px 6px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            <div style={{ fontSize: 9, fontWeight: 600, color: "var(--text-3)", padding: "2px 6px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
               Y-Axis Scale
             </div>
             
@@ -352,7 +352,7 @@ function YScaleBar({
                 color: mode === "auto" ? "var(--accent)" : "var(--text)",
                 fontFamily: "var(--font-mono)",
                 fontSize: 10.5,
-                fontWeight: mode === "auto" ? 700 : 500,
+                fontWeight: mode === "auto" ? 600 : 500,
                 cursor: "pointer",
                 textAlign: "left",
               }}
@@ -384,7 +384,7 @@ function YScaleBar({
                     color: isSelected ? "var(--accent)" : "var(--text)",
                     fontFamily: "var(--font-mono)",
                     fontSize: 10.5,
-                    fontWeight: isSelected ? 700 : 500,
+                    fontWeight: isSelected ? 600 : 500,
                     cursor: "pointer",
                     textAlign: "left",
                   }}
@@ -440,7 +440,7 @@ function YScaleBar({
                   background: "var(--surface-3)",
                   color: "var(--text)",
                   fontSize: 9.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   cursor: "pointer",
                 }}
               >
@@ -509,7 +509,7 @@ function YScaleBar({
           color: "var(--text-2)",
           fontFamily: "var(--font-mono)",
           fontSize: 10,
-          fontWeight: 700,
+          fontWeight: 600,
         }}
       />
     </div>
@@ -904,8 +904,8 @@ export function GaugeChart({ value, label, subtext }: { value: number; label: st
         <circle cx={cx} cy={cy} r="6" fill="var(--text)" />
       </svg>
       <div style={{ textAlign: "center", marginTop: 4 }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 800 }}>{label}</div>
-        <div style={{ fontSize: 11.5, color: "var(--positive)", fontWeight: 700, marginTop: 2 }}>{subtext}</div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 600 }}>{label}</div>
+        <div style={{ fontSize: 11.5, color: "var(--positive)", fontWeight: 600, marginTop: 2 }}>{subtext}</div>
       </div>
     </div>
   );
@@ -923,7 +923,7 @@ export function LineChart({
   target,
   fmt,
   mean,
-  color = "#C8421C",
+  color = "var(--viz-1)",
   stage,
   metric,
   height = 280,
@@ -1076,7 +1076,7 @@ export function LineChart({
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: isCompact ? 10 : 11,
-                fontWeight: 700,
+                fontWeight: 600,
                 padding: isCompact ? "1px 4px" : "2px 6px",
                 borderRadius: "var(--radius-sm, 3px)",
                 border: "1px solid",
@@ -1156,7 +1156,7 @@ export function LineChart({
                       textAnchor="middle"
                       fontSize={8}
                       fontFamily="var(--font-mono)"
-                      fontWeight={800}
+                      fontWeight={600}
                       fill="var(--accent)"
                       letterSpacing={0.5}
                     >
@@ -1194,7 +1194,7 @@ export function LineChart({
                       textAnchor="middle"
                       fontSize={7.5}
                       fontFamily="var(--font-mono)"
-                      fontWeight={700}
+                      fontWeight={600}
                       fill="var(--text-3)"
                     >
                       SUN
@@ -1212,7 +1212,7 @@ export function LineChart({
                     y={padTop}
                     width={colW}
                     height={plotH}
-                    fill="var(--warning, #f59e0b)"
+                    fill="var(--warning)"
                     opacity={0.07}
                   />
                   <line
@@ -1220,7 +1220,7 @@ export function LineChart({
                     y1={padTop}
                     x2={colX + colW}
                     y2={padTop}
-                    stroke="var(--warning, #f59e0b)"
+                    stroke="var(--warning)"
                     strokeWidth={1.5}
                     strokeDasharray="3,2"
                   />
@@ -1231,8 +1231,8 @@ export function LineChart({
                       textAnchor="middle"
                       fontSize={7.5}
                       fontFamily="var(--font-mono)"
-                      fontWeight={700}
-                      fill="var(--warning, #f59e0b)"
+                      fontWeight={600}
+                      fill="var(--warning)"
                     >
                       BREAK
                     </text>
@@ -1249,7 +1249,7 @@ export function LineChart({
                     y={padTop}
                     width={colW}
                     height={plotH}
-                    fill="var(--positive, #16a34a)"
+                    fill="var(--positive)"
                     opacity={0.06}
                   />
                   {spacing >= 26 && (
@@ -1259,8 +1259,8 @@ export function LineChart({
                       textAnchor="middle"
                       fontSize={7.5}
                       fontFamily="var(--font-mono)"
-                      fontWeight={700}
-                      fill="var(--positive, #16a34a)"
+                      fontWeight={600}
+                      fill="var(--positive)"
                     >
                       OT SHIFT
                     </text>
@@ -1284,16 +1284,16 @@ export function LineChart({
           {target != null && target <= max && (
             <g>
               <line x1={padX} y1={y(target)} x2={canvasWidth - padX} y2={y(target)} stroke="var(--critical)" strokeDasharray="5,4" strokeWidth={1.2} />
-              <text x={canvasWidth - padX - 4} y={y(target) - 6} fontSize={11} fill="var(--critical)" fontWeight={800} textAnchor="end">TARGET {fmt(target)}</text>
+              <text x={canvasWidth - padX - 4} y={y(target) - 6} fontSize={11} fill="var(--critical)" fontWeight={600} textAnchor="end">TARGET {fmt(target)}</text>
             </g>
           )}
           {target != null && target > max && (
-            <text x={canvasWidth - padX - 4} y={padTop + 12} fontSize={11} fill="var(--critical)" fontWeight={800} textAnchor="end">TARGET {fmt(target)} (off scale)</text>
+            <text x={canvasWidth - padX - 4} y={padTop + 12} fontSize={11} fill="var(--critical)" fontWeight={600} textAnchor="end">TARGET {fmt(target)} (off scale)</text>
           )}
           {mean && (
             <g>
-              <line x1={padX} y1={y(avg)} x2={canvasWidth - padX} y2={y(avg)} stroke="#C8421C" strokeDasharray="6,3" strokeWidth={1.4} />
-              <text x={padX + 6} y={y(avg) - 6} fontSize={11} fill="#C8421C" fontWeight={800}>MEAN {fmt(avg)}</text>
+              <line x1={padX} y1={y(avg)} x2={canvasWidth - padX} y2={y(avg)} stroke="var(--text-3)" strokeDasharray="6,3" strokeWidth={1.4} />
+              <text x={padX + 6} y={y(avg) - 6} fontSize={11} fill="var(--text-3)" fontWeight={600}>MEAN {fmt(avg)}</text>
             </g>
           )}
 
@@ -1419,22 +1419,22 @@ export function LineChart({
                 x={x(i)}
                 y={axisY + 12}
                 fontSize={10.5}
-                fontWeight={isHol || isSun ? 700 : 500}
+                fontWeight={isHol || isSun ? 600 : 500}
                 textAnchor="end"
                 fill={labelFill}
                 fontFamily="var(--font-sans)"
                 transform={`rotate(-45 ${x(i)} ${axisY + 12})`}
               >
                 {isHol && (
-                  <tspan fill="var(--accent)" fontWeight={800}>
+                  <tspan fill="var(--accent)" fontWeight={600}>
                     ★{" "}
                   </tspan>
                 )}
                 {p.label}
                 {cal?.weekdayShort && (
                   <tspan
-                    fill={isHol ? "var(--accent)" : isSun ? "var(--warning, #f59e0b)" : "var(--text-3)"}
-                    fontWeight={isHol || isSun ? 800 : 400}
+                    fill={isHol ? "var(--accent)" : isSun ? "var(--warning)" : "var(--text-3)"}
+                    fontWeight={isHol || isSun ? 600 : 400}
                   >
                     {` · ${cal.weekdayShort}`}
                   </tspan>
@@ -1474,7 +1474,7 @@ export function LineChart({
             tipRows.push({
               label: "Break Run",
               value: `${cal.breakInfo.runLength} consecutive days (${cal.breakInfo.startLabel}–${cal.breakInfo.endLabel})`,
-              color: "var(--warning, #f59e0b)",
+              color: "var(--warning)",
             });
             if (cal.breakInfo.includedHolidays.length > 0) {
               tipRows.push({
@@ -1514,7 +1514,7 @@ export function LineChart({
             tipRows.push({
               label: "Shift Note",
               value: cal.statusDescription,
-              color: "var(--positive, #16a34a)",
+              color: "var(--positive)",
             });
           }
         }
@@ -1551,7 +1551,7 @@ export function LineChart({
             <span>Weekly Off (Sunday)</span>
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: "color-mix(in srgb, var(--warning, #f59e0b) 35%, transparent)", border: "1px dashed var(--warning, #f59e0b)" }} />
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: "color-mix(in srgb, var(--warning) 35%, transparent)", border: "1px dashed var(--warning)" }} />
             <span>Working Day Break</span>
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -1564,7 +1564,8 @@ export function LineChart({
   );
 }
 
-const SERIES_COLORS = ["#2563EB", "#0D9488", "#D97706", "#DC2626", "#EC4899", "#65A30D"];
+// Categorical series hues from the --viz-* tokens: never the action blue, never a status red/green.
+const SERIES_COLORS = ["var(--viz-1)", "var(--viz-2)", "var(--viz-3)", "var(--viz-4)", "var(--viz-5)", "var(--viz-6)", "var(--viz-7)"];
 
 export function seriesColor(index: number): string {
   return SERIES_COLORS[((index % SERIES_COLORS.length) + SERIES_COLORS.length) % SERIES_COLORS.length];
@@ -1676,7 +1677,7 @@ export function MultiLine({
   const y = (val: number) => axisY - (Math.min(Math.max(val, 0), max) / (max || 1)) * plotH;
   const getStageColor = (s: { stageId: string; label: string }, si: number) => {
     if (s.stageId === "total" || s.label.toLowerCase() === "total") {
-      return "#39FF14"; // Neon green
+      return "var(--text)"; // total = strongest neutral, never a status hue
     }
     return colorByStageId?.[s.stageId] ?? SERIES_COLORS[si % SERIES_COLORS.length];
   };
@@ -1733,7 +1734,7 @@ export function MultiLine({
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: isCompact ? 10 : 11,
-                fontWeight: 700,
+                fontWeight: 600,
                 padding: isCompact ? "1px 4px" : "2px 6px",
                 borderRadius: "var(--radius-sm, 3px)",
                 border: "1px solid",
@@ -1813,7 +1814,7 @@ export function MultiLine({
                       textAnchor="middle"
                       fontSize={8}
                       fontFamily="var(--font-mono)"
-                      fontWeight={800}
+                      fontWeight={600}
                       fill="var(--accent)"
                     >
                       ★ HOLIDAY
@@ -1850,7 +1851,7 @@ export function MultiLine({
                       textAnchor="middle"
                       fontSize={7.5}
                       fontFamily="var(--font-mono)"
-                      fontWeight={700}
+                      fontWeight={600}
                       fill="var(--text-3)"
                     >
                       SUN
@@ -1942,22 +1943,22 @@ export function MultiLine({
                 x={x(i)}
                 y={axisY + 12}
                 fontSize={10.5}
-                fontWeight={isHol || isSun ? 700 : 500}
+                fontWeight={isHol || isSun ? 600 : 500}
                 textAnchor="end"
                 fill={labelFill}
                 fontFamily="var(--font-sans)"
                 transform={`rotate(-45 ${x(i)} ${axisY + 12})`}
               >
                 {isHol && (
-                  <tspan fill="var(--accent)" fontWeight={800}>
+                  <tspan fill="var(--accent)" fontWeight={600}>
                     ★{" "}
                   </tspan>
                 )}
                 {d.label}
                 {cal?.weekdayShort && (
                   <tspan
-                    fill={isHol ? "var(--accent)" : isSun ? "var(--warning, #f59e0b)" : "var(--text-3)"}
-                    fontWeight={isHol || isSun ? 800 : 400}
+                    fill={isHol ? "var(--accent)" : isSun ? "var(--warning)" : "var(--text-3)"}
+                    fontWeight={isHol || isSun ? 600 : 400}
                   >
                     {` · ${cal.weekdayShort}`}
                   </tspan>
@@ -1970,7 +1971,7 @@ export function MultiLine({
           {stages.map((s, si) => (
             <g key={`lg${s.stageId}`} transform={`translate(${padX + (si % 5) * 110}, ${12 + Math.floor(si / 5) * 12})`}>
               <circle cx={0} cy={-2} r={4} fill={getStageColor(s, si)} />
-              <text x={8} y={3} fontSize={11} fill="var(--text-2)" fontWeight={700}>{s.label.split(" ")[0].toUpperCase()}</text>
+              <text x={8} y={3} fontSize={11} fill="var(--text-2)" fontWeight={600}>{s.label.split(" ")[0].toUpperCase()}</text>
             </g>
           ))}
         </svg>
@@ -2053,13 +2054,13 @@ export function BarsH({
               {r.label}
               {r.sub ? <span className="muted" style={{ fontSize: 11, fontWeight: 500 }}> · {r.sub}</span> : null}
             </span>
-            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)", flexShrink: 0 }}>{fmt(r.value)}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)", flexShrink: 0 }}>{fmt(r.value)}</span>
           </div>
           <div style={{ height: barHeight, background: "var(--surface-2)", borderRadius: radius, overflow: "hidden", border: "1px solid var(--border)" }}>
             <div style={{
               width: `${(r.value / max) * 100}%`,
               height: "100%",
-              background: r.color ?? (i === 0 ? "var(--accent)" : "color-mix(in srgb, var(--accent) 72%, #14181f 8%)"),
+              background: r.color ?? (i === 0 ? "var(--accent)" : "color-mix(in srgb, var(--accent) 72%, var(--surface))"),
               borderRadius: radius,
               // A pale fill (white/yellow) needs its own edge to read against
               // the track, since the track and the fill would otherwise blend.
@@ -2090,7 +2091,7 @@ export function ProcessFlow({ rows }: { rows: StageRow[] }) {
             background: "var(--surface)"
           }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: r.rejRate > 0.05 ? "var(--critical)" : "var(--positive)" }} />
                 {r.label}
               </div>
@@ -2100,7 +2101,7 @@ export function ProcessFlow({ rows }: { rows: StageRow[] }) {
             </div>
             <span style={{
               fontFamily: "var(--font-mono)",
-              fontWeight: 800,
+              fontWeight: 600,
               fontSize: 13,
               color: r.rejRate > 0.05 ? "var(--critical)" : "var(--positive)",
               background: r.rejRate > 0.05 ? "var(--critical-weak)" : "var(--positive-weak)",
@@ -2198,7 +2199,7 @@ export function AuditVerificationTable({
                 padding: "8px 0",
                 textAlign: "right",
                 fontFamily: "var(--font-mono)",
-                fontWeight: 700,
+                fontWeight: 600,
                 color: item.bad ? "var(--critical)" : item.ok ? "var(--positive)" : item.warn ? "var(--warning)" : "var(--text)"
               }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -2224,7 +2225,7 @@ export function AuditVerificationTable({
   );
 }
 
-const cth: React.CSSProperties = { padding: "6px 8px", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" };
+const cth: React.CSSProperties = { padding: "6px 8px", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" };
 const ctd: React.CSSProperties = { padding: "8px 8px", color: "var(--text)" };
 
 /** Stage x Size rejection-rate heatmap — "where are problems concentrated".
@@ -2282,7 +2283,7 @@ export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLab
         <tbody>
           {stageIds.map((stageId, i) => (
             <tr key={stageId}>
-              <td style={{ ...ctd, fontWeight: 700 }}>{stages[i]}</td>
+              <td style={{ ...ctd, fontWeight: 600 }}>{stages[i]}</td>
               {sizes.map((sz) => {
                 const cell = cells.find((c) => c.stageId === stageId && c.size === sz);
                 if (!cell) {
@@ -2290,7 +2291,7 @@ export function StageSizeHeatmap({ cells }: { cells: { stageId: string; stageLab
                 }
                 const tone = toneFor(cell.rejRate);
                 return (
-                  <td key={sz} style={{ ...ctd, textAlign: "center", background: tone.bg, color: tone.fg, fontWeight: 700, fontFamily: "var(--font-mono)", borderRadius: "var(--radius-sm)" }}>
+                  <td key={sz} style={{ ...ctd, textAlign: "center", background: tone.bg, color: tone.fg, fontWeight: 600, fontFamily: "var(--font-mono)", borderRadius: "var(--radius-sm)" }}>
                     {formatRatioPercent(cell.rejRate, 1) ?? "—"}
                   </td>
                 );
@@ -2354,17 +2355,17 @@ export function Donut({
             <text x={cx} y={cy - 12} textAnchor="middle" fontSize={9} fontWeight={600} fill="var(--text-3)">
               {activeHover.label.length > 12 ? `${activeHover.label.slice(0, 11)}…` : activeHover.label}
             </text>
-            <text x={cx} y={cy + 3} textAnchor="middle" fontSize={14} fontWeight={800} fontFamily="var(--font-mono)" fill="var(--text)">
+            <text x={cx} y={cy + 3} textAnchor="middle" fontSize={14} fontWeight={600} fontFamily="var(--font-mono)" fill="var(--text)">
               {f(activeHover.value)}
             </text>
-            <text x={cx} y={cy + 16} textAnchor="middle" fontSize={9.5} fontWeight={700} fontFamily="var(--font-mono)" fill="var(--accent)">
+            <text x={cx} y={cy + 16} textAnchor="middle" fontSize={9.5} fontWeight={600} fontFamily="var(--font-mono)" fill="var(--accent)">
               {formatPercent(Number.isFinite(activeHover.value) && Number.isFinite(total) && total > 0 ? (activeHover.value / total) * 100 : null, 1) ?? "—"}
             </text>
           </>
         ) : (
           <>
             <text x={cx} y={cy - 3} textAnchor="middle" fontSize={10} fill="var(--text-3)">Total</text>
-            <text x={cx} y={cy + 14} textAnchor="middle" fontSize={15} fontWeight={800} fontFamily="var(--font-mono)" fill="var(--text)">{f(total)}</text>
+            <text x={cx} y={cy + 14} textAnchor="middle" fontSize={15} fontWeight={600} fontFamily="var(--font-mono)" fill="var(--text)">{f(total)}</text>
           </>
         )}
       </svg>
@@ -2374,7 +2375,7 @@ export function Donut({
             <div key={i} onMouseEnter={() => setHover(i)} style={{ display: "flex", alignItems: "center", gap: 10, opacity: hover == null || hover === i ? 1 : 0.5, transition: "opacity 0.2s" }}>
               <span style={{ width: fontSize - 3, height: fontSize - 3, borderRadius: 2, background: col(i), flexShrink: 0 }} />
               <span style={{ color: "var(--text-2)", minWidth: fontSize * 8 }}>{d.label}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>{f(d.value)}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)" }}>{f(d.value)}</span>
               <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-2)" }}>({formatPercent(Number.isFinite(d.value) && Number.isFinite(total) && total > 0 ? (d.value / total) * 100 : null, 1) ?? "—"})</span>
             </div>
           ))}
@@ -2505,7 +2506,7 @@ export function SizeColorLegend({ sizes }: { sizes: readonly (string | number)[]
               boxShadow: color.hex === "#FFFFFF" ? "inset 0 0 0 1px var(--border-strong)" : undefined,
             }}
           />
-          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 12, color: "var(--text)" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 12, color: "var(--text)" }}>
             {size}Fr
           </span>
           <span className="muted" style={{ fontSize: 11.5 }}>{color.name}</span>

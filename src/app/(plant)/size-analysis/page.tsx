@@ -140,7 +140,7 @@ export default function SizeAnalysisPage() {
     <AppShell active="size" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 800, margin: "0 0 4px", color: "var(--text)" }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text)" }}>
             Size Analysis
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
@@ -155,7 +155,7 @@ export default function SizeAnalysisPage() {
 
         {!isLoading && (!events || events.length === 0) && (
           <div style={{ padding: "48px 24px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)" }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, marginBottom: 8, color: "var(--text)" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, marginBottom: 8, color: "var(--text)" }}>
               No Data Available
             </div>
             <p className="muted" style={{ fontSize: 13, margin: "0 0 16px" }}>
@@ -164,8 +164,8 @@ export default function SizeAnalysisPage() {
             <a
               href="/staging"
               style={{
-                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12.5,
-                color: "var(--paper)", background: "var(--accent)", border: "none",
+                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 12.5,
+                color: "var(--on-accent)", background: "var(--accent)", border: "none",
                 padding: "8px 16px", borderRadius: "var(--radius-md)", cursor: "pointer"
               }}
             >
@@ -291,7 +291,7 @@ export default function SizeAnalysisPage() {
               {/* Bottom Tier: Full Width Heatmap Matrix */}
               {hasLeft && m.heatMatrix && m.heatMatrix.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--text)" }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--text)" }}>
                     Cross-Dimensional Size × Defect Mode Correlation Matrix
                   </h2>
                   <Card

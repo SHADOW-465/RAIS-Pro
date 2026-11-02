@@ -71,7 +71,7 @@ export default function EntryTransferImport({
     <>
       {!embedded && (
         <>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
             Import transfer package
           </div>
           <p

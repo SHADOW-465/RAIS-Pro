@@ -133,9 +133,9 @@ export default function NotificationsPanel() {
               height: 16,
               borderRadius: 8,
               background: "var(--accent)",
-              color: "var(--text-invert, #fff)",
+              color: "var(--on-accent)",
               fontSize: 9,
-              fontWeight: 800,
+              fontWeight: 600,
               display: "grid",
               placeItems: "center",
               padding: "0 4px",
@@ -175,7 +175,7 @@ export default function NotificationsPanel() {
             <div
               style={{
                 fontSize: 11,
-                fontWeight: 700,
+                fontWeight: 600,
                 textTransform: "uppercase",
                 letterSpacing: "0.04em",
                 color: "var(--text-3)",
@@ -230,7 +230,7 @@ export default function NotificationsPanel() {
               >
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2, color: "var(--text)" }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2, color: "var(--text)" }}>
                       {n.title}
                     </div>
                     <StatusPill status={n.status} />
@@ -286,7 +286,7 @@ export default function NotificationsPanel() {
                     <div
                       style={{
                         fontSize: 10,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         textTransform: "uppercase",
                         letterSpacing: "0.04em",
                         color: "var(--text-3)",
@@ -440,7 +440,7 @@ function TabChip({
         background: active ? "var(--accent-weak)" : "var(--surface)",
         color: active ? "var(--accent-text)" : "var(--text-2)",
         fontSize: 11,
-        fontWeight: 700,
+        fontWeight: 600,
         cursor: "pointer",
         fontFamily: "inherit",
       }}
@@ -463,7 +463,7 @@ function StatusPill({ status }: { status: PlantNotification["status"] }) {
       style={{
         display: "inline-block",
         fontSize: 10,
-        fontWeight: 700,
+        fontWeight: 600,
         padding: "2px 8px",
         borderRadius: 999,
         background: s.bg,
@@ -499,8 +499,8 @@ function ExceptionFacts({ p }: { p: EntryExceptionPayload }) {
         marginBottom: 8,
         padding: "8px 10px",
         borderRadius: 8,
-        background: "color-mix(in srgb, var(--status-warn, #d97706) 10%, var(--surface))",
-        border: "1px solid color-mix(in srgb, var(--status-warn, #d97706) 28%, var(--border))",
+        background: "color-mix(in srgb, var(--status-warn) 10%, var(--surface))",
+        border: "1px solid color-mix(in srgb, var(--status-warn) 28%, var(--border))",
         fontSize: 11.5,
         display: "flex",
         flexDirection: "column",
@@ -572,6 +572,6 @@ const btnSmPrimary: React.CSSProperties = {
   ...btnSm,
   background: "var(--accent)",
   border: "none",
-  color: "var(--text-invert, #fff)",
-  fontWeight: 700,
+  color: "var(--on-accent)",
+  fontWeight: 600,
 };

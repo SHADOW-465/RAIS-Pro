@@ -71,7 +71,7 @@ export default function ConversionEntryPanel({
           <div
             style={{
               fontSize: 10.5,
-              fontWeight: 700,
+              fontWeight: 600,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
               color: accent,
@@ -83,7 +83,7 @@ export default function ConversionEntryPanel({
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 15,
-              fontWeight: 800,
+              fontWeight: 600,
               letterSpacing: "0.03em",
               color: "var(--text)",
               marginTop: 2,

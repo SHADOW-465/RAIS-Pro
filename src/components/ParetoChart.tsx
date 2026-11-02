@@ -148,7 +148,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                 y={yCum(c) + 4}
                 fontSize={12}
                 fill={c === 80 ? "var(--warning)" : "var(--text-2)"}
-                fontWeight={c === 80 ? 800 : 600}
+                fontWeight={c === 80 ? 600 : 600}
                 className="num"
               >
                 {c}%
@@ -195,7 +195,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
               x={PAD.left + 8}
               y={y80 - 6}
               fontSize={10.5}
-              fontWeight={800}
+              fontWeight={600}
               letterSpacing="0.03em"
               fill="var(--warning)"
             >
@@ -227,7 +227,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                   x={xCenter(i)}
                   y={y - 8}
                   fontSize={11.5}
-                  fontWeight={800}
+                  fontWeight={600}
                   textAnchor="middle"
                   fill={it.isVitalFew ? "var(--accent)" : "var(--text-2)"}
                   opacity={hover === null || active ? 1 : 0.6}
@@ -242,7 +242,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
           <path
             d={smoothPath(linePts)}
             fill="none"
-            stroke="var(--ink, #ffffff)"
+            stroke="var(--ink)"
             strokeWidth={2.5}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -271,7 +271,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                       y1={p.y}
                       x2={canvasWidth - PAD.right}
                       y2={p.y}
-                      stroke="var(--ink, #ffffff)"
+                      stroke="var(--ink)"
                       strokeWidth={1.2}
                       strokeDasharray="2 2"
                       opacity={0.65}
@@ -285,7 +285,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                   cy={p.y}
                   r={active ? 6.5 : 4}
                   fill={it.isVitalFew ? "var(--accent)" : "var(--surface)"}
-                  stroke={active ? "var(--ink, #ffffff)" : (it.isVitalFew ? "var(--accent)" : "var(--text-2)")}
+                  stroke={active ? "var(--ink)" : (it.isVitalFew ? "var(--accent)" : "var(--text-2)")}
                   strokeWidth={2}
                   style={{ cursor: "pointer", transition: "all 0.15s ease" }}
                   onMouseEnter={() => setHover(i)}
@@ -306,7 +306,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                 y={PAD.top + PLOT_H + 18}
                 fontSize={12}
                 fill={it.isVitalFew ? "var(--accent)" : "var(--text-2)"}
-                fontWeight={it.isVitalFew ? 800 : 600}
+                fontWeight={it.isVitalFew ? 600 : 600}
                 textAnchor="end"
                 transform={`rotate(-35 ${xCenter(i)} ${PAD.top + PLOT_H + 18})`}
               >
@@ -339,7 +339,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                 <span
                   style={{
                     fontSize: 11,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     padding: "2px 8px",
                     borderRadius: 4,
                     textTransform: "uppercase",
@@ -350,7 +350,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                 >
                   #{items[hover].rank} · {items[hover].isVitalFew ? "Vital Few" : "Useful Many"}
                 </span>
-                <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>
+                <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>
                   {items[hover].label}
                 </span>
               </div>
@@ -392,7 +392,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                   <span style={{ color: "var(--text-2)", marginRight: 6 }}>
                     Top {items[hover].rank} Defects Combined:
                   </span>
-                  <strong className="num" style={{ color: "var(--ink, #ffffff)", fontSize: 13 }}>
+                  <strong className="num" style={{ color: "var(--ink)", fontSize: 13 }}>
                     {items[hover].cumulative.toFixed(1)}% of all scrap
                   </strong>
                 </div>
@@ -431,7 +431,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
           Useful many (&gt;80% tail)
         </span>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 16, height: 2, background: "var(--ink, #ffffff)" }} />
+          <span style={{ width: 16, height: 2, background: "var(--ink)" }} />
           Cumulative Running Total (%)
         </span>
       </div>
@@ -441,13 +441,13 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left", border: "1px solid var(--border)" }}>
             <thead>
               <tr style={{ background: "var(--surface-2)", borderBottom: "2px solid var(--border-strong)" }}>
-                <th style={{ padding: "8px 12px", fontFamily: "var(--font-display)", fontWeight: 700 }}>Rank</th>
-                <th style={{ padding: "8px 12px", fontFamily: "var(--font-display)", fontWeight: 700 }}>Defect Category</th>
-                <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 700 }}>Count</th>
-                <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 700 }}>Contribution %</th>
-                <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 700 }}>Cumulative %</th>
-                <th style={{ padding: "8px 12px", textAlign: "center", fontFamily: "var(--font-display)", fontWeight: 700 }}>Classification</th>
-                <th style={{ padding: "8px 12px", textAlign: "center", fontFamily: "var(--font-display)", fontWeight: 700 }}>Feed</th>
+                <th style={{ padding: "8px 12px", fontFamily: "var(--font-display)", fontWeight: 600 }}>Rank</th>
+                <th style={{ padding: "8px 12px", fontFamily: "var(--font-display)", fontWeight: 600 }}>Defect Category</th>
+                <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 600 }}>Count</th>
+                <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 600 }}>Contribution %</th>
+                <th style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-display)", fontWeight: 600 }}>Cumulative %</th>
+                <th style={{ padding: "8px 12px", textAlign: "center", fontFamily: "var(--font-display)", fontWeight: 600 }}>Classification</th>
+                <th style={{ padding: "8px 12px", textAlign: "center", fontFamily: "var(--font-display)", fontWeight: 600 }}>Feed</th>
               </tr>
             </thead>
             <tbody>
@@ -464,7 +464,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                       padding: "2px 6px", 
                       borderRadius: 4, 
                       fontSize: 10.5, 
-                      fontWeight: 700, 
+                      fontWeight: 600, 
                       textTransform: "uppercase",
                       background: it.isVitalFew ? "var(--accent-weak)" : "var(--border-strong)",
                       color: it.isVitalFew ? "var(--accent)" : "var(--text-3)"
@@ -483,7 +483,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
                           onClick={(e) => e.stopPropagation()}
                           style={{
                             fontSize: 11,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             color: ready ? "var(--positive)" : "var(--warning)",
                             textDecoration: "none",
                           }}

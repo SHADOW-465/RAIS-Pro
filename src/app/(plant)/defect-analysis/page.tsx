@@ -158,7 +158,7 @@ export default function DefectAnalysisPage() {
     <AppShell active="defect" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 800, margin: "0 0 4px", color: "var(--text)" }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text)" }}>
             Defect Analysis
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
@@ -174,7 +174,7 @@ export default function DefectAnalysisPage() {
 
         {!isLoading && (!events || events.length === 0) && (
           <div style={{ padding: "48px 24px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)" }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, marginBottom: 8, color: "var(--text)" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, marginBottom: 8, color: "var(--text)" }}>
               No Data Available
             </div>
             <p className="muted" style={{ fontSize: 13, margin: "0 0 16px" }}>
@@ -183,8 +183,8 @@ export default function DefectAnalysisPage() {
             <a
               href="/staging"
               style={{
-                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12.5,
-                color: "var(--paper)", background: "var(--accent)", border: "none",
+                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 12.5,
+                color: "var(--on-accent)", background: "var(--accent)", border: "none",
                 padding: "8px 16px", borderRadius: "var(--radius-md)", cursor: "pointer"
               }}
             >
@@ -302,7 +302,7 @@ export default function DefectAnalysisPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                     <div>
-                      <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 2px", color: "var(--text)" }}>
+                      <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 2px", color: "var(--text)" }}>
                         Defect Mode Breakdown ({chartDefects.length} Active Defects)
                       </h2>
                       <span className="muted" style={{ fontSize: 12, fontFamily: "var(--font-mono)" }}>
@@ -313,7 +313,7 @@ export default function DefectAnalysisPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                       {/* Size Orientation Layout Option */}
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-3)", fontWeight: 700, letterSpacing: "0.04em" }}>
+                        <span style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-3)", fontWeight: 600, letterSpacing: "0.04em" }}>
                           LAYOUT:
                         </span>
                         <div
@@ -339,7 +339,7 @@ export default function DefectAnalysisPage() {
                               color: layoutTemplate === "2-wide" ? "var(--accent)" : "var(--text-3)",
                               fontFamily: "var(--font-mono)",
                               fontSize: 10,
-                              fontWeight: 700,
+                              fontWeight: 600,
                               letterSpacing: "0.03em",
                               cursor: "pointer",
                               display: "inline-flex",
@@ -363,7 +363,7 @@ export default function DefectAnalysisPage() {
                               color: layoutTemplate === "1-full" ? "var(--accent)" : "var(--text-3)",
                               fontFamily: "var(--font-mono)",
                               fontSize: 10,
-                              fontWeight: 700,
+                              fontWeight: 600,
                               letterSpacing: "0.03em",
                               cursor: "pointer",
                               display: "inline-flex",
@@ -387,7 +387,7 @@ export default function DefectAnalysisPage() {
                               color: layoutTemplate === "3-grid" ? "var(--accent)" : "var(--text-3)",
                               fontFamily: "var(--font-mono)",
                               fontSize: 10,
-                              fontWeight: 700,
+                              fontWeight: 600,
                               letterSpacing: "0.03em",
                               cursor: "pointer",
                               display: "inline-flex",
@@ -411,7 +411,7 @@ export default function DefectAnalysisPage() {
                               color: layoutTemplate === "4-compact" ? "var(--accent)" : "var(--text-3)",
                               fontFamily: "var(--font-mono)",
                               fontSize: 10,
-                              fontWeight: 700,
+                              fontWeight: 600,
                               letterSpacing: "0.03em",
                               cursor: "pointer",
                               display: "inline-flex",
@@ -449,7 +449,7 @@ export default function DefectAnalysisPage() {
                             color: defectMetric === "qty" ? "var(--accent)" : "var(--text-3)",
                             fontFamily: "var(--font-mono)",
                             fontSize: 10,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             letterSpacing: "0.03em",
                             cursor: "pointer",
                             transition: "all 0.15s ease",
@@ -468,7 +468,7 @@ export default function DefectAnalysisPage() {
                             color: defectMetric === "rate" ? "var(--accent)" : "var(--text-3)",
                             fontFamily: "var(--font-mono)",
                             fontSize: 10,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             letterSpacing: "0.03em",
                             cursor: "pointer",
                             transition: "all 0.15s ease",
@@ -676,7 +676,7 @@ export default function DefectAnalysisPage() {
                 {/* Full-width Spatiotemporal Defect Hotspot Matrix */}
                 {heatRows.length > 0 && heatCols.length > 0 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--text)" }}>
+                    <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--text)" }}>
                       Longitudinal Defect Hotspots
                     </h2>
                     <Card
@@ -700,7 +700,7 @@ export default function DefectAnalysisPage() {
 
                 {/* Defect Mode Share & Contribution (2 Balanced Columns) */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--text)" }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--text)" }}>
                     Defect Mode Share &amp; Contribution
                   </h2>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: 20 }}>

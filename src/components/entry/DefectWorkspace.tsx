@@ -88,7 +88,7 @@ export default function DefectWorkspace({
             <h2
               style={{
                 fontSize: 14,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text)",
                 margin: 0,
                 letterSpacing: "-0.01em",
@@ -101,7 +101,7 @@ export default function DefectWorkspace({
             <span
               style={{
                 fontSize: 11.5,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text-3)",
                 background: "var(--surface-2)",
                 padding: "2px 8px",
@@ -192,17 +192,17 @@ export default function DefectWorkspace({
             <span style={{ color: "var(--text-3)" }}>No rejections logged</span>
           )}
           {reject > 0 && defectSum === reject && (
-            <span style={{ color: "var(--positive)", fontWeight: 700 }}>
+            <span style={{ color: "var(--positive)", fontWeight: 600 }}>
               ✓ All {reject} rejected items fully accounted for
             </span>
           )}
           {reject > 0 && defectSum < reject && (
-            <span style={{ color: "var(--status-warn, #d97706)", fontWeight: 700 }}>
+            <span style={{ color: "var(--status-warn)", fontWeight: 600 }}>
               ⚠ {unexplained} of {reject} missing defect reasons
             </span>
           )}
           {defectSum > reject && (
-            <span style={{ color: "var(--critical)", fontWeight: 700 }}>
+            <span style={{ color: "var(--critical)", fontWeight: 600 }}>
               ✕ Overcounted by +{overDefect} (Defect sum {defectSum} &gt; Reject {reject})
             </span>
           )}
@@ -251,7 +251,7 @@ export default function DefectWorkspace({
                   <div
                     style={{
                       fontSize: 13,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       color: "var(--text)",
                     }}
                   >
@@ -362,7 +362,7 @@ function DefectTileGrid({
               flexDirection: "column",
               alignItems: "center",
               position: "relative",
-              boxShadow: active ? "0 1px 3px rgba(200, 66, 28, 0.1)" : "none",
+              boxShadow: active ? "0 1px 3px rgba(37, 99, 235, 0.1)" : "none",
             }}
           >
             <span
@@ -372,7 +372,7 @@ function DefectTileGrid({
                 left: 6,
                 fontFamily: "var(--font-mono)",
                 fontSize: 10,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text-3)",
               }}
             >
@@ -384,7 +384,7 @@ function DefectTileGrid({
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: 12,
-                fontWeight: active ? 800 : 600,
+                fontWeight: active ? 600 : 600,
                 color: active ? "var(--accent)" : "var(--text)",
                 textAlign: "center",
                 marginBottom: 6,
@@ -410,7 +410,7 @@ function DefectTileGrid({
                 textAlign: "center",
                 fontFamily: "var(--font-mono)",
                 fontSize: 14,
-                fontWeight: 700,
+                fontWeight: 600,
                 background: "var(--surface)",
                 border: active
                   ? "1px solid var(--accent)"

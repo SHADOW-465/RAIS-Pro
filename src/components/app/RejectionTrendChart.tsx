@@ -21,10 +21,10 @@ import {
 import { useTweaks } from "@/components/editorial/TweaksContext";
 
 export const OVERLAY_COLORS: Record<CompareOffset, string> = {
-  "prev-day": "#94a3b8",
-  "prev-week": "#64748b",
-  "prev-month": "#2563EB",
-  "prev-year": "#0D9488",
+  "prev-day": "var(--viz-8)",
+  "prev-week": "var(--viz-2)",
+  "prev-month": "var(--viz-3)",
+  "prev-year": "var(--viz-5)",
 };
 
 export const OFFSET_CHIP: Record<CompareOffset, string> = {
@@ -242,7 +242,7 @@ function TrendBarChart({
                 y={y(target) - 6}
                 fontSize={11}
                 fill="var(--critical)"
-                fontWeight={800}
+                fontWeight={600}
                 textAnchor="end"
               >
                 TARGET {pct(target)}
@@ -256,11 +256,11 @@ function TrendBarChart({
                 y1={y(avg)}
                 x2={canvasWidth - padX}
                 y2={y(avg)}
-                stroke="#C8421C"
+                stroke="var(--text-3)"
                 strokeDasharray="6,3"
                 strokeWidth={1.4}
               />
-              <text x={padX + 6} y={y(avg) - 6} fontSize={11} fill="#C8421C" fontWeight={800}>
+              <text x={padX + 6} y={y(avg) - 6} fontSize={11} fill="var(--text-3)" fontWeight={600}>
                 MEAN {pct(avg)}
               </text>
             </g>

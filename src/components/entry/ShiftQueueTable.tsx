@@ -102,11 +102,11 @@ export default function ShiftQueueTable({
           <td style={{ padding: "10px 14px" }}>
             <div style={{ fontWeight: 600, color: "var(--text)" }}>{rec.operator}</div>
             {rec.synced ? (
-              <div style={{ color: "var(--positive)", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ color: "var(--positive)", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                 <span>●</span> On ledger
               </div>
             ) : (
-              <div style={{ color: "var(--status-warn, #d97706)", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ color: "var(--status-warn)", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                 <span>●</span> Not on ledger yet
               </div>
             )}
@@ -116,7 +116,7 @@ export default function ShiftQueueTable({
             <div style={{ color: "var(--text-3)", fontSize: 11 }}>{rec.stageName}</div>
           </td>
           <td style={{ padding: "10px 14px" }}>{rec.productType || "2 way"}</td>
-          <td style={{ padding: "10px 14px", fontFamily: "var(--font-mono)", fontWeight: 700 }}>
+          <td style={{ padding: "10px 14px", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
             {rec.batchId}
             {rec.duplicateConfirmedOf && (
               <div
@@ -126,7 +126,7 @@ export default function ShiftQueueTable({
                   padding: "1px 6px",
                   borderRadius: 999,
                   fontSize: 10,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: "var(--accent)",
                   background: "var(--accent-weak)",
                   border: "1px solid color-mix(in srgb, var(--accent) 30%, transparent)",
@@ -139,10 +139,10 @@ export default function ShiftQueueTable({
           <td style={{ padding: "10px 14px", textAlign: "center", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{rec.checked}</td>
           <td style={{ padding: "10px 14px", textAlign: "center" }}>{primaryRow ? (rec.trolleys ?? 0) : "—"}</td>
           <td style={{ padding: "10px 14px", textAlign: "center" }}>{secondaryRow ? (rec.bin || "—") : "—"}</td>
-          <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "var(--positive)", fontFamily: "var(--font-mono)" }}>
+          <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, color: "var(--positive)", fontFamily: "var(--font-mono)" }}>
             {secondaryRow ? "—" : rec.accept}
           </td>
-          <td style={{ padding: "10px 14px", textAlign: "center", color: "var(--status-warn, #d97706)", fontFamily: "var(--font-mono)" }}>
+          <td style={{ padding: "10px 14px", textAlign: "center", color: "var(--status-warn)", fontFamily: "var(--font-mono)" }}>
             {primaryRow || secondaryRow ? "—" : rec.hold}
           </td>
           <td style={{ padding: "10px 14px", textAlign: "center", fontFamily: "var(--font-mono)" }}>
@@ -150,14 +150,14 @@ export default function ShiftQueueTable({
               "—"
             ) : (
               <>
-                <span style={{ color: rec.reject > 0 ? "var(--critical)" : "var(--text-3)", fontWeight: 700 }}>
+                <span style={{ color: rec.reject > 0 ? "var(--critical)" : "var(--text-3)", fontWeight: 600 }}>
                   {rec.reject}
                 </span>
                 {defLog && <div style={{ fontSize: 10.5, color: "var(--text-3)", marginTop: 2 }}>{defLog}</div>}
               </>
             )}
           </td>
-          <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+          <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
             {yieldPct}
           </td>
           <td style={{ padding: "10px 14px", textAlign: "right" }}>
@@ -173,10 +173,10 @@ export default function ShiftQueueTable({
                     padding: "4px 8px",
                     borderRadius: 4,
                     background: "var(--accent)",
-                    color: "var(--text-invert)",
+                    color: "var(--on-accent)",
                     border: "none",
                     fontSize: 11,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: "pointer",
                   }}
                 >
@@ -220,7 +220,7 @@ export default function ShiftQueueTable({
                     color: "var(--critical)",
                     border: "1px solid color-mix(in srgb, var(--critical) 30%, transparent)",
                     fontSize: 11,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: "pointer",
                   }}
                 >
@@ -305,7 +305,7 @@ export default function ShiftQueueTable({
             <h2
               style={{
                 fontSize: 15,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text)",
                 margin: 0,
                 letterSpacing: "-0.01em",
@@ -320,7 +320,7 @@ export default function ShiftQueueTable({
                 onClick={() => setLedgerFilter("all")}
                 style={{
                   fontSize: 11.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   padding: "3px 9px",
                   borderRadius: 999,
                   background: ledgerFilter === "all" ? "var(--surface-3)" : "var(--surface-2)",
@@ -343,14 +343,14 @@ export default function ShiftQueueTable({
                 onClick={() => setLedgerFilter(ledgerFilter === "synced" ? "all" : "synced")}
                 style={{
                   fontSize: 11.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   padding: "3px 9px",
                   borderRadius: 999,
                   background: ledgerFilter === "synced"
                     ? "var(--positive)"
                     : "var(--positive-weak)",
                   color: ledgerFilter === "synced"
-                    ? "#ffffff"
+                    ? "var(--text-invert)"
                     : "var(--positive)",
                   border: ledgerFilter === "synced"
                     ? "1px solid var(--positive)"
@@ -374,19 +374,19 @@ export default function ShiftQueueTable({
                 onClick={() => setLedgerFilter(ledgerFilter === "pending" ? "all" : "pending")}
                 style={{
                   fontSize: 11.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   padding: "3px 9px",
                   borderRadius: 999,
                   background: ledgerFilter === "pending"
-                    ? "var(--status-warn, #d97706)"
+                    ? "var(--status-warn)"
                     : "var(--warning-weak)",
                   color: ledgerFilter === "pending"
-                    ? "#ffffff"
-                    : "var(--status-warn, #d97706)",
+                    ? "var(--text-invert)"
+                    : "var(--status-warn)",
                   border: ledgerFilter === "pending"
-                    ? "1px solid var(--status-warn, #d97706)"
-                    : "1px solid color-mix(in srgb, var(--status-warn, #d97706) 30%, transparent)",
-                  boxShadow: ledgerFilter === "pending" ? "0 0 0 2px color-mix(in srgb, var(--status-warn, #d97706) 25%, transparent)" : "none",
+                    ? "1px solid var(--status-warn)"
+                    : "1px solid color-mix(in srgb, var(--status-warn) 30%, transparent)",
+                  boxShadow: ledgerFilter === "pending" ? "0 0 0 2px color-mix(in srgb, var(--status-warn) 25%, transparent)" : "none",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -442,10 +442,10 @@ export default function ShiftQueueTable({
                 padding: "6px 14px",
                 borderRadius: "var(--radius-sm, 6px)",
                 background: "var(--accent)",
-                color: "var(--text-invert)",
+                color: "var(--on-accent)",
                 border: "none",
                 fontSize: 12,
-                fontWeight: 700,
+                fontWeight: 600,
                 cursor: isSyncingAll ? "not-allowed" : "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -552,18 +552,18 @@ export default function ShiftQueueTable({
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ background: "var(--surface-2)", borderBottom: "1px solid var(--border)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, color: "var(--text-3)" }}>Operator & Status</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, color: "var(--text-3)" }}>Station</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, color: "var(--text-3)" }}>Type</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, color: "var(--text-3)" }}>Batch ID</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "var(--text-3)" }}>Checked</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "var(--text-3)" }}>Trolleys</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "var(--text-3)" }}>Bin</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "var(--text-3)" }}>Accept</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "var(--text-3)" }}>Hold</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "var(--text-3)" }}>Reject</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "var(--text-3)" }}>Yield</th>
-                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: "var(--text-3)" }}>Action</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, color: "var(--text-3)" }}>Operator & Status</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, color: "var(--text-3)" }}>Station</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, color: "var(--text-3)" }}>Type</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, color: "var(--text-3)" }}>Batch ID</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, color: "var(--text-3)" }}>Checked</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, color: "var(--text-3)" }}>Trolleys</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, color: "var(--text-3)" }}>Bin</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, color: "var(--text-3)" }}>Accept</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, color: "var(--text-3)" }}>Hold</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, color: "var(--text-3)" }}>Reject</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, color: "var(--text-3)" }}>Yield</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, color: "var(--text-3)" }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -572,7 +572,7 @@ export default function ShiftQueueTable({
                   {onLedgerRows.length > 0 && (
                     <>
                       <tr style={{ background: "var(--surface-3)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-                        <td colSpan={12} style={{ padding: "8px 14px", fontWeight: 700, fontSize: 11.5, color: "var(--positive)" }}>
+                        <td colSpan={12} style={{ padding: "8px 14px", fontWeight: 600, fontSize: 11.5, color: "var(--positive)" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span style={{ fontSize: 9 }}>●</span>
                             <span>On Ledger — Confirmed ({onLedgerRows.length} {onLedgerRows.length === 1 ? "batch" : "batches"})</span>
@@ -586,7 +586,7 @@ export default function ShiftQueueTable({
                   {notOnLedgerRows.length > 0 && (
                     <>
                       <tr style={{ background: "var(--surface-3)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-                        <td colSpan={12} style={{ padding: "8px 14px", fontWeight: 700, fontSize: 11.5, color: "var(--status-warn, #d97706)" }}>
+                        <td colSpan={12} style={{ padding: "8px 14px", fontWeight: 600, fontSize: 11.5, color: "var(--status-warn)" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span style={{ fontSize: 9 }}>●</span>
                             <span>Not on Ledger — Pending Sync ({notOnLedgerRows.length} {notOnLedgerRows.length === 1 ? "batch" : "batches"})</span>

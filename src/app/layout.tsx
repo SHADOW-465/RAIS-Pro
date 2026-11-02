@@ -38,7 +38,7 @@ export default function RootLayout({
                 let theme = null;
                 try { theme = JSON.parse(localStorage.getItem('moid:theme')).data; } catch (_) {}
                 if (theme !== 'light' && theme !== 'dark') theme = localStorage.theme;
-                if (theme !== 'light' && theme !== 'dark') theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                if (theme !== 'light' && theme !== 'dark') theme = 'light'; // light is the product default; dark is opt-in
                 document.documentElement.setAttribute('data-theme', theme);
               } catch (_) {}
             `,

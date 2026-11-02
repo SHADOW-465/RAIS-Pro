@@ -337,7 +337,7 @@ export default function RolesAccess() {
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: "block", fontSize: 13, fontWeight: 550 }}>{r.label}</span>
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 600 }}>{r.label}</span>
                   <span className="small" style={{ color: "var(--text-3)" }}>
                     {held > 0 ? `${held} login${held === 1 ? "" : "s"}` : r.title || "no logins"}
                     {r.active ? "" : " · disabled"}
@@ -480,7 +480,7 @@ export default function RolesAccess() {
                       fontSize: 12,
                       cursor: "pointer",
                       font: "inherit",
-                      fontWeight: 550,
+                      fontWeight: 600,
                       border: `1px solid ${on ? "var(--accent)" : "var(--border-strong)"}`,
                       background: on ? "var(--accent-weak)" : "transparent",
                       color: "inherit",

@@ -476,7 +476,7 @@ export default function ChartBuilder({
                 background: "var(--surface-2)",
               }}
             >
-              <span className="muted" style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
+              <span className="muted" style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
                 Chart options
               </span>
 
@@ -582,9 +582,9 @@ export default function ChartBuilder({
                   borderRadius: 9999,
                   border: "1px solid var(--accent)",
                   background: "var(--accent)",
-                  color: "var(--text-invert)",
+                  color: "var(--on-accent)",
                   fontSize: 12,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   cursor: "pointer",
                 }}
               >
@@ -642,7 +642,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
       <span
         className="muted"
-        style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, minWidth: 116 }}
+        style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600, minWidth: 116 }}
       >
         {label}
       </span>
@@ -656,7 +656,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function OptRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span className="muted" style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
+      <span className="muted" style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
         {label}
       </span>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{children}</div>

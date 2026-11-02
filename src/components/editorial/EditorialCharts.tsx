@@ -194,7 +194,7 @@ export function TrendLine({
                 x={canvasWidth - padR}
                 y={ys(target) - 6}
                 fontSize="11"
-                fontWeight="700"
+                fontWeight="600"
                 textAnchor="end"
                 fontFamily="var(--font-mono)"
                 fill="var(--text-3)"
@@ -249,7 +249,7 @@ export function TrendLine({
               y={ys(values[lastIdx]) - 10}
               fontSize="14"
               fontFamily="var(--font-mono)"
-              fontWeight="800"
+              fontWeight="600"
               fill="var(--viz-1)"
             >
               {values[lastIdx].toFixed(2)}%
@@ -296,8 +296,8 @@ export function TrendLine({
               fontSize: 11,
             }}
           >
-            <div style={{ fontWeight: 700, color: "var(--text)", marginBottom: 2 }}>{cycles[hoveredIdx].toUpperCase()}</div>
-            <div style={{ color: "var(--viz-1)", fontFamily: "var(--font-mono)", fontWeight: 800 }}>
+            <div style={{ fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{cycles[hoveredIdx].toUpperCase()}</div>
+            <div style={{ color: "var(--viz-1)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
               Value: {values[hoveredIdx].toFixed(2)}%
             </div>
           </div>
@@ -358,7 +358,7 @@ export function HorizontalBars({
               fontSize="13"
               textAnchor="end"
               fontFamily="var(--font-sans)"
-              fontWeight={isTop ? 700 : 500}
+              fontWeight={isTop ? 600 : 500}
               fill="var(--text)"
             >
               {d[labelKey]}
@@ -378,7 +378,7 @@ export function HorizontalBars({
               y={cy + 4}
               fontSize="12"
               fontFamily="var(--font-mono)"
-              fontWeight="700"
+              fontWeight="600"
               fill="var(--text)"
             >
               {v}
@@ -522,7 +522,7 @@ export function VerticalBars({
                 x={canvasWidth - padR}
                 y={padT + innerH - (target / max) * innerH - 4}
                 fontSize="11"
-                fontWeight="700"
+                fontWeight="600"
                 textAnchor="end"
                 fontFamily="var(--font-mono)"
                 fill="var(--text-3)"
@@ -574,7 +574,7 @@ export function VerticalBars({
                     x={x + barW / 2}
                     y={y - 24}
                     fontSize="11"
-                    fontWeight="800"
+                    fontWeight="600"
                     textAnchor="middle"
                     fill="var(--critical)"
                     fontFamily="var(--font-sans)"
@@ -587,7 +587,7 @@ export function VerticalBars({
                   x={x + barW / 2}
                   y={y - 8}
                   fontSize={v > 1000 ? "13" : "15"}
-                  fontWeight="800"
+                  fontWeight="600"
                   textAnchor="middle"
                   fontFamily="var(--font-mono)"
                   fill={isWorst ? "var(--critical)" : "var(--text)"}
@@ -647,8 +647,8 @@ export function VerticalBars({
               fontSize: 11,
             }}
           >
-            <div style={{ fontWeight: 700, color: "var(--text)", marginBottom: 2 }}>{data[hoveredIdx][labelKey]}</div>
-            <div style={{ color: hoveredIdx === worstIdx ? "var(--critical)" : "var(--viz-1)", fontFamily: "var(--font-mono)", fontWeight: 800 }}>
+            <div style={{ fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{data[hoveredIdx][labelKey]}</div>
+            <div style={{ color: hoveredIdx === worstIdx ? "var(--critical)" : "var(--viz-1)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
               Value: {(data[hoveredIdx][valueKey] as number).toFixed(2)}{suffix}
             </div>
             {subLabelFn && (
@@ -748,7 +748,7 @@ export function Donut({
         x={cx}
         y={cy + 16}
         fontSize="26"
-        fontWeight="800"
+        fontWeight="600"
         textAnchor="middle"
         fontFamily="var(--font-display)"
         fill="var(--text)"

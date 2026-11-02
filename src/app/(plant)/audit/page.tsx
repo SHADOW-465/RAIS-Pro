@@ -119,7 +119,7 @@ function TrackPills({ lineStatus }: { lineStatus: LineStatus }) {
         const tagColor = isDone
           ? "var(--positive)"
           : isStarted
-            ? "var(--status-warn, #d97706)"
+            ? "var(--status-warn)"
             : "var(--text-3)";
         const tagBg = isDone
           ? "var(--positive-weak)"
@@ -152,7 +152,7 @@ function TrackPills({ lineStatus }: { lineStatus: LineStatus }) {
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: "10px",
-                fontWeight: isDone || isStarted ? 700 : 400,
+                fontWeight: isDone || isStarted ? 600 : 400,
                 opacity: 0.95,
               }}
             >
@@ -951,7 +951,7 @@ export default function AuditPage() {
                   <span
                     style={{
                       fontSize: 10.5,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                       color: "var(--text-3)",
@@ -1010,7 +1010,7 @@ export default function AuditPage() {
                           border: `1px solid ${active ? btn.borderActive : "var(--border)"}`,
                           background: active ? btn.bgActive : "var(--surface-2)",
                           color: active ? btn.tone : "var(--text-2)",
-                          fontWeight: active ? 700 : 600,
+                          fontWeight: active ? 600 : 600,
                           fontSize: 12,
                           cursor: "pointer",
                           display: "inline-flex",
@@ -1040,7 +1040,7 @@ export default function AuditPage() {
                           style={{
                             fontSize: 11,
                             fontFamily: "var(--font-mono)",
-                            fontWeight: 700,
+                            fontWeight: 600,
                             padding: "1px 6px",
                             borderRadius: 999,
                             background: active
@@ -1086,7 +1086,7 @@ export default function AuditPage() {
                           : "1px solid var(--border)",
                     }}
                   >
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--positive)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--positive)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       OK batch format
                     </div>
                     <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 12 }}>
@@ -1098,7 +1098,7 @@ export default function AuditPage() {
                         { code: "24", tag: "Size" },
                       ].map((seg, i) =>
                         seg.code === "-" ? (
-                          <span key={i} style={{ color: "var(--text-3)", fontWeight: 700 }}>-</span>
+                          <span key={i} style={{ color: "var(--text-3)", fontWeight: 600 }}>-</span>
                         ) : (
                           <span
                             key={i}
@@ -1135,7 +1135,7 @@ export default function AuditPage() {
                           : "1px solid var(--border)",
                     }}
                   >
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       Convert batch format
                     </div>
                     <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 12 }}>
@@ -1149,7 +1149,7 @@ export default function AuditPage() {
                         { code: "22", tag: "Convert size", accent: true },
                       ].map((seg, i) =>
                         seg.code === "-" ? (
-                          <span key={i} style={{ color: "var(--text-3)", fontWeight: 700 }}>-</span>
+                          <span key={i} style={{ color: "var(--text-3)", fontWeight: 600 }}>-</span>
                         ) : (
                           <span
                             key={i}
@@ -1367,14 +1367,14 @@ export default function AuditPage() {
                           }}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: "var(--text-sm)", fontWeight: 800, color: sec.tone }}>
+                            <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: sec.tone }}>
                               {sec.title}
                             </span>
                             <span
                               style={{
                                 fontFamily: "var(--font-mono)",
                                 fontSize: 11,
-                                fontWeight: 700,
+                                fontWeight: 600,
                                 padding: "1px 7px",
                                 borderRadius: 999,
                                 background: "var(--surface)",
@@ -1410,7 +1410,7 @@ export default function AuditPage() {
                         zIndex: 1,
                       }}
                     >
-                      <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text)" }}>
+                      <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text)" }}>
                         {p.label}
                       </span>
                       <span className="small" style={{ color: "var(--text-3)" }}>
@@ -1631,7 +1631,7 @@ function BatchAccordion({
               }}
             >
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 800, color: "var(--accent)", textTransform: "uppercase", marginRight: 4, fontFamily: "var(--font-sans)" }}>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--accent)", textTransform: "uppercase", marginRight: 4, fontFamily: "var(--font-sans)" }}>
                   Convert batch:
                 </span>
                 {[
@@ -1644,7 +1644,7 @@ function BatchAccordion({
                   { code: convertInfo.breakdown.convertSize ?? "", tag: "Convert size", accent: true },
                 ].map((seg, idx) =>
                   seg.code === "-" ? (
-                    <span key={idx} style={{ color: "var(--text-3)", fontWeight: 700 }}>-</span>
+                    <span key={idx} style={{ color: "var(--text-3)", fontWeight: 600 }}>-</span>
                   ) : (
                     <span
                       key={idx}
@@ -1711,7 +1711,7 @@ function BatchAccordion({
                 const toneColor = isDone
                   ? "var(--positive)"
                   : isStarted
-                    ? "var(--status-warn, #d97706)"
+                    ? "var(--status-warn)"
                     : "var(--text-3)";
                 const capText = isDone
                   ? "COMPLETED"
@@ -1756,7 +1756,7 @@ function BatchAccordion({
                             isDone
                               ? "color-mix(in srgb, var(--positive) 35%, transparent)"
                               : isStarted
-                                ? "color-mix(in srgb, var(--status-warn, #d97706) 35%, transparent)"
+                                ? "color-mix(in srgb, var(--status-warn) 35%, transparent)"
                                 : "var(--border)"
                           }`,
                       boxShadow: isHovered
@@ -1771,7 +1771,7 @@ function BatchAccordion({
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", color: toneColor }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", color: toneColor }}>
                         {capText}
                       </span>
                       {isHovered && (
@@ -1861,7 +1861,7 @@ function BatchAccordion({
                     <span
                       style={{
                         fontSize: 11,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         letterSpacing: "0.04em",
                         color: isTargetLane ? "var(--accent)" : "var(--text-3)",
                         fontFamily: "var(--font-mono)",
@@ -1937,7 +1937,7 @@ function BatchAccordion({
                               opacity: 0.85,
                               fontFamily: "var(--font-mono)",
                               fontSize: 10,
-                              fontWeight: 700,
+                              fontWeight: 600,
                               padding: "1px 5px",
                               borderRadius: 4,
                               background: on
@@ -1998,7 +1998,7 @@ function BatchAccordion({
                     background: "color-mix(in srgb, var(--accent) 12%, var(--surface))",
                     border: "1px solid color-mix(in srgb, var(--accent) 40%, var(--border))",
                     color: "var(--accent)",
-                    fontWeight: 700,
+                    fontWeight: 600,
                     fontSize: 12,
                     fontFamily: "var(--font-sans)",
                   }}
@@ -2098,7 +2098,7 @@ function EntryGrid({
           values are current (superseded history via History)
         </span>
         {anyFocus && (
-          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 11 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 11 }}>
             {focus?.code} matched
           </span>
         )}
@@ -2178,7 +2178,7 @@ function EntryGrid({
                       placeItems: "center",
                       cursor: erasingId === r.id ? "wait" : "pointer",
                       fontSize: 14,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       lineHeight: 1,
                     }}
                   >
@@ -2226,18 +2226,18 @@ function EntryGrid({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase" }}>
                     Checked
                   </div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                     {r.checked > 0 ? r.checked.toLocaleString() : "—"}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase" }}>
                     Accepted
                   </div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--positive)" }}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--positive)" }}>
                     {r.accepted > 0 ? r.accepted.toLocaleString() : "—"}
                   </div>
                 </div>
@@ -2246,22 +2246,22 @@ function EntryGrid({
                     summed to Accepted + Hold + Rejected. */}
                 {r.rework > 0 && (
                   <div>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase" }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase" }}>
                       Hold
                     </div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--warning)" }}>
+                    <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--warning)" }}>
                       {r.rework.toLocaleString()}
                     </div>
                   </div>
                 )}
                 <div>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase" }}>
                     Rejected
                   </div>
                   <div
                     style={{
                       fontFamily: "var(--font-mono)",
-                      fontWeight: 700,
+                      fontWeight: 600,
                       color: r.rejected > 0 ? "var(--critical)" : "var(--text-3)",
                     }}
                   >
@@ -2334,7 +2334,7 @@ function FocusIssueBanner({
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 11,
-              fontWeight: 700,
+              fontWeight: 600,
               padding: "2px 8px",
               borderRadius: 999,
               background: "var(--surface)",
@@ -2344,7 +2344,7 @@ function FocusIssueBanner({
           >
             {focus.code}
           </span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: sevColor }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: sevColor }}>
             Focused integrity issue
           </span>
           {locus ? (
@@ -2402,11 +2402,11 @@ function FocusIssueBanner({
             href={fixHref}
             style={{
               fontSize: 12,
-              fontWeight: 700,
+              fontWeight: 600,
               padding: "7px 12px",
               borderRadius: 8,
               background: "var(--accent)",
-              color: "var(--text-invert, #fff)",
+              color: "var(--on-accent)",
               textDecoration: "none",
             }}
           >
@@ -2659,7 +2659,7 @@ function StatPill({
         style={{
           fontFamily: "var(--font-mono)",
           fontSize: 22,
-          fontWeight: 700,
+          fontWeight: 600,
           letterSpacing: "-0.03em",
           color: tone === "neutral" ? "var(--text)" : t.fg,
           lineHeight: 1.15,
@@ -2741,7 +2741,7 @@ function Chevron({ open, tone = "neutral" }: { open: boolean; tone?: Tone }) {
         color: open && tone !== "neutral" ? t.fg : "var(--text-2)",
         border: open ? `1px solid ${t.border}` : "1px solid transparent",
         fontSize: 11,
-        fontWeight: 700,
+        fontWeight: 600,
         flexShrink: 0,
         transform: open ? "rotate(0deg)" : "rotate(-90deg)",
       }}
@@ -3014,7 +3014,7 @@ function AuditCustomRangePill({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)" }}>
+            <span style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)" }}>
               Custom Range
             </span>
             {hasRange && (
@@ -3061,7 +3061,7 @@ function AuditCustomRangePill({
               padding: "5px 12px",
               borderRadius: 6,
               background: "var(--accent)",
-              color: "var(--text-invert, #fff)",
+              color: "var(--on-accent)",
               fontSize: 11.5,
               fontWeight: 600,
               border: "none",

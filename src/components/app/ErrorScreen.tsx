@@ -28,13 +28,13 @@ export function ErrorScreen({ error, retry }: { error: Error & { digest?: string
     padding: 24,
     textAlign: "center" as const,
     fontFamily: "var(--font-sans, system-ui, sans-serif)",
-    color: "var(--text, #111)",
+    color: "var(--text)",
   };
   const button = {
     padding: "8px 16px",
     borderRadius: 6,
-    border: "1px solid var(--border-strong, #999)",
-    background: "var(--surface, #fff)",
+    border: "1px solid var(--border-strong)",
+    background: "var(--surface)",
     color: "inherit",
     font: "inherit",
     cursor: "pointer",

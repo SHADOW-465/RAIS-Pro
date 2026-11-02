@@ -30,7 +30,7 @@ export default function Pill({
         gap: 4,
         fontFamily: "var(--font-sans)",
         fontSize: 10,
-        fontWeight: 700,
+        fontWeight: 600,
         letterSpacing: "0.06em",
         textTransform: "uppercase",
         padding: "4px 10px",

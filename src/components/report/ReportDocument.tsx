@@ -68,7 +68,7 @@ export const REPORT_PRINT_CSS = `
 }
 .rp-doc .rp-kpi-tile .rp-kpi-label {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-3);
@@ -82,7 +82,7 @@ export const REPORT_PRINT_CSS = `
 .rp-doc .rp-kpi-tile .rp-kpi-value {
   font-family: var(--font-mono);
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 600;
   margin-top: 6px;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -90,7 +90,7 @@ export const REPORT_PRINT_CSS = `
 }
 .rp-doc .rp-section-title {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   margin: 0 0 10px;
   color: var(--text);
 }
@@ -99,18 +99,18 @@ export const REPORT_PRINT_CSS = `
   .rp-doc {
     width: 100% !important;
     max-width: none !important;
-    color: #14181f !important;
+    color: #18181B !important;
     /* Ink tokens — override dark UI theme for paper */
-    --text: #14181f;
-    --text-2: #3a4450;
-    --text-3: #5a6570;
-    --border: #c8ced6;
-    --border-strong: #9aa3ad;
+    --text: #18181B;
+    --text-2: #3F3F46;
+    --text-3: #52525B;
+    --border: #D4D4D8;
+    --border-strong: #A1A1AA;
     --surface: #ffffff;
-    --surface-2: #eef1f4;
+    --surface-2: #F4F4F5;
     --bg: #ffffff;
-    --accent: #C8421C;
-    --accent-weak: rgba(200, 66, 28, 0.14);
+    --accent: #2563EB;
+    --accent-weak: rgba(37, 99, 235, 0.14);
     --critical: #b42318;
     --positive: #067647;
   }
@@ -139,15 +139,15 @@ export const REPORT_PRINT_CSS = `
   }
   .rp-doc .rp-kpi-tile {
     background: #fff !important;
-    border: 1px solid #c8ced6 !important;
+    border: 1px solid #D4D4D8 !important;
     box-shadow: none !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .rp-doc .rp-kpi-tile .rp-kpi-label { color: #5a6570 !important; }
-  .rp-doc .rp-kpi-tile .rp-kpi-value { color: #14181f !important; }
-  .rp-doc .rp-section-title { color: #14181f !important; font-size: 12.5px !important; }
-  .rp-doc .muted { color: #5a6570 !important; }
+  .rp-doc .rp-kpi-tile .rp-kpi-label { color: #52525B !important; }
+  .rp-doc .rp-kpi-tile .rp-kpi-value { color: #18181B !important; }
+  .rp-doc .rp-section-title { color: #18181B !important; font-size: 12.5px !important; }
+  .rp-doc .muted { color: #52525B !important; }
   .rp-doc svg {
     max-width: 100% !important;
     -webkit-print-color-adjust: exact;
@@ -334,7 +334,7 @@ export default function ReportDocument({
     return (
       <div className="rp-doc">
         <header className="rp-masthead">
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Retired forensic package</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Retired forensic package</h1>
           <p className="body" style={{ marginTop: 8, color: "var(--text-2)" }}>
             The previous forensic book is not part of this product’s export path. It contained
             unsupported claims and is not generated. Open Reports and choose Financial Year Audit Pack.
@@ -356,10 +356,10 @@ export default function ReportDocument({
 
       {/* Masthead + KPIs pack together — not separate blank-heavy pages */}
       <header className="rp-masthead">
-        <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-3)", fontWeight: 700 }}>
+        <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-3)", fontWeight: 600 }}>
           Disposafe · Quality
         </div>
-        <h1 style={{ fontSize: 22, fontWeight: 800, margin: "6px 0 4px", lineHeight: 1.2, color: "var(--text)" }}>
+        <h1 style={{ fontSize: 22, fontWeight: 600, margin: "6px 0 4px", lineHeight: 1.2, color: "var(--text)" }}>
           {cover?.title ?? spec.title}
         </h1>
         <div style={{ fontSize: 12.5, color: "var(--text-2)", display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>

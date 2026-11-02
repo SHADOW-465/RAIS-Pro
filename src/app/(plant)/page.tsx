@@ -653,8 +653,8 @@ export default function Dashboard() {
           <button
             onClick={() => router.push("/staging")}
             style={{
-              fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 13, cursor: "pointer",
-              color: "var(--paper)", background: "var(--accent)", border: "none",
+              fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 13, cursor: "pointer",
+              color: "var(--on-accent)", background: "var(--accent)", border: "none",
               padding: "10px 20px", borderRadius: "var(--radius-md)",
             }}
           >
@@ -853,7 +853,7 @@ export default function Dashboard() {
                         gridTemplateColumns: "20px minmax(0, 1.3fr) 55px 70px 60px",
                         gap: "var(--space-2)",
                         fontSize: 10,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
                         color: "var(--text-3)",
@@ -870,7 +870,7 @@ export default function Dashboard() {
                         <Empty label="No defect data available for this period." />
                       ) : (
                         m.defects.slice(0, 5).map((d, i) => {
-                          const colors = ["#C8421C", "#2563EB", "#D97706", "#0D9488", "#EC4899"];
+                          const colors = ["var(--viz-1)", "var(--viz-2)", "var(--viz-3)", "var(--viz-4)", "var(--viz-5)"];
                           const rejRate = getDefectRejRate(d);
                           return (
                             <div key={d.label} style={{
@@ -890,7 +890,7 @@ export default function Dashboard() {
                                   <div style={{ width: `${Number.isFinite(d.pct) ? d.pct : 0}%`, height: "100%", background: colors[i % colors.length], borderRadius: 3 }} />
                                 </div>
                               </div>
-                              <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-2)" }}>{formatPercent(d.pct, 0) ?? "—"}</span>
+                              <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-2)" }}>{formatPercent(d.pct, 0) ?? "—"}</span>
                             </div>
                           );
                         })
@@ -1184,7 +1184,7 @@ export default function Dashboard() {
                                 <span
                                   style={{
                                     fontSize: 10,
-                                    fontWeight: 700,
+                                    fontWeight: 600,
                                     textTransform: "uppercase",
                                     letterSpacing: "0.04em",
                                     padding: "2px 8px",
@@ -1329,7 +1329,7 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
                   checked
                 </span>
               </span>
-              <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: over ? "var(--critical, #b42318)" : "var(--text-2)" }}>
+              <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: over ? "var(--critical)" : "var(--text-2)" }}>
                 −{num(s.rejected)} rejected ({pct(s.rejRate)})
               </span>
               {/* survivor bar: this gate's throughput as a share of line entry */}
@@ -1337,7 +1337,7 @@ function FunnelStrip({ stages, entryChecked, fpy, targetRej, onGateClick }: {
                 <span style={{
                   display: "block", height: "100%", borderRadius: 3,
                   width: `${Math.min((passed / denom) * 100, 100)}%`,
-                  background: over ? "var(--critical, #b42318)" : "var(--accent)",
+                  background: over ? "var(--critical)" : "var(--accent)",
                 }} />
               </span>
             </button>
@@ -1447,10 +1447,10 @@ function AttentionRail({ m, targetRej, base, onGo }: {
 function QualityStatusStrip({ status }: { status: QualityStatusT }) {
   const tone =
     status.state === "blocked" || status.state === "at-risk"
-      ? "var(--status-bad, #c44)"
+      ? "var(--status-bad)"
       : status.state === "watch"
-        ? "var(--status-warn, #b8860b)"
-        : "var(--status-good, #1a7f4b)";
+        ? "var(--status-warn)"
+        : "var(--status-good)";
   const title =
     status.state === "blocked"
       ? "Integrity"

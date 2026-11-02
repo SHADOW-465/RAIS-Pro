@@ -49,21 +49,21 @@ const PRINT_CSS = `
   pointer-events: none !important;
   z-index: -1 !important;
   background: #fff !important;
-  color: #14181f !important;
-  --text: #14181f;
-  --text-2: #3a4450;
-  --text-3: #5a6570;
-  --border: #c8ced6;
-  --border-strong: #9aa3ad;
+  color: #18181B !important;
+  --text: #18181B;
+  --text-2: #3F3F46;
+  --text-3: #52525B;
+  --border: #D4D4D8;
+  --border-strong: #A1A1AA;
   --surface: #ffffff;
-  --surface-2: #eef1f4;
+  --surface-2: #F4F4F5;
   --bg: #ffffff;
-  --accent: #C8421C;
+  --accent: #2563EB;
 }
 @media print {
   @page { size: A4 portrait; margin: 12mm; }
   html, body {
-    background: #fff !important; color: #14181f !important;
+    background: #fff !important; color: #18181B !important;
     margin: 0 !important; padding: 0 !important; height: auto !important;
     overflow: visible !important;
   }
@@ -141,7 +141,7 @@ const WORKSPACE_CSS = `
 .rw-primary, .rw-ghost {
   min-height: 40px; padding: 10px 16px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
 }
-.rw-primary { border: none; background: var(--accent); color: var(--text-invert, #fff); }
+.rw-primary { border: none; background: var(--accent); color: var(--on-accent); }
 .rw-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 .rw-ghost { border: 1px solid var(--border-strong); background: transparent; color: var(--text-2); }
 .rw-tabs { display: none; gap: 6px; }
@@ -492,7 +492,7 @@ export default function ReportsWorkspace({
   const setupPane = (
     <>
       <div className="rw-hd">
-        <div style={{ fontWeight: 700, fontSize: 15 }}>Report setup</div>
+        <div style={{ fontWeight: 600, fontSize: 15 }}>Report setup</div>
         <div className="rw-chip">One type per export · does not change Dashboard filters</div>
       </div>
       <div className="rw-scroll">

@@ -157,7 +157,7 @@ export default function BatchIdentityZone({
                 alignItems: "center",
                 gap: 5,
                 fontSize: 11,
-                fontWeight: 700,
+                fontWeight: 600,
                 letterSpacing: "0.05em",
                 textTransform: "uppercase",
                 color: "var(--accent)",
@@ -201,7 +201,7 @@ export default function BatchIdentityZone({
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 13,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: "var(--text-2)",
                   letterSpacing: "0.02em",
                 }}
@@ -236,7 +236,7 @@ export default function BatchIdentityZone({
                   }}
                   title="Pieces that changed size. The rest stay on the original lot."
                 >
-                  <span style={{ color: "var(--text-3)", fontSize: 9.5, fontWeight: 700 }}>CHANGED </span>
+                  <span style={{ color: "var(--text-3)", fontSize: 9.5, fontWeight: 600 }}>CHANGED </span>
                   {conversionFlow.changedQty!.toLocaleString()}
                 </span>
               )}
@@ -265,7 +265,7 @@ export default function BatchIdentityZone({
                   gap: 3,
                   fontFamily: "var(--font-mono)",
                   fontSize: 11,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   letterSpacing: "0.06em",
                   color: "var(--accent)",
                   background: "color-mix(in srgb, var(--accent) 14%, var(--surface))",
@@ -284,7 +284,7 @@ export default function BatchIdentityZone({
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 13,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   color: "var(--text)",
                   letterSpacing: "0.02em",
                 }}
@@ -297,7 +297,7 @@ export default function BatchIdentityZone({
                     fontSize: 10.5,
                     fontFamily: "var(--font-mono)",
                     color: "var(--accent)",
-                    fontWeight: 700,
+                    fontWeight: 600,
                     background: "color-mix(in srgb, var(--accent) 10%, var(--surface))",
                     border: "1px solid color-mix(in srgb, var(--accent) 30%, transparent)",
                     padding: "1px 5px",
@@ -327,7 +327,7 @@ export default function BatchIdentityZone({
               <span
                 style={{
                   fontSize: 10,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: "var(--text-3)",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
@@ -342,7 +342,7 @@ export default function BatchIdentityZone({
                   gap: 5,
                   fontFamily: "var(--font-mono)",
                   fontSize: 11.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                 }}
               >
                 <span style={{ color: "var(--text-2)" }}>
@@ -360,7 +360,7 @@ export default function BatchIdentityZone({
                   {convertedParsed.day}
                 </span>
                 <span style={{ color: "var(--border-strong)", fontSize: 10 }}>·</span>
-                <span style={{ color: "var(--accent)", fontWeight: 800 }}>
+                <span style={{ color: "var(--accent)", fontWeight: 600 }}>
                   <span style={{ color: "var(--text-3)", fontSize: 9.5, fontWeight: 600 }}>SZ </span>
                   {convertedParsed.sizeFr ? `${convertedParsed.sizeFr} FR` : conversionFlow.toSize || "—"}
                 </span>
@@ -396,7 +396,7 @@ export default function BatchIdentityZone({
             <h2
               style={{
                 fontSize: 14,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text)",
                 margin: 0,
                 letterSpacing: "-0.01em",
@@ -449,7 +449,7 @@ export default function BatchIdentityZone({
           <div
             style={{
               fontSize: 11.5,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text-3)",
               textTransform: "uppercase",
               letterSpacing: "0.04em",
@@ -522,7 +522,7 @@ export default function BatchIdentityZone({
           <div
             style={{
               fontSize: 11.5,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text-3)",
               textTransform: "uppercase",
               letterSpacing: "0.04em",
@@ -603,7 +603,7 @@ export default function BatchIdentityZone({
             <div
               style={{
                 fontSize: 11.5,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text-3)",
                 textTransform: "uppercase",
                 letterSpacing: "0.04em",
@@ -675,7 +675,7 @@ export default function BatchIdentityZone({
                 border: "1px solid color-mix(in srgb, var(--accent) 45%, var(--border))",
                 color: "var(--accent)",
                 fontSize: 13,
-                fontWeight: 700,
+                fontWeight: 600,
                 fontFamily: "var(--font-sans)",
                 textDecoration: "none",
                 cursor: "pointer",

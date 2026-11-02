@@ -92,7 +92,7 @@ export default function OpenWipStrip({
               <span
                 style={{
                   fontSize: 12,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   letterSpacing: "0.06em",
                   textTransform: "uppercase",
                   color: "var(--text-2)",
@@ -113,7 +113,7 @@ export default function OpenWipStrip({
             <span
               style={{
                 fontSize: 11,
-                fontWeight: 700,
+                fontWeight: 600,
                 letterSpacing: "0.04em",
                 textTransform: "uppercase",
                 color: "var(--text-3)",
@@ -127,7 +127,7 @@ export default function OpenWipStrip({
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 22,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   lineHeight: 1,
                   color: "var(--text)",
                   fontVariantNumeric: "tabular-nums",
@@ -147,7 +147,7 @@ export default function OpenWipStrip({
               <span
                 style={{
                   fontSize: 11,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   letterSpacing: "0.04em",
                   textTransform: "uppercase",
                   color: hasStalled ? "var(--warning)" : "var(--text-3)",
@@ -159,7 +159,7 @@ export default function OpenWipStrip({
                 <span
                   style={{
                     fontSize: 9.5,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     padding: "1px 5px",
                     borderRadius: 4,
                     background: "var(--warning-weak)",
@@ -178,7 +178,7 @@ export default function OpenWipStrip({
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 22,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   lineHeight: 1,
                   color: hasStalled ? "var(--warning)" : "var(--text)",
                   fontVariantNumeric: "tabular-nums",
@@ -199,7 +199,7 @@ export default function OpenWipStrip({
             <span
               style={{
                 fontSize: 11,
-                fontWeight: 700,
+                fontWeight: 600,
                 letterSpacing: "0.04em",
                 textTransform: "uppercase",
                 color: "var(--text-3)",
@@ -213,7 +213,7 @@ export default function OpenWipStrip({
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 22,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   lineHeight: 1,
                   color: "var(--text)",
                   fontVariantNumeric: "tabular-nums",
@@ -242,7 +242,7 @@ export default function OpenWipStrip({
               <span
                 style={{
                   fontSize: 11.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
                   color: "var(--text-3)",
@@ -270,7 +270,7 @@ export default function OpenWipStrip({
             </>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-2)", fontSize: 12.5, fontWeight: 500 }}>
-              <span style={{ color: "var(--positive)", fontWeight: 700, fontSize: 14 }}>✓</span>
+              <span style={{ color: "var(--positive)", fontWeight: 600, fontSize: 14 }}>✓</span>
               <span>All active lots advancing smoothly across quality gates (&lt;3 days idle)</span>
             </div>
           )}
@@ -359,7 +359,7 @@ function LotChip({ lot }: { lot: BatchProgress }) {
         style={{
           fontFamily: "var(--font-mono)",
           fontSize: 13,
-          fontWeight: 700,
+          fontWeight: 600,
           color: "var(--text)",
           letterSpacing: "-0.01em",
         }}
@@ -383,7 +383,7 @@ function LotChip({ lot }: { lot: BatchProgress }) {
       <span
         style={{
           fontSize: 11.5,
-          fontWeight: 700,
+          fontWeight: 600,
           fontFamily: "var(--font-mono)",
           color: "var(--warning)",
           background: "var(--warning-weak)",

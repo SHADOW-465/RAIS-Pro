@@ -598,7 +598,7 @@ export default function BatchConversionPage() {
           style={{
             fontFamily: "var(--font-display)",
             fontSize: "var(--text-3xl, 28px)",
-            fontWeight: 700,
+            fontWeight: 600,
             margin: "0 0 4px",
             letterSpacing: "var(--tracking-tight, -0.02em)",
             lineHeight: "var(--leading-tight, 1.15)",
@@ -651,13 +651,13 @@ export default function BatchConversionPage() {
                 gap: 8,
                 fontFamily: "var(--font-mono)",
                 fontSize: 14,
-                fontWeight: 800,
+                fontWeight: 600,
                 letterSpacing: "0.02em",
                 color: "var(--text)",
               }}
             >
               <span>{formatBatchIdInput(fromBatch)}</span>
-              <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 11, letterSpacing: "0.08em" }}>
+              <span style={{ color: "var(--accent)", fontWeight: 600, fontSize: 11, letterSpacing: "0.08em" }}>
                 CONVERTED TO
               </span>
               <span>{convertedName}</span>
@@ -727,7 +727,7 @@ export default function BatchConversionPage() {
                 ...inputStyle,
                 display: "flex",
                 alignItems: "center",
-                fontWeight: 700,
+                fontWeight: 600,
                 letterSpacing: "0.03em",
               }}
             >
@@ -779,8 +779,8 @@ export default function BatchConversionPage() {
               borderRadius: "var(--radius-sm)",
               border: "none",
               background: "var(--accent)",
-              color: "#fff",
-              fontWeight: 700,
+              color: "var(--on-accent)",
+              fontWeight: 600,
               fontSize: 13,
               cursor: saving || !canWrite ? "not-allowed" : "pointer",
               opacity: saving || !canWrite ? 0.6 : 1,
@@ -835,7 +835,7 @@ export default function BatchConversionPage() {
                     : "var(--surface-2)",
                   color: fullConversion ? "var(--accent)" : "var(--text-2)",
                   fontSize: 11,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   cursor: fromBatch ? "pointer" : "not-allowed",
                   opacity: fromBatch ? 1 : 0.5,
                   whiteSpace: "nowrap",
@@ -858,7 +858,7 @@ export default function BatchConversionPage() {
               aria-label="Quantity changed"
               style={{
                 ...inputStyle,
-                ...(fullConversion ? { color: "var(--accent)", fontWeight: 700, cursor: "default" } : null),
+                ...(fullConversion ? { color: "var(--accent)", fontWeight: 600, cursor: "default" } : null),
               }}
               required
             />
@@ -905,7 +905,7 @@ export default function BatchConversionPage() {
               <span
                 style={{
                   fontSize: 10.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
                   color: "var(--accent)",
@@ -917,7 +917,7 @@ export default function BatchConversionPage() {
                 Data Entry History Matched
               </span>
               <span style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>
-                Original lot <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>{fromBatchGroup.batch}</span>
+                Original lot <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fromBatchGroup.batch}</span>
               </span>
               {fromBatchGroup.stages.length > 0 && (
                 <span style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
@@ -928,17 +928,17 @@ export default function BatchConversionPage() {
 
             <div style={{ display: "flex", alignItems: "center", gap: 16, fontFamily: "var(--font-mono)", fontSize: 13 }}>
               <div>
-                <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 700, marginRight: 5 }}>Checked</span>
-                <span style={{ fontWeight: 800, color: "var(--text)" }}>{fromBatchGroup.checkedQty.toLocaleString()}</span>
+                <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 600, marginRight: 5 }}>Checked</span>
+                <span style={{ fontWeight: 600, color: "var(--text)" }}>{fromBatchGroup.checkedQty.toLocaleString()}</span>
               </div>
               <div>
-                <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 700, marginRight: 5 }}>Accepted (Available to Convert)</span>
-                <span style={{ fontWeight: 800, color: "var(--accent)" }}>{fromBatchGroup.acceptedQty.toLocaleString()}</span>
+                <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 600, marginRight: 5 }}>Accepted (Available to Convert)</span>
+                <span style={{ fontWeight: 600, color: "var(--accent)" }}>{fromBatchGroup.acceptedQty.toLocaleString()}</span>
               </div>
               {fromBatchGroup.rejectedQty > 0 && (
                 <div>
-                  <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 700, marginRight: 5 }}>Rejected</span>
-                  <span style={{ fontWeight: 700, color: "var(--danger, #e5484d)" }}>{fromBatchGroup.rejectedQty.toLocaleString()}</span>
+                  <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 600, marginRight: 5 }}>Rejected</span>
+                  <span style={{ fontWeight: 600, color: "var(--danger)" }}>{fromBatchGroup.rejectedQty.toLocaleString()}</span>
                 </div>
               )}
             </div>

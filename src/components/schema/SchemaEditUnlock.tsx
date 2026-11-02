@@ -45,7 +45,7 @@ export default function SchemaEditUnlock({
         position: "fixed",
         inset: 0,
         zIndex: 400,
-        background: "color-mix(in srgb, var(--ink, #0a0a0a) 45%, transparent)",
+        background: "color-mix(in srgb, var(--ink) 45%, transparent)",
         display: "grid",
         placeItems: "center",
         padding: 16,
@@ -73,7 +73,7 @@ export default function SchemaEditUnlock({
         <div>
           <div
             id="schema-unlock-title"
-            style={{ fontWeight: 700, fontSize: 16, marginBottom: 6, color: "var(--text)" }}
+            style={{ fontWeight: 600, fontSize: 16, marginBottom: 6, color: "var(--text)" }}
           >
             Unlock schema edit
           </div>
@@ -144,12 +144,12 @@ export default function SchemaEditUnlock({
             disabled={!password}
             style={{
               fontSize: 13,
-              fontWeight: 700,
+              fontWeight: 600,
               padding: "8px 14px",
               borderRadius: 8,
               border: "1px solid var(--accent)",
               background: "var(--accent)",
-              color: "var(--text-invert)",
+              color: "var(--on-accent)",
               cursor: password ? "pointer" : "default",
               opacity: password ? 1 : 0.6,
             }}

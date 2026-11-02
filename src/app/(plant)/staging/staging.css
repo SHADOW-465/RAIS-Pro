@@ -26,7 +26,7 @@
 .import-kicker {
   margin: 0 0 6px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-3);
@@ -36,7 +36,7 @@
   margin: 0 0 6px;
   font-family: var(--font-display);
   font-size: clamp(24px, 3vw, 30px);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
   color: var(--text);
@@ -70,7 +70,7 @@
 .import-stat-val {
   font-family: var(--font-mono);
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
@@ -120,7 +120,7 @@
 
 .import-path-n {
   font-size: 10.5px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-3);
@@ -134,7 +134,7 @@
 
 .import-path-t {
   font-size: 13.5px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text);
   margin-bottom: 2px;
   line-height: 1.25;
@@ -228,7 +228,7 @@
 .import-card-title {
   margin: 0 0 4px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text);
 }
 

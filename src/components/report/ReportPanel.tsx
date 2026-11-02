@@ -54,18 +54,18 @@ const PRINT_SURFACE_CSS = `
   pointer-events: none !important;
   z-index: -1 !important;
   background: #fff !important;
-  color: #14181f !important;
+  color: #18181B !important;
   /* Measure charts at paper content width */
-  --text: #14181f;
-  --text-2: #3a4450;
-  --text-3: #5a6570;
-  --border: #c8ced6;
-  --border-strong: #9aa3ad;
+  --text: #18181B;
+  --text-2: #3F3F46;
+  --text-3: #52525B;
+  --border: #D4D4D8;
+  --border-strong: #A1A1AA;
   --surface: #ffffff;
-  --surface-2: #eef1f4;
+  --surface-2: #F4F4F5;
   --bg: #ffffff;
-  --accent: #C8421C;
-  --accent-weak: rgba(200, 66, 28, 0.14);
+  --accent: #2563EB;
+  --accent-weak: rgba(37, 99, 235, 0.14);
 }
 
 @media print {
@@ -76,7 +76,7 @@ const PRINT_SURFACE_CSS = `
 
   html, body {
     background: #fff !important;
-    color: #14181f !important;
+    color: #18181B !important;
     margin: 0 !important;
     padding: 0 !important;
     height: auto !important;
@@ -104,7 +104,7 @@ const PRINT_SURFACE_CSS = `
     pointer-events: auto !important;
     z-index: auto !important;
     background: #fff !important;
-    color: #14181f !important;
+    color: #18181B !important;
     box-shadow: none !important;
     border: none !important;
   }
@@ -120,7 +120,7 @@ const PRINT_SURFACE_CSS = `
   }
 
   body.rp-printing .rp-print-surface .chart-line-stroke {
-    stroke: #C8421C !important;
+    stroke: #2563EB !important;
   }
 
   body.rp-printing .no-print {
@@ -353,7 +353,7 @@ export default function ReportPanel({
       {/* ── Named presets ─────────────────────────────────────────────── */}
       <div className="no-print" style={{ ...col, borderRight: "1px solid var(--border)", background: "var(--surface-2)" }}>
         <div style={colHeader}>
-          <div style={{ fontWeight: 800, fontSize: 13 }}>Named presets</div>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>Named presets</div>
           <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
             Built-in packs and your saves
           </div>
@@ -378,14 +378,14 @@ export default function ReportPanel({
                   fontFamily: "inherit",
                 }}
               >
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{p.name}</div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>{p.name}</div>
                 {p.description && (
                   <div className="muted" style={{ fontSize: 10.5, marginTop: 3, lineHeight: 1.35 }}>
                     {p.description}
                   </div>
                 )}
                 {p.builtIn && (
-                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-3)" }}>
+                  <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-3)" }}>
                     Built-in
                   </span>
                 )}
@@ -398,14 +398,14 @@ export default function ReportPanel({
       {/* ── Sections editor ───────────────────────────────────────────── */}
       <div className="no-print" style={{ ...col, borderRight: "1px solid var(--border)" }}>
         <div style={colHeader}>
-          <div style={{ fontWeight: 800, fontSize: 15 }}>{embedded ? "Report editor" : "Build report"}</div>
+          <div style={{ fontWeight: 600, fontSize: 15 }}>{embedded ? "Report editor" : "Build report"}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
             {periodLabel}
           </div>
         </div>
 
         <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
-          <label className="muted" style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
+          <label className="muted" style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
             Report title
           </label>
           <input
@@ -447,7 +447,7 @@ export default function ReportPanel({
             }}
           >
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)" }}>
                 Sources {sourcesOpen ? "▾" : "▸"}
               </div>
               <div className="muted" style={{ fontSize: 11, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -478,7 +478,7 @@ export default function ReportPanel({
               </label>
               {batchIds.length > 0 && (
                 <div style={{ marginBottom: 8 }}>
-                  <div className="muted" style={{ fontSize: 10, fontWeight: 700, marginBottom: 4 }}>
+                  <div className="muted" style={{ fontSize: 10, fontWeight: 600, marginBottom: 4 }}>
                     Batches {t.batchIds.length === 0 ? "(full plant)" : `(${t.batchIds.length})`}
                   </div>
                   <div style={{ display: "flex", gap: 4, marginBottom: 4, flexWrap: "wrap" }}>
@@ -512,10 +512,10 @@ export default function ReportPanel({
                           borderRadius: 6,
                           border: selected ? "1px solid var(--accent)" : "1px solid var(--border)",
                           background: selected ? "var(--accent)" : "var(--surface)",
-                          color: selected ? "var(--text-invert, #fff)" : "var(--text)",
+                          color: selected ? "var(--text-invert)" : "var(--text)",
                           cursor: "pointer",
                           fontFamily: "var(--font-mono)",
-                          fontWeight: 700,
+                          fontWeight: 600,
                         }}
                       >
                         {historyNameForLot(b, conversions)}
@@ -563,7 +563,7 @@ export default function ReportPanel({
         {/* Sections — primary scroll area of this column */}
         <div style={{ ...colScroll, padding: "12px 16px", flex: 1 }}>
           <>
-              <div className="muted" style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+              <div className="muted" style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
                 Sections ({spec.blocks.length})
               </div>
               {spec.blocks.map((b, i) => (
@@ -592,7 +592,7 @@ export default function ReportPanel({
                 </div>
               ))}
 
-              <div className="muted" style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, margin: "16px 0 8px" }}>
+              <div className="muted" style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600, margin: "16px 0 8px" }}>
                 Add a section
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -678,7 +678,7 @@ export default function ReportPanel({
       {/* ── On-screen preview only (not used for print) ───────────────── */}
       <div className="no-print" style={{ ...col, background: "var(--surface-2)" }}>
         <div style={{ ...colHeader }}>
-          <div style={{ fontWeight: 800, fontSize: 13 }}>Preview</div>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>Preview</div>
           <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
             Scroll here · Print exports a full-width page layout
           </div>
@@ -743,7 +743,7 @@ export default function ReportPanel({
           style={{
             position: "absolute",
             inset: 0,
-            background: "color-mix(in srgb, #000 45%, transparent)",
+            background: "var(--overlay)",
           }}
         />
         <div
@@ -814,8 +814,8 @@ const primaryBtn: React.CSSProperties = {
   borderRadius: 9999,
   border: "none",
   background: "var(--accent)",
-  color: "var(--text-invert, #fff)",
-  fontWeight: 700,
+  color: "var(--on-accent)",
+  fontWeight: 600,
   fontSize: 13.5,
   cursor: "pointer",
   fontFamily: "inherit",

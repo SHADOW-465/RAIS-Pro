@@ -252,7 +252,7 @@ export default function CapaPage() {
               style={{
                 fontFamily: "var(--font-display)",
                 fontSize: "var(--text-3xl, 28px)",
-                fontWeight: 700,
+                fontWeight: 600,
                 margin: "0 0 4px",
                 letterSpacing: "-0.02em",
                 lineHeight: 1.15,
@@ -462,7 +462,7 @@ export default function CapaPage() {
                           <div
                             style={{
                               fontSize: 14,
-                              fontWeight: 700,
+                              fontWeight: 600,
                               textDecoration: c.status === "Completed" ? "line-through" : "none",
                               color: c.status === "Completed" ? "var(--text-3)" : "var(--text)",
                             }}
@@ -505,7 +505,7 @@ export default function CapaPage() {
                               <span
                                 style={{
                                   fontFamily: "var(--font-mono)",
-                                  fontWeight: 700,
+                                  fontWeight: 600,
                                   color: isOverdue(c) ? "var(--critical)" : "var(--text-2)",
                                 }}
                               >
@@ -513,7 +513,7 @@ export default function CapaPage() {
                               </span>
                               {isOverdue(c) ? " · overdue" : ""}
                             </span>
-                            <span style={{ fontWeight: 700, color: priColor(c.priority), fontSize: 12 }}>
+                            <span style={{ fontWeight: 600, color: priColor(c.priority), fontSize: 12 }}>
                               {c.priority}
                             </span>
                             {c.ruleId ? (
@@ -561,7 +561,7 @@ export default function CapaPage() {
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>
                     Decision engine
                   </div>
                   <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
@@ -570,7 +570,7 @@ export default function CapaPage() {
                       : "Rules over rejection / FPY / COPQ · uses top-bar date range"}
                   </div>
                 </div>
-                <span aria-hidden style={{ color: "var(--text-3)", fontSize: 14, fontWeight: 700 }}>
+                <span aria-hidden style={{ color: "var(--text-3)", fontSize: 14, fontWeight: 600 }}>
                   {showEngine ? "▾" : "▸"}
                 </span>
               </button>
@@ -610,7 +610,7 @@ export default function CapaPage() {
                               <span
                                 style={{
                                   fontSize: 10,
-                                  fontWeight: 700,
+                                  fontWeight: 600,
                                   textTransform: "uppercase",
                                   color: sevColor(r.severity),
                                   background: `color-mix(in srgb, ${sevColor(r.severity)} 14%, transparent)`,
@@ -624,7 +624,7 @@ export default function CapaPage() {
                                 {r.ruleId}
                               </span>
                               {tracked && (
-                                <span style={{ fontSize: 10, fontWeight: 700, color: "var(--positive)" }}>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--positive)" }}>
                                   CAPA exists
                                 </span>
                               )}
@@ -740,7 +740,7 @@ function FilterChip({
         background: active ? activeBg : "var(--surface)",
         color: active ? activeFg : "var(--text-2)",
         fontSize: 12.5,
-        fontWeight: 700,
+        fontWeight: 600,
         cursor: "pointer",
         fontFamily: "inherit",
         whiteSpace: "nowrap",
@@ -769,7 +769,7 @@ function priColor(p: string) {
 function statusStyle(s: string): React.CSSProperties {
   const base: React.CSSProperties = {
     fontSize: 11,
-    fontWeight: 700,
+    fontWeight: 600,
     padding: "2px 8px",
     borderRadius: 10,
     display: "inline-block",
@@ -843,18 +843,18 @@ const newBtn: React.CSSProperties = {
   alignItems: "center",
   gap: 6,
   background: "var(--accent)",
-  color: "var(--text-invert, #fff)",
+  color: "var(--on-accent)",
   border: "none",
   borderRadius: 9,
   padding: "9px 16px",
-  fontWeight: 700,
+  fontWeight: 600,
   fontSize: 13,
   cursor: "pointer",
   fontFamily: "inherit",
 };
 const createRecBtn: React.CSSProperties = {
   fontSize: 12,
-  fontWeight: 700,
+  fontWeight: 600,
   color: "var(--accent-text)",
   background: "var(--accent-weak)",
   border: "1px solid color-mix(in srgb, var(--accent) 30%, var(--border))",
@@ -865,11 +865,11 @@ const createRecBtn: React.CSSProperties = {
 };
 const saveBtn: React.CSSProperties = {
   background: "var(--accent)",
-  color: "var(--text-invert, #fff)",
+  color: "var(--on-accent)",
   border: "none",
   borderRadius: 8,
   padding: "8px 16px",
-  fontWeight: 700,
+  fontWeight: 600,
   fontSize: 13,
   cursor: "pointer",
   fontFamily: "inherit",
@@ -890,7 +890,7 @@ const editLink: React.CSSProperties = {
   border: "1px solid transparent",
   color: "var(--accent)",
   fontSize: 12,
-  fontWeight: 700,
+  fontWeight: 600,
   cursor: "pointer",
   padding: "6px 8px",
   minHeight: 32,
@@ -901,7 +901,7 @@ const linkBtn: React.CSSProperties = {
   background: "none",
   border: "none",
   color: "var(--accent)",
-  fontWeight: 700,
+  fontWeight: 600,
   cursor: "pointer",
   textDecoration: "underline",
   padding: 0,

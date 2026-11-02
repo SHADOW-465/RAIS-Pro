@@ -237,7 +237,7 @@ export default function SourcesScopePanel({
         position: "fixed",
         inset: 0,
         zIndex: 400,
-        background: "color-mix(in srgb, var(--ink, #0a0a0a) 42%, transparent)",
+        background: "color-mix(in srgb, var(--ink) 42%, transparent)",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -281,7 +281,7 @@ export default function SourcesScopePanel({
                 id="sources-scope-title"
                 style={{
                   margin: 0,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   fontSize: 17,
                   letterSpacing: "-0.02em",
                   fontFamily: "var(--font-display)",
@@ -465,7 +465,7 @@ export default function SourcesScopePanel({
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <StepBadge n={3} live={col3Live} />
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text)" }}>Narrow</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text)" }}>Narrow</div>
                   <div className="muted" style={{ fontSize: 11.5, marginTop: 1, lineHeight: 1.35 }}>
                     {col3Mode === "empty" && "Waiting for channels"}
                     {col3Mode === "batches" && (batchCount === 0 ? "Full plant · every batch" : `${batchCount} batch${batchCount === 1 ? "" : "es"} focused`)}
@@ -600,7 +600,7 @@ function ColHeader({
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <StepBadge n={step} live={live} />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text)" }}>{title}</div>
+          <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text)" }}>{title}</div>
           <div className="muted" style={{ fontSize: 11.5, marginTop: 1, lineHeight: 1.35 }}>
             {sub}
           </div>
@@ -622,7 +622,7 @@ function StepBadge({ n, live }: { n: number; live: boolean }) {
         alignItems: "center",
         justifyContent: "center",
         fontSize: 12,
-        fontWeight: 800,
+        fontWeight: 600,
         fontFamily: "var(--font-mono)",
         flexShrink: 0,
         background: live ? "var(--accent)" : "var(--surface-3)",
@@ -680,7 +680,7 @@ function SelectableRow({
         <span
           style={{
             display: "block",
-            fontWeight: 700,
+            fontWeight: 600,
             fontSize: 13,
             color: checked ? "var(--accent-text)" : "var(--text)",
           }}
@@ -819,7 +819,7 @@ function BatchesPane({
                 cursor: "pointer",
                 fontFamily: "var(--font-mono)",
                 fontSize: 12.5,
-                fontWeight: 700,
+                fontWeight: 600,
                 letterSpacing: "0.02em",
                 boxShadow:
                   swatch?.hex === "#FFFFFF" ? "inset 4px 0 0 0 var(--border-strong)" : undefined,
@@ -955,7 +955,7 @@ function StagePick({
           : "1px solid transparent",
         background: active ? "var(--accent-weak)" : "transparent",
         color: active ? "var(--accent-text)" : "var(--text-2)",
-        fontWeight: active ? 700 : 500,
+        fontWeight: active ? 600 : 500,
         fontSize: 12.5,
         cursor: "pointer",
         fontFamily: "inherit",
@@ -999,7 +999,7 @@ const colHeader: React.CSSProperties = {
 const countBadge: React.CSSProperties = {
   fontSize: 11,
   fontFamily: "var(--font-mono)",
-  fontWeight: 700,
+  fontWeight: 600,
   padding: "3px 7px",
   borderRadius: 6,
   flexShrink: 0,
@@ -1024,7 +1024,7 @@ const chevronBtn: React.CSSProperties = {
 
 const chipBtn: React.CSSProperties = {
   fontSize: 12,
-  fontWeight: 700,
+  fontWeight: 600,
   border: "1px solid var(--border-strong)",
   borderRadius: 8,
   padding: "6px 12px",
@@ -1082,10 +1082,10 @@ const primaryBtn: React.CSSProperties = {
   borderRadius: 9,
   border: "none",
   background: "var(--accent)",
-  color: "var(--text-invert, #fff)",
+  color: "var(--on-accent)",
   cursor: "pointer",
   fontFamily: "inherit",
-  fontWeight: 700,
+  fontWeight: 600,
   fontSize: 13,
 };
 
@@ -1142,7 +1142,7 @@ const scopePanelCss = `
 .sources-tab {
   flex: 1;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   padding: 7px 8px;
   border-radius: 8px;
   border: none;
@@ -1164,7 +1164,7 @@ const scopePanelCss = `
 .sources-tab-count {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  font-weight: 800;
+  font-weight: 600;
   padding: 1px 6px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
@@ -1338,7 +1338,7 @@ function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: 
             border: "1px solid color-mix(in srgb, var(--accent) 28%, var(--border))",
             fontFamily: "var(--font-mono)",
             fontSize: 11,
-            fontWeight: 700,
+            fontWeight: 600,
             letterSpacing: "-0.01em",
             fontVariantNumeric: "tabular-nums",
             lineHeight: 1.4,
@@ -1371,7 +1371,7 @@ function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: 
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)" }}>
+            <span style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)" }}>
               Custom Range
             </span>
             {hasRange && (
@@ -1418,7 +1418,7 @@ function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: 
                     background: active ? "var(--accent-weak)" : "var(--surface-2)",
                     color: active ? "var(--accent-text, var(--accent))" : "var(--text)",
                     fontSize: 11.5,
-                    fontWeight: active ? 700 : 500,
+                    fontWeight: active ? 600 : 500,
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
@@ -1435,7 +1435,7 @@ function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: 
                     <span
                       style={{
                         fontSize: 8.5,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         padding: "1px 4px",
                         borderRadius: 3,
                         background: "color-mix(in srgb, var(--accent) 18%, var(--surface-3, var(--surface-2)))",
@@ -1486,7 +1486,7 @@ function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: 
               padding: "5px 12px",
               borderRadius: 6,
               background: "var(--accent)",
-              color: "var(--text-invert, #fff)",
+              color: "var(--on-accent)",
               fontSize: 11.5,
               fontWeight: 600,
               border: "none",

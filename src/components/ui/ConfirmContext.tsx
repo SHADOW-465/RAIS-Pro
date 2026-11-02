@@ -96,11 +96,11 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             const isSuccess = toast.variant === "success";
 
             const border = isErr
-              ? "1px solid var(--negative, #E63946)"
+              ? "1px solid var(--negative)"
               : isWarn
-                ? "1px solid var(--warning, #F59E0B)"
+                ? "1px solid var(--warning)"
                 : isSuccess
-                  ? "1px solid var(--positive, #10B981)"
+                  ? "1px solid var(--positive)"
                   : "1px solid var(--border)";
 
             const bg = isErr
@@ -112,11 +112,11 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                   : "var(--surface)";
 
             const textCol = isErr
-              ? "var(--negative, #E63946)"
+              ? "var(--negative)"
               : isWarn
-                ? "var(--warning, #F59E0B)"
+                ? "var(--warning)"
                 : isSuccess
-                  ? "var(--positive, #10B981)"
+                  ? "var(--positive)"
                   : "var(--text)";
 
             return (

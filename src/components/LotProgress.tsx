@@ -99,7 +99,7 @@ export default function LotProgress({
               key={s.stageId}
               style={{
                 color: s.done ? "var(--text-2)" : "var(--text-3)",
-                fontWeight: activeStageId === s.stageId ? 700 : 400,
+                fontWeight: activeStageId === s.stageId ? 600 : 400,
               }}
             >
               {s.done ? "✓" : "○"} {SHORT[s.stageId] ?? s.stageId}

@@ -164,7 +164,7 @@ export default function CommandPalette({
         position: "fixed",
         inset: 0,
         zIndex: 400,
-        background: "color-mix(in srgb, var(--ink, #111) 40%, transparent)",
+        background: "color-mix(in srgb, var(--ink) 40%, transparent)",
         display: "flex",
         alignItems: "flex-start",
         justifyContent: "center",
@@ -194,7 +194,7 @@ export default function CommandPalette({
           <span
             style={{
               fontSize: 10.5,
-              fontWeight: 700,
+              fontWeight: 600,
               textTransform: "uppercase",
               letterSpacing: "0.04em",
               color: "var(--text-3)",
@@ -281,7 +281,7 @@ export default function CommandPalette({
                 <span
                   style={{
                     fontSize: 10,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "0.04em",
                     color: "var(--text-3)",

@@ -1854,7 +1854,7 @@ export default function BatchMatrixEntry({
           style={{
             display: "block",
             fontSize: 13,
-            fontWeight: 700,
+            fontWeight: 600,
             color: "var(--text-2)",
             marginBottom: 6,
           }}

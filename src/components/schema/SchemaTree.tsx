@@ -378,7 +378,7 @@ export default function SchemaTree({
               title={node.label}
               style={{
                 fontSize: 12.5,
-                fontWeight: isSection ? 650 : node.kind === "stage" ? 550 : 400,
+                fontWeight: isSection ? 600 : node.kind === "stage" ? 600 : 400,
                 letterSpacing: isSection ? "0.01em" : undefined,
                 color: selected ? "var(--accent)" : isSection ? "var(--text)" : "var(--text-2)",
                 fontFamily: MONO_KINDS.has(node.kind) ? "var(--font-mono)" : undefined,

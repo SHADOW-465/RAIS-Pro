@@ -138,7 +138,7 @@ function BatchProcessTrack({
         const tagColor = isDone
           ? "var(--positive)"
           : isStarted
-            ? "var(--status-warn, #d97706)"
+            ? "var(--status-warn)"
             : "var(--text-3)";
         const tagBg = isDone
           ? "var(--positive-weak)"
@@ -171,7 +171,7 @@ function BatchProcessTrack({
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: "10px",
-                fontWeight: isDone || isStarted ? 700 : 400,
+                fontWeight: isDone || isStarted ? 600 : 400,
                 opacity: 0.95,
               }}
             >
@@ -644,7 +644,7 @@ export default function EntryHistory({
           onClick={() => setLedgerFilter("all")}
           style={{
             fontSize: 11.5,
-            fontWeight: 700,
+            fontWeight: 600,
             padding: "4px 10px",
             borderRadius: "var(--radius-pill)",
             background: ledgerFilter === "all" ? "var(--surface-3)" : "var(--surface)",
@@ -667,11 +667,11 @@ export default function EntryHistory({
           onClick={() => setLedgerFilter(ledgerFilter === "synced" ? "all" : "synced")}
           style={{
             fontSize: 11.5,
-            fontWeight: 700,
+            fontWeight: 600,
             padding: "4px 10px",
             borderRadius: "var(--radius-pill)",
             background: ledgerFilter === "synced" ? "var(--positive)" : "var(--positive-weak)",
-            color: ledgerFilter === "synced" ? "#ffffff" : "var(--positive)",
+            color: ledgerFilter === "synced" ? "var(--text-invert)" : "var(--positive)",
             border: ledgerFilter === "synced"
               ? "1px solid var(--positive)"
               : "1px solid color-mix(in srgb, var(--positive) 30%, transparent)",
@@ -696,16 +696,16 @@ export default function EntryHistory({
           onClick={() => setLedgerFilter(ledgerFilter === "pending" ? "all" : "pending")}
           style={{
             fontSize: 11.5,
-            fontWeight: 700,
+            fontWeight: 600,
             padding: "4px 10px",
             borderRadius: "var(--radius-pill)",
-            background: ledgerFilter === "pending" ? "var(--status-warn, #d97706)" : "var(--warning-weak)",
-            color: ledgerFilter === "pending" ? "#ffffff" : "var(--status-warn, #d97706)",
+            background: ledgerFilter === "pending" ? "var(--status-warn)" : "var(--warning-weak)",
+            color: ledgerFilter === "pending" ? "var(--text-invert)" : "var(--status-warn)",
             border: ledgerFilter === "pending"
-              ? "1px solid var(--status-warn, #d97706)"
-              : "1px solid color-mix(in srgb, var(--status-warn, #d97706) 30%, transparent)",
+              ? "1px solid var(--status-warn)"
+              : "1px solid color-mix(in srgb, var(--status-warn) 30%, transparent)",
             boxShadow: ledgerFilter === "pending"
-              ? "0 0 0 2px color-mix(in srgb, var(--status-warn, #d97706) 25%, transparent)"
+              ? "0 0 0 2px color-mix(in srgb, var(--status-warn) 25%, transparent)"
               : "none",
             cursor: "pointer",
             display: "flex",
@@ -900,7 +900,7 @@ export default function EntryHistory({
                     }}
                   >
                     <span style={{ color: "var(--positive)", fontSize: 10 }}>●</span>
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--positive)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--positive)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       On Ledger — Confirmed ({groupedSections.onLedger.count})
                     </span>
                   </div>
@@ -919,7 +919,7 @@ export default function EntryHistory({
                           zIndex: 1,
                         }}
                       >
-                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>{p.label}</span>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{p.label}</span>
                         <span className="small" style={{ color: "var(--text-3)" }}>
                           {p.batchCount} {p.batchCount === 1 ? "lot" : "lots"} · {p.rowCount}{" "}
                           {p.rowCount === 1 ? "entry" : "entries"}
@@ -954,13 +954,13 @@ export default function EntryHistory({
                       alignItems: "center",
                       gap: 8,
                       padding: "8px var(--pad-card)",
-                      background: "color-mix(in srgb, var(--status-warn, #d97706) 8%, var(--surface))",
-                      borderBottom: "1px solid color-mix(in srgb, var(--status-warn, #d97706) 25%, var(--border))",
-                      borderTop: "1px solid color-mix(in srgb, var(--status-warn, #d97706) 25%, var(--border))",
+                      background: "color-mix(in srgb, var(--status-warn) 8%, var(--surface))",
+                      borderBottom: "1px solid color-mix(in srgb, var(--status-warn) 25%, var(--border))",
+                      borderTop: "1px solid color-mix(in srgb, var(--status-warn) 25%, var(--border))",
                     }}
                   >
-                    <span style={{ color: "var(--status-warn, #d97706)", fontSize: 10 }}>●</span>
-                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: "var(--status-warn, #d97706)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    <span style={{ color: "var(--status-warn)", fontSize: 10 }}>●</span>
+                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--status-warn)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       Not on Ledger — Pending Sync ({groupedSections.notOnLedger.count})
                     </span>
                   </div>
@@ -979,7 +979,7 @@ export default function EntryHistory({
                           zIndex: 1,
                         }}
                       >
-                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>{p.label}</span>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{p.label}</span>
                         <span className="small" style={{ color: "var(--text-3)" }}>
                           {p.batchCount} {p.batchCount === 1 ? "lot" : "lots"} · {p.rowCount}{" "}
                           {p.rowCount === 1 ? "entry" : "entries"}
@@ -1023,7 +1023,7 @@ export default function EntryHistory({
                     zIndex: 1,
                   }}
                 >
-                  <span style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>{p.label}</span>
+                  <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{p.label}</span>
                   <span className="small" style={{ color: "var(--text-3)" }}>
                     {p.batchCount} {p.batchCount === 1 ? "lot" : "lots"} · {p.rowCount}{" "}
                     {p.rowCount === 1 ? "entry" : "entries"}
@@ -1173,7 +1173,7 @@ function HistoryBatch({
                 const toneColor = isDone
                   ? "var(--positive)"
                   : isStarted
-                    ? "var(--status-warn, #d97706)"
+                    ? "var(--status-warn)"
                     : "var(--text-3)";
                 const capText = isDone
                   ? "COMPLETED"
@@ -1222,7 +1222,7 @@ function HistoryBatch({
                             isDone
                               ? "color-mix(in srgb, var(--positive) 35%, transparent)"
                               : isStarted
-                                ? "color-mix(in srgb, var(--status-warn, #d97706) 35%, transparent)"
+                                ? "color-mix(in srgb, var(--status-warn) 35%, transparent)"
                                 : "var(--border)"
                           }`,
                       boxShadow: isHovered
@@ -1237,7 +1237,7 @@ function HistoryBatch({
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", color: toneColor }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", color: toneColor }}>
                         {capText}
                       </span>
                       {isHovered && (
@@ -1297,7 +1297,7 @@ function HistoryBatch({
                   <span
                     style={{
                       fontSize: 10,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       letterSpacing: "0.04em",
                       textTransform: "uppercase",
                       padding: "2px 7px",
@@ -1374,7 +1374,7 @@ function HistoryBatch({
                           marginBottom: 8,
                         }}
                       >
-                        <span style={{ fontWeight: 700, color: "var(--text)" }}>{fmtDate(r.date)}</span>
+                        <span style={{ fontWeight: 600, color: "var(--text)" }}>{fmtDate(r.date)}</span>
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5 }}>
                           {r.size ?? "—"}
                         </span>
@@ -1400,39 +1400,39 @@ function HistoryBatch({
                         }}
                       >
                         <div>
-                          <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase" }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase" }}>
                             Checked
                           </div>
-                          <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>
+                          <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                             {r.checked.toLocaleString()}
                           </div>
                         </div>
                         <div>
-                          <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase" }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase" }}>
                             Accepted
                           </div>
-                          <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--positive)" }}>
+                          <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--positive)" }}>
                             {r.accepted.toLocaleString()}
                           </div>
                         </div>
                         {r.rework > 0 && (
                           <div>
-                            <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase" }}>
+                            <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase" }}>
                               Hold
                             </div>
-                            <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--warning)" }}>
+                            <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--warning)" }}>
                               {r.rework.toLocaleString()}
                             </div>
                           </div>
                         )}
                         <div>
-                          <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase" }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase" }}>
                             Rejected
                           </div>
                           <div
                             style={{
                               fontFamily: "var(--font-mono)",
-                              fontWeight: 700,
+                              fontWeight: 600,
                               color: r.rejected > 0 ? "var(--critical)" : "var(--text-3)",
                             }}
                             title={r.checked ? `${rate.toFixed(2)}% of checked` : undefined}
@@ -1525,7 +1525,7 @@ function SegGroup({
                 background: on ? "var(--accent-weak)" : "transparent",
                 color: on ? "var(--accent-text)" : "var(--text-2)",
                 fontSize: "var(--text-xs)",
-                fontWeight: on ? 700 : 500,
+                fontWeight: on ? 600 : 500,
                 cursor: "pointer",
                 fontFamily: mono ? "var(--font-mono)" : "inherit",
                 transition:
@@ -1618,7 +1618,7 @@ const linkBtn: React.CSSProperties = {
   color: "var(--accent)",
   cursor: "pointer",
   fontSize: "var(--text-xs)",
-  fontWeight: 700,
+  fontWeight: 600,
   fontFamily: "inherit",
   padding: "2px 4px",
 };

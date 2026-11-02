@@ -92,7 +92,7 @@ export default function QuantityReconciliationZone({
           <h2
             style={{
               fontSize: 14,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text)",
               margin: 0,
               letterSpacing: "-0.01em",
@@ -115,15 +115,15 @@ export default function QuantityReconciliationZone({
               padding: "4px 12px",
               borderRadius: 999,
               fontSize: 12,
-              fontWeight: 700,
-              color: isBalanced ? "var(--positive)" : "var(--status-warn, #d97706)",
+              fontWeight: 600,
+              color: isBalanced ? "var(--positive)" : "var(--status-warn)",
               background: isBalanced
                 ? "var(--positive-weak)"
-                : "color-mix(in srgb, var(--status-warn, #d97706) 12%, var(--surface))",
+                : "color-mix(in srgb, var(--status-warn) 12%, var(--surface))",
               border: `1px solid ${
                 isBalanced
                   ? "color-mix(in srgb, var(--positive) 30%, transparent)"
-                  : "color-mix(in srgb, var(--status-warn, #d97706) 35%, transparent)"
+                  : "color-mix(in srgb, var(--status-warn) 35%, transparent)"
               }`,
             }}
           >
@@ -154,7 +154,7 @@ export default function QuantityReconciliationZone({
             gap: 8,
           }}
         >
-          <span style={{ color: "var(--accent)", fontWeight: 700 }}>⚡ Upstream Assist:</span>
+          <span style={{ color: "var(--accent)", fontWeight: 600 }}>⚡ Upstream Assist:</span>
           <span>{prefillNote}</span>
         </div>
       )}
@@ -183,7 +183,7 @@ export default function QuantityReconciliationZone({
               style={{
                 display: "block",
                 fontSize: 12,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text)",
                 marginBottom: 6,
                 textAlign: "center",
@@ -201,7 +201,7 @@ export default function QuantityReconciliationZone({
                 width: "100%",
                 height: 46,
                 fontSize: 19,
-                fontWeight: 700,
+                fontWeight: 600,
                 textAlign: "center",
                 fontFamily: "var(--font-mono)",
                 background: "var(--surface)",
@@ -246,7 +246,7 @@ export default function QuantityReconciliationZone({
                 width: "100%",
                 height: 46,
                 fontSize: 18,
-                fontWeight: 700,
+                fontWeight: 600,
                 textAlign: "center",
                 fontFamily: "var(--font-mono)",
                 background: "var(--surface)",
@@ -319,7 +319,7 @@ export default function QuantityReconciliationZone({
               style={{
                 display: "block",
                 fontSize: 12,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--positive)",
                 marginBottom: 6,
                 textAlign: "center",
@@ -337,7 +337,7 @@ export default function QuantityReconciliationZone({
                 width: "100%",
                 height: 46,
                 fontSize: 19,
-                fontWeight: 700,
+                fontWeight: 600,
                 textAlign: "center",
                 fontFamily: "var(--font-mono)",
                 background: "var(--surface)",
@@ -364,8 +364,8 @@ export default function QuantityReconciliationZone({
               style={{
                 display: "block",
                 fontSize: 12,
-                fontWeight: 700,
-                color: "var(--status-warn, #d97706)",
+                fontWeight: 600,
+                color: "var(--status-warn)",
                 marginBottom: 6,
                 textAlign: "center",
               }}
@@ -382,13 +382,13 @@ export default function QuantityReconciliationZone({
                 width: "100%",
                 height: 46,
                 fontSize: 19,
-                fontWeight: 700,
+                fontWeight: 600,
                 textAlign: "center",
                 fontFamily: "var(--font-mono)",
                 background: "var(--surface)",
-                border: "1.5px solid color-mix(in srgb, var(--status-warn, #d97706) 40%, var(--border))",
+                border: "1.5px solid color-mix(in srgb, var(--status-warn) 40%, var(--border))",
                 borderRadius: "var(--radius-sm, 6px)",
-                color: "var(--status-warn, #d97706)",
+                color: "var(--status-warn)",
               }}
             />
           </div>
@@ -409,7 +409,7 @@ export default function QuantityReconciliationZone({
               style={{
                 display: "block",
                 fontSize: 12,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: reject > 0 ? "var(--critical)" : "var(--text-2)",
                 marginBottom: 6,
                 textAlign: "center",
@@ -427,7 +427,7 @@ export default function QuantityReconciliationZone({
                 width: "100%",
                 height: 46,
                 fontSize: 19,
-                fontWeight: 700,
+                fontWeight: 600,
                 textAlign: "center",
                 fontFamily: "var(--font-mono)",
                 background: "var(--surface)",
@@ -456,7 +456,7 @@ export default function QuantityReconciliationZone({
               style={{
                 display: "block",
                 fontSize: 12,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text-2)",
                 marginBottom: 6,
                 textAlign: "center",
@@ -473,7 +473,7 @@ export default function QuantityReconciliationZone({
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 19,
-                fontWeight: 700,
+                fontWeight: 600,
                 fontFamily: "var(--font-mono)",
                 background: "var(--surface)",
                 border: "1.5px solid var(--border)",
@@ -495,7 +495,7 @@ export default function QuantityReconciliationZone({
             borderRadius: "var(--radius-md, 8px)",
             background: isBalanced ? "var(--surface-2)" : "var(--warning-weak)",
             border: `1px solid ${
-              isBalanced ? "var(--border)" : "color-mix(in srgb, var(--status-warn, #d97706) 40%, transparent)"
+              isBalanced ? "var(--border)" : "color-mix(in srgb, var(--status-warn) 40%, transparent)"
             }`,
             fontSize: 13,
             display: "flex",
@@ -518,7 +518,7 @@ export default function QuantityReconciliationZone({
               {qtyLabel} <strong>{checked}</strong> = Accept <strong>{accept}</strong>
               {capturesHold ? ` + Hold ${hold}` : ""} + Reject <strong>{reject}</strong>
             </span>
-            <span style={{ color: isBalanced ? "var(--positive)" : "var(--status-warn, #d97706)" }}>
+            <span style={{ color: isBalanced ? "var(--positive)" : "var(--status-warn)" }}>
               Sum: {sumParts} {isBalanced ? "(Matches 100%)" : `(Mismatch: ${difference > 0 ? `+${difference}` : difference})`}
             </span>
           </div>

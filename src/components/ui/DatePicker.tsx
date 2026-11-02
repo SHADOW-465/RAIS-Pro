@@ -254,10 +254,10 @@ export default function DatePicker({
                 onClick={prevMonth}
                 aria-label="Previous month"
                 style={{
-                  background: "var(--surface-2, #0C121C)",
+                  background: "var(--surface-2)",
                   border: "1px solid var(--border, rgba(255, 255, 255, 0.08))",
                   borderRadius: "var(--radius-sm, 4px)",
-                  color: "var(--text-2, #8E9BAE)",
+                  color: "var(--text-2)",
                   width: 26,
                   height: 26,
                   display: "flex",
@@ -272,7 +272,7 @@ export default function DatePicker({
                 </svg>
               </button>
 
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text, #E2EBF5)" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
                 {MONTH_NAMES[viewMonth]} {viewYear}
               </div>
 
@@ -281,10 +281,10 @@ export default function DatePicker({
                 onClick={nextMonth}
                 aria-label="Next month"
                 style={{
-                  background: "var(--surface-2, #0C121C)",
+                  background: "var(--surface-2)",
                   border: "1px solid var(--border, rgba(255, 255, 255, 0.08))",
                   borderRadius: "var(--radius-sm, 4px)",
-                  color: "var(--text-2, #8E9BAE)",
+                  color: "var(--text-2)",
                   width: 26,
                   height: 26,
                   display: "flex",
@@ -320,8 +320,8 @@ export default function DatePicker({
                   fontWeight: 500,
                   borderRadius: "var(--radius-sm, 4px)",
                   border: "1px solid var(--border, rgba(255, 255, 255, 0.08))",
-                  background: "var(--surface-2, #0C121C)",
-                  color: "var(--text-2, #8E9BAE)",
+                  background: "var(--surface-2)",
+                  color: "var(--text-2)",
                   cursor: "pointer",
                 }}
               >
@@ -341,8 +341,8 @@ export default function DatePicker({
                   fontWeight: 500,
                   borderRadius: "var(--radius-sm, 4px)",
                   border: "1px solid var(--border, rgba(255, 255, 255, 0.08))",
-                  background: "var(--surface-2, #0C121C)",
-                  color: "var(--text-2, #8E9BAE)",
+                  background: "var(--surface-2)",
+                  color: "var(--text-2)",
                   cursor: "pointer",
                 }}
               >
@@ -365,7 +365,7 @@ export default function DatePicker({
                   style={{
                     fontSize: 10.5,
                     fontWeight: 600,
-                    color: "var(--text-3, #5A6980)",
+                    color: "var(--text-3)",
                     padding: "2px 0",
                   }}
                 >
@@ -404,16 +404,16 @@ export default function DatePicker({
                       alignItems: "center",
                       justifyContent: "center",
                       borderRadius: "var(--radius-sm, 4px)",
-                      border: isToday && !isSelected ? "1px solid var(--accent, #0066A1)" : "none",
+                      border: isToday && !isSelected ? "1px solid var(--accent)" : "none",
                       background: isSelected
-                        ? "var(--accent, #0066A1)"
+                        ? "var(--accent)"
                         : "transparent",
                       color: isSelected
-                        ? "#FFFFFF"
+                        ? "var(--on-accent)"
                         : cell.isCurrentMonth
                           ? isDis
-                            ? "var(--text-3, #5A6980)"
-                            : "var(--text, #E2EBF5)"
+                            ? "var(--text-3)"
+                            : "var(--text)"
                           : "var(--text-3, rgba(255, 255, 255, 0.25))",
                       fontSize: 12,
                       fontFamily: "inherit",
@@ -473,8 +473,8 @@ export default function DatePicker({
           padding: isSmall ? "4px 8px" : "6px 10px",
           borderRadius: "var(--radius-sm, 6px)",
           border: "1px solid var(--border, rgba(255, 255, 255, 0.12))",
-          background: "var(--surface, #141D2B)",
-          color: value ? "var(--text, #E2EBF5)" : "var(--text-3, #5A6980)",
+          background: "var(--surface)",
+          color: value ? "var(--text)" : "var(--text-3)",
           fontSize: isSmall ? 12 : 13,
           fontFamily: "inherit",
           cursor: disabled ? "not-allowed" : "pointer",
@@ -492,7 +492,7 @@ export default function DatePicker({
           viewBox="0 0 16 16"
           fill="none"
           aria-hidden
-          style={{ flexShrink: 0, color: "var(--text-3, #5A6980)" }}
+          style={{ flexShrink: 0, color: "var(--text-3)" }}
         >
           <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
           <line x1="2" y1="7" x2="14" y2="7" stroke="currentColor" strokeWidth="1.5" />
@@ -516,7 +516,7 @@ export default function DatePicker({
               top: rect.top,
               width: 274,
               zIndex: 99999,
-              background: "var(--surface, #141D2B)",
+              background: "var(--surface)",
               border: "1px solid var(--border, rgba(255, 255, 255, 0.12))",
               borderRadius: "var(--radius-md, 8px)",
               boxShadow: "var(--shadow-lg, 0 12px 30px rgba(0, 0, 0, 0.45))",

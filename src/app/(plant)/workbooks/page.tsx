@@ -340,7 +340,7 @@ export default function WorkbooksPage() {
                         <span className="small" style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-3)" }}>
                           {wb.uploadedAt?.slice(0, 10)}
                         </span>
-                        <span style={{ fontSize: 10.5, fontWeight: 700, color: nForFile ? "var(--positive)" : "var(--text-3)" }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 600, color: nForFile ? "var(--positive)" : "var(--text-3)" }}>
                           {nForFile ? `${nForFile} events` : wb.mod ? wb.mod.status : "no schema"}
                         </span>
                       </div>

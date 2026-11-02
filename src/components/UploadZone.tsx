@@ -114,7 +114,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
               style={{
                 fontFamily: "var(--font-display)",
                 fontSize: 24,
-                fontWeight: 800,
+                fontWeight: 600,
                 letterSpacing: "-0.02em",
               }}
             >
@@ -146,7 +146,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                     border: "1px solid var(--border-strong)",
                     background: "var(--surface-2)",
                     borderRadius: "var(--radius-sm)",
-                    fontWeight: 700,
+                    fontWeight: 600,
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
                   }}
@@ -200,7 +200,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
       {files.length > 0 && (
         <div className="mt-6 fade-up">
           <div className="between mb-3">
-            <div className="eyebrow" style={{ fontWeight: 700 }}>
+            <div className="eyebrow" style={{ fontWeight: 600 }}>
               {files.length} file{files.length > 1 ? "s" : ""} queued
             </div>
             <button className="btn ghost sm" onClick={() => { setFiles([]); setRejections([]); }}>

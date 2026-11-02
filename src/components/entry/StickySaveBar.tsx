@@ -74,7 +74,7 @@ export default function StickySaveBar({
           </span>
         ) : (
           <>
-            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text)" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text)" }}>
               {batchId}
             </span>
             <span>•</span>
@@ -90,8 +90,8 @@ export default function StickySaveBar({
                 <span>•</span>
                 <span
                   style={{
-                    color: qtyMismatch ? "var(--status-warn, #d97706)" : "var(--positive)",
-                    fontWeight: 700,
+                    color: qtyMismatch ? "var(--status-warn)" : "var(--positive)",
+                    fontWeight: 600,
                   }}
                 >
                   {qtyMismatch ? "⚠ Math Mismatch" : "✓ Balanced"}
@@ -99,7 +99,7 @@ export default function StickySaveBar({
               </>
             )}
             {showReject && defectMismatch && (
-              <span style={{ color: "var(--critical)", fontWeight: 700 }}>
+              <span style={{ color: "var(--critical)", fontWeight: 600 }}>
                 • Defects {defectSum}/{reject}
               </span>
             )}
@@ -140,9 +140,9 @@ export default function StickySaveBar({
             color: saveDisabled ? "var(--text-3)" : "var(--text-invert)",
             border: "none",
             fontSize: 14,
-            fontWeight: 700,
+            fontWeight: 600,
             cursor: saveDisabled ? "not-allowed" : "pointer",
-            boxShadow: saveDisabled ? "none" : "0 2px 8px rgba(200, 66, 28, 0.25)",
+            boxShadow: saveDisabled ? "none" : "0 2px 8px rgba(37, 99, 235, 0.25)",
             transition: "all var(--duration-fast, 120ms) ease",
           }}
         >

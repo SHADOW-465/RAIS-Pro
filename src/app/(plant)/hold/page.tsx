@@ -71,7 +71,7 @@ export default function HoldQuantityPage() {
             style={{
               fontFamily: "var(--font-display)",
               fontSize: 28,
-              fontWeight: 800,
+              fontWeight: 600,
               margin: "0 0 4px",
               color: "var(--text)",
             }}
@@ -104,7 +104,7 @@ export default function HoldQuantityPage() {
               style={{
                 fontFamily: "var(--font-display)",
                 fontSize: 18,
-                fontWeight: 800,
+                fontWeight: 600,
                 marginBottom: 8,
                 color: "var(--text)",
               }}
@@ -119,9 +119,9 @@ export default function HoldQuantityPage() {
               style={{
                 display: "inline-block",
                 textDecoration: "none",
-                fontWeight: 700,
+                fontWeight: 600,
                 fontSize: 12.5,
-                color: "var(--paper)",
+                color: "var(--on-accent)",
                 background: "var(--accent)",
                 padding: "8px 16px",
                 borderRadius: "var(--radius-md)",

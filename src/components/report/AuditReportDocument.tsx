@@ -12,7 +12,7 @@ const PRINT_CSS = `
               background-color var(--duration-medium, 300ms) var(--ease-out),
               border-color var(--duration-medium, 300ms) var(--ease-out);
 }
-.ar-doc h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; color: var(--text); }
+.ar-doc h1 { font-size: 28px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.02em; color: var(--text); }
 .ar-doc h2 { font-size: 18px; font-weight: 600; margin: 28px 0 10px; color: var(--text); }
 .ar-doc h3 { font-size: 15px; font-weight: 600; margin: 0 0 8px; color: var(--text); }
 .ar-doc .ar-meta { font-size: 13px; color: var(--text-2); display: grid; gap: 4px; }
@@ -21,7 +21,7 @@ const PRINT_CSS = `
 .ar-doc .ar-kpi { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--surface); min-width: 0; }
 .ar-doc .ar-kpi-l { font-size: 13px; font-weight: 600; color: var(--text-2); }
 .ar-doc .ar-kpi-s { margin-top: 2px; font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
-.ar-doc .ar-kpi-v { font-family: var(--font-mono); font-size: 22px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.ar-doc .ar-kpi-v { font-family: var(--font-mono); font-size: 22px; font-weight: 600; margin-top: 6px; font-variant-numeric: tabular-nums; }
 .ar-doc .ar-kpi-v.unavail { font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text-2); }
 .ar-doc table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ar-doc th, .ar-doc td { padding: 7px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
@@ -37,12 +37,12 @@ const PRINT_CSS = `
 .ar-doc li { margin: 4px 0; }
 @media print {
   .ar-doc {
-    color: #14181f !important;
-    --text: #14181f; --text-2: #3a4450; --text-3: #5a6570;
-    --border: #c8ced6; --border-strong: #9aa3ad;
-    --surface: #fff; --surface-2: #eef1f4; --bg: #fff; --accent: #C8421C;
+    color: #18181B !important;
+    --text: #18181B; --text-2: #3F3F46; --text-3: #52525B;
+    --border: #D4D4D8; --border-strong: #A1A1AA;
+    --surface: #fff; --surface-2: #F4F4F5; --bg: #fff; --accent: #2563EB;
   }
-  .ar-doc h1, .ar-doc h2, .ar-doc h3 { color: #14181f !important; }
+  .ar-doc h1, .ar-doc h2, .ar-doc h3 { color: #18181B !important; }
   .ar-doc .ar-kpi { break-inside: avoid; background: #fff !important; }
   .ar-doc table { page-break-inside: auto; }
   .ar-doc tr { break-inside: avoid; page-break-inside: avoid; }

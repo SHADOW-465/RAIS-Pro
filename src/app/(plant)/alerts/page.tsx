@@ -105,7 +105,7 @@ export default function AlertsPage() {
             style={{
               fontFamily: "var(--font-display)",
               fontSize: 28,
-              fontWeight: 800,
+              fontWeight: 600,
               margin: "0 0 4px",
               color: "var(--text)",
             }}
@@ -243,7 +243,7 @@ export default function AlertsPage() {
         {groups.map((g) => (
           <section key={g.key} style={panel}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
-              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
                 {g.label}
               </h2>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--text-3)" }}>
@@ -300,7 +300,7 @@ function AlertCard({
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 13.5, color: "var(--text)" }}>{n.title}</div>
+          <div style={{ fontWeight: 600, fontSize: 13.5, color: "var(--text)" }}>{n.title}</div>
           <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 3 }}>
             {place.pageLabel} · {place.processLabel} · {place.stageLabel}
           </div>
@@ -357,7 +357,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div style={{ ...panel, padding: "12px 14px" }}>
       <div style={eyebrow}>{label}</div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 22, fontWeight: 800 }}>{value}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 22, fontWeight: 600 }}>{value}</div>
     </div>
   );
 }
@@ -369,7 +369,7 @@ function StatusPill({ status }: { status: string }) {
     <span
       style={{
         fontSize: 10.5,
-        fontWeight: 800,
+        fontWeight: 600,
         letterSpacing: "0.04em",
         textTransform: "uppercase",
         color,
@@ -415,7 +415,7 @@ const panel: CSSProperties = {
 const row: CSSProperties = { display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 };
 const eyebrow: CSSProperties = {
   fontSize: 11,
-  fontWeight: 700,
+  fontWeight: 600,
   letterSpacing: "0.04em",
   textTransform: "uppercase",
   color: "var(--text-3)",

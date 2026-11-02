@@ -48,7 +48,7 @@ function confidenceTone(score: number): { label: string; color: string } {
 const pgBtn = (disabled: boolean): CSSProperties => ({
   padding: "4px 10px",
   fontSize: 11.5,
-  fontWeight: 700,
+  fontWeight: 600,
   border: "1px solid var(--border-strong)",
   borderRadius: 6,
   background: "var(--surface)",
@@ -245,7 +245,7 @@ export default function MappingVerificationPanel({
             <div
               style={{
                 fontSize: 11,
-                fontWeight: 800,
+                fontWeight: 600,
                 color: "var(--accent)",
                 letterSpacing: "0.04em",
                 textTransform: "uppercase",
@@ -273,10 +273,10 @@ export default function MappingVerificationPanel({
                 borderRadius: 8,
                 border: "1px solid var(--accent)",
                 background: "var(--accent)",
-                color: "var(--text-invert)",
+                color: "var(--on-accent)",
                 cursor: busy ? "wait" : "pointer",
                 fontSize: 13,
-                fontWeight: 700,
+                fontWeight: 600,
                 flexShrink: 0,
                 boxShadow: "0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent)",
               }}
@@ -285,7 +285,7 @@ export default function MappingVerificationPanel({
             </button>
           )}
           {published && (
-            <span className="small" style={{ color: "var(--positive)", fontWeight: 700, alignSelf: "center" }}>
+            <span className="small" style={{ color: "var(--positive)", fontWeight: 600, alignSelf: "center" }}>
               Mappings saved ({published.learned} learned
               {published.novelAdded ? `, ${published.novelAdded} new schema` : ""}) · loading numbers…
             </span>
@@ -309,13 +309,13 @@ export default function MappingVerificationPanel({
               background: "var(--warning-weak)",
             }}
           >
-            <div style={{ fontWeight: 800, fontSize: 13, color: "var(--text)", marginBottom: 4 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text)", marginBottom: 4 }}>
               New fields not in Plant Schema
             </div>
             <p className="small" style={{ margin: "0 0 10px", color: "var(--text-2)", lineHeight: 1.45 }}>
               These were found in the Excel but are not on your master catalog yet.
               Tick to <strong>add them to Plant Schema</strong> (they show on{" "}
-              <a href="/schema" style={{ color: "var(--accent)", fontWeight: 700 }}>
+              <a href="/schema" style={{ color: "var(--accent)", fontWeight: 600 }}>
                 Plant Schema
               </a>{" "}
               immediately after confirm). Leave unticked to load numbers without changing the master schema.
@@ -395,7 +395,7 @@ export default function MappingVerificationPanel({
                 borderRadius: 999,
                 border: "1px solid var(--border-strong)",
                 background: m.modId === activeModId ? "var(--accent-weak)" : "var(--surface)",
-                fontWeight: 700,
+                fontWeight: 600,
                 fontSize: 12,
                 cursor: "pointer",
                 whiteSpace: "nowrap",
@@ -459,7 +459,7 @@ export default function MappingVerificationPanel({
                     textAlign: "left",
                     padding: "8px 10px",
                     borderBottom: "1px solid var(--border)",
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: "var(--text-2)",
                     whiteSpace: "nowrap",
                   }}
@@ -504,7 +504,7 @@ export default function MappingVerificationPanel({
                       }}
                     />
                   </td>
-                  <td style={{ padding: "8px 10px", fontWeight: 700, color: tone.color }}>
+                  <td style={{ padding: "8px 10px", fontWeight: 600, color: tone.color }}>
                     {tone.label}
                   </td>
                   <td style={{ padding: "8px 10px", color: "var(--text-3)", maxWidth: 220 }}>
@@ -580,7 +580,7 @@ function NovelGroup({
       <div
         style={{
           fontSize: 11,
-          fontWeight: 800,
+          fontWeight: 600,
           letterSpacing: "0.04em",
           textTransform: "uppercase",
           color: "var(--text-3)",
@@ -610,7 +610,7 @@ function NovelGroup({
               onChange={() => onToggle(it.id)}
             />
             <span style={{ minWidth: 0 }}>
-              <span style={{ fontWeight: 700, fontSize: 13, display: "block" }}>{it.label}</span>
+              <span style={{ fontWeight: 600, fontSize: 13, display: "block" }}>{it.label}</span>
               <span
                 className="small"
                 style={{ fontFamily: "var(--font-mono)", color: "var(--text-3)" }}
@@ -622,7 +622,7 @@ function NovelGroup({
               className="small"
               style={{
                 marginLeft: "auto",
-                fontWeight: 700,
+                fontWeight: 600,
                 color: selected.has(it.id) ? "var(--positive)" : "var(--text-3)",
               }}
             >

@@ -61,7 +61,7 @@ export default function IssueSummaryZone({
               alignItems: "center",
               gap: 8,
               fontSize: 13.5,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--critical)",
               marginBottom: 10,
             }}
@@ -83,7 +83,7 @@ export default function IssueSummaryZone({
                   border: "1px solid color-mix(in srgb, var(--critical) 25%, transparent)",
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--critical)" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--critical)" }}>
                   {b.message}
                 </div>
                 {b.action && (
@@ -121,7 +121,7 @@ export default function IssueSummaryZone({
               alignItems: "center",
               gap: 8,
               fontSize: 13.5,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--warning)",
               marginBottom: 10,
             }}
@@ -152,7 +152,7 @@ export default function IssueSummaryZone({
                     transition: "all var(--duration-fast, 120ms) ease",
                   }}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
                     {w.message}
                   </div>
                   {w.action && (
@@ -204,7 +204,7 @@ export default function IssueSummaryZone({
                         style={{
                           display: "block",
                           fontSize: 11.5,
-                          fontWeight: 700,
+                          fontWeight: 600,
                           color: "var(--accent)",
                           marginBottom: 4,
                         }}

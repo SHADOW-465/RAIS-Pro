@@ -168,7 +168,7 @@ export default function RemediesPage() {
             style={{
               fontFamily: "var(--font-display)",
               fontSize: 28,
-              fontWeight: 800,
+              fontWeight: 600,
               margin: "0 0 4px",
               color: "var(--text)",
             }}
@@ -330,8 +330,8 @@ export default function RemediesPage() {
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontWeight: 800 }}>{d.code}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: ready ? "var(--positive)" : "var(--warning)" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{d.code}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: ready ? "var(--positive)" : "var(--warning)" }}>
                           {ready ? "Fed" : "Needs feed"}
                         </span>
                       </div>
@@ -358,7 +358,7 @@ export default function RemediesPage() {
                 </p>
               ) : (
                 <>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 800 }}>{active}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 18, fontWeight: 600 }}>{active}</div>
                   <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 14 }}>{activeMeta?.label}</div>
                   <label style={labelStyle}>Explanatory description</label>
                   <textarea
@@ -512,7 +512,7 @@ export default function RemediesPage() {
                     <span
                       style={{
                         fontSize: 11,
-                        fontWeight: 800,
+                        fontWeight: 600,
                         letterSpacing: "0.04em",
                         textTransform: "uppercase",
                         color: n.kind === "spike" ? "var(--critical)" : "var(--positive)",
@@ -581,7 +581,7 @@ const areaStyle: CSSProperties = {
 const labelStyle: CSSProperties = {
   display: "block",
   fontSize: 12,
-  fontWeight: 700,
+  fontWeight: 600,
   color: "var(--text-2)",
   marginBottom: 4,
 };
@@ -590,8 +590,8 @@ const saveBtn: CSSProperties = {
   borderRadius: "var(--radius-sm)",
   border: "1px solid var(--accent)",
   background: "var(--accent)",
-  color: "var(--text-invert)",
-  fontWeight: 700,
+  color: "var(--on-accent)",
+  fontWeight: 600,
   fontSize: 13,
   cursor: "pointer",
 };

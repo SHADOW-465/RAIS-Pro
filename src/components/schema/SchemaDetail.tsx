@@ -630,7 +630,7 @@ const SchemaDetail = forwardRef<SchemaDetailHandle, SchemaDetailProps>(function 
           style={{
             margin: 0,
             fontSize: 17,
-            fontWeight: 650,
+            fontWeight: 600,
             letterSpacing: "-0.01em",
             color: "var(--text)",
             fontFamily: MONO_TITLE.has(node.kind) ? "var(--font-mono)" : undefined,
@@ -778,7 +778,7 @@ function CaptureChecks({
             }}
             style={{
               fontSize: 12,
-              fontWeight: 650,
+              fontWeight: 600,
               fontFamily: "var(--font-mono)",
               padding: "6px 10px",
               borderRadius: 8,

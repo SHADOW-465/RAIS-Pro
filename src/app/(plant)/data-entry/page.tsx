@@ -89,7 +89,7 @@ export default function DataEntryPage() {
           style={{
             fontFamily: "var(--font-display)",
             fontSize: "var(--text-3xl, 28px)",
-            fontWeight: 700,
+            fontWeight: 600,
             margin: "0 0 4px",
             letterSpacing: "var(--tracking-tight, -0.02em)",
             lineHeight: "var(--leading-tight, 1.15)",
@@ -146,7 +146,7 @@ export default function DataEntryPage() {
               cursor: "pointer",
               fontSize: 16,
               color: "var(--positive)",
-              fontWeight: 700,
+              fontWeight: 600,
               lineHeight: 1,
               padding: "0 4px",
               minHeight: 24,

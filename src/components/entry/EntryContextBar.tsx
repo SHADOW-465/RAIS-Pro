@@ -105,7 +105,7 @@ export default function EntryContextBar({
             <div
               style={{
                 fontSize: 15,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text)",
                 letterSpacing: "-0.02em",
               }}
@@ -117,7 +117,7 @@ export default function EntryContextBar({
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 13,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   letterSpacing: "0.04em",
                   color: "var(--text)",
                 }}
@@ -150,7 +150,7 @@ export default function EntryContextBar({
                 padding: "3px 10px",
                 borderRadius: 999,
                 fontSize: 11.5,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--accent)",
                 background: "var(--accent-weak)",
                 border: "1px solid color-mix(in srgb, var(--accent) 30%, transparent)",
@@ -167,7 +167,7 @@ export default function EntryContextBar({
                     border: "none",
                     color: "var(--accent)",
                     cursor: "pointer",
-                    fontWeight: 700,
+                    fontWeight: 600,
                     padding: "0 2px",
                     lineHeight: 1,
                   }}
@@ -293,13 +293,13 @@ export default function EntryContextBar({
                 color: "var(--text)",
                 opacity: waived && !inspectAll ? 0.55 : inspectAll || complete || !locked || active ? 1 : 0.72,
                 cursor: waived && !inspectAll ? "default" : "pointer",
-                boxShadow: active ? "0 1px 3px rgba(200, 66, 28, 0.10)" : "none",
+                boxShadow: active ? "0 1px 3px rgba(37, 99, 235, 0.10)" : "none",
               }}
             >
               <div
                 style={{
                   fontSize: 10.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   letterSpacing: "0.04em",
                   textTransform: "uppercase",
                   color: capColor,
@@ -308,7 +308,7 @@ export default function EntryContextBar({
               >
                 {caption}
               </div>
-              <div style={{ fontSize: 13, fontWeight: active ? 700 : 600, lineHeight: 1.25 }}>
+              <div style={{ fontSize: 13, fontWeight: active ? 600 : 600, lineHeight: 1.25 }}>
                 {sec.label.replace(/\s*\(.*\)$/, "")}
               </div>
             </button>
@@ -320,7 +320,7 @@ export default function EntryContextBar({
         <div
           style={{
             fontSize: 11.5,
-            fontWeight: 700,
+            fontWeight: 600,
             color: "var(--text-3)",
             letterSpacing: "0.04em",
             textTransform: "uppercase",
@@ -389,7 +389,7 @@ export default function EntryContextBar({
                         ? "color-mix(in srgb, var(--positive) 7%, var(--surface-2))"
                         : "var(--surface-2)",
                     color: active ? "var(--accent)" : done ? "var(--positive)" : "var(--text)",
-                    fontWeight: active || isNext ? 700 : 500,
+                    fontWeight: active || isNext ? 600 : 500,
                     fontSize: 13,
                     opacity:
                       inherited && !inspectAll
@@ -419,7 +419,7 @@ export default function EntryContextBar({
                     <span
                       style={{
                         fontSize: 10,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         letterSpacing: "0.04em",
                         textTransform: "uppercase",
                         color: "var(--accent)",

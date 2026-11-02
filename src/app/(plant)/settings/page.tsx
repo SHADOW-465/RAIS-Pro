@@ -5,7 +5,7 @@ import { pushShared, SHARED_STATE_EVENT } from "@/lib/shared-state/push";
 import "./settings.css";
 
 /* Hallmark · macrostructure: Index-First · genre: modern-minimal · tone: utilitarian
- * theme: project-locked (Geist · burnt orange #C8421C · paper surfaces)
+ * theme: project-locked (Geist · burnt orange #2563EB · paper surfaces)
  * enrichment: none · designed-as-app · redesign of /settings
  * pre-emit critique: P5 H5 E4 S4 R5 V4
  */
@@ -746,7 +746,7 @@ export default function SettingsPage() {
                 alignItems: "center",
               }}
             >
-              <h3 id="clear-tx-title" style={{ fontFamily: "var(--font-sans)", fontSize: 16, fontWeight: 700, margin: 0 }}>
+              <h3 id="clear-tx-title" style={{ fontFamily: "var(--font-sans)", fontSize: 16, fontWeight: 600, margin: 0 }}>
                 Purge transactions
               </h3>
               <button
@@ -784,7 +784,7 @@ export default function SettingsPage() {
                 Irreversible. Historical charts and trend lines will clear.
               </div>
               <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>
+                <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>
                   Type CLEAR to confirm
                 </span>
                 <input
@@ -878,7 +878,7 @@ export default function SettingsPage() {
                 style={{
                   fontFamily: "var(--font-sans)",
                   fontSize: 16,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   margin: 0,
                   color: "var(--status-bad)",
                 }}
@@ -913,13 +913,13 @@ export default function SettingsPage() {
                   padding: "10px 12px",
                   fontSize: 12,
                   color: "var(--status-bad)",
-                  fontWeight: 700,
+                  fontWeight: 600,
                 }}
               >
                 Critical: custom fields in all stages reset. Direct entry tables reload to base defaults.
               </div>
               <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>
+                <span className="muted" style={{ fontSize: 11, fontWeight: 600 }}>
                   Type RESET to confirm
                 </span>
                 <input

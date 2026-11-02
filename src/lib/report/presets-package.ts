@@ -128,7 +128,7 @@ function renderHtml(spec: ReportSpec, events: Event[], scope: Scope, periodLabel
   .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
   .kpi{border:1px solid #e5e5e5;border-radius:8px;padding:12px}
   .kpi-l{font-size:11px;color:#666;text-transform:uppercase}
-  .kpi-v{font-size:20px;font-weight:700;margin-top:4px}
+  .kpi-v{font-size:20px;font-weight:600;margin-top:4px}
   table{width:100%;border-collapse:collapse;font-size:12px}
   th,td{padding:6px 4px;border-bottom:1px solid #eee;text-align:left}
   th{color:#666;font-size:11px}

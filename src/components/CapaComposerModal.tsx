@@ -196,7 +196,7 @@ export default function CapaComposerModal({
         <div style={titleBar}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             <span style={brandChip}>{BRAND_NAME}</span>
-            <span id="capa-composer-title" style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700 }}>
+            <span id="capa-composer-title" style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>
               {form.source === "engine" ? "Create CAPA from recommendation" : "New CAPA"}
             </span>
           </div>
@@ -232,7 +232,7 @@ export default function CapaComposerModal({
               <div style={successCard}>
                 <Icon name="check" size={18} style={{ color: "var(--positive)" }} />
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>CAPA created</div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>CAPA created</div>
                   <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                     Tracked in CAPA &amp; Action Items. Close this window or open the register to edit it.
                   </div>
@@ -304,7 +304,7 @@ export default function CapaComposerModal({
           <div style={advisorPane}>
             <div style={advisorHead}>
               <Icon name="spark" size={14} style={{ color: "var(--accent)" }} />
-              <span style={{ fontWeight: 700, fontSize: 13 }}>{BRAND_NAME} Advisor</span>
+              <span style={{ fontWeight: 600, fontSize: 13 }}>{BRAND_NAME} Advisor</span>
               <span className="muted" style={{ fontSize: 11, marginLeft: "auto" }}>grounded in verified figures</span>
             </div>
 
@@ -417,7 +417,7 @@ const titleBar: React.CSSProperties = {
 };
 const brandChip: React.CSSProperties = {
   fontSize: 10,
-  fontWeight: 700,
+  fontWeight: 600,
   background: "var(--surface-2)",
   color: "var(--text-2)",
   border: "1px solid var(--border)",
@@ -452,7 +452,7 @@ const briefCard: React.CSSProperties = {
 };
 const sevPill: React.CSSProperties = {
   fontSize: 10,
-  fontWeight: 700,
+  fontWeight: 600,
   textTransform: "uppercase",
   padding: "2px 8px",
   borderRadius: 5,
@@ -471,11 +471,11 @@ const inp: React.CSSProperties = {
 const createBtn: React.CSSProperties = {
   marginTop: 4,
   background: "var(--accent)",
-  color: "#fff",
+  color: "var(--on-accent)",
   border: "none",
   borderRadius: 6,
   padding: "11px 14px",
-  fontWeight: 700,
+  fontWeight: 600,
   fontSize: 13.5,
 };
 const successCard: React.CSSProperties = {
@@ -491,7 +491,7 @@ const successCard: React.CSSProperties = {
 const openRegisterBtn: React.CSSProperties = {
   marginLeft: "auto",
   fontSize: 12.5,
-  fontWeight: 700,
+  fontWeight: 600,
   color: "var(--accent)",
   textDecoration: "none",
   whiteSpace: "nowrap",
@@ -565,11 +565,11 @@ const chip: React.CSSProperties = {
 };
 const askBtn: React.CSSProperties = {
   background: "var(--accent)",
-  color: "#fff",
+  color: "var(--on-accent)",
   border: "none",
   borderRadius: 6,
   padding: "8px 16px",
-  fontWeight: 700,
+  fontWeight: 600,
   fontSize: 13,
   cursor: "pointer",
 };

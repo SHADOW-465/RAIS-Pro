@@ -208,7 +208,7 @@ export default function OpenLotsPage() {
             style={{
               fontFamily: "var(--font-display)",
               fontSize: 28,
-              fontWeight: 800,
+              fontWeight: 600,
               margin: "0 0 4px",
               color: "var(--text)",
             }}
@@ -233,7 +233,7 @@ export default function OpenLotsPage() {
               borderRadius: "var(--radius-lg)",
             }}
           >
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
               No named lots yet
             </div>
             <p className="muted" style={{ fontSize: 13, margin: 0 }}>
@@ -618,7 +618,7 @@ export default function OpenLotsPage() {
                           <span
                             style={{
                               fontFamily: "var(--font-mono)",
-                              fontWeight: 700,
+                              fontWeight: 600,
                               color: btn.color,
                             }}
                           >

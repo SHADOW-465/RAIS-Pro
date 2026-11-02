@@ -69,7 +69,7 @@ export default function Tabs({
           color: on ? "var(--text)" : "var(--text-3)",
           fontFamily: "inherit",
           fontSize: font,
-          fontWeight: on ? 650 : 500,
+          fontWeight: on ? 600 : 500,
           cursor: t.disabled ? "not-allowed" : "pointer",
           opacity: t.disabled ? 0.5 : 1,
           transition:

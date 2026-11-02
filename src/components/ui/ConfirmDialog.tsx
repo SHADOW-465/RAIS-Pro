@@ -63,25 +63,25 @@ export default function ConfirmDialog({
   const isWarning = variant === "warning";
 
   const confirmBg = isDanger
-    ? "var(--negative, #E63946)"
+    ? "var(--negative)"
     : isWarning
-      ? "var(--warning, #F59E0B)"
-      : "var(--accent, #0066A1)";
+      ? "var(--warning)"
+      : "var(--accent)";
 
   const iconSvg = isDanger ? (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden style={{ flexShrink: 0, color: "var(--negative, #E63946)" }}>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden style={{ flexShrink: 0, color: "var(--negative)" }}>
       <path d="M10 3L18 17H2L10 3Z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M10 8V12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
       <circle cx="10" cy="14.5" r="0.75" fill="currentColor" />
     </svg>
   ) : isWarning ? (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden style={{ flexShrink: 0, color: "var(--warning, #F59E0B)" }}>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden style={{ flexShrink: 0, color: "var(--warning)" }}>
       <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.75" />
       <path d="M10 6V11" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
       <circle cx="10" cy="14" r="0.75" fill="currentColor" />
     </svg>
   ) : (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden style={{ flexShrink: 0, color: "var(--accent, #0066A1)" }}>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden style={{ flexShrink: 0, color: "var(--accent)" }}>
       <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.75" />
       <path d="M10 9V14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
       <circle cx="10" cy="6.5" r="0.75" fill="currentColor" />
@@ -114,7 +114,7 @@ export default function ConfirmDialog({
         style={{
           width: "100%",
           maxWidth: 440,
-          background: "var(--surface, #141D2B)",
+          background: "var(--surface)",
           border: "1px solid var(--border, rgba(255, 255, 255, 0.1))",
           borderRadius: "var(--radius-lg, 12px)",
           boxShadow: "var(--shadow-xl, 0 20px 40px rgba(0,0,0,0.5))",
@@ -147,8 +147,8 @@ export default function ConfirmDialog({
               style={{
                 margin: 0,
                 fontSize: 16,
-                fontWeight: 650,
-                color: "var(--text, #E2EBF5)",
+                fontWeight: 600,
+                color: "var(--text)",
                 lineHeight: 1.3,
                 letterSpacing: "-0.01em",
               }}
@@ -162,7 +162,7 @@ export default function ConfirmDialog({
                 style={{
                   marginTop: 8,
                   fontSize: 13,
-                  color: "var(--text-2, #8E9BAE)",
+                  color: "var(--text-2)",
                   lineHeight: 1.5,
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
@@ -181,7 +181,7 @@ export default function ConfirmDialog({
             alignItems: "center",
             gap: 8,
             padding: "12px 20px 16px",
-            background: "var(--surface-2, #0C121C)",
+            background: "var(--surface-2)",
             borderTop: "1px solid var(--border, rgba(255, 255, 255, 0.08))",
           }}
         >
@@ -193,15 +193,15 @@ export default function ConfirmDialog({
               padding: "7px 14px",
               borderRadius: "var(--radius-sm, 6px)",
               border: "1px solid var(--border, rgba(255, 255, 255, 0.14))",
-              background: "var(--surface, #141D2B)",
-              color: "var(--text, #E2EBF5)",
+              background: "var(--surface)",
+              color: "var(--text)",
               fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
               transition: "background var(--duration-fast, 120ms)",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-3, #1F2C40)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "var(--surface, #141D2B)")}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-3)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "var(--surface)")}
           >
             {cancelText}
           </button>
@@ -215,7 +215,7 @@ export default function ConfirmDialog({
               borderRadius: "var(--radius-sm, 6px)",
               border: "none",
               background: confirmBg,
-              color: "#FFFFFF",
+              color: isDanger || isWarning ? "var(--text-invert)" : "var(--on-accent)",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",

@@ -168,7 +168,7 @@ export default function BatchIdField({
             border: "1px solid var(--border-strong)",
             background: "var(--surface)",
             fontFamily: "var(--font-mono)",
-            fontWeight: 700,
+            fontWeight: 600,
             fontSize: 15,
             letterSpacing: "0.04em",
             textTransform: "uppercase",
@@ -414,7 +414,7 @@ export default function BatchIdField({
             <span
               style={{
                 fontFamily: "var(--font-mono)",
-                fontWeight: 700,
+                fontWeight: 600,
                 fontSize: 15,
                 letterSpacing: "0.04em",
                 color: preview ? "var(--text)" : "var(--text-3)",
@@ -445,7 +445,7 @@ export default function BatchIdField({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              style={{ ...btnStyle, flex: 1, background: "var(--accent)", borderColor: "var(--accent)", color: "var(--text-invert)" }}
+              style={{ ...btnStyle, flex: 1, background: "var(--accent)", borderColor: "var(--accent)", color: "var(--on-accent)" }}
             >
               Done
             </button>

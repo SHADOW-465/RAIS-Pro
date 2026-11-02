@@ -136,11 +136,11 @@ function XBarChart({ points, ucl, lcl, mean }: { points: any[]; ucl: number; lcl
           <line x1={padX} y1={axisY} x2={canvasWidth - padX} y2={axisY} stroke="var(--border-strong)" strokeWidth={1} />
 
           <line x1={padX} y1={y(lcl)} x2={canvasWidth - padX} y2={y(lcl)} stroke="var(--positive)" strokeDasharray="3,3" strokeWidth={1.2} />
-          <text x={padX + 6} y={y(lcl) - 5} fontSize={11} fill="var(--positive)" fontWeight={800}>LCL ({(lcl * 100).toFixed(2)}%)</text>
+          <text x={padX + 6} y={y(lcl) - 5} fontSize={11} fill="var(--positive)" fontWeight={600}>LCL ({(lcl * 100).toFixed(2)}%)</text>
           <line x1={padX} y1={y(mean)} x2={canvasWidth - padX} y2={y(mean)} stroke="var(--warning)" strokeDasharray="5,4" strokeWidth={1.2} />
-          <text x={padX + 6} y={y(mean) - 5} fontSize={11} fill="var(--warning)" fontWeight={800}>MEAN ({(mean * 100).toFixed(2)}%)</text>
+          <text x={padX + 6} y={y(mean) - 5} fontSize={11} fill="var(--warning)" fontWeight={600}>MEAN ({(mean * 100).toFixed(2)}%)</text>
           <line x1={padX} y1={y(ucl)} x2={canvasWidth - padX} y2={y(ucl)} stroke="var(--critical)" strokeDasharray="3,3" strokeWidth={1.2} />
-          <text x={padX + 6} y={y(ucl) - 5} fontSize={11} fill="var(--critical)" fontWeight={800}>UCL ({(ucl * 100).toFixed(2)}%)</text>
+          <text x={padX + 6} y={y(ucl) - 5} fontSize={11} fill="var(--critical)" fontWeight={600}>UCL ({(ucl * 100).toFixed(2)}%)</text>
 
           {pathD && (
             <path d={pathD} fill="none" stroke="var(--accent)" strokeWidth={2} />
@@ -310,7 +310,7 @@ export default function SpcPage() {
     <AppShell active="spc" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 800, margin: "0 0 4px", color: "var(--text)" }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text)" }}>
             SPC &amp; Control Charts
           </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
@@ -325,7 +325,7 @@ export default function SpcPage() {
 
         {!isLoading && (!events || events.length === 0) && (
           <div style={{ padding: "48px 24px", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)" }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 800, marginBottom: 8, color: "var(--text)" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, marginBottom: 8, color: "var(--text)" }}>
               No Data Available
             </div>
             <p className="muted" style={{ fontSize: 13, margin: "0 0 16px" }}>
@@ -334,8 +334,8 @@ export default function SpcPage() {
             <a
               href="/staging"
               style={{
-                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 700, fontSize: 12.5,
-                color: "var(--paper)", background: "var(--accent)", border: "none",
+                display: "inline-block", textDecoration: "none", fontFamily: "var(--font-sans)", fontWeight: 600, fontSize: 12.5,
+                color: "var(--on-accent)", background: "var(--accent)", border: "none",
                 padding: "8px 16px", borderRadius: "var(--radius-md)", cursor: "pointer"
               }}
             >

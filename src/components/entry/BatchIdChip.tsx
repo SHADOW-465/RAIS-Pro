@@ -151,7 +151,7 @@ export default function BatchIdChip({
             gap: 4,
             fontFamily: "var(--font-mono)",
             fontSize: "var(--text-md)",
-            fontWeight: 700,
+            fontWeight: 600,
             letterSpacing: "0.02em",
             color: "var(--text)",
             whiteSpace: "nowrap",
@@ -175,7 +175,7 @@ export default function BatchIdChip({
           <span
             style={{
               fontSize: 10,
-              fontWeight: 800,
+              fontWeight: 600,
               padding: "1px 5px",
               borderRadius: 4,
               background: "color-mix(in srgb, var(--accent) 18%, var(--surface-2))",
@@ -208,7 +208,7 @@ export default function BatchIdChip({
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: "var(--text-md)",
-            fontWeight: 700,
+            fontWeight: 600,
             letterSpacing: "0.03em",
             color: "var(--text)",
             whiteSpace: "nowrap",
@@ -289,7 +289,7 @@ export default function BatchIdChip({
               color: "var(--text-3)",
             }}
           >
-            <span style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 9 }}>
+            <span style={{ fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 9 }}>
               Batch Menu
             </span>
             <span
@@ -375,7 +375,7 @@ export default function BatchIdChip({
                 fontSize: 9.5,
                 fontFamily: "var(--font-mono)",
                 color: copied ? "var(--positive)" : "var(--text-3)",
-                fontWeight: 700,
+                fontWeight: 600,
               }}
             >
               {copied ? "✓" : "Copy"}
@@ -440,7 +440,7 @@ export default function BatchIdChip({
                 style={{
                   fontSize: 9.5,
                   fontFamily: "var(--font-mono)",
-                  fontWeight: 700,
+                  fontWeight: 600,
                   padding: "1px 5px",
                   borderRadius: 4,
                   background: "color-mix(in srgb, var(--accent) 18%, var(--surface-2))",
@@ -510,7 +510,7 @@ export default function BatchIdChip({
                 style={{
                   fontSize: 9.5,
                   fontFamily: "var(--font-mono)",
-                  fontWeight: 700,
+                  fontWeight: 600,
                   padding: "1px 5px",
                   borderRadius: 4,
                   background: "color-mix(in srgb, var(--accent) 18%, var(--surface-2))",

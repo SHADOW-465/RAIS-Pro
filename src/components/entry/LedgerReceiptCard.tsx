@@ -54,7 +54,7 @@ export default function LedgerReceiptCard({
             border: `1.5px solid ${
               receipt.synced
                 ? "color-mix(in srgb, var(--positive) 50%, var(--border))"
-                : "color-mix(in srgb, var(--status-warn, #d97706) 50%, var(--border))"
+                : "color-mix(in srgb, var(--status-warn) 50%, var(--border))"
             }`,
             borderRadius: "var(--radius-lg, 12px)",
             padding: "16px 20px",
@@ -71,7 +71,7 @@ export default function LedgerReceiptCard({
               borderBottom: `1px solid ${
                 receipt.synced
                   ? "color-mix(in srgb, var(--positive) 25%, transparent)"
-                  : "color-mix(in srgb, var(--status-warn, #d97706) 25%, transparent)"
+                  : "color-mix(in srgb, var(--status-warn) 25%, transparent)"
               }`,
               paddingBottom: 10,
               marginBottom: 12,
@@ -81,8 +81,8 @@ export default function LedgerReceiptCard({
               <span
                 style={{
                   fontSize: 16,
-                  fontWeight: 700,
-                  color: receipt.synced ? "var(--positive)" : "var(--status-warn, #d97706)",
+                  fontWeight: 600,
+                  color: receipt.synced ? "var(--positive)" : "var(--status-warn)",
                 }}
               >
                 {receipt.synced ? "✓" : "●"}
@@ -91,8 +91,8 @@ export default function LedgerReceiptCard({
                 <div
                   style={{
                     fontSize: 14,
-                    fontWeight: 700,
-                    color: receipt.synced ? "var(--positive)" : "var(--status-warn, #d97706)",
+                    fontWeight: 600,
+                    color: receipt.synced ? "var(--positive)" : "var(--status-warn)",
                   }}
                 >
                   {receipt.synced
@@ -115,10 +115,10 @@ export default function LedgerReceiptCard({
                     padding: "6px 14px",
                     borderRadius: "var(--radius-sm, 6px)",
                     background: "var(--accent)",
-                    color: "var(--text-invert)",
+                    color: "var(--on-accent)",
                     border: "none",
                     fontSize: 12,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: isRetryingSync ? "not-allowed" : "pointer",
                   }}
                 >
@@ -135,7 +135,7 @@ export default function LedgerReceiptCard({
                   fontSize: 16,
                   color: "var(--text-3)",
                   cursor: "pointer",
-                  fontWeight: 700,
+                  fontWeight: 600,
                   lineHeight: 1,
                   padding: "4px 8px",
                 }}
@@ -193,7 +193,7 @@ export default function LedgerReceiptCard({
                 lineHeight: 1.45,
               }}
             >
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Batch conversion not recorded</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Batch conversion not recorded</div>
               <div>{receipt.conversionError}</div>
               <div style={{ marginTop: 6, color: "var(--text-2)", fontWeight: 400 }}>
                 The quantities above are saved, but this lot is not linked to its original batch.
@@ -215,7 +215,7 @@ export default function LedgerReceiptCard({
                 lineHeight: 1.45,
               }}
             >
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Not on the plant ledger</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Not on the plant ledger</div>
               <div>{blockReason}</div>
               <div style={{ marginTop: 6, color: "var(--text-2)", fontWeight: 400 }}>
                 {countMismatch
@@ -251,7 +251,7 @@ export default function LedgerReceiptCard({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--warning)" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--warning)" }}>
                 {lastIssues.issues.some((i) => i.severity === "critical")
                   ? `Counts do not add up (${lastIssues.issues.length})`
                   : `Auditor & Ledger Clarifications (${lastIssues.issues.length})`}
@@ -270,7 +270,7 @@ export default function LedgerReceiptCard({
                 fontSize: 14,
                 color: "var(--text-3)",
                 cursor: "pointer",
-                fontWeight: 700,
+                fontWeight: 600,
               }}
             >
               ✕

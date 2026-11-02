@@ -109,7 +109,7 @@ export function DashboardLayoutToggle({
           style={{
             ...pill,
             background: "var(--accent)",
-            color: "var(--paper)",
+            color: "var(--on-accent)",
             borderColor: "var(--accent)",
           }}
         >

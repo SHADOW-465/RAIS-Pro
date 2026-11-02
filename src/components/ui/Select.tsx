@@ -419,7 +419,7 @@ export default function Select({
                         style={{
                           padding: "8px 10px 4px",
                           fontSize: "var(--text-2xs)",
-                          fontWeight: 700,
+                          fontWeight: 600,
                           letterSpacing: "var(--tracking-label)",
                           textTransform: "uppercase",
                           color: "var(--text-3)",
