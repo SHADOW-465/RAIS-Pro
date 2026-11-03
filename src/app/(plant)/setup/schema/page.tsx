@@ -10,6 +10,7 @@
  * edits or deletes the durable knowledge plane.
  */
 
+import { QualityHeader } from "@/components/app/QualityParts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Select from "@/components/ui/Select";
 import Link from "next/link";
@@ -216,6 +217,9 @@ export default function SchemaPage() {
   const [selectedMod, setSelectedMod] = useState<string | null>(null);
   const [modDetail, setModDetail] = useState<ModDetail | null>(null);
   const [showMappings, setShowMappings] = useState(false);
+  useEffect(() => {
+    if (window.location.hash === "#mappings") setShowMappings(true);
+  }, []);
   const [editUnlocked, setEditUnlocked] = useState(false);
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [pendingCreate, setPendingCreate] = useState<SchemaPendingCreate | null>(null);
@@ -643,39 +647,10 @@ export default function SchemaPage() {
             alignItems: "flex-end",
             justifyContent: "space-between",
             gap: 16,
-            paddingBottom: 4,
-            borderBottom: "1px solid var(--border)",
           }}
         >
           <div style={{ minWidth: 0, flex: "1 1 280px" }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--text-3)",
-                marginBottom: 6,
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              What MOID learned
-            </div>
-            <h1
-              className="h1"
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: 28,
-                fontWeight: 600,
-                margin: "0 0 6px",
-                color: "var(--text)",
-                letterSpacing: "-0.02em",
-                lineHeight: 1.15,
-              }}
-            >
-              Master Schema
-            </h1>
-            <p className="body" style={{ fontSize: 14, margin: 0, color: "var(--text-2)", maxWidth: 680, lineHeight: 1.55 }}>
+            <p className="body" style={{ fontSize: "var(--text-md)", margin: 0, color: "var(--text-2)", maxWidth: "70ch", lineHeight: 1.5 }}>
               The durable knowledge of the whole plant: process stages, defect codes, sizes, and every
               Excel label→canonical mapping the resolver uses. Unlock edit to
               add, rename or remove sections, stages, capture columns and defects.
@@ -722,6 +697,21 @@ export default function SchemaPage() {
           </div>
         </header>
 
+        <QualityHeader
+          tiles={[
+            { label: "Stages", value: stages.length, status: "neutral" },
+            { label: "Sizes", value: sizes.length, status: "neutral" },
+            { label: "Defect codes", value: defects.length, status: "neutral" },
+            {
+              label: "Integrity issues", value: integrity.integrityIssues.length,
+              status: integrity.state === "blocked" ? "critical" : integrity.integrityIssues.length > 0 ? "warning" : "ok",
+              hint: "In the Scope chip's range",
+            },
+          ]}
+          actionLabel={integrity.integrityIssues.length > 0 ? "Fix issues" : undefined}
+          onAction={() => document.getElementById("schema-integrity")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        />
+
         {/* Ownership callout */}
         <div
           role="note"
@@ -731,23 +721,11 @@ export default function SchemaPage() {
             gap: "10px 20px",
             alignItems: "center",
             padding: "12px 14px",
-            borderRadius: 10,
-            border: "1px solid color-mix(in srgb, var(--accent) 28%, var(--border))",
-            background: "color-mix(in srgb, var(--accent) 6%, var(--surface))",
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border)",
+            background: "var(--surface-2)",
           }}
         >
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              color: "var(--accent)",
-            }}
-          >
-            Ownership
-          </span>
           <span style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.45 }}>
             Workbooks <strong style={{ color: "var(--text)", fontWeight: 600 }}>teach</strong> on verify.
             This page is the <strong style={{ color: "var(--text)", fontWeight: 600 }}>source of truth</strong> —
@@ -772,9 +750,10 @@ export default function SchemaPage() {
             role="alert"
             style={{
               padding: "10px 14px",
-              borderRadius: 9,
-              background: "color-mix(in srgb, var(--status-bad) 12%, transparent)",
-              color: "var(--status-bad)",
+              borderRadius: "var(--radius-md)",
+              background: "var(--critical-weak)",
+              border: "1px solid var(--critical)",
+              color: "var(--text)",
               fontSize: 13,
             }}
           >
@@ -1408,12 +1387,14 @@ export default function SchemaPage() {
 
         {/* Data integrity status — placed below Per-file interpretation */}
         {integrity.integrityIssues.length > 0 && (
+          <div id="schema-integrity" style={{ scrollMarginTop: 80 }}>
           <IntegrityIssuesPanel
             blocked={integrity.state === "blocked"}
             reason={integrity.reason}
             issues={integrity.integrityIssues}
             scopeLabel={lotScopeLabel(t)}
           />
+          </div>
         )}
 
         {/*

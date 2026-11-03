@@ -1,5 +1,6 @@
 "use client";
 
+import { QualityHeader } from "@/components/app/QualityParts";
 import { customDefects as customDefectsPref } from "@/lib/ui-prefs";
 import { pushShared, SHARED_STATE_EVENT } from "@/lib/shared-state/push";
 import "./settings.css";
@@ -37,19 +38,29 @@ import {
   type DataEntryExportConfig,
 } from "@/lib/entry/export-config";
 
-type SectionId = "rules" | "display" | "shifts" | "export" | "registry" | "custom" | "roles" | "users" | "admin";
+type SectionId = "defects" | "rules" | "shifts" | "people" | "display" | "export" | "admin";
 
+// Plan §4 Plant setup: one section list. Stages & sizes and Mappings are the
+// schema editors on the Plant schema tab, linked from the same rail.
 const SECTIONS: { id: SectionId; label: string; hint: string }[] = [
+  { id: "defects", label: "Defects", hint: "Plant catalog plus this plant's own codes and aliases" },
   { id: "rules", label: "Calculation rules", hint: "Targets, costs, rework handling" },
-  { id: "display", label: "Display defaults", hint: "What screens open on" },
-  { id: "shifts", label: "Shift windows", hint: "When operators may edit freely" },
-  { id: "export", label: "Data Entry export", hint: "Topbar Export on /data-entry" },
-  { id: "registry", label: "Defect registry", hint: "Plant catalog (read-only)" },
-  { id: "custom", label: "Custom codes", hint: "Plant-specific aliases" },
-  { id: "roles", label: "Roles & access", hint: "Dashboards, logins and what each role opens" },
-  { id: "users", label: "Plant users", hint: "Who may sign in, and as what" },
-  { id: "admin", label: "Administrative", hint: "Purge & schema reset" },
+  { id: "shifts", label: "Shifts", hint: "When operators may edit freely" },
+  { id: "people", label: "Users & roles", hint: "Who may sign in, as what, and what each role opens" },
+  { id: "display", label: "Display", hint: "What screens open on" },
+  { id: "export", label: "Export", hint: "What Export entries on Data Entry writes" },
+  { id: "admin", label: "Admin", hint: "Purge and schema reset" },
 ];
+
+const SCHEMA_LINKS = [
+  { href: "/setup/schema", label: "Stages & sizes", hint: "Edit the plant schema tree" },
+  { href: "/setup/schema#mappings", label: "Mappings", hint: "How each Excel file was read" },
+];
+
+// Old #hash deep links keep landing on the right section.
+const LEGACY_SECTION: Record<string, SectionId> = {
+  quality: "rules", valuation: "rules", registry: "defects", custom: "defects", roles: "people", users: "people",
+};
 
 export default function SettingsPage() {
   const { registry } = useRegistry();
@@ -61,14 +72,14 @@ export default function SettingsPage() {
     [isAdmin],
   );
   const activeRegistry = registry || EMPTY_REGISTRY;
-  const [section, setSection] = useState<SectionId>("rules");
+  const [section, setSection] = useState<SectionId>("defects");
 
   // Deep link: /settings#admin opens the danger zone directly. Plant Schema
   // points here rather than carrying its own copy of the registry wipe.
   // Legacy hashes quality|valuation → rules (both folded into this page).
   useEffect(() => {
     const raw = window.location.hash.replace("#", "");
-    const id = (raw === "quality" || raw === "valuation" ? "rules" : raw) as SectionId;
+    const id = (LEGACY_SECTION[raw] ?? raw) as SectionId;
     if (sections.some((s) => s.id === id)) setSection(id);
   }, [sections]);
   const [shiftCfg, setShiftCfg] = useState<ShiftWindowConfig>(DEFAULT_SHIFT_WINDOWS);
@@ -188,7 +199,7 @@ export default function SettingsPage() {
   const stageCount = activeRegistry.stages?.length ?? 0;
   const defectCount = activeRegistry.defects?.length ?? 0;
   const showFoot =
-    section === "custom" || section === "shifts" || section === "export";
+    section === "defects" || section === "shifts" || section === "export";
 
   const saveExportCfg = () => {
     writeDataEntryExportConfig(exportCfg);
@@ -199,33 +210,18 @@ export default function SettingsPage() {
   return (
     <AppShell active="settings">
       <div className="settings-page settings-page--dense">
-        <header className="settings-mast">
-          <div className="settings-mast-copy">
-            <p className="settings-kicker">Plant configuration</p>
-            <h1 className="settings-title">Settings</h1>
-            <p className="settings-lede">
-              Plant-wide options: calculation rules, Data Entry export, shift windows,
-              defect codes{isAdmin ? ", and admin tools" : ""}. Calculation rules are versioned and shared;
-              export preferences are stored in this browser.
-            </p>
-          </div>
-          <div className="settings-mast-meta" aria-label="Registry snapshot">
-            <div className="settings-stat">
-              <span className="settings-stat-val">{stageCount}</span>
-              <span className="settings-stat-lab">Stages</span>
-            </div>
-            <div className="settings-stat-rule" />
-            <div className="settings-stat">
-              <span className="settings-stat-val">{defectCount}</span>
-              <span className="settings-stat-lab">Defects</span>
-            </div>
-            <div className="settings-stat-rule" />
-            <div className="settings-stat">
-              <span className="settings-stat-val">{customDefects.length}</span>
-              <span className="settings-stat-lab">Custom</span>
-            </div>
-          </div>
-        </header>
+        <p className="settings-lede">
+          Configure the plant once: defect codes, calculation rules, shifts and who may sign in
+          {isAdmin ? ", plus admin tools" : ""}. Calculation rules are versioned and shared; export
+          preferences are stored in this browser.
+        </p>
+        <QualityHeader
+          tiles={[
+            { label: "Stages", value: stageCount, status: "neutral", hint: "In the plant catalog" },
+            { label: "Defect codes", value: defectCount, status: "neutral", hint: "In the plant catalog" },
+            { label: "Custom codes", value: customDefects.length, status: "neutral", hint: "Added on this browser" },
+          ]}
+        />
 
         {saved && (
           <div className="settings-toast settings-toast--ok" role="status">
@@ -247,7 +243,17 @@ export default function SettingsPage() {
         <div className="settings-workbench">
           <nav className="settings-rail" aria-label="Settings sections">
             <ul className="settings-rail-list">
-              {sections.map((s, i) => {
+              {SCHEMA_LINKS.map((l) => (
+                <li key={l.href}>
+                  <a className="settings-rail-item" href={l.href}>
+                    <span className="settings-rail-text">
+                      <span className="settings-rail-label">{l.label}</span>
+                      <span className="settings-rail-hint">{l.hint}</span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+              {sections.map((s) => {
                 const isActive = section === s.id;
                 const danger = s.id === "admin";
                 return (
@@ -258,9 +264,6 @@ export default function SettingsPage() {
                       onClick={() => setSection(s.id)}
                       aria-current={isActive ? "page" : undefined}
                     >
-                      <span className="settings-rail-idx" aria-hidden>
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
                       <span className="settings-rail-text">
                         <span className="settings-rail-label">{s.label}</span>
                         <span className="settings-rail-hint">{s.hint}</span>
@@ -479,11 +482,11 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {section === "registry" && (
+              {section === "defects" && (
                 <div className="settings-table-wrap">
                   <p className="settings-field-help settings-field-help--mb">
-                    Stages, defects, and sizes used when reading workbooks. Edit on{" "}
-                    <a href="/setup/schema" className="settings-inline-link">Data Schema</a>.
+                    Defect codes used when reading workbooks and on Data Entry. Edit the catalog on{" "}
+                    <a href="/setup/schema" className="settings-inline-link">Plant schema</a>.
                   </p>
                   <table className="settings-table">
                     <thead>
@@ -521,8 +524,9 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {section === "custom" && (
-                <div className="settings-field-stack">
+              {section === "defects" && (
+                <div className="settings-field-stack" style={{ marginTop: 24 }}>
+                  <h3 className="settings-panel-title" style={{ fontSize: "var(--text-md)" }}>Custom codes</h3>
                   <p className="settings-field-help">
                     Extra defect codes and aliases for this plant. Saved in this browser
                     for now; base registry stays read-only.
@@ -605,8 +609,12 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {section === "roles" && <RolesAccess />}
-              {section === "users" && <PlantUsers />}
+              {section === "people" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+                  <PlantUsers />
+                  <RolesAccess />
+                </div>
+              )}
 
               {section === "admin" && isAdmin && (
                 <div className="settings-admin">
