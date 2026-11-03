@@ -211,7 +211,7 @@ const menuRow: React.CSSProperties = {
 
 function AppShellView({
   active, trustScore: trustScoreProp, statusCounts, dateRange, children, presetId: _presetId,
-  toolbarExtra, wide,
+  toolbarExtra, wide, ownTabs,
 }: {
   active: NavKey;
   trustScore?: number | null;
@@ -224,6 +224,8 @@ function AppShellView({
   toolbarExtra?: ReactNode;
   /** Dashboard uses the full main pane — no 1400px cap, so side gutters go away. */
   wide?: boolean;
+  /** The page draws its own tab row (Lots, Log), so skip the destination tabs. */
+  ownTabs?: boolean;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -1766,7 +1768,7 @@ function AppShellView({
             </button>
           </div>
         )}
-        <DestinationTabs active={active} />
+        {!ownTabs && <DestinationTabs active={active} />}
         {children}
         </div>
       </main>

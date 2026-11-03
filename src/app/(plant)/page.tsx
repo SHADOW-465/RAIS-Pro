@@ -775,7 +775,7 @@ export default function Dashboard() {
                   value={wip.stalledCount}
                   hint={`${num(wip.openCount)} open · ${num(wip.unitsWaiting)} units waiting`}
                   status={wip.stalledCount > 0 ? "warning" : "ok"}
-                  onOpen={() => router.push("/lots/open")}
+                  onOpen={() => router.push("/lots/open?view=stalled")}
                 />
               </div>
               </DashItem>
