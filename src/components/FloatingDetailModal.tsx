@@ -204,45 +204,15 @@ export default function FloatingDetailModal({
 
   const effectiveOrigin = originRect || activeOrigin || globalLastClickRect;
 
-  // Smooth FLIP open animation from origin card center to modal center
+  // Right-hand drawer (plan §3c): slides in from the right edge.
   useEffect(() => {
-    if (isOpen && effectiveOrigin && panelRef.current) {
-      const panel = panelRef.current;
-      const targetRect = panel.getBoundingClientRect();
-
-      const originCenterX = effectiveOrigin.left + effectiveOrigin.width / 2;
-      const originCenterY = effectiveOrigin.top + effectiveOrigin.height / 2;
-      const targetCenterX = targetRect.left + targetRect.width / 2;
-      const targetCenterY = targetRect.top + targetRect.height / 2;
-
-      const transX = originCenterX - targetCenterX;
-      const transY = originCenterY - targetCenterY;
-      const scaleX = Math.max(0.08, effectiveOrigin.width / targetRect.width);
-      const scaleY = Math.max(0.08, effectiveOrigin.height / targetRect.height);
-
-      panel.animate(
-        [
-          {
-            transform: `translate3d(${transX}px, ${transY}px, 0) scale(${scaleX}, ${scaleY})`,
-            transformOrigin: "center center",
-            opacity: 0.35,
-            borderRadius: "var(--radius-lg)",
-          },
-          {
-            transform: "translate3d(0, 0, 0) scale(1)",
-            transformOrigin: "center center",
-            opacity: 1,
-            borderRadius: "var(--radius-lg)",
-          },
-        ],
-        {
-          duration: 340,
-          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
-          fill: "forwards",
-        },
+    if (isOpen && panelRef.current) {
+      panelRef.current.animate(
+        [{ transform: "translate3d(32px, 0, 0)", opacity: 0 }, { transform: "translate3d(0, 0, 0)", opacity: 1 }],
+        { duration: 220, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "forwards" },
       );
     }
-  }, [isOpen, effectiveOrigin]);
+  }, [isOpen]);
 
   const normalizedAll = useMemo(
     () => normalizeSourceRows(sourceRows ?? []),
@@ -539,47 +509,11 @@ export default function FloatingDetailModal({
       onClose();
     };
 
-    if (effectiveOrigin && panelRef.current) {
-      const panel = panelRef.current;
-      const targetRect = panel.getBoundingClientRect();
-
-      const originCenterX = effectiveOrigin.left + effectiveOrigin.width / 2;
-      const originCenterY = effectiveOrigin.top + effectiveOrigin.height / 2;
-      const targetCenterX = targetRect.left + targetRect.width / 2;
-      const targetCenterY = targetRect.top + targetRect.height / 2;
-
-      const transX = originCenterX - targetCenterX;
-      const transY = originCenterY - targetCenterY;
-      const scaleX = Math.max(0.08, effectiveOrigin.width / targetRect.width);
-      const scaleY = Math.max(0.08, effectiveOrigin.height / targetRect.height);
-
-      const anim = panel.animate(
-        [
-          {
-            transform: "translate3d(0, 0, 0) scale(1)",
-            transformOrigin: "center center",
-            opacity: 1,
-            borderRadius: "var(--radius-lg)",
-          },
-          {
-            transform: `translate3d(${transX}px, ${transY}px, 0) scale(${scaleX}, ${scaleY})`,
-            transformOrigin: "center center",
-            opacity: 0,
-            borderRadius: "var(--radius-lg)",
-          },
-        ],
-        {
-          duration: 250,
-          easing: "cubic-bezier(0.25, 1, 0.5, 1)",
-          fill: "forwards",
-        },
-      );
-      anim.onfinish = finishClose;
-    } else if (panelRef.current) {
+    if (panelRef.current) {
       const anim = panelRef.current.animate(
         [
-          { transform: "translate3d(0,0,0) scale(1)", opacity: 1 },
-          { transform: "translate3d(0, 16px, 0) scale(0.97)", opacity: 0 },
+          { transform: "translate3d(0, 0, 0)", opacity: 1 },
+          { transform: "translate3d(32px, 0, 0)", opacity: 0 },
         ],
         { duration: 220, easing: "cubic-bezier(0.25, 1, 0.5, 1)", fill: "forwards" },
       );
@@ -587,7 +521,7 @@ export default function FloatingDetailModal({
     } else {
       finishClose();
     }
-  }, [isClosing, effectiveOrigin, onClose]);
+  }, [isClosing, onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -702,17 +636,14 @@ export default function FloatingDetailModal({
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(10, 9, 8, 0.88)",
-        backdropFilter: "blur(20px)",
+        backgroundColor: "var(--scrim)",
         zIndex: 1000,
-        display: "grid",
-        placeItems: "center",
-        padding: 24,
+        display: "flex",
+        justifyContent: "flex-end",
         opacity: isOpen && !isClosing ? 1 : 0,
         visibility: isOpen ? "visible" : "hidden",
         pointerEvents: isOpen && !isClosing ? "auto" : "none",
-        transition:
-          "opacity 0.25s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.25s cubic-bezier(0.25, 1, 0.5, 1), backdrop-filter 0.25s cubic-bezier(0.25, 1, 0.5, 1)",
+        transition: "opacity 0.2s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.2s cubic-bezier(0.25, 1, 0.5, 1)",
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();
@@ -721,28 +652,20 @@ export default function FloatingDetailModal({
       <div
         ref={panelRef}
         className="modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         style={{
-          width: "95vw",
-          maxWidth: showSource ? 1720 : 1440,
-          height: "92vh",
+          // ponytail: wide drawer, the source-trace tables need the room
+          width: showSource ? "min(1280px, 100vw)" : "min(960px, 100vw)",
+          height: "100vh",
           background: "var(--bg)",
-          border: "1.5px solid var(--border-strong)",
-          borderRadius: "var(--radius-lg)",
-          boxShadow: "0 30px 60px -15px rgba(0,0,0,0.65)",
+          borderLeft: "1px solid var(--border)",
+          boxShadow: "var(--shadow-3)",
           display: "flex",
           flexDirection: "column",
-          maxHeight: "92vh",
           overflow: "hidden",
-          opacity: isOpen && !originRect ? 1 : originRect ? undefined : 0,
-          transform:
-            isOpen && !originRect
-              ? "translateY(0) scale(1)"
-              : originRect
-                ? undefined
-                : "translateY(24px) scale(0.985)",
-          transition: originRect
-            ? "max-width var(--duration-medium) var(--ease-out)"
-            : "max-width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+          transition: "width var(--duration-medium) var(--ease-out)",
         }}
       >
         {/* Title bar */}

@@ -8,12 +8,15 @@ import { useRegistry } from "@/components/app/RegistryContext";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import { resolveStageId, sortStageIds } from "@/core/ontology/plant-catalog";
 import { groupByEntryLine } from "@/lib/entry/entry-line";
-import FloatingDetailModal from "@/components/FloatingDetailModal";
+import FloatingDetailModal, { type SourceRow } from "@/components/FloatingDetailModal";
+import { QualityHeader } from "@/components/app/QualityParts";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import { 
   Card, 
   ProcessFlow,
   ScopeBasis,
+  pct,
+  num,
 } from "@/components/app/widgets";
 import type { Event } from "@/lib/store/types";
 import {
@@ -22,6 +25,8 @@ import {
   periodKey,
   periodLabel,
   resolveScope,
+  scopeEvents,
+  toSourceRows,
   type Scope,
   lotScopeLabel,
   STAGE_LABELS,
@@ -39,11 +44,15 @@ export default function ProcessFlowPage() {
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
   const [modalContent, setModalContent] = useState<React.ReactNode>(null);
+  const [modalSourceRows, setModalSourceRows] = useState<SourceRow[] | undefined>(undefined);
+  const [modalInitialShowSource, setModalInitialShowSource] = useState(false);
 
-  const openModal = (title: string, insight: string | string[], content: React.ReactNode) => {
+  const openModal = (title: string, insight: string | string[], content: React.ReactNode, rows?: SourceRow[]) => {
     setModalTitle(title);
     setModalInsight(insight);
     setModalContent(content);
+    setModalSourceRows(rows);
+    setModalInitialShowSource(!!rows);
     setModalOpen(true);
   };
 
@@ -80,9 +89,6 @@ export default function ProcessFlowPage() {
     <AppShell active="process-flow" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text)" }}>
-            Process Flow Overview
-          </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Inspect cumulative yield, checked volumes, and bottleneck stages across the catheter assembly line.
           </p>
@@ -114,16 +120,33 @@ export default function ProcessFlowPage() {
           </div>
         )}
 
-        {m && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
-            <Card title="Process Stages" sub={lotScopeLabel(t, STAGE_LABELS)} onClick={() => openModal("Process Stages", "Each process and its stages, in the same order as Data Entry, with current yields for the selected period.", <div style={{ minHeight: 240 }}><EntryLineFlow rows={m.stages} sectionStageIds={scope.stageIds} /></div>)}>
+        {m && (() => {
+          const worst = m.stages.reduce<StageRow | null>((w, s) => (s.checked > 0 && (!w || s.rejRate > w.rejRate) ? s : w), null);
+          const totalChecked = m.stages.reduce((a, s) => a + s.checked, 0);
+          const totalRejected = m.stages.reduce((a, s) => a + s.rejected, 0);
+          return (
+          <>
+          <QualityHeader
+            tiles={[
+              { label: "Worst gate", word: true, value: worst ? worst.label : "—", status: worst && worst.rejRate > 0.05 ? "critical" : worst ? "warning" : "neutral",
+                hint: worst ? `${pct(worst.rejRate)} rejection rate` : "No inspected stage in scope" },
+              { label: "Rejected", value: num(totalRejected), status: "neutral", hint: `of ${num(totalChecked)} checked across gates` },
+              { label: "Stages with records", value: m.stages.filter((s) => s.checked > 0 || s.rejected > 0).length, status: "neutral", hint: `of ${m.flowStages.length} on the line` },
+            ]}
+            actionLabel="See batches"
+            onAction={worst ? () => openModal(`${worst.label} — batches`, `${worst.label} has the highest rejection rate (${pct(worst.rejRate)}) in this scope.`, <div style={{ minHeight: 80 }} />, events ? toSourceRows(scopeEvents(events, scope), { types: ["production", "inspection"], stageId: worst.stageId }) : []) : undefined}
+          />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))", gap: 20, alignItems: "start" }}>
+            <Card title="Quality gates" sub={lotScopeLabel(t, STAGE_LABELS)} onClick={() => openModal("Quality gates", "Each process and its stages, in the same order as Data Entry, with current yields for the selected period.", <div style={{ minHeight: 240 }}><EntryLineFlow rows={m.stages} sectionStageIds={scope.stageIds} /></div>)}>
               <EntryLineFlow rows={m.stages} sectionStageIds={scope.stageIds} />
             </Card>
             <Card title="FBC Process Flow — DS/ANX/02:00" sub="Whole plant – lot date. Includes secondary stages such as Eye Punching. * = critical operation">
               <FbcProcessFlow stages={m.flowStages} />
             </Card>
           </div>
-        )}
+          </>
+          );
+        })()}
       </div>
 
       <FloatingDetailModal
@@ -131,6 +154,8 @@ export default function ProcessFlowPage() {
         onClose={() => setModalOpen(false)}
         title={modalTitle}
         insight={modalInsight}
+        sourceRows={modalSourceRows}
+        initialShowSource={modalInitialShowSource}
       >
         {modalContent}
       </FloatingDetailModal>

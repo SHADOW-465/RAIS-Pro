@@ -1,6 +1,5 @@
 "use client";
 
-import { stageGridLayout } from "@/lib/ui-prefs";
 import { useEffect, useState, useMemo } from "react";
 import AppShell from "@/components/app/AppShell";
 import PageLoader from "@/components/app/PageLoader";
@@ -10,15 +9,17 @@ import { headlineFigures, overlayStageRows, restoreTrend } from "@/lib/analytics
 import { useRegistry } from "@/components/app/RegistryContext";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
+import { QualityHeader, SegmentedControl, DrillLinks } from "@/components/app/QualityParts";
+import { formatDelta } from "@/components/ui/shared-logic";
 import { 
   Card,
   ScopeBasis,
   LineChart,
   MultiLine,
   BarsH,
-  ProcessFlow,
   Donut,
   pct,
+  num,
   seriesColor,
 } from "@/components/app/widgets";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
@@ -60,13 +61,7 @@ export default function StageAnalysisPage() {
   const [modalMetricKind, setModalMetricKind] = useState<SourceMetricKind>("rejection_rate");
   const [modalInitialShowSource, setModalInitialShowSource] = useState(false);
   const [modalDefaultSourceTab, setModalDefaultSourceTab] = useState<"batches" | "history">("batches");
-  const [layoutTemplate, setLayoutTemplate] = useState<"2-wide" | "1-full" | "3-grid" | "4-compact">(() => {
-    return stageGridLayout.get() ?? "2-wide";
-  });
-
-  useEffect(() => {
-    stageGridLayout.set(layoutTemplate);
-  }, [layoutTemplate]);
+  const [shareView, setShareView] = useState<"share" | "contribution">("share");
 
   const openModal = (
     title: string,
@@ -135,9 +130,6 @@ export default function StageAnalysisPage() {
     <AppShell active="stage" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text)" }}>
-            Stage Analysis
-          </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Inspect quality thresholds, bottleneck gates, and rejection ratios
             {t.stageView !== "cumulative" ? ` · focused on ${STAGE_LABELS[t.stageView] ?? t.stageView}` : " across manufacturing stages"}
@@ -179,8 +171,43 @@ export default function StageAnalysisPage() {
             colorByStageId[s.stageId] = seriesColor(i);
           });
 
+          const openStage = (s: (typeof chartStages)[number], points: React.ComponentProps<typeof LineChart>["points"], color: string, tab: "batches" | "history") =>
+            openModal(
+              `${s.label} · ${grainLabel}`,
+              `${s.label} rejection over time. Colour matches the all-stages chart and the pie.`,
+              <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} />
+              </div>,
+              { rows: srcRows({ types: ["production", "inspection"], stageId: s.stageId }), value: pct(s.rejRate) },
+              { initialShowSource: true, defaultSourceTab: tab },
+            );
+          const stagePoints = (s: (typeof chartStages)[number]) =>
+            m.stageTrend.map((p) => ({
+              period: p.period, label: p.label, value: p.perStage[s.stageId] ?? 0,
+              rejected: p.counts?.[s.stageId]?.rejected, checked: p.counts?.[s.stageId]?.checked,
+            }));
+          const worst = chartStages.reduce<(typeof chartStages)[number] | null>(
+            (w, s) => (s.checked > 0 && (!w || s.rejRate > w.rejRate) ? s : w), null);
+          const lastTwo = worst ? m.stageTrend.slice(-2) : [];
+          const worstDelta = worst && lastTwo.length === 2
+            ? formatDelta((lastTwo[1].perStage[worst.stageId] ?? 0) * 100, (lastTwo[0].perStage[worst.stageId] ?? 0) * 100)
+            : null;
+          const worstTone = worst ? (worst.rejRate > targetRej ? "critical" : "warning") : "neutral";
+
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <QualityHeader
+                tiles={[
+                  { label: "Worst stage", word: true, value: worst ? worst.label : "—", status: worstTone,
+                    hint: worst ? `${num(worst.rejected)} rejected of ${num(worst.checked)}` : "No inspected stage in scope" },
+                  { label: "Its rejection rate", value: worst ? pct(worst.rejRate) : "—", status: worstTone,
+                    hint: `target ${pct(targetRej)}` },
+                  { label: "Change vs last period", value: worstDelta ? worstDelta.text : "—", status: "neutral",
+                    hint: worst ? `${worst.label}, last two ${grainLabel.toLowerCase()} periods` : "Needs two periods" },
+                ]}
+                actionLabel="See batches"
+                onAction={worst ? () => openStage(worst, stagePoints(worst), colorByStageId[worst.stageId], "batches") : undefined}
+              />
               {/* Top Tier: Macro Trends (Overall line + Multi-stage line) */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(480px, 1fr))", gap: 20 }}>
                 {m.tr.length > 0 && (
@@ -235,155 +262,18 @@ export default function StageAnalysisPage() {
                       </span>
                     </div>
 
-                    {/* Size Orientation Layout Option */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-3)", fontWeight: 600, letterSpacing: "0.04em" }}>
-                        LAYOUT:
-                      </span>
-                      <div
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          background: "var(--surface)",
-                          border: "1px solid var(--border)",
-                          borderRadius: "var(--radius-sm)",
-                          padding: 2,
-                          gap: 2,
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setLayoutTemplate("2-wide")}
-                          title="2-Wide — 2 graphs side-by-side with full horizontal timeline vision"
-                          style={{
-                            padding: "3px 9px",
-                            borderRadius: "var(--radius-sm)",
-                            border: "none",
-                            background: layoutTemplate === "2-wide" ? "var(--surface-2)" : "transparent",
-                            color: layoutTemplate === "2-wide" ? "var(--accent)" : "var(--text-3)",
-                            fontFamily: "var(--font-mono)",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            letterSpacing: "0.03em",
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          <span>▥</span>
-                          <span>2-WIDE</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setLayoutTemplate("1-full")}
-                          title="1-Full — 1 panoramic full-width graph per row with complete timeline vision"
-                          style={{
-                            padding: "3px 9px",
-                            borderRadius: "var(--radius-sm)",
-                            border: "none",
-                            background: layoutTemplate === "1-full" ? "var(--surface-2)" : "transparent",
-                            color: layoutTemplate === "1-full" ? "var(--accent)" : "var(--text-3)",
-                            fontFamily: "var(--font-mono)",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            letterSpacing: "0.03em",
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          <span>▤</span>
-                          <span>1-FULL</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setLayoutTemplate("3-grid")}
-                          title="3-Grid — 3 graphs per row balanced layout"
-                          style={{
-                            padding: "3px 9px",
-                            borderRadius: "var(--radius-sm)",
-                            border: "none",
-                            background: layoutTemplate === "3-grid" ? "var(--surface-2)" : "transparent",
-                            color: layoutTemplate === "3-grid" ? "var(--accent)" : "var(--text-3)",
-                            fontFamily: "var(--font-mono)",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            letterSpacing: "0.03em",
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          <span>▦</span>
-                          <span>3-GRID</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setLayoutTemplate("4-compact")}
-                          title="4-Dense — 4 graphs per row compact view"
-                          style={{
-                            padding: "3px 9px",
-                            borderRadius: "var(--radius-sm)",
-                            border: "none",
-                            background: layoutTemplate === "4-compact" ? "var(--surface-2)" : "transparent",
-                            color: layoutTemplate === "4-compact" ? "var(--accent)" : "var(--text-3)",
-                            fontFamily: "var(--font-mono)",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            letterSpacing: "0.03em",
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          <span>⊞</span>
-                          <span>4-DENSE</span>
-                        </button>
-                      </div>
-                    </div>
                   </div>
 
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns:
-                        layoutTemplate === "1-full"
-                          ? "1fr"
-                          : layoutTemplate === "2-wide"
-                            ? "repeat(auto-fit, minmax(min(100%, 540px), 1fr))"
-                            : layoutTemplate === "3-grid"
-                              ? "repeat(auto-fit, minmax(min(100%, 380px), 1fr))"
-                              : "repeat(auto-fill, minmax(320px, 1fr))",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))",
                       gap: 16,
                     }}
                   >
                     {chartStages.map((s, si) => {
-                      const points = m.stageTrend.map((p) => ({
-                        period: p.period,
-                        label: p.label,
-                        value: p.perStage[s.stageId] ?? 0,
-                        rejected: p.counts?.[s.stageId]?.rejected,
-                        checked: p.counts?.[s.stageId]?.checked,
-                      }));
+                      const points = stagePoints(s);
                       const color = colorByStageId[s.stageId];
-
-                      const chartHeight =
-                        layoutTemplate === "1-full"
-                          ? 260
-                          : layoutTemplate === "2-wide"
-                            ? 240
-                            : layoutTemplate === "3-grid"
-                              ? 220
-                              : 200;
-                      const isChartCompact = layoutTemplate === "4-compact";
 
                       return (
                         <Card
@@ -409,103 +299,17 @@ export default function StageAnalysisPage() {
                               </span>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <button
-                                type="button"
-                                title={`Show batch IDs for ${s.label}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openModal(
-                                    `${s.label} · ${grainLabel}`,
-                                    `${s.label} rejection over time. Colour matches the all-stages chart and the pie.`,
-                                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                                      <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} />
-                                    </div>,
-                                    { rows: srcRows({ types: ["production", "inspection"], stageId: s.stageId }), value: pct(s.rejRate) },
-                                    { initialShowSource: true, defaultSourceTab: "batches" }
-                                  );
-                                }}
-                                style={{
-                                  padding: "2px 7px",
-                                  borderRadius: 4,
-                                  border: "1px solid var(--border)",
-                                  background: "var(--surface-2)",
-                                  color: "var(--text-2)",
-                                  fontSize: 10.5,
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  fontFamily: "var(--font-mono)",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 3,
-                                  transition: "all 0.15s ease",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.color = "var(--accent)";
-                                  e.currentTarget.style.borderColor = "var(--accent)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.color = "var(--text-2)";
-                                  e.currentTarget.style.borderColor = "var(--border)";
-                                }}
-                              >
-                                🏷️ Batches
-                              </button>
-                              <button
-                                type="button"
-                                title={`View Data Entry History ledger for ${s.label}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openModal(
-                                    `${s.label} · ${grainLabel}`,
-                                    `${s.label} rejection over time. Colour matches the all-stages chart and the pie.`,
-                                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                                      <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} />
-                                    </div>,
-                                    { rows: srcRows({ types: ["production", "inspection"], stageId: s.stageId }), value: pct(s.rejRate) },
-                                    { initialShowSource: true, defaultSourceTab: "history" }
-                                  );
-                                }}
-                                style={{
-                                  padding: "2px 7px",
-                                  borderRadius: 4,
-                                  border: "1px solid var(--border)",
-                                  background: "var(--surface-2)",
-                                  color: "var(--text-2)",
-                                  fontSize: 10.5,
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  fontFamily: "var(--font-mono)",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 3,
-                                  transition: "all 0.15s ease",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.color = "var(--accent)";
-                                  e.currentTarget.style.borderColor = "var(--accent)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.color = "var(--text-2)";
-                                  e.currentTarget.style.borderColor = "var(--border)";
-                                }}
-                              >
-                                📋 History
-                              </button>
-                              {layoutTemplate !== "4-compact" && (
-                                <span style={{
-                                  fontSize: 10.5,
-                                  fontFamily: "var(--font-mono)",
-                                  color: "var(--text-3)",
-                                  background: "var(--surface-2)",
-                                  padding: "2px 6px",
-                                  borderRadius: 3,
-                                }}>
-                                  Gate #{si + 1}
-                                </span>
-                              )}
+                              <DrillLinks
+                                name={s.label}
+                                onBatches={() => openStage(s, points, color, "batches")}
+                                onHistory={() => openStage(s, points, color, "history")}
+                              />
+                              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-3)", background: "var(--surface-2)", padding: "2px 6px", borderRadius: 3 }}>
+                                Gate #{si + 1}
+                              </span>
                             </div>
                           </div>
-                          <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} height={chartHeight} compact={isChartCompact} />
+                          <LineChart points={points} target={targetRej} fmt={pct} color={color} stage={s.label} height={220} />
                         </Card>
                       );
                     })}
@@ -522,65 +326,29 @@ export default function StageAnalysisPage() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
                     <Card
-                      title="Rejection Share by Stage"
-                      sub="Relative volume contribution per gate"
+                      title={shareView === "share" ? "Rejection Share by Stage" : "Stage Contribution"}
+                      sub={shareView === "share" ? "Relative volume contribution per gate" : lotScopeLabel(t, STAGE_LABELS)}
+                      extra={<SegmentedControl label="Chart" value={shareView} onChange={setShareView} options={[{ id: "share", label: "Share" }, { id: "contribution", label: "Contribution" }]} />}
                     >
-                      <Donut
-                        data={chartStages.map((s) => ({
-                          label: s.label,
-                          value: s.rejected,
-                          color: colorByStageId[s.stageId],
-                        }))}
-                        size={170}
-                      />
-                    </Card>
-
-                    <Card
-                      title="Stage Contribution"
-                      sub={lotScopeLabel(t, STAGE_LABELS)}
-                      onClick={() =>
-                        openModal(
-                          `Stage Contribution (${lotScopeLabel(t, STAGE_LABELS)})`,
-                          "Visual Inspection represents the single largest quality loss stage, contributing over half of all shopfloor rejects.",
-                          <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                            <BarsH
-                              rows={m.stages.map((s) => ({
-                                label: s.label,
-                                value: s.contributionPct,
-                                sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`,
-                              }))}
-                              fmt={(n) => `${n.toFixed(1)}%`}
-                            />
-                          </div>,
-                          { rows: srcRows({ types: ["inspection", "rejection"] }), value: pct(m.rate) }
-                        )
-                      }
-                    >
-                      <BarsH
-                        rows={m.stages.map((s) => ({
-                          label: s.label,
-                          value: s.contributionPct,
-                          sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`,
-                        }))}
-                        fmt={(n) => `${n.toFixed(1)}%`}
-                      />
-                    </Card>
-
-                    <Card
-                      title="Process Flow Quality Gates"
-                      sub="Gate-by-gate pass & yield metrics"
-                      onClick={() =>
-                        openModal(
-                          "Process Flow Quality Gates",
-                          "Catheter manufacturing process flow highlights key quality checkpoints and station yields.",
-                          <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                            <ProcessFlow rows={m.stages} />
-                          </div>,
-                          { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.rate) }
-                        )
-                      }
-                    >
-                      <ProcessFlow rows={m.stages} />
+                      {shareView === "share" ? (
+                        <Donut
+                          data={chartStages.map((s) => ({
+                            label: s.label,
+                            value: s.rejected,
+                            color: colorByStageId[s.stageId],
+                          }))}
+                          size={170}
+                        />
+                      ) : (
+                        <BarsH
+                          rows={m.stages.map((s) => ({
+                            label: s.label,
+                            value: s.contributionPct,
+                            sub: `${s.rejected.toLocaleString("en-IN")} rejected of ${s.checked.toLocaleString("en-IN")}`,
+                          }))}
+                          fmt={(n) => `${n.toFixed(1)}%`}
+                        />
+                      )}
                     </Card>
                   </div>
                 </div>

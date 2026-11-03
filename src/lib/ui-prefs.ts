@@ -6,12 +6,6 @@
 import { z } from "zod";
 import { slot } from "@/lib/storage";
 
-const gridLayout = z.enum(["2-wide", "1-full", "3-grid", "4-compact"]);
-export type GridLayout = z.infer<typeof gridLayout>;
-
-export const defectGridLayout = slot({ name: "defect-grid-layout", schema: gridLayout, legacyKeys: ["rais_defect_grid_layout"] });
-export const stageGridLayout = slot({ name: "stage-grid-layout", schema: gridLayout, legacyKeys: ["rais_stage_grid_layout"] });
-
 export const sidebarCollapsed = slot({ name: "sidebar-collapsed", schema: z.boolean(), legacyKeys: ["rais_sidebar_collapsed"] });
 export const navSectionsCollapsed = slot({
   name: "nav-collapsed",

@@ -8,6 +8,9 @@ import { useEvents } from "@/components/app/EventsContext";
 import { useRegistry } from "@/components/app/RegistryContext";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
+import { QualityHeader } from "@/components/app/QualityParts";
+import { GhostButton } from "@/components/ui/primitives";
+import { formatDelta } from "@/components/ui/shared-logic";
 import {
   Card,
   ScopeBasis,
@@ -48,6 +51,7 @@ export default function SizeAnalysisPage() {
   useApplyInvestigationFromUrl({
     onSize: (size) => setSelectedSize(size),
   });
+  const [showHeat, setShowHeat] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
@@ -140,9 +144,6 @@ export default function SizeAnalysisPage() {
     <AppShell active="size" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text)" }}>
-            Size Analysis
-          </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Inspect quality variation and rejection patterns across catheter sizes Fr10 through Fr24.
           </p>
@@ -189,19 +190,32 @@ export default function SizeAnalysisPage() {
           const hasLeft = m.sizes.length > 0;
           const hasRight = m.sizeTrend.length > 0;
 
+          const lastTwo = m.sizeTrend.slice(-2);
+          const sizeDelta = lastTwo.length === 2 ? formatDelta(lastTwo[1].value * 100, lastTwo[0].value * 100) : null;
+          const worstTone = worstSize && worstSize.rejRate > 0 ? "warning" : "neutral";
+
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <QualityHeader
+                tiles={[
+                  { label: "Worst size", word: true, value: worstSize ? worstSize.size : "—", status: worstTone,
+                    hint: worstSize ? `${num(worstSize.rejected)} rejected of ${num(worstSize.checked)}` : "No size data in scope" },
+                  { label: "Its rejection rate", value: worstSize ? pct(worstSize.rejRate) : "—", status: worstTone },
+                  { label: "Change vs last period", value: sizeDelta ? sizeDelta.text : "—", status: "neutral",
+                    hint: `${selectedSize}, last two ${grainLabel.toLowerCase()} periods` },
+                ]}
+                actionLabel="See batches"
+                onAction={worstSize ? () => openModal(
+                  `${worstSize.size} — batches`,
+                  ytdModalInsight,
+                  <div style={{ minHeight: 120 }} />,
+                  { rows: srcRows({ types: ["production", "inspection"], size: worstSize.size }), value: pct(worstSize.rejRate) },
+                ) : undefined}
+              />
               {/* Reference: DS/ANX/05 size color code, so every colored size
                   below (rejection list, caliber picker, trend line, heatmap
                   columns) reads against its own legend instead of assumed
                   knowledge. */}
-              <Card
-                title="Size Color Code"
-                sub="DS/ANX/05 — Dispofoley Latex Foley Balloon Capacity"
-              >
-                <SizeColorLegend sizes={m.heatCols} />
-              </Card>
-
               {/* Size rejection for the header scope, plus the selected-size trend. */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(480px, 1fr))", gap: 20 }}>
                 {hasLeft && (
@@ -288,12 +302,22 @@ export default function SizeAnalysisPage() {
                 )}
               </div>
 
+              <Card
+                title="Size Color Code"
+                sub="DS/ANX/05 — Dispofoley Latex Foley Balloon Capacity"
+              >
+                <SizeColorLegend sizes={m.heatCols} />
+              </Card>
+
               {/* Bottom Tier: Full Width Heatmap Matrix */}
               {hasLeft && m.heatMatrix && m.heatMatrix.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--text)" }}>
-                    Cross-Dimensional Size × Defect Mode Correlation Matrix
-                  </h2>
+                  <div>
+                    <GhostButton onClick={() => setShowHeat((v) => !v)}>
+                      {showHeat ? "Hide" : "Show"} size × defect heatmap
+                    </GhostButton>
+                  </div>
+                  {showHeat && (<>
                   <Card
                     title="Size × Defect Correlation Heatmap"
                     sub="Longitudinal distribution of rejected units across active size calibers and defect categories"
@@ -316,6 +340,7 @@ export default function SizeAnalysisPage() {
                       colColor={(col) => sizeColorFor(col)?.hex}
                     />
                   </Card>
+                  </>)}
                 </div>
               )}
             </div>

@@ -8,6 +8,8 @@ import { useRegistry } from "@/components/app/RegistryContext";
 import { EMPTY_REGISTRY } from "@/core/ontology/empty-registry";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
+import { QualityHeader, SegmentedControl, DrillLinks } from "@/components/app/QualityParts";
+import { formatDelta } from "@/components/ui/shared-logic";
 import {
   Card,
   ScopeBasis,
@@ -60,23 +62,6 @@ export default function DefectAnalysisPage() {
   const [rawSheets, setRawSheets] = useState<any[] | undefined>(undefined);
   const [targetRej, setTargetRej] = useState(0.10);
   const [defectMetric, setDefectMetric] = useState<"qty" | "rate">("qty");
-  const [layoutTemplate, setLayoutTemplate] = useState<"2-wide" | "1-full" | "3-grid" | "4-compact">(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("rais_defect_grid_layout");
-        if (saved === "2-wide" || saved === "1-full" || saved === "3-grid" || saved === "4-compact") {
-          return saved;
-        }
-      } catch {}
-    }
-    return "2-wide"; // Default to 2-wide expanded timeline layout
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("rais_defect_grid_layout", layoutTemplate);
-    } catch {}
-  }, [layoutTemplate]);
 
   const openModal = (
     title: string,
@@ -158,9 +143,6 @@ export default function DefectAnalysisPage() {
     <AppShell active="defect" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text)" }}>
-            Defect Analysis
-          </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Analyze defect distribution using Six Sigma Pareto categorization and historical reason codes.
             Scope a single gate via the View switcher in the top bar.
@@ -235,8 +217,51 @@ export default function DefectAnalysisPage() {
           const heatCols = m.defectTrend.map((p) => p.label);
           const heatMatrix = heatRows.map((rl) => m.defectTrend.map((p) => p.perDefect[rl] ?? 0));
 
+          const openDefect = (
+            d: (typeof chartDefects)[number],
+            points: React.ComponentProps<typeof LineChart>["points"],
+            color: string,
+            insightDesc: string,
+            isRate: boolean,
+            fmtFn: (n: number) => string,
+            tab: "batches" | "history",
+          ) =>
+            openModal(
+              `${d.label} · ${grainLabel}`,
+              insightDesc,
+              <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <LineChart points={points} fmt={fmtFn} color={color} stage={d.label} metric={isRate ? "Defect Share" : "Rejected"} />
+              </div>,
+              { rows: srcRows({ types: ["rejection"], defectCode: d.defectCode ?? undefined }), value: isRate ? `${d.pct.toFixed(1)}%` : num(d.rejected), rankedDefects: [{ code: d.defectCode || d.label, label: d.label }] },
+              { initialShowSource: true, defaultSourceTab: tab },
+            );
+          const top = chartDefects.reduce<(typeof chartDefects)[number] | null>((w, d) => (!w || d.rejected > w.rejected ? d : w), null);
+          const lastTwo = top ? m.defectTrend.slice(-2) : [];
+          const topDelta = top && lastTwo.length === 2
+            ? formatDelta(lastTwo[1].perDefect[top.label] ?? 0, lastTwo[0].perDefect[top.label] ?? 0, { unit: "%" })
+            : null;
+          const topPoints = top
+            ? m.defectTrend.map((p) => {
+                const count = p.perDefect[top.label] ?? 0;
+                const tot = Object.values(p.perDefect).reduce((a, b) => a + b, 0);
+                return { period: p.period, label: p.label, value: count, rejected: count, checked: tot, noProduction: tot === 0 };
+              })
+            : [];
+
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <QualityHeader
+                tiles={[
+                  { label: "Top defect", word: true, value: top ? top.label : "—", status: top ? "warning" : "neutral",
+                    hint: top ? `${num(top.rejected)} rejected` : "No defects in scope" },
+                  { label: "Share of rejections", value: top ? `${top.pct.toFixed(1)}%` : "—", status: "neutral",
+                    hint: `${num(totalRejected)} rejected in total` },
+                  { label: "Change vs last period", value: topDelta ? topDelta.text : "—", status: "neutral",
+                    hint: top ? `${top.label}, last two ${grainLabel.toLowerCase()} periods` : "Needs two periods" },
+                ]}
+                actionLabel="See batches"
+                onAction={top ? () => openDefect(top, topPoints, colorByDefect[top.label], `${top.label} rejected qty over time. Colour matches the all-defects chart and the pie.`, false, num, "batches") : undefined}
+              />
               {/* Top Tier: Macro Trends & Pareto Quality Loss (Stacked Vertically: 1st Trend, 2nd Pareto) */}
               <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                 {m.overall.length > 0 && (
@@ -311,186 +336,19 @@ export default function DefectAnalysisPage() {
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                      {/* Size Orientation Layout Option */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 10.5, fontFamily: "var(--font-mono)", color: "var(--text-3)", fontWeight: 600, letterSpacing: "0.04em" }}>
-                          LAYOUT:
-                        </span>
-                        <div
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            background: "var(--surface)",
-                            border: "1px solid var(--border)",
-                            borderRadius: "var(--radius-sm)",
-                            padding: 2,
-                            gap: 2,
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setLayoutTemplate("2-wide")}
-                            title="2-Wide — 2 graphs side-by-side with full horizontal timeline vision"
-                            style={{
-                              padding: "3px 9px",
-                              borderRadius: "var(--radius-sm)",
-                              border: "none",
-                              background: layoutTemplate === "2-wide" ? "var(--surface-2)" : "transparent",
-                              color: layoutTemplate === "2-wide" ? "var(--accent)" : "var(--text-3)",
-                              fontFamily: "var(--font-mono)",
-                              fontSize: 10,
-                              fontWeight: 600,
-                              letterSpacing: "0.03em",
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 4,
-                              transition: "all 0.15s ease",
-                            }}
-                          >
-                            <span>▥</span>
-                            <span>2-WIDE</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setLayoutTemplate("1-full")}
-                            title="1-Full — 1 panoramic full-width graph per row with complete timeline vision"
-                            style={{
-                              padding: "3px 9px",
-                              borderRadius: "var(--radius-sm)",
-                              border: "none",
-                              background: layoutTemplate === "1-full" ? "var(--surface-2)" : "transparent",
-                              color: layoutTemplate === "1-full" ? "var(--accent)" : "var(--text-3)",
-                              fontFamily: "var(--font-mono)",
-                              fontSize: 10,
-                              fontWeight: 600,
-                              letterSpacing: "0.03em",
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 4,
-                              transition: "all 0.15s ease",
-                            }}
-                          >
-                            <span>▤</span>
-                            <span>1-FULL</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setLayoutTemplate("3-grid")}
-                            title="3-Grid — 3 graphs per row balanced layout"
-                            style={{
-                              padding: "3px 9px",
-                              borderRadius: "var(--radius-sm)",
-                              border: "none",
-                              background: layoutTemplate === "3-grid" ? "var(--surface-2)" : "transparent",
-                              color: layoutTemplate === "3-grid" ? "var(--accent)" : "var(--text-3)",
-                              fontFamily: "var(--font-mono)",
-                              fontSize: 10,
-                              fontWeight: 600,
-                              letterSpacing: "0.03em",
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 4,
-                              transition: "all 0.15s ease",
-                            }}
-                          >
-                            <span>▦</span>
-                            <span>3-GRID</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setLayoutTemplate("4-compact")}
-                            title="4-Dense — 4 graphs per row compact view (8 per screen)"
-                            style={{
-                              padding: "3px 9px",
-                              borderRadius: "var(--radius-sm)",
-                              border: "none",
-                              background: layoutTemplate === "4-compact" ? "var(--surface-2)" : "transparent",
-                              color: layoutTemplate === "4-compact" ? "var(--accent)" : "var(--text-3)",
-                              fontFamily: "var(--font-mono)",
-                              fontSize: 10,
-                              fontWeight: 600,
-                              letterSpacing: "0.03em",
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 4,
-                              transition: "all 0.15s ease",
-                            }}
-                          >
-                            <span>⊞</span>
-                            <span>4-DENSE</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Metric Toggle: Volume (Qty) vs Defect Share (%) */}
-                      <div
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          background: "var(--surface)",
-                          border: "1px solid var(--border)",
-                          borderRadius: "var(--radius-sm)",
-                          padding: 2,
-                          gap: 2,
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setDefectMetric("qty")}
-                          style={{
-                            padding: "3px 10px",
-                            borderRadius: "var(--radius-sm)",
-                            border: "none",
-                            background: defectMetric === "qty" ? "var(--surface-2)" : "transparent",
-                            color: defectMetric === "qty" ? "var(--accent)" : "var(--text-3)",
-                            fontFamily: "var(--font-mono)",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            letterSpacing: "0.03em",
-                            cursor: "pointer",
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          COUNT (QTY)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDefectMetric("rate")}
-                          style={{
-                            padding: "3px 10px",
-                            borderRadius: "var(--radius-sm)",
-                            border: "none",
-                            background: defectMetric === "rate" ? "var(--surface-2)" : "transparent",
-                            color: defectMetric === "rate" ? "var(--accent)" : "var(--text-3)",
-                            fontFamily: "var(--font-mono)",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            letterSpacing: "0.03em",
-                            cursor: "pointer",
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          RATE (%)
-                        </button>
-                      </div>
+                      <SegmentedControl
+                        label="Defect metric"
+                        value={defectMetric}
+                        onChange={setDefectMetric}
+                        options={[{ id: "qty", label: "Count" }, { id: "rate", label: "Share %" }]}
+                      />
                     </div>
                   </div>
 
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns:
-                        layoutTemplate === "1-full"
-                          ? "1fr"
-                          : layoutTemplate === "2-wide"
-                            ? "repeat(auto-fit, minmax(min(100%, 540px), 1fr))"
-                            : layoutTemplate === "3-grid"
-                              ? "repeat(auto-fit, minmax(min(100%, 380px), 1fr))"
-                              : "repeat(auto-fill, minmax(320px, 1fr))",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))",
                       gap: 16,
                     }}
                   >
@@ -525,16 +383,6 @@ export default function DefectAnalysisPage() {
                         ? `${d.label} defect share (% of all rejections) over time. Colour matches the all-defects chart and the pie.`
                         : `${d.label} rejected qty over time. Colour matches the all-defects chart and the pie.`;
 
-                      const chartHeight =
-                        layoutTemplate === "1-full"
-                          ? 260
-                          : layoutTemplate === "2-wide"
-                            ? 240
-                            : layoutTemplate === "3-grid"
-                              ? 220
-                              : 200;
-                      const isChartCompact = layoutTemplate === "4-compact";
-
                       return (
                         <Card
                           key={d.defectCode ?? d.label}
@@ -559,100 +407,14 @@ export default function DefectAnalysisPage() {
                               </span>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <button
-                                type="button"
-                                title={`Show batch IDs affected by ${d.label}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openModal(
-                                    `${d.label} · ${grainLabel}`,
-                                    insightDesc,
-                                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                                      <LineChart points={points} fmt={fmtFn} color={color} stage={d.label} metric={isRate ? "Defect Share" : "Rejected"} />
-                                    </div>,
-                                    { rows: srcRows({ types: ["rejection"], defectCode: d.defectCode ?? undefined }), value: isRate ? `${d.pct.toFixed(1)}%` : num(d.rejected), rankedDefects: [{ code: d.defectCode || d.label, label: d.label }] },
-                                    { initialShowSource: true, defaultSourceTab: "batches" }
-                                  );
-                                }}
-                                style={{
-                                  padding: "2px 7px",
-                                  borderRadius: 4,
-                                  border: "1px solid var(--border)",
-                                  background: "var(--surface-2)",
-                                  color: "var(--text-2)",
-                                  fontSize: 10.5,
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  fontFamily: "var(--font-mono)",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 3,
-                                  transition: "all 0.15s ease",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.color = "var(--accent)";
-                                  e.currentTarget.style.borderColor = "var(--accent)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.color = "var(--text-2)";
-                                  e.currentTarget.style.borderColor = "var(--border)";
-                                }}
-                              >
-                                🏷️ Batches
-                              </button>
-                              <button
-                                type="button"
-                                title={`View Data Entry History ledger for ${d.label}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openModal(
-                                    `${d.label} · ${grainLabel}`,
-                                    insightDesc,
-                                    <div style={{ minHeight: 220, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                                      <LineChart points={points} fmt={fmtFn} color={color} stage={d.label} metric={isRate ? "Defect Share" : "Rejected"} />
-                                    </div>,
-                                    { rows: srcRows({ types: ["rejection"], defectCode: d.defectCode ?? undefined }), value: isRate ? `${d.pct.toFixed(1)}%` : num(d.rejected), rankedDefects: [{ code: d.defectCode || d.label, label: d.label }] },
-                                    { initialShowSource: true, defaultSourceTab: "history" }
-                                  );
-                                }}
-                                style={{
-                                  padding: "2px 7px",
-                                  borderRadius: 4,
-                                  border: "1px solid var(--border)",
-                                  background: "var(--surface-2)",
-                                  color: "var(--text-2)",
-                                  fontSize: 10.5,
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  fontFamily: "var(--font-mono)",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 3,
-                                  transition: "all 0.15s ease",
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.color = "var(--accent)";
-                                  e.currentTarget.style.borderColor = "var(--accent)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.color = "var(--text-2)";
-                                  e.currentTarget.style.borderColor = "var(--border)";
-                                }}
-                              >
-                                📋 History
-                              </button>
-                              {layoutTemplate !== "4-compact" && (
-                                <span style={{
-                                  fontSize: 10.5,
-                                  fontFamily: "var(--font-mono)",
-                                  color: "var(--text-3)",
-                                  background: "var(--surface-2)",
-                                  padding: "2px 6px",
-                                  borderRadius: 3,
-                                }}>
-                                  #{di + 1}
-                                </span>
-                              )}
+                              <DrillLinks
+                                name={d.label}
+                                onBatches={() => openDefect(d, points, color, insightDesc, isRate, fmtFn, "batches")}
+                                onHistory={() => openDefect(d, points, color, insightDesc, isRate, fmtFn, "history")}
+                              />
+                              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-3)", background: "var(--surface-2)", padding: "2px 6px", borderRadius: 3 }}>
+                                #{di + 1}
+                              </span>
                             </div>
                           </div>
                           <LineChart
@@ -661,8 +423,7 @@ export default function DefectAnalysisPage() {
                             color={color}
                             stage={d.label}
                             metric={isRate ? "Defect Share" : "Rejected"}
-                            height={chartHeight}
-                            compact={isChartCompact}
+                            height={220}
                           />
                         </Card>
                       );

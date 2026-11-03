@@ -8,6 +8,9 @@ import { usePlantTotals } from "@/lib/client/use-plant-totals";
 import { restoreTrend } from "@/lib/analytics/overlay-totals";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
 import { useTweaks } from "@/components/editorial/TweaksContext";
+import { QualityHeader } from "@/components/app/QualityParts";
+import { GhostButton, StatusBadge } from "@/components/ui/primitives";
+import { formatDelta } from "@/components/ui/shared-logic";
 import { usePolicy } from "@/components/app/RegistryContext";
 import { 
   Card,
@@ -107,9 +110,9 @@ function XBarChart({ points, ucl, lcl, mean }: { points: any[]; ucl: number; lcl
         padding: "2px",
         boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
       }}>
-        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(4.0, z * 1.3)); }} title="Zoom In">+</ZoomButton>
-        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(0.25, z / 1.3)); }} title="Zoom Out">−</ZoomButton>
-        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(1.0); }} title="Fit Viewport">FIT</ZoomButton>
+        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(4.0, z * 1.3)); }} title="Zoom in">Zoom in</ZoomButton>
+        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(0.25, z / 1.3)); }} title="Zoom out">Zoom out</ZoomButton>
+        <ZoomButton onClick={(e) => { e.stopPropagation(); setZoom(1.0); }} title="Fit viewport">Fit</ZoomButton>
       </div>
 
       <div 
@@ -198,6 +201,7 @@ export default function SpcPage() {
   const { events: contextEvents, isLoading } = useEvents();
   const serverTotals = usePlantTotals().data;
   const events = contextEvents ? (contextEvents as any[]) : null;
+  const [showHow, setShowHow] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalInsight, setModalInsight] = useState<string | string[]>([]);
@@ -310,9 +314,6 @@ export default function SpcPage() {
     <AppShell active="spc" dateRange={m?.latestPeriodLabel}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, margin: "0 0 4px", color: "var(--text)" }}>
-            SPC &amp; Control Charts
-          </h1>
           <p className="muted" style={{ fontSize: 14, margin: 0 }}>
             Monitor statistical process control limits (UCL, LCL) and track quality shift deviations.
           </p>
@@ -352,12 +353,29 @@ export default function SpcPage() {
 
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2.2fr) minmax(0, 0.8fr)", gap: 20 }}>
-                <Card title={`X-Bar Control Chart (${t.grain.toUpperCase()} Rejection Rate)`} onClick={() => openModal("Control Chart", modalText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.mean) })}>
-                  <XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} />
-                </Card>
+              <QualityHeader
+                tiles={[
+                  { label: "Status", word: true, value: outOfControl ? "Out of control" : "In control", status: outOfControl ? "critical" : "ok",
+                    hint: outOfControl ? `${m.r1 + m.r2 + m.r3} rule violation(s)` : "No Western Electric violations" },
+                  { label: "Latest rate", value: pct(m.tr[m.tr.length - 1].value), status: "neutral",
+                    delta: m.tr.length > 1 ? formatDelta(m.tr[m.tr.length - 1].value * 100, m.tr[m.tr.length - 2].value * 100) : null,
+                    hint: `mean ${pct(m.mean)}` },
+                  { label: "Upper control limit", value: pct(m.ucl), status: "neutral", hint: `lower ${pct(m.lcl)}` },
+                ]}
+                actionLabel="See batches"
+                onAction={() => openModal("Control Chart", modalText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.mean) })}
+              />
+              <Card title={`X-Bar Control Chart (${t.grain.toUpperCase()} Rejection Rate)`} onClick={() => openModal("Control Chart", modalText, <div style={{ minHeight: 240, display: "flex", flexDirection: "column", justifyContent: "center" }}><XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} /></div>, { rows: srcRows({ types: ["production", "inspection"] }), value: pct(m.mean) })}>
+                <XBarChart points={m.tr} ucl={m.ucl} lcl={m.lcl} mean={m.mean} />
+              </Card>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
+              <div>
+                <GhostButton onClick={() => setShowHow((v) => !v)}>
+                  {showHow ? "Hide" : "Show"} how to read this
+                </GhostButton>
+              </div>
+              {showHow && (<>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
                   <Card title="SPC Control Limits">
                     <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "10px 0" }}>
                       <div className="between">
@@ -391,15 +409,14 @@ export default function SpcPage() {
                       </div>
                     </div>
                   </Card>
-                </div>
               </div>
 
               <Card title="SPC Interpretation & Recommended Actions">
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13, lineHeight: 1.6 }}>
                   {outOfControl ? (
                     <>
-                      <div style={{ borderLeft: "3px solid var(--critical)", paddingLeft: 12, background: "var(--accent-weak)", padding: 12, borderRadius: "var(--radius-sm)" }}>
-                        <strong style={{ color: "var(--critical)", display: "block", marginBottom: 4 }}>⚠️ PROCESS OUT OF STATISTICAL CONTROL</strong>
+                      <div style={{ borderLeft: "3px solid var(--critical)", paddingLeft: 12, background: "var(--critical-weak)", padding: 12, borderRadius: "var(--radius-sm)" }}>
+                        <div style={{ marginBottom: 4 }}><StatusBadge status="critical" label="Process out of statistical control" /></div>
                         Special-cause variation detected. The quality metrics oscillate heavily and show non-random patterns violating Western Electric control rules.
                       </div>
                       <ul style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -422,12 +439,13 @@ export default function SpcPage() {
                     </>
                   ) : (
                     <div style={{ borderLeft: "3px solid var(--positive)", paddingLeft: 12, background: "var(--positive-weak)", padding: 12, borderRadius: "var(--radius-sm)" }}>
-                      <strong style={{ color: "var(--positive)", display: "block", marginBottom: 4 }}>✓ PROCESS IN STATISTICAL CONTROL</strong>
+                      <div style={{ marginBottom: 4 }}><StatusBadge status="ok" label="Process in statistical control" /></div>
                       Rejection rates exhibit only common-cause (random) variation. All periods fall within the 3-sigma control limits and conform to normal distribution criteria. Continue standard monitoring.
                     </div>
                   )}
                 </div>
               </Card>
+              </>)}
             </div>
           );
         })() : m && (
