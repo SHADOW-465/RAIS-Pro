@@ -35,6 +35,11 @@ describe("routeReadsLineage", () => {
     expect(routeReadsLineage("reports")).toBe(true);
   });
 
+  test("both Lots routes load conversions (one workspace renders both)", () => {
+    expect(routeReadsLineage("open-lots")).toBe(true);
+    expect(routeReadsLineage("hold")).toBe(true);
+  });
+
   test("ask, staging and settings do not", () => {
     expect(routeReadsLineage("ask")).toBe(false);
     expect(routeReadsLineage("staging")).toBe(false);

@@ -22,8 +22,9 @@ export function routeReadsLedger(key: NavKey): boolean {
 /** Conversions are used by entry, the conversion page, and any screen that can
  *  open the report panel (that panel reads lineage). */
 export function routeReadsLineage(key: NavKey): boolean {
-  // open-lots and audit read conversions since main 241d3e4.
-  return key === "data-entry" || key === "batch-conversion" || key === "open-lots" || key === "audit" || canReport(key);
+  // open-lots and audit read conversions since main 241d3e4; hold renders the
+  // same Lots workspace (Open / Stalled / Hold / Complete tabs).
+  return key === "data-entry" || key === "batch-conversion" || key === "open-lots" || key === "hold" || key === "audit" || canReport(key);
 }
 
 export interface NavQuery {
