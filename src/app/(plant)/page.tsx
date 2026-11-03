@@ -48,10 +48,6 @@ const FloatingDetailModal = dynamic(() => import("@/components/FloatingDetailMod
   ssr: false,
   loading: () => null,
 });
-const ChartBuilder = dynamic(() => import("@/components/ChartBuilder"), {
-  ssr: false,
-  loading: () => null,
-});
 const CapaComposerModal = dynamic(() => import("@/components/CapaComposerModal"), {
   ssr: false,
   loading: () => null,
@@ -1233,17 +1229,6 @@ export default function Dashboard() {
                 </Card>
               </DashItem>
               </DashboardBoard>
-              {/* Custom chart: Reports > Custom chart takes this over in phase 11. */}
-              <ChartBuilder
-                events={events ?? []}
-                storageId="dashboard"
-                base={{ dateFrom: scope.dateFrom, dateTo: scope.dateTo, stageIds: scope.stageIds }}
-                sub={
-                  scope.dateFrom && scope.dateTo
-                    ? `Anything the tiles above don't answer. Follows the Scope chip's range (${scope.dateFrom} to ${scope.dateTo}).`
-                    : "Anything the tiles above don't answer. Follows the Scope chip's range and View."
-                }
-              />
               </>
             )}
             </>

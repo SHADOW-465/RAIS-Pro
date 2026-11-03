@@ -13,7 +13,7 @@ import { useConfirm } from "@/components/ui/ConfirmContext";
 import { Card, Empty, Kpi, BarsH, LineChart, pct } from "@/components/app/widgets";
 import PageLoader from "@/components/app/PageLoader";
 import FloatingDetailModal, { type SourceRow, type SourceMetricKind } from "@/components/FloatingDetailModal";
-import ChartBuilder, { bestGrain } from "@/components/ChartBuilder";
+import { bestGrain } from "@/components/ChartBuilder";
 import Icon from "@/components/editorial/Icon";
 import { useEvents } from "@/components/app/EventsContext";
 import { invalidateAfterWrite } from "@/lib/client/invalidate";
@@ -256,7 +256,7 @@ export default function WorkbooksPage() {
     <AppShell active="workbooks">
       <p className="muted" style={{ fontSize: "var(--text-md)", margin: "0 0 16px", maxWidth: "68ch", lineHeight: "var(--leading-body)" }}>
         Pick a file to see what it put on the ledger — the same numbers as the Dashboard, for that file
-        alone — then build whatever chart you want from it. Drag to reorder.
+        alone. Custom charts live under Reports. Drag to reorder.
       </p>
 
       {error && (
@@ -527,13 +527,6 @@ export default function WorkbooksPage() {
                       )}
                     </Card>
 
-                    {/* Ask this file your own question, rather than only the
-                        four we picked above. */}
-                    <ChartBuilder
-                      events={fileEvents}
-                      storageId={`wb:${selectedFile ?? "workbook"}`}
-                      sub="Pick what you want to see from this file. Pin the ones you want to keep."
-                    />
                   </>
                 )}
               </>

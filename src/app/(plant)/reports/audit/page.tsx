@@ -62,6 +62,9 @@ import {
 } from "@/lib/lineage";
 import { usePersona } from "@/components/app/PersonaContext";
 import Select from "@/components/ui/Select";
+import FiltersPopover from "@/components/ui/FiltersPopover";
+import { activeFilterCount } from "@/components/ui/shared-logic";
+import { QualityHeader } from "@/components/app/QualityParts";
 import { sortStageIds, stageCategoryOf, STAGE_CATEGORIES } from "@/core/ontology/plant-catalog";
 import {
   integrityFixHref,
@@ -737,58 +740,27 @@ export default function AuditPage() {
       <div style={{ maxWidth: 1080, margin: "0 auto", paddingBottom: 56 }}>
         {/* —— Header —— */}
         <header style={{ marginBottom: 20 }}>
-          <h1
-            style={{
-              margin: 0,
-              fontFamily: "var(--font-display)",
-              fontSize: "1.5rem",
-              fontWeight: 600,
-              letterSpacing: "-0.025em",
-              color: "var(--text)",
-              lineHeight: 1.2,
-            }}
-          >
-            Audit trail
-          </h1>
+
           <p
             style={{
-              margin: "6px 0 0",
-              fontSize: 14,
+              margin: 0,
+              fontSize: "var(--text-md)",
               color: "var(--text-2)",
-              lineHeight: 1.45,
-              maxWidth: 36 * 16,
+              lineHeight: 1.5,
+              maxWidth: "70ch",
             }}
           >
             Find a batch, pick a stage, read the entries. Same ledger — clearer path.
           </p>
         </header>
 
-        {/* —— Summary: batches + source mix only —— */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-            gap: 10,
-            marginBottom: 16,
-          }}
-        >
-          <StatPill
-            label="Batches"
-            value={String(batchGroups.length)}
-            hint="Open one · pick a stage"
-            tone="neutral"
-          />
-          <StatPill
-            label="Data entries"
-            value={sourceStats.dataEntries}
-            hint="Manual / Data Entry ledger facts"
-            tone="accent"
-          />
-          <StatPill
-            label="Excel files"
-            value={sourceStats.excelFiles}
-            hint="Distinct uploaded workbooks"
-            tone="neutral"
+        <div style={{ marginBottom: 16 }}>
+          <QualityHeader
+            tiles={[
+              { label: "Batches", value: batchGroups.length, status: "neutral", hint: "Open one, pick a stage" },
+              { label: "Data entries", value: sourceStats.dataEntries, status: "neutral", hint: "Facts saved under Log" },
+              { label: "Excel files", value: sourceStats.excelFiles, status: "neutral", hint: "Distinct uploaded workbooks" },
+            ]}
           />
         </div>
 
@@ -825,106 +797,116 @@ export default function AuditPage() {
             />
           </div>
 
-          {/* Search stays wide; every filter is a fixed, equal track so the row
-              stays a readable rank of controls as options come and go. */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(180px, 1.6fr) repeat(auto-fit, minmax(132px, 1fr))",
-              gap: 8,
-            }}
-          >
-            <SearchField
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search batch number…"
-            />
-            <Select
-              value={sourceFilter}
-              onChange={setSourceFilter}
-              options={[
-                { value: "all", label: "All sources" },
-                { value: "manual", label: "Data entry" },
-                { value: "excel", label: "Excel" },
-              ]}
-              ariaLabel="Filter by source"
-            />
-            <Select
-              value={stageFilter}
-              onChange={setStageFilter}
-              options={[
-                { value: "all", label: "All stages" },
-                ...stageOptions,
-              ]}
-              ariaLabel="Filter by stage"
-            />
-            <Select
-              value={categoryFilter}
-              onChange={setCategoryFilter}
-              options={[
-                { value: "all", label: "All categories" },
-                ...CATHETER_CATEGORIES.map((c) => ({ value: c, label: c })),
-              ]}
-              ariaLabel="Filter by category"
-            />
-            <Select
-              value={typeStoredFilter}
-              onChange={setTypeStoredFilter}
-              options={typeOptions}
-              ariaLabel="Filter by product type"
-            />
-            {availableSizeOptions.length > 0 && (
-              <Select
-                value={sizeFilter}
-                onChange={setSizeFilter}
-                options={[
-                  { value: "all", label: "All sizes" },
-                  ...availableSizeOptions.map((sz) => ({ value: sz, label: sz })),
-                ]}
-                mono
-                ariaLabel="Filter by size"
+          {/* Search stays wide; every filter lives in one Filters (n) popover,
+              sort is its own menu. */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+              <SearchField
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search batch number…"
               />
-            )}
-            <Select
-              value={sortOrder}
-              onChange={(v) => setSortOrder(v as any)}
-              options={[
-                { value: "newest", label: "Sort: Newest" },
-                { value: "oldest", label: "Sort: Oldest" },
-                { value: "batch-asc", label: "Sort: Batch A–Z" },
-                { value: "batch-desc", label: "Sort: Batch Z–A" },
-                { value: "volume-desc", label: "Sort: Volume High–Low" },
-                { value: "rejection-desc", label: "Sort: Rejection High–Low" },
-              ]}
-              ariaLabel="Sort order"
-            />
-            {/* Lot completion is a batch-level idea, so it is offered only where
-                the list is batches. */}
-            {viewMode === "batch" && (
+            </div>
+            <FiltersPopover
+              count={activeFilterCount({
+                source: sourceFilter, stage: stageFilter, category: categoryFilter, type: typeStoredFilter,
+                size: sizeFilter, status: statusFilter, event: typeFilter,
+              }, { source: "all", stage: "all", category: "all", type: "all", size: "all", status: "all", event: "all" })}
+              onClear={() => {
+                setSourceFilter("all"); setStageFilter("all"); setCategoryFilter("all"); setTypeStoredFilter("all");
+                setSizeFilter("all"); setStatusFilter("all"); setTypeFilter("all");
+              }}
+            >
               <Select
-                value={statusFilter}
-                onChange={(v) => setStatusFilter(v as "all" | "open" | "complete")}
+                value={sourceFilter}
+                onChange={setSourceFilter}
                 options={[
-                  { value: "all", label: "Any status" },
-                  { value: "open", label: "In progress" },
-                  { value: "complete", label: "Complete" },
+                  { value: "all", label: "All sources" },
+                  { value: "manual", label: "Data entry" },
+                  { value: "excel", label: "Excel" },
                 ]}
-                ariaLabel="Filter by lot status"
+                ariaLabel="Filter by source"
               />
-            )}
-            {viewMode === "raw" && (
               <Select
-                value={typeFilter}
-                onChange={setTypeFilter}
+                value={stageFilter}
+                onChange={setStageFilter}
                 options={[
-                  { value: "all", label: "All event types" },
-                  { value: "production", label: "Production" },
-                  { value: "inspection", label: "Inspection" },
-                  { value: "rejection", label: "Rejection" },
+                  { value: "all", label: "All stages" },
+                  ...stageOptions,
                 ]}
-                ariaLabel="Filter by event type"
+                ariaLabel="Filter by stage"
               />
-            )}
+              <Select
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+                options={[
+                  { value: "all", label: "All categories" },
+                  ...CATHETER_CATEGORIES.map((c) => ({ value: c, label: c })),
+                ]}
+                ariaLabel="Filter by category"
+              />
+              <Select
+                value={typeStoredFilter}
+                onChange={setTypeStoredFilter}
+                options={typeOptions}
+                ariaLabel="Filter by product type"
+              />
+              {availableSizeOptions.length > 0 && (
+                <Select
+                  value={sizeFilter}
+                  onChange={setSizeFilter}
+                  options={[
+                    { value: "all", label: "All sizes" },
+                    ...availableSizeOptions.map((sz) => ({ value: sz, label: sz })),
+                  ]}
+                  mono
+                  ariaLabel="Filter by size"
+                />
+              )}
+
+              {/* Lot completion is a batch-level idea, so it is offered only where
+                  the list is batches. */}
+              {viewMode === "batch" && (
+                <Select
+                  value={statusFilter}
+                  onChange={(v) => setStatusFilter(v as "all" | "open" | "complete")}
+                  options={[
+                    { value: "all", label: "Any status" },
+                    { value: "open", label: "In progress" },
+                    { value: "complete", label: "Complete" },
+                  ]}
+                  ariaLabel="Filter by lot status"
+                />
+              )}
+              {viewMode === "raw" && (
+                <Select
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  options={[
+                    { value: "all", label: "All event types" },
+                    { value: "production", label: "Production" },
+                    { value: "inspection", label: "Inspection" },
+                    { value: "rejection", label: "Rejection" },
+                  ]}
+                  ariaLabel="Filter by event type"
+                />
+              )}
+            </FiltersPopover>
+            <div style={{ minWidth: 200 }}>
+              <Select
+                value={sortOrder}
+                onChange={(v) => setSortOrder(v as any)}
+                options={[
+                  { value: "newest", label: "Sort: Newest" },
+                  { value: "oldest", label: "Sort: Oldest" },
+                  { value: "batch-asc", label: "Sort: Batch A–Z" },
+                  { value: "batch-desc", label: "Sort: Batch Z–A" },
+                  { value: "volume-desc", label: "Sort: Volume High–Low" },
+                  { value: "rejection-desc", label: "Sort: Rejection High–Low" },
+                ]}
+                ariaLabel="Sort order"
+              />
+            </div>
           </div>
 
           {/* Dedicated Batch Grouping Bar: OK batch (26J16-24) vs Convert batch (26J16-24 CT 22) */}
@@ -950,21 +932,19 @@ export default function AuditPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span
                     style={{
-                      fontSize: 10.5,
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 500,
                       color: "var(--text-3)",
-                      marginRight: 2,
+                      marginRight: 4,
                     }}
                   >
-                    Batch Grouping:
+                    Batch grouping
                   </span>
                   {(
                     [
                       {
                         id: "all" as const,
-                        label: "All Batches",
+                        label: "All batches",
                         count: conversionLookup.totalCount,
                         tone: "var(--text)",
                         bgActive: "var(--surface-3, var(--surface-2))",
@@ -972,7 +952,7 @@ export default function AuditPage() {
                       },
                       {
                         id: "ok" as const,
-                        label: "✓ OK Batch",
+                        label: "OK batch",
                         codeHint: "26J16-24",
                         count: conversionLookup.okCount,
                         tone: "var(--positive)",
@@ -981,7 +961,7 @@ export default function AuditPage() {
                       },
                       {
                         id: "converted" as const,
-                        label: "⇄ Convert Batch",
+                        label: "Converted batch",
                         codeHint: "26J16-24 CT 22",
                         count: conversionLookup.convertedCount,
                         tone: "var(--accent)",
@@ -990,7 +970,7 @@ export default function AuditPage() {
                       },
                       {
                         id: "grouped" as const,
-                        label: "⊞ Group OK + Convert (CT)",
+                        label: "OK + converted together",
                         count: conversionLookup.totalCount,
                         tone: "var(--accent)",
                         bgActive: "color-mix(in srgb, var(--accent) 14%, var(--surface-2))",
@@ -2616,63 +2596,6 @@ const TONE: Record<
     soft: "var(--critical-weak)",
   },
 };
-
-function StatPill({
-  label,
-  value,
-  hint,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  tone?: Tone;
-}) {
-  const t = TONE[tone];
-  return (
-    <div
-      style={{
-        padding: "12px 14px",
-        borderRadius: 14,
-        background: t.bg,
-        border: `1px solid ${t.border}`,
-        boxShadow: "var(--shadow-1)",
-        minHeight: 72,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        gap: 2,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          color: tone === "neutral" ? "var(--text-3)" : t.fg,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 22,
-          fontWeight: 600,
-          letterSpacing: "-0.03em",
-          color: tone === "neutral" ? "var(--text)" : t.fg,
-          lineHeight: 1.15,
-        }}
-      >
-        {typeof value === "number" ? value.toLocaleString() : value}
-      </div>
-      {hint ? (
-        <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2, lineHeight: 1.3 }}>{hint}</div>
-      ) : null}
-    </div>
-  );
-}
 
 function TonePill({ children, tone = "neutral" }: { children: React.ReactNode; tone?: Tone }) {
   const t = TONE[tone];
