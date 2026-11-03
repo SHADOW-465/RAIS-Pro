@@ -11,6 +11,7 @@
 //
 // Empty batch / file lists = full plant / all uploads. Filters apply immediately.
 
+import Icon from "@/components/editorial/Icon";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import DatePicker from "@/components/ui/DatePicker";
@@ -427,7 +428,7 @@ export default function SourcesScopePanel({
                               className="sources-icon-btn"
                               style={chevronBtn}
                             >
-                              {openAssemblyStages ? "▾" : "▸"}
+                              <Icon name={openAssemblyStages ? "chevron-down" : "chevron-right"} size={12} aria-hidden />
                             </button>
                           ) : undefined
                         }
@@ -1349,7 +1350,7 @@ function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: 
             {batchCount === 1 ? "batch" : "batches"}
           </span>
         </span>
-        <span style={{ fontSize: 9, opacity: 0.7, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }}>▾</span>
+        <span style={{ fontSize: 9, opacity: 0.7, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }}><Icon name="chevron-down" size={12} aria-hidden /></span>
       </button>
 
       {open && (
@@ -1430,7 +1431,7 @@ function CustomRangePill({ events, batchCount }: { events: Event[]; batchCount: 
                 >
                   <span>{pLabel}</span>
                   {active ? (
-                    <span style={{ fontSize: 10, marginLeft: 2 }}>✓</span>
+                    <span style={{ fontSize: 10, marginLeft: 2 }}><Icon name="check" size={12} aria-hidden /></span>
                   ) : isRec ? (
                     <span
                       style={{

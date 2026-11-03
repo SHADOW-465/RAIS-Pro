@@ -193,17 +193,17 @@ export default function DefectWorkspace({
           )}
           {reject > 0 && defectSum === reject && (
             <span style={{ color: "var(--positive)", fontWeight: 600 }}>
-              ✓ All {reject} rejected items fully accounted for
+              All {reject} rejected items fully accounted for
             </span>
           )}
           {reject > 0 && defectSum < reject && (
             <span style={{ color: "var(--status-warn)", fontWeight: 600 }}>
-              ⚠ {unexplained} of {reject} missing defect reasons
+              {unexplained} of {reject} missing defect reasons
             </span>
           )}
           {defectSum > reject && (
             <span style={{ color: "var(--critical)", fontWeight: 600 }}>
-              ✕ Overcounted by +{overDefect} (Defect sum {defectSum} &gt; Reject {reject})
+              Overcounted by +{overDefect} (Defect sum {defectSum} &gt; Reject {reject})
             </span>
           )}
         </div>

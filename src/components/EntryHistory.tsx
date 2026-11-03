@@ -165,7 +165,7 @@ function BatchProcessTrack({
               fontFamily: "var(--font-sans)",
             }}
           >
-            <span style={{ fontSize: 8 }}>{isDone ? "✓" : isStarted ? "●" : "○"}</span>
+            <span style={{ fontSize: 8 }}><Icon name={isDone ? "check" : isStarted ? "dot" : "minus"} size={10} aria-hidden /></span>
             <span style={{ fontWeight: 600 }}>{shortName}</span>
             <span
               style={{
@@ -686,7 +686,7 @@ export default function EntryHistory({
           }}
           title="Filter batches confirmed on ledger"
         >
-          <span style={{ fontSize: 9 }}>●</span>
+          <span style={{ fontSize: 9 }}><Icon name="dot" size={10} aria-hidden /></span>
           <span>{onLedgerCount} on ledger</span>
         </button>
 
@@ -715,7 +715,7 @@ export default function EntryHistory({
           }}
           title="Filter batches not yet on ledger (pending sync)"
         >
-          <span style={{ fontSize: 9 }}>●</span>
+          <span style={{ fontSize: 9 }}><Icon name="dot" size={10} aria-hidden /></span>
           <span>{notOnLedgerCount} not on ledger</span>
         </button>
 
@@ -899,7 +899,7 @@ export default function EntryHistory({
                       borderTop: "1px solid color-mix(in srgb, var(--positive) 25%, var(--border))",
                     }}
                   >
-                    <span style={{ color: "var(--positive)", fontSize: 10 }}>●</span>
+                    <span style={{ color: "var(--positive)", fontSize: 10 }}><Icon name="dot" size={10} aria-hidden /></span>
                     <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--positive)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       On Ledger — Confirmed ({groupedSections.onLedger.count})
                     </span>
@@ -959,7 +959,7 @@ export default function EntryHistory({
                       borderTop: "1px solid color-mix(in srgb, var(--status-warn) 25%, var(--border))",
                     }}
                   >
-                    <span style={{ color: "var(--status-warn)", fontSize: 10 }}>●</span>
+                    <span style={{ color: "var(--status-warn)", fontSize: 10 }}><Icon name="dot" size={10} aria-hidden /></span>
                     <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--status-warn)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       Not on Ledger — Pending Sync ({groupedSections.notOnLedger.count})
                     </span>

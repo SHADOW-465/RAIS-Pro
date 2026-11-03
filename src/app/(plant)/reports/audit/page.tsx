@@ -150,7 +150,7 @@ function TrackPills({ lineStatus }: { lineStatus: LineStatus }) {
               fontFamily: "var(--font-sans)",
             }}
           >
-            <span style={{ fontSize: 8 }}>{isDone ? "✓" : isStarted ? "●" : "○"}</span>
+            <span style={{ fontSize: 8 }}><Icon name={isDone ? "check" : isStarted ? "dot" : "minus"} size={10} aria-hidden /></span>
             <span style={{ fontWeight: 600 }}>{shortName}</span>
             <span
               style={{
@@ -1313,14 +1313,14 @@ export default function AuditPage() {
                   const sections = [
                     {
                       key: "converted",
-                      title: "⇄ Convert Batch (CT)",
+                      title: "Convert Batch (CT)",
                       subtitle: "Year · Month · Day - Main size · CT · Convert size (e.g. 26J16-24 CT 22)",
                       tone: "var(--accent)",
                       items: convertedSlice,
                     },
                     {
                       key: "ok",
-                      title: "✓ OK Batch",
+                      title: "OK Batch",
                       subtitle: "Year · Month · Day - Size (e.g. 26J16-24)",
                       tone: "var(--positive)",
                       items: okSlice,
@@ -2669,7 +2669,7 @@ function Chevron({ open, tone = "neutral" }: { open: boolean; tone?: Tone }) {
         transform: open ? "rotate(0deg)" : "rotate(-90deg)",
       }}
     >
-      ▾
+      <Icon name="chevron-down" size={12} aria-hidden />
     </span>
   );
 }
@@ -2915,7 +2915,7 @@ function AuditCustomRangePill({
           <line x1="3" y1="10" x2="21" y2="10" />
         </svg>
         <span>{label}</span>
-        <span style={{ fontSize: 9, opacity: 0.7, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }}>▾</span>
+        <span style={{ fontSize: 9, opacity: 0.7, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }}><Icon name="chevron-down" size={12} aria-hidden /></span>
       </button>
 
       {open && (

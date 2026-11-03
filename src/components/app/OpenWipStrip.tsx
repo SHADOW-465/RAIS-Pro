@@ -9,6 +9,7 @@
 // sixth executive KPI — and it names the actual lots, because "3 stalled" sends
 // you hunting while "26G01-6, idle 38 days" is something you can act on.
 
+import Icon from "@/components/editorial/Icon";
 import React from "react";
 import { openWip, type BatchProgress } from "@/lib/analytics/batch-progress";
 import type { AuditEventLike } from "@/lib/analytics/audit-sessions";
@@ -270,7 +271,7 @@ export default function OpenWipStrip({
             </>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-2)", fontSize: 12.5, fontWeight: 500 }}>
-              <span style={{ color: "var(--positive)", fontWeight: 600, fontSize: 14 }}>✓</span>
+              <span style={{ color: "var(--positive)", fontWeight: 600, fontSize: 14 }}><Icon name="check" size={12} aria-hidden /></span>
               <span>All active lots advancing smoothly across quality gates (&lt;3 days idle)</span>
             </div>
           )}

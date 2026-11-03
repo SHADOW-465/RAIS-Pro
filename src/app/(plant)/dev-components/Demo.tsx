@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import DetailDrawer from "@/components/ui/DetailDrawer";
+import FloatingDetailModal from "@/components/FloatingDetailModal";
 import FiltersPopover from "@/components/ui/FiltersPopover";
 import { EmptyState, GhostButton, KpiTile, PrimaryAction, StatusBadge } from "@/components/ui/primitives";
 import { activeFilterCount, formatDelta } from "@/components/ui/shared-logic";
@@ -63,17 +63,14 @@ export default function Demo() {
         expand={(r) => <span style={{ fontSize: "var(--text-sm)" }}>Stages done for {r.batch}: …</span>}
       />
       <EmptyState title="No lots match" body="Clear a filter to see more." />
-      <DetailDrawer
-        open={drawer}
+      <FloatingDetailModal
+        isOpen={drawer}
         onClose={() => setDrawer(false)}
         title="Rejection rate"
-        subtitle="Summary, batches and history for this metric."
-        tabs={[
-          { id: "summary", label: "Summary", content: <p>Summary content</p> },
-          { id: "batches", label: "Batches", badge: ROWS.length, content: <DataTable columns={COLS} rows={ROWS} rowKey={(r) => r.batch} /> },
-          { id: "history", label: "History", content: <p>History content</p> },
-        ]}
-      />
+        insight="Summary, batches and history for this metric."
+      >
+        <DataTable columns={COLS} rows={ROWS} rowKey={(r) => r.batch} />
+      </FloatingDetailModal>
     </div>
   );
 }

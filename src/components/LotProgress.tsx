@@ -8,6 +8,7 @@
 // second alarm on every row that was simply mid-flight. Green means finished,
 // amber means it has stopped moving, and everything else is quiet ink.
 
+import Icon from "@/components/editorial/Icon";
 import React from "react";
 import type { BatchProgress } from "@/lib/analytics/batch-progress";
 
@@ -102,7 +103,7 @@ export default function LotProgress({
                 fontWeight: activeStageId === s.stageId ? 600 : 400,
               }}
             >
-              {s.done ? "✓" : "○"} {SHORT[s.stageId] ?? s.stageId}
+              <Icon name={s.done ? "check" : "minus"} size={10} aria-hidden /> {SHORT[s.stageId] ?? s.stageId}
               {s.done && s.date ? ` ${shortDate(s.date)}` : ""}
             </span>
           ))}

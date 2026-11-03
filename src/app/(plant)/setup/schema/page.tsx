@@ -1,7 +1,7 @@
 "use client";
 
 /* Hallmark · macrostructure: Workbench · tone: technical · genre: modern-minimal
- * theme: project-locked (Geist + burnt orange #2563EB · AppShell chrome)
+ * theme: project-locked (Geist + blue accent #2563EB · AppShell chrome)
  * enrichment: none · nav: N/A (AppShell) · brief: master plant schema ownership
  * Pre-emit critique: P5 H5 E5 S5 R4 V4
  *
@@ -10,6 +10,7 @@
  * edits or deletes the durable knowledge plane.
  */
 
+import Icon from "@/components/editorial/Icon";
 import { QualityHeader } from "@/components/app/QualityParts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Select from "@/components/ui/Select";
@@ -525,7 +526,7 @@ export default function SchemaPage() {
   const confirmDeleteMapping = async (m: SchemaMapping) => {
     if (m.source === "mod") {
       setError(
-        "This mapping is still sourced from a verified workbook. Edit + Save to promote it into the editable brain first, then delete — or fix it on Staging for that file.",
+        "This mapping is still sourced from a verified workbook. Edit + Save to promote it into the editable brain first, then delete — or fix it in Excel import for that file.",
       );
       return;
     }
@@ -1362,7 +1363,7 @@ export default function SchemaPage() {
                                 </td>
                                 <td style={td}>
                                   {e.verified ? (
-                                    <span style={{ color: "var(--positive)", fontWeight: 600 }}>✓</span>
+                                    <span style={{ color: "var(--positive)", fontWeight: 600 }}><Icon name="check" size={12} aria-hidden /></span>
                                   ) : (
                                     <span style={{ color: "var(--text-3)" }}>—</span>
                                   )}
@@ -1634,7 +1635,7 @@ function IntegrityIssuesPanel({
             flexShrink: 0,
           }}
         >
-          {open ? "▾" : "▸"}
+          <Icon name={open ? "chevron-down" : "chevron-right"} size={12} aria-hidden />
         </span>
         <span style={{ flex: "1 1 200px", minWidth: 0 }}>
           <span style={{ display: "block", fontWeight: 600, fontSize: 13.5, color: titleColor }}>

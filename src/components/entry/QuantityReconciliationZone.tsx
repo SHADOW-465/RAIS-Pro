@@ -127,7 +127,7 @@ export default function QuantityReconciliationZone({
               }`,
             }}
           >
-            <span>{isBalanced ? "✓ Balanced" : "⚠ Not Balanced"}</span>
+            <span>{isBalanced ? "Balanced" : "Not balanced"}</span>
             {!isBalanced && (
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5 }}>
                 ({difference > 0 ? `+${difference}` : difference})

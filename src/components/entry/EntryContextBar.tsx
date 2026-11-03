@@ -1,5 +1,6 @@
 "use client";
 
+import Icon from "@/components/editorial/Icon";
 import React from "react";
 import {
   schemaCategories,
@@ -172,7 +173,7 @@ export default function EntryContextBar({
                     lineHeight: 1,
                   }}
                 >
-                  ✕
+                  <Icon name="x" size={14} aria-hidden />
                 </button>
               )}
             </div>
@@ -412,7 +413,7 @@ export default function EntryContextBar({
                       minWidth: 14,
                     }}
                   >
-                    {done ? "✓" : i + 1}
+                    {done ? <Icon name="check" size={12} aria-hidden /> : i + 1}
                   </span>
                   {st.label.replace(/\s*\(.*\)$/, "")}
                   {isNext && !done ? (

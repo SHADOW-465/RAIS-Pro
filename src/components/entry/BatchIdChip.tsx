@@ -378,7 +378,7 @@ export default function BatchIdChip({
                 fontWeight: 600,
               }}
             >
-              {copied ? "✓" : "Copy"}
+              {copied ? "Copied" : "Copy"}
             </span>
           </div>
 
@@ -517,7 +517,7 @@ export default function BatchIdChip({
                   color: "var(--accent)",
                 }}
               >
-                CT ⇄
+                CT
               </span>
             </div>
           )}

@@ -94,7 +94,7 @@ export default function StickySaveBar({
                     fontWeight: 600,
                   }}
                 >
-                  {qtyMismatch ? "⚠ Math Mismatch" : "✓ Balanced"}
+                  {qtyMismatch ? "Math mismatch" : "Balanced"}
                 </span>
               </>
             )}

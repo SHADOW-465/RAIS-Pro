@@ -73,7 +73,7 @@ src/
 ├─ components/
 │  ├─ app/                 AppShell (nav + scope), widgets (charts/KPIs), CommandPalette,
 │  │                       EventsContext, RegistryContext, MappingVerificationPanel
-│  ├─ editorial/           Icon, Pill, EditorialCharts, TweaksContext
+│  ├─ editorial/           Icon, TweaksContext
 │  ├─ entry/               QtyInput
 │  ├─ BatchMatrixEntry.tsx MonthlyEntryGrid.tsx  UploadZone.tsx
 │  └─ FloatingDetailModal.tsx  ParetoChart.tsx  InsightSlide.tsx  CapaComposerModal.tsx

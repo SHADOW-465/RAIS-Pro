@@ -79,7 +79,7 @@ export interface KpiTileProps {
   status?: Status;
   /** Short context line, e.g. "vs last period". */
   hint?: string;
-  /** Makes the whole tile a button (opens a DetailDrawer). */
+  /** Makes the whole tile a button (opens the detail drawer). */
   onOpen?: () => void;
   /** Value is a name (stage, defect), not a number: sans 20px, truncated with a tooltip. */
   word?: boolean;
@@ -101,7 +101,8 @@ export function KpiTile({ label, value, suffix, digits, delta, status, hint, onO
     >
       <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: "var(--text-sm)", color: "var(--text-3)", fontWeight: 500 }}>{label}</span>
-        {status && <StatusBadge status={status} />}
+        {/* neutral only means something when there is no value to show */}
+        {status && (status !== "neutral" || formatKpiValue(value, digits, suffix) === "—") && <StatusBadge status={status} />}
       </span>
       <span
         title={word ? formatKpiValue(value, digits, suffix) : undefined}

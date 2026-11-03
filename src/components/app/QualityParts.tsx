@@ -8,7 +8,7 @@ export function QualityHeader({
 }: { tiles: KpiTileProps[]; actionLabel?: string; onAction?: () => void }) {
   return (
     <div style={{ display: "flex", alignItems: "stretch", gap: "var(--gap-grid)", flexWrap: "wrap" }}>
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--gap-grid)" }}>
+      <div style={{ flex: "1 1 min(100%, 560px)", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: "var(--gap-grid)" }}>
         {tiles.map((t) => <KpiTile key={t.label} {...t} />)}
       </div>
       {actionLabel && onAction && (

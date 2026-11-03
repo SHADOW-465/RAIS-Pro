@@ -1,5 +1,6 @@
 "use client";
 
+import Icon from "@/components/editorial/Icon";
 import React, { useState } from "react";
 import Select from "@/components/ui/Select";
 import type { ShiftBatchRecord } from "@/lib/entry/disposafe-matrix";
@@ -103,11 +104,11 @@ export default function ShiftQueueTable({
             <div style={{ fontWeight: 600, color: "var(--text)" }}>{rec.operator}</div>
             {rec.synced ? (
               <div style={{ color: "var(--positive)", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                <span>●</span> On ledger
+                <span><Icon name="dot" size={10} aria-hidden /></span> On ledger
               </div>
             ) : (
               <div style={{ color: "var(--status-warn)", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                <span>●</span> Not on ledger yet
+                <span><Icon name="dot" size={10} aria-hidden /></span> Not on ledger yet
               </div>
             )}
           </td>
@@ -364,7 +365,7 @@ export default function ShiftQueueTable({
                 }}
                 title="Click to filter batches confirmed on ledger"
               >
-                <span style={{ fontSize: 9 }}>●</span>
+                <span style={{ fontSize: 9 }}><Icon name="dot" size={10} aria-hidden /></span>
                 <span>{syncedCount} on ledger</span>
               </button>
 
@@ -395,7 +396,7 @@ export default function ShiftQueueTable({
                 }}
                 title="Click to filter batches not yet on ledger (pending sync)"
               >
-                <span style={{ fontSize: 9 }}>●</span>
+                <span style={{ fontSize: 9 }}><Icon name="dot" size={10} aria-hidden /></span>
                 <span>{pendingCount} not on ledger</span>
               </button>
 
@@ -574,7 +575,7 @@ export default function ShiftQueueTable({
                       <tr style={{ background: "var(--surface-3)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
                         <td colSpan={12} style={{ padding: "8px 14px", fontWeight: 600, fontSize: 11.5, color: "var(--positive)" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 9 }}>●</span>
+                            <span style={{ fontSize: 9 }}><Icon name="dot" size={10} aria-hidden /></span>
                             <span>On Ledger — Confirmed ({onLedgerRows.length} {onLedgerRows.length === 1 ? "batch" : "batches"})</span>
                           </div>
                         </td>
@@ -588,7 +589,7 @@ export default function ShiftQueueTable({
                       <tr style={{ background: "var(--surface-3)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
                         <td colSpan={12} style={{ padding: "8px 14px", fontWeight: 600, fontSize: 11.5, color: "var(--status-warn)" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 9 }}>●</span>
+                            <span style={{ fontSize: 9 }}><Icon name="dot" size={10} aria-hidden /></span>
                             <span>Not on Ledger — Pending Sync ({notOnLedgerRows.length} {notOnLedgerRows.length === 1 ? "batch" : "batches"})</span>
                           </div>
                         </td>

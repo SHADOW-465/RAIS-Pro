@@ -4,6 +4,7 @@
 // this panel holds the draft and exposes save() through the ref. Mutations go
 // through the page mutate helper and /api/schema — no new endpoints.
 
+import Icon from "@/components/editorial/Icon";
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import Select from "@/components/ui/Select";
 import { mergeDefectForAdd } from "@/lib/schema/defect-payload";
@@ -791,7 +792,7 @@ function CaptureChecks({
               opacity: editable ? 1 : 0.72,
             }}
           >
-            {on ? "✓ " : ""}
+            {on ? <Icon name="check" size={12} aria-hidden /> : null}
             {c}
           </button>
         );

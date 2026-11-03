@@ -1,5 +1,6 @@
 "use client";
 
+import Icon from "@/components/editorial/Icon";
 import React from "react";
 import { formatLedgerBlockReason } from "@/lib/entry/format-ingest-error";
 
@@ -85,7 +86,7 @@ export default function LedgerReceiptCard({
                   color: receipt.synced ? "var(--positive)" : "var(--status-warn)",
                 }}
               >
-                {receipt.synced ? "✓" : "●"}
+                <Icon name={receipt.synced ? "check" : "dot"} size={12} aria-hidden />
               </span>
               <div>
                 <div
@@ -140,7 +141,7 @@ export default function LedgerReceiptCard({
                   padding: "4px 8px",
                 }}
               >
-                ✕
+                <Icon name="x" size={14} aria-hidden />
               </button>
             </div>
           </div>
@@ -273,7 +274,7 @@ export default function LedgerReceiptCard({
                 fontWeight: 600,
               }}
             >
-              ✕
+              <Icon name="x" size={14} aria-hidden />
             </button>
           </div>
 

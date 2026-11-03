@@ -358,7 +358,7 @@ function YScaleBar({
               }}
             >
               <span>Auto (fit data)</span>
-              {mode === "auto" && <span style={{ fontSize: 10 }}>✓</span>}
+              {mode === "auto" && <span style={{ fontSize: 10 }}><Icon name="check" size={12} aria-hidden /></span>}
             </button>
 
             <div style={{ height: 1, background: "var(--border)", margin: "2px 0" }} />
@@ -390,7 +390,7 @@ function YScaleBar({
                   }}
                 >
                   <span>{p.label}</span>
-                  {isSelected && <span style={{ fontSize: 10 }}>✓</span>}
+                  {isSelected && <span style={{ fontSize: 10 }}><Icon name="check" size={12} aria-hidden /></span>}
                 </button>
               );
             })}

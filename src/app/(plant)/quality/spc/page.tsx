@@ -330,7 +330,7 @@ export default function SpcPage() {
               No Data Available
             </div>
             <p className="muted" style={{ fontSize: 13, margin: "0 0 16px" }}>
-              Please upload monthly inspection workbooks in Staging &amp; Review to populate these metrics.
+              Upload monthly inspection workbooks under Excel files to populate these metrics.
             </p>
             <a
               href="/excel/import"
@@ -340,7 +340,7 @@ export default function SpcPage() {
                 padding: "8px 16px", borderRadius: "var(--radius-md)", cursor: "pointer"
               }}
             >
-              Go to Staging &amp; Review →
+              Go to Excel import →
             </a>
           </div>
         )}

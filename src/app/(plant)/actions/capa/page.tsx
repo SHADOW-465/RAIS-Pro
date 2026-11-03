@@ -429,7 +429,7 @@ export default function CapaPage() {
                                   : "var(--text-3)",
                           }}
                         >
-                          {c.status === "Completed" ? "✓" : c.status === "In Progress" ? "◐" : "○"}
+                          <Icon name={c.status === "Completed" ? "check" : c.status === "In Progress" ? "dot" : "minus"} size={12} aria-hidden />
                         </button>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div

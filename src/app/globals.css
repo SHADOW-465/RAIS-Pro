@@ -932,8 +932,9 @@ body {
     display: none;
   }
 
+  /* !important: the scope slot carries an inline flex: 1 for desktop. */
   .app-topbar>* {
-    flex: 0 0 auto;
+    flex: 0 0 auto !important;
   }
 
   /* Sidebar drops to the icon rail — 180px of labels is not worth a third of

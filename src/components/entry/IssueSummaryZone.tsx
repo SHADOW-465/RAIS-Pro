@@ -1,5 +1,6 @@
 "use client";
 
+import Icon from "@/components/editorial/Icon";
 import React, { useState } from "react";
 import type { EntryVerdict, EntryProblem } from "@/lib/entry/check-entry";
 import { warningNeedsReason } from "@/lib/entry/exception-reasons";
@@ -66,7 +67,7 @@ export default function IssueSummaryZone({
               marginBottom: 10,
             }}
           >
-            <span>✕</span>
+            <span><Icon name="x" size={14} aria-hidden /></span>
             <span>
               Must Fix Before Saving ({visibleBlocks.length} issue{visibleBlocks.length > 1 ? "s" : ""})
             </span>
@@ -126,7 +127,7 @@ export default function IssueSummaryZone({
               marginBottom: 10,
             }}
           >
-            <span>⚠</span>
+            <span><Icon name="alert" size={14} aria-hidden /></span>
             <span>
               Needs Explicit Confirmation ({visibleWarnings.length} item{visibleWarnings.length > 1 ? "s" : ""})
             </span>

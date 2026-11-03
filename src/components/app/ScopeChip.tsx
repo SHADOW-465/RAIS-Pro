@@ -126,7 +126,7 @@ export default function ScopeChip({
           alignItems: "center",
           gap: 8,
           height: 36,
-          maxWidth: "min(560px, 100%)",
+          maxWidth: 560, // fixed cap: a % of the auto-width slot collapses on mobile
           padding: "0 12px",
           borderRadius: "var(--radius-md)",
           border: "1px solid var(--border-strong)",

@@ -4,6 +4,7 @@
 // Print clones the document into a full-page body portal so PDF is never
 // constrained by the modal's 3-column grid (the previous crush/blank-page bug).
 
+import Icon from "@/components/editorial/Icon";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useConfirm } from "@/components/ui/ConfirmContext";
@@ -448,7 +449,7 @@ export default function ReportPanel({
           >
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)" }}>
-                Sources {sourcesOpen ? "▾" : "▸"}
+                Sources <Icon name={sourcesOpen ? "chevron-down" : "chevron-right"} size={12} aria-hidden />
               </div>
               <div className="muted" style={{ fontSize: 11, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {sourcesSummary}

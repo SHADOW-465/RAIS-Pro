@@ -401,7 +401,7 @@ export default function ParetoChart({ analysis, maxItems = 10, showTable = true 
           ) : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", fontSize: 12, color: "var(--text-3)" }}>
               <span>
-                💡 <strong>Hover on any bar or point</strong> to see its individual count and running cumulative total.
+                <strong>Hover on any bar or point</strong> to see its individual count and running cumulative total.
               </span>
               <span>
                 <strong>Cumulative %</strong> = Running total of rejections if you fix all defects up to that rank.

@@ -6,7 +6,7 @@ import { pushShared, SHARED_STATE_EVENT } from "@/lib/shared-state/push";
 import "./settings.css";
 
 /* Hallmark · macrostructure: Index-First · genre: modern-minimal · tone: utilitarian
- * theme: project-locked (Geist · burnt orange #2563EB · paper surfaces)
+ * theme: project-locked (Geist · blue accent #2563EB · paper surfaces)
  * enrichment: none · designed-as-app · redesign of /settings
  * pre-emit critique: P5 H5 E4 S4 R5 V4
  */
@@ -360,7 +360,7 @@ export default function SettingsPage() {
                 <div className="settings-field-stack">
                   <p className="settings-field-help">
                     Controls what the topbar <strong>Export entries</strong> button does
-                    on Data Entry. Default is a transfer JSON you can re-import on Staging
+                    on Data Entry. Default is a transfer JSON you can re-import under Excel files
                     (move rows between local and another DB). Import stays on{" "}
                     <a href="/excel/import" className="settings-inline-link">
                       Staging → Import transfer package
@@ -389,7 +389,7 @@ export default function SettingsPage() {
                         <strong>Data entries transfer (JSON)</strong>
                         <br />
                         <span className="settings-field-help" style={{ margin: 0 }}>
-                          Recommended for DB→DB moves. Import on Staging.
+                          Recommended for DB→DB moves. Import under Excel files.
                         </span>
                       </span>
                     </label>
@@ -515,7 +515,7 @@ export default function SettingsPage() {
                       {activeRegistry.defects.length === 0 && (
                         <tr>
                           <td colSpan={3} className="settings-empty-cell">
-                            No defect codes in registry. Ingest a master workbook on Staging.
+                            No defect codes in registry. Import a master workbook under Excel files.
                           </td>
                         </tr>
                       )}

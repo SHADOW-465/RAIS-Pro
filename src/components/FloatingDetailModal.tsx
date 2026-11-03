@@ -763,7 +763,7 @@ export default function FloatingDetailModal({
                     transition: "all 0.15s ease",
                   }}
                 >
-                  <span>🏷️ Batches ID</span>
+                  <span>Batches ID</span>
                   <span
                     style={{
                       fontFamily: "var(--font-mono)",
@@ -799,7 +799,7 @@ export default function FloatingDetailModal({
                     transition: "all 0.15s ease",
                   }}
                 >
-                  <span>📋 Entry History</span>
+                  <span>Entry History</span>
                   <span
                     style={{
                       fontFamily: "var(--font-mono)",
@@ -927,7 +927,7 @@ export default function FloatingDetailModal({
                       fontFamily: "var(--font-mono)",
                     }}
                   >
-                    {isCompliant ? "✓ IN SPEC" : "⚠ EXCEEDS"}
+                    {isCompliant ? "In spec" : "Exceeds"}
                   </span>
                 )}
               </div>
@@ -1137,7 +1137,7 @@ export default function FloatingDetailModal({
                             transition: "all 0.15s ease",
                           }}
                         >
-                          <span>🏷️ View Batches ({batchItems.length})</span>
+                          <span>View Batches ({batchItems.length})</span>
                         </button>
                         <button
                           type="button"
@@ -1160,7 +1160,7 @@ export default function FloatingDetailModal({
                             transition: "all 0.15s ease",
                           }}
                         >
-                          <span>📋 View Audit ({entryRows.length})</span>
+                          <span>View Audit ({entryRows.length})</span>
                         </button>
                       </div>
                     )}
@@ -1521,7 +1521,7 @@ export default function FloatingDetailModal({
                         transition: "all 0.15s ease",
                       }}
                     >
-                      <span>🏷️ Batches ID</span>
+                      <span>Batches ID</span>
                       <span
                         style={{
                           fontSize: 10.5,
@@ -1557,7 +1557,7 @@ export default function FloatingDetailModal({
                         transition: "all 0.15s ease",
                       }}
                     >
-                      <span>📋 Data Entry History</span>
+                      <span>Data Entry History</span>
                       <span
                         style={{
                           fontSize: 10.5,
@@ -1619,7 +1619,7 @@ export default function FloatingDetailModal({
                         transition: "all 0.15s ease",
                       }}
                     >
-                      {copiedBatches ? "✓ Copied Batch IDs!" : "📋 Copy All Batch IDs"}
+                      {copiedBatches ? "Copied batch IDs" : "Copy all batch IDs"}
                     </button>
                   )}
                 </div>
@@ -1664,7 +1664,7 @@ export default function FloatingDetailModal({
                           },
                           {
                             key: "completed" as const,
-                            label: "✓ Completed",
+                            label: "Completed",
                             count: lotGrouping.completedCount,
                             color: "var(--positive)",
                             bgActive: "color-mix(in srgb, var(--positive) 16%, var(--surface-2))",
@@ -1680,7 +1680,7 @@ export default function FloatingDetailModal({
                           },
                           {
                             key: "converted" as const,
-                            label: "⇄ Converted batch",
+                            label: "Converted batch",
                             count: lotGrouping.convertedCount,
                             color: "var(--accent)",
                             bgActive: "color-mix(in srgb, var(--accent) 16%, var(--surface-2))",
@@ -1945,11 +1945,11 @@ export default function FloatingDetailModal({
                                 >
                                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {cat === "completed"
-                                      ? `✓ ${b.categoryMeta.statusLabel}`
+                                      ? `${b.categoryMeta.statusLabel}`
                                       : cat === "converted"
                                         ? b.categoryMeta.breakdown
-                                          ? `⇄ ${b.categoryMeta.breakdown.mainSize}Fr → CT ${b.categoryMeta.breakdown.convertSize}Fr`
-                                          : `⇄ ${b.categoryMeta.fromBatch ? `From ${b.categoryMeta.fromBatch}` : b.categoryMeta.statusLabel}`
+                                          ? `${b.categoryMeta.breakdown.mainSize}Fr → CT ${b.categoryMeta.breakdown.convertSize}Fr`
+                                          : `${b.categoryMeta.fromBatch ? `From ${b.categoryMeta.fromBatch}` : b.categoryMeta.statusLabel}`
                                         : `⏳ ${b.categoryMeta.statusLabel}`}
                                   </span>
                                   {cat === "converted" && b.categoryMeta.convertedAtStage && (
@@ -2006,7 +2006,7 @@ export default function FloatingDetailModal({
                           }[] = [
                             {
                               key: "completed",
-                              title: "✓ Completed Batches",
+                              title: "Completed Batches",
                               subtitle: "Completed all required stages for this scope",
                               color: "var(--positive)",
                               items: displayBatches.filter((b) => b.categoryMeta?.category === "completed"),
@@ -2020,7 +2020,7 @@ export default function FloatingDetailModal({
                             },
                             {
                               key: "converted",
-                              title: "⇄ Converted Batches",
+                              title: "Converted Batches",
                               subtitle: "Converted or re-routed from another batch",
                               color: "var(--accent)",
                               items: displayBatches.filter((b) => b.categoryMeta?.category === "converted"),

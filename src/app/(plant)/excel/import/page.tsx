@@ -482,7 +482,7 @@ export default function StagingPage() {
                           </div>
                           {r.flags.map((flag, fi) => (
                             <div key={fi} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--status-bad)", marginTop: 2 }}>
-                              <span style={{ flexShrink: 0 }}>⚠</span>
+                              <span style={{ flexShrink: 0 }}><Icon name="alert" size={14} aria-hidden /></span>
                               <span>{flag}</span>
                             </div>
                           ))}
@@ -516,7 +516,7 @@ export default function StagingPage() {
             </div>
           )}
 
-          <Card title="Staging Area (Verify & Approve Records)" sub={fileName || "no file yet"}>
+          <Card title="Review rows before commit" sub={fileName || "no file yet"}>
             {rows.length === 0 ? <Empty label={modUploads.length > 0 ? "Verify & publish the mappings above — extracted records appear here." : "Upload a file to review extracted, recomputed records here."} /> : (
               <>
                 <div style={{ overflowX: "auto", width: "100%", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", marginBottom: 12 }}>
@@ -661,12 +661,12 @@ export default function StagingPage() {
                                       color: "var(--status-bad)",
                                     }}
                                   >
-                                    ⚠ Invalid {flagsExpanded ? "▲" : "▼"}
+                                    Invalid <Icon name={flagsExpanded ? "chevron-up" : "chevron-down"} size={12} aria-hidden />
                                   </button>
                                 ) : isCorrected ? (
                                   <span style={{ color: "var(--status-warn)" }}>Corrected</span>
                                 ) : (
-                                  <span style={{ color: "var(--status-good)" }}>✓ Valid</span>
+                                  <span style={{ color: "var(--status-good)" }}>Valid</span>
                                 )}
                               </td>
                               <td style={{ ...std, textAlign: "center" }}>
@@ -692,7 +692,7 @@ export default function StagingPage() {
                                   <div className="expand-panel" style={{ padding: "10px 16px 12px 50px", borderBottom: "1px solid var(--border)" }}>
                                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                       <div style={{ fontWeight: 600, fontSize: 10.5, color: "var(--status-bad)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 6 }}>
-                                        <span>⚠</span>
+                                        <span><Icon name="alert" size={14} aria-hidden /></span>
                                         <span>Validation Issues for Row {i + 1}:</span>
                                       </div>
                                       <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingLeft: 12 }}>

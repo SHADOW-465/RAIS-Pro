@@ -120,7 +120,7 @@ live-painted by `TweaksContext`. Consume these vars rather than hardcoding hex.
   reaches both backends.
 - Don't reintroduce **Chart.js**, **lucide-react**, or **framer-motion**. They
   were removed deliberately — charts are inline SVG
-  (`components/app/widgets.tsx`, `editorial/EditorialCharts.tsx`) and animation
+  (`components/app/widgets.tsx`) and animation
   is pure CSS (`pulse-ring`, `blink`, `fade-up`, `draw-line`).
 - Don't add new Tailwind utility classes for theming colors. Use CSS variables,
   or the Tweaks panel stops working.

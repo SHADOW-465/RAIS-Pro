@@ -7,7 +7,7 @@ export type IconName =
   | "send" | "save" | "split" | "search" | "chevron-down" | "chevron-up"
   | "alert" | "trend-up" | "trend-down" | "minus" | "plus" | "spark"
   | "table" | "external" | "dot" | "lightning" | "tally" | "print"
-  | "sun" | "moon" | "comment" | "settings" | "folder" | "history" | "bell" | "grip";
+  | "sun" | "moon" | "comment" | "settings" | "folder" | "history" | "bell" | "grip" | "chevron-right";
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, "stroke"> {
   name: IconName;
@@ -39,6 +39,7 @@ export default function Icon({ name, size = 16, stroke = 1.6, ...rest }: IconPro
     case "split":       return <svg {...common}><rect x="3" y="3" width="18" height="18" rx="1" /><path d="M12 3v18" /></svg>;
     case "search":      return <svg {...common}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>;
     case "chevron-down":return <svg {...common}><path d="M6 9l6 6 6-6" /></svg>;
+    case "chevron-right": return <svg {...common}><path d="M9 6l6 6-6 6" /></svg>;
     case "chevron-up":  return <svg {...common}><path d="M18 15l-6-6-6 6" /></svg>;
     case "alert":       return <svg {...common}><path d="M12 2L1 21h22L12 2z" /><path d="M12 9v5M12 18h.01" /></svg>;
     case "trend-up":    return <svg {...common}><path d="M3 17l6-6 4 4 8-8" /><path d="M14 7h7v7" /></svg>;

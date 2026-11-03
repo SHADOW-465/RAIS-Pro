@@ -1,5 +1,6 @@
 "use client";
 
+import Icon from "@/components/editorial/Icon";
 import React from "react";
 import Select from "@/components/ui/Select";
 import DatePicker from "@/components/ui/DatePicker";
@@ -276,7 +277,7 @@ export default function BatchIdentityZone({
                 }}
               >
                 CT
-                <span style={{ fontSize: 11, lineHeight: 1 }}>➔</span>
+                <span style={{ fontSize: 11, lineHeight: 1 }}><Icon name="arrow-right" size={12} aria-hidden /></span>
               </span>
 
               {/* Converted batch */}
@@ -682,7 +683,7 @@ export default function BatchIdentityZone({
                 transition: "all 0.15s var(--ease-out)",
               }}
             >
-              <span style={{ fontSize: 15, lineHeight: 1 }}>⇄</span>
+              <span style={{ fontSize: 15, lineHeight: 1 }}><Icon name="arrow-right" size={14} aria-hidden /></span>
               <span>Convert Batch</span>
               {batchId && (
                 <span
