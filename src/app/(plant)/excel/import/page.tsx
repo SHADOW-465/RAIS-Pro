@@ -6,7 +6,6 @@
 // (extraction from the verified MOD) → editable review grid → /api/ingest.
 
 import { useMemo, useState, useRef, Fragment, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import { useEvents } from "@/components/app/EventsContext";
 import { Card, Empty } from "@/components/app/widgets";
@@ -17,12 +16,13 @@ import { buildReviewRows, reviewSummary, applyEdit, defectKey } from "@/lib/inge
 import type { StageDayRecord } from "@/lib/ingest/emit";
 import MappingVerificationPanel, { type UploadedMod } from "@/components/app/MappingVerificationPanel";
 import QtyInput from "@/components/entry/QtyInput";
+import { QualityHeader } from "@/components/app/QualityParts";
+import { PrimaryAction, StatusBadge } from "@/components/ui/primitives";
 import "./staging.css";
 
 const PAGE_SIZE = 31;
 
 export default function StagingPage() {
-  const router = useRouter();
   const { refreshEvents } = useEvents();
   const [ingestionId] = useState(() => globalThis.crypto?.randomUUID?.() ?? `ing-${Date.now()}`);
   const [records, setRecords] = useState<StageDayRecord[]>([]);
@@ -40,6 +40,14 @@ export default function StagingPage() {
   // Draft-MOD proposals from /api/workbooks, shown in the verification panel.
   const [modUploads, setModUploads] = useState<UploadedMod[]>([]);
   const [publishedModId, setPublishedModId] = useState<string | null>(null);
+
+  const [filesLoaded, setFilesLoaded] = useState<number | null>(null);
+  useEffect(() => {
+    fetch("/api/workbooks", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setFilesLoaded(Array.isArray(d.workbooks) ? d.workbooks.length : null))
+      .catch(() => setFilesLoaded(null));
+  }, [publishedModId, done]);
 
   const rows = useMemo(() => buildReviewRows(records), [records]);
   const summary = useMemo(() => reviewSummary(rows), [rows]);
@@ -288,54 +296,38 @@ export default function StagingPage() {
   return (
     <AppShell active="staging" statusCounts={{ anomalies: summary.invalid + summary.corrected }}>
       <div className="import-page">
-      <header className="import-mast">
-        <div>
-          <p className="import-kicker">Data intake</p>
-          <h1 className="import-title">Import from Excel</h1>
-          <p className="import-lede">
-            Match workbook columns to your <strong>Plant Schema</strong>, then load numbers
-            onto the ledger. Day-to-day capture stays on{" "}
-            <a href="/log/entry" style={{ color: "var(--accent)", fontWeight: 600 }}>
-              Data Entry
-            </a>
-            .
-          </p>
-        </div>
-        <div className="import-mast-meta" aria-label="Import status">
-          <div className="import-stat">
-            <span className="import-stat-val">{activeStep}/3</span>
-            <span className="import-stat-lab">Step</span>
-          </div>
-          <div className="import-stat-rule" />
-          <div className="import-stat">
-            <span className="import-stat-val">{rows.length}</span>
-            <span className="import-stat-lab">Rows</span>
-          </div>
-          <div className="import-stat-rule" />
-          <div className="import-stat">
-            <span className="import-stat-val">{summary.invalid}</span>
-            <span className="import-stat-lab">Issues</span>
-          </div>
-        </div>
-      </header>
+      <p className="import-lede">
+        Match workbook columns to your Plant Schema, then load the numbers onto the ledger.
+        Day-to-day capture stays under Log.
+      </p>
+      <QualityHeader
+        tiles={[
+          { label: "Files loaded", value: filesLoaded ?? "—", status: "neutral", hint: "Workbooks on the Files tab" },
+          { label: "Rows waiting for review", value: rows.length, status: "neutral", hint: fileName ? `From ${fileName}` : "Upload a workbook to start" },
+          {
+            label: "Issues found", value: summary.invalid, status: rows.length === 0 ? "neutral" : summary.invalid > 0 ? "critical" : "ok",
+            hint: rows.length === 0 ? "Checked after upload" : summary.invalid > 0 ? "Fix before committing" : "Every row passed",
+          },
+        ]}
+      />
 
       <nav className="import-path" aria-label="Import steps">
         {(
           [
             {
               n: 1 as const,
-              t: "Upload workbook",
+              t: "Upload",
               d: "Drop Visual, Valve, Rejection Analysis, or similar plant files.",
             },
             {
               n: 2 as const,
-              t: "Match Plant Schema",
-              d: "Confirm headers. New codes need your OK before they join Plant Schema.",
+              t: "Check",
+              d: "Confirm headers against Plant Schema. New codes need your OK.",
             },
             {
               n: 3 as const,
-              t: "Load numbers",
-              d: "Review quantities, then commit to the ledger for the Dashboard.",
+              t: "Commit",
+              d: "Review quantities, then commit them to the ledger.",
             },
           ] as const
         ).map((s) => {
@@ -347,8 +339,7 @@ export default function StagingPage() {
               className={`import-path-step ${active ? "is-active" : ""} ${doneStep ? "is-done" : ""}`}
             >
               <div className="import-path-n">
-                {doneStep ? "Done" : `Step ${s.n}`}
-                {active ? " · now" : ""}
+                {doneStep ? <StatusBadge status="ok" label="Done" /> : `Step ${s.n} of 3`}
               </div>
               <div className="import-path-t">{s.t}</div>
               <div className="import-path-d">{s.d}</div>
@@ -366,17 +357,9 @@ export default function StagingPage() {
         <div className="import-banner import-banner--ok" role="status">
           <span>
             <strong>Done.</strong> {done.inserted} new facts on the ledger
-            {done.deduped ? ` (${done.deduped} already present)` : ""}. Numbers show on the
-            Dashboard.
+            {done.deduped ? ` (${done.deduped} already present)` : ""}. Home and Quality now include them.
           </span>
-          <div className="import-banner-actions">
-            <button type="button" className="import-btn" onClick={() => router.push("/log/entry")}>
-              Data Entry
-            </button>
-            <button type="button" className="import-btn import-btn--primary" onClick={() => router.push("/")}>
-              Dashboard →
-            </button>
-          </div>
+
         </div>
       )}
 
@@ -800,28 +783,14 @@ export default function StagingPage() {
         </div>
 
         <aside className="import-side" aria-label="Import summary">
-          <div className="import-card">
-            <h2 className="import-card-title">How import works</h2>
+          <details className="import-card import-help">
+            <summary className="import-card-title">How import works</summary>
             <ul className="import-hint-list">
-              <li>
-                Plant Schema is the master list of stages, defects, and sizes.
-              </li>
-              <li>
-                Excel headers are matched to that catalog — not saved as a second
-                schema.
-              </li>
-              <li>
-                New codes only join Plant Schema if you tick them when prompted.
-              </li>
+              <li>Plant Schema is the master list of stages, defects, and sizes.</li>
+              <li>Excel headers are matched to that catalog, not saved as a second schema.</li>
+              <li>New codes only join Plant Schema if you tick them when prompted.</li>
             </ul>
-          </div>
-          <div className="import-card">
-            <h2 className="import-card-title">Quick stats</h2>
-            <Stat label="Total records" value={rows.length.toLocaleString()} />
-            <Stat label="Total input" value={totals.input.toLocaleString()} />
-            <Stat label="Total rejected" value={totals.rejected.toLocaleString()} tone="bad" />
-            <Stat label="Overall rejection %" value={`${totals.rejPct.toFixed(2)}%`} tone="bad" />
-          </div>
+          </details>
           <div className="import-card">
             <h2 className="import-card-title">Data quality</h2>
             {dq.map((d) => (
@@ -835,29 +804,10 @@ export default function StagingPage() {
                 }}
               >
                 <span className="muted">{d.label}</span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    padding: "2px 8px",
-                    borderRadius: 6,
-                    color:
-                      d.state === "Passed"
-                        ? "var(--status-good)"
-                        : d.state === "Warning"
-                          ? "var(--status-warn)"
-                          : "var(--status-bad)",
-                    background: `color-mix(in srgb, ${
-                      d.state === "Passed"
-                        ? "var(--status-good)"
-                        : d.state === "Warning"
-                          ? "var(--status-warn)"
-                          : "var(--status-bad)"
-                    } 14%, transparent)`,
-                  }}
-                >
-                  {d.state}
-                </span>
+                <StatusBadge
+                  status={d.state === "Passed" ? "ok" : d.state === "Warning" ? "warning" : "critical"}
+                  label={d.state}
+                />
               </div>
             ))}
             <div
@@ -870,52 +820,34 @@ export default function StagingPage() {
                 fontSize: 13,
               }}
             >
-              <strong>Rows</strong>
+              <span style={{ fontWeight: 500 }}>Rows</span>
               <span className="muted">
                 {summary.ok + summary.corrected} valid · {summary.invalid} invalid
               </span>
             </div>
+            <Stat label="Total input" value={totals.input.toLocaleString()} />
+            <Stat label="Total rejected" value={totals.rejected.toLocaleString()} />
+            <Stat label="Overall rejection" value={`${totals.rejPct.toFixed(2)}%`} />
           </div>
           <div className="import-card">
             <h2 className="import-card-title">Commit to ledger</h2>
-            <button
-              type="button"
-              onClick={publish}
-              disabled={rows.length === 0 || summary.invalid > 0 || busy}
-              style={{
-                width: "100%",
-                background: "var(--status-good)",
-                color: "var(--text-invert)",
-                border: "none",
-                borderRadius: 9,
-                padding: "11px",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor:
-                  rows.length && !summary.invalid && !busy ? "pointer" : "not-allowed",
-                opacity: rows.length && !summary.invalid && !busy ? 1 : 0.5,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
-              <Icon name="check" size={14} />{" "}
-              {busy ? "Publishing…" : "Publish to analytics"}
-            </button>
+            <PrimaryAction onClick={publish} disabled={rows.length === 0 || summary.invalid > 0 || busy}>
+              <Icon name="check" size={16} aria-hidden />
+              {busy ? "Committing…" : "Commit to ledger"}
+            </PrimaryAction>
             {summary.invalid > 0 && (
               <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>
                 Fix {summary.invalid} invalid row(s) before publishing.
               </div>
             )}
           </div>
-          <div className="import-transfer">
-            <h2 className="import-card-title">Transfer package</h2>
+          <details className="import-transfer">
+            <summary className="import-card-title">Advanced: transfer package</summary>
             <p className="import-card-sub" style={{ marginBottom: 8 }}>
               JSON exported from Data Entry (another DB). Does not use Excel mapping.
             </p>
             <EntryTransferImport embedded />
-          </div>
+          </details>
         </aside>
       </div>
       </div>
@@ -923,9 +855,8 @@ export default function StagingPage() {
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "good" | "warn" | "bad" }) {
-  const c = tone === "bad" ? "var(--status-bad)" : tone === "good" ? "var(--status-good)" : "var(--text)";
-  return <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13 }}><span className="muted">{label}</span><span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: c }}>{value}</span></div>;
+function Stat({ label, value }: { label: string; value: string }) {
+  return <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: "var(--text-sm)" }}><span className="muted">{label}</span><span style={{ fontFamily: "var(--font-mono)", fontWeight: 500, color: "var(--text)" }}>{value}</span></div>;
 }
 const sth: React.CSSProperties = { padding: "6px 8px", fontWeight: 600 };
 const std: React.CSSProperties = { padding: "6px 8px" };

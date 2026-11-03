@@ -254,14 +254,13 @@ export default function WorkbooksPage() {
 
   return (
     <AppShell active="workbooks">
-      <h1 className="h1" style={{ margin: "0 0 4px" }}>Excel Data</h1>
-      <p className="muted" style={{ fontSize: "var(--text-sm)", margin: "0 0 14px", maxWidth: "68ch", lineHeight: "var(--leading-body)" }}>
+      <p className="muted" style={{ fontSize: "var(--text-md)", margin: "0 0 16px", maxWidth: "68ch", lineHeight: "var(--leading-body)" }}>
         Pick a file to see what it put on the ledger — the same numbers as the Dashboard, for that file
         alone — then build whatever chart you want from it. Drag to reorder.
       </p>
 
       {error && (
-        <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 9, background: "color-mix(in srgb, var(--status-bad) 12%, transparent)", color: "var(--status-bad)", fontSize: 13 }}>
+        <div role="alert" style={{ marginBottom: 16, padding: "12px 16px", borderRadius: "var(--radius-md)", background: "var(--critical-weak)", border: "1px solid var(--critical)", color: "var(--text)", fontSize: "var(--text-sm)" }}>
           {error}
         </div>
       )}
@@ -309,7 +308,7 @@ export default function WorkbooksPage() {
                       style={{ display: "flex", alignItems: "center", padding: "0 2px", cursor: "grab", color: "var(--text-3)" }}
                       title="Drag to reorder"
                     >
-                      ⠿
+                      <Icon name="grip" size={16} aria-hidden />
                     </div>
                     <button
                       disabled={!wb.mod}
@@ -330,14 +329,14 @@ export default function WorkbooksPage() {
                         opacity: wb.mod ? 1 : 0.6,
                       }}
                     >
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", wordBreak: "break-word" }}>
+                      <div style={{ fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text)", wordBreak: "break-word" }}>
                         {wb.fileName}
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, gap: 8 }}>
-                        <span className="small" style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-3)" }}>
+                        <span className="small" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--text-3)" }}>
                           {wb.uploadedAt?.slice(0, 10)}
                         </span>
-                        <span style={{ fontSize: 10.5, fontWeight: 600, color: nForFile ? "var(--positive)" : "var(--text-3)" }}>
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 500, color: "var(--text-3)" }}>
                           {nForFile ? `${nForFile} events` : wb.mod ? wb.mod.status : "no schema"}
                         </span>
                       </div>
@@ -346,6 +345,7 @@ export default function WorkbooksPage() {
                       onClick={(e) => { e.stopPropagation(); deleteWorkbook(wb); }}
                       disabled={deleting === wb.snapshotId}
                       title="Delete this workbook"
+                      aria-label={`Delete ${wb.fileName}`}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -359,7 +359,7 @@ export default function WorkbooksPage() {
                         flexShrink: 0,
                       }}
                     >
-                      <Icon name="x" size={13} />
+                      <Icon name="x" size={16} aria-hidden />
                     </button>
                   </div>
                 );
