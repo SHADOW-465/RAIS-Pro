@@ -1,4 +1,3 @@
-// src/app/data-entry/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -8,7 +7,9 @@ import { useLineage } from "@/components/app/LineageContext";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import BatchMatrixEntry from "@/components/BatchMatrixEntry";
 import EntryHistory from "@/components/EntryHistory";
-import Tabs from "@/components/ui/Tabs";
+import LogHeader from "@/components/app/LogHeader";
+import Icon from "@/components/editorial/Icon";
+import { StatusBadge } from "@/components/ui/primitives";
 import type { AuditEntryRow, AuditEventLike } from "@/lib/analytics/audit-sessions";
 import { hydrateFromAuditRow, type EntryHydrate } from "@/lib/entry/hydrate-entry";
 import { historyNameForLot } from "@/lib/lineage";
@@ -24,17 +25,17 @@ export default function DataEntryPage() {
   const { events, isLoading } = useEvents();
   const { conversions } = useLineage();
   // The topbar Day / Week / Month / FY control had no effect on this screen.
-  // It now files History under period headers â€” the grouping the operator
+  // It now files History under period headers — the grouping the operator
   // wanted, without touching what the ledger stores.
   const { t } = useTweaks();
   const [activeTab, setActiveTab] = useState<EntryMode>("matrix");
   const [success, setSuccess] = useState<string | null>(null);
-  /** History â†’ Edit / Reuse lot payload for the entry form. */
+  /** History → Edit / Reuse lot payload for the entry form. */
   const [hydrate, setHydrate] = useState<EntryHydrate | null>(null);
 
   /** Status History should open on, from ?status= (the dashboard WIP strip). */
   const [initialStatus, setInitialStatus] = useState<"all" | "open" | "complete">("all");
-  /** Batch ID from ?batch= URL param â€” pre-fills search and auto-expands in History. */
+  /** Batch ID from ?batch= URL param — pre-fills search and auto-expands in History. */
   const [initialBatch, setInitialBatch] = useState<string | undefined>(undefined);
 
   const batchLabel = React.useCallback(
@@ -42,13 +43,14 @@ export default function DataEntryPage() {
     [conversions],
   );
 
-  // Deep links: ?batch=â€¦ opens History on that lot, ?status=open opens it on
+  // Deep links: ?batch=… opens History on that lot, ?status=open opens it on
   // the lots still moving through the line.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const batch = params.get("batch");
     const status = params.get("status");
+    if (params.get("tab") === "history") setActiveTab("history");
     if (batch?.trim()) {
       setInitialBatch(batch.trim().toUpperCase());
       setActiveTab("history");
@@ -70,7 +72,7 @@ export default function DataEntryPage() {
     setHydrate(hydrateFromAuditRow(row, "edit"));
     setActiveTab("matrix");
     setSuccess(
-      `Loaded ${row.stageId} on ${row.batch} for edit â€” the recorded quantities are on the form. Save replaces this entry.`,
+      `Loaded ${row.stageId} on ${row.batch} for edit — the recorded quantities are on the form. Save replaces this entry.`,
     );
   };
 
@@ -83,76 +85,45 @@ export default function DataEntryPage() {
   };
 
   return (
-    <AppShell active="data-entry">
-      <header style={{ marginBottom: 16 }}>
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--text-3xl, 28px)",
-            fontWeight: 600,
-            margin: "0 0 4px",
-            letterSpacing: "var(--tracking-tight, -0.02em)",
-            lineHeight: "var(--leading-tight, 1.15)",
-          }}
-        >
-          Data Entry
-        </h1>
-        <p
-          className="muted"
-          style={{ fontSize: "var(--text-md)", margin: 0, maxWidth: "68ch", lineHeight: "var(--leading-body)" }}
-        >
-          {TAB_HINT[activeTab]}
-        </p>
-      </header>
-
-      <div style={{ marginBottom: 16 }}>
-        <Tabs
-          ariaLabel="Data entry mode"
-          active={activeTab}
-          onSelect={(id) => setActiveTab(id as EntryMode)}
-          items={[
-            { id: "matrix", label: "Log a batch" },
-            { id: "history", label: "History" },
-          ]}
-        />
-      </div>
+    <AppShell active="data-entry" ownTabs>
+      <LogHeader
+        route="entry"
+        active={activeTab === "matrix" ? "entry" : "history"}
+        onLocal={(tab) => setActiveTab(tab === "history" ? "history" : "matrix")}
+        intro={TAB_HINT[activeTab]}
+      />
 
       {success && (
         <div
           role="status"
           className="fade-up"
           style={{
-            marginBottom: 16,
-            padding: "10px 14px",
+            position: "fixed",
+            right: 24,
+            bottom: 24,
+            zIndex: 70,
+            maxWidth: "min(480px, calc(100vw - 48px))",
+            padding: "12px 16px",
             borderRadius: "var(--radius-md)",
-            background: "var(--positive-weak)",
-            border: "1px solid var(--positive)",
-            color: "var(--positive)",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            boxShadow: "var(--shadow-3)",
+            color: "var(--text)",
             fontSize: "var(--text-sm)",
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: "flex-start",
             gap: 12,
           }}
         >
-          <span>{success}</span>
+          <StatusBadge status="ok" label="Ready" />
+          <span style={{ flex: 1, lineHeight: 1.5 }}>{success}</span>
           <button
             type="button"
             onClick={() => setSuccess(null)}
             aria-label="Dismiss message"
-            style={{
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 16,
-              color: "var(--positive)",
-              fontWeight: 600,
-              lineHeight: 1,
-              padding: "0 4px",
-              minHeight: 24,
-            }}
+            style={{ all: "unset", cursor: "pointer", display: "inline-flex", padding: 4, color: "var(--text-3)" }}
           >
-            Ã—
+            <Icon name="x" size={16} aria-hidden />
           </button>
         </div>
       )}
@@ -161,7 +132,7 @@ export default function DataEntryPage() {
       {isLoading && activeTab === "history" && (
         <div
           role="status"
-          aria-label="Loading batch historyâ€¦"
+          aria-label="Loading batch history…"
           style={{
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg)",
@@ -207,7 +178,7 @@ export default function DataEntryPage() {
           <div style={{ padding: "14px var(--pad-card)", borderTop: "1px solid var(--border)" }}>
             <p className="muted" style={{ margin: 0, fontSize: "var(--text-sm)", display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", border: "2px solid var(--accent)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-              {initialBatch ? `Looking up batch ${initialBatch}â€¦` : "Loading your historyâ€¦"}
+              {initialBatch ? `Looking up batch ${initialBatch}…` : "Loading your history…"}
             </p>
           </div>
         </div>

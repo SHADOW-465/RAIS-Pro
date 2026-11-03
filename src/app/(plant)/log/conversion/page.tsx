@@ -13,7 +13,9 @@ import { usePersona } from "@/components/app/PersonaContext";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import Select from "@/components/ui/Select";
 import DatePicker from "@/components/ui/DatePicker";
-import Tabs from "@/components/ui/Tabs";
+import LogHeader from "@/components/app/LogHeader";
+import Icon from "@/components/editorial/Icon";
+import { PrimaryAction, StatusBadge } from "@/components/ui/primitives";
 import { FRENCH_SIZES } from "@/lib/entry/disposafe-matrix";
 import {
   batchOf,
@@ -366,6 +368,7 @@ export default function BatchConversionPage() {
     if (r) setReason(normalizeReasonCategory(r) ?? "");
     const view = params.get("view");
     if (view === "source" || view === "converted") setFocusPanel(view);
+    if (params.get("tab") === "history" && !from) setActiveTab("history");
   }, []);
 
   useEffect(() => {
@@ -592,50 +595,35 @@ export default function BatchConversionPage() {
   );
 
   return (
-    <AppShell active="batch-conversion">
-      <header style={{ marginBottom: 16 }}>
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--text-3xl, 28px)",
-            fontWeight: 600,
-            margin: "0 0 4px",
-            letterSpacing: "var(--tracking-tight, -0.02em)",
-            lineHeight: "var(--leading-tight, 1.15)",
-          }}
-        >
-          Batch Conversion
-        </h1>
-        <p
-          className="muted"
-          style={{ fontSize: "var(--text-md)", margin: 0, maxWidth: "68ch", lineHeight: "var(--leading-body)" }}
-        >
-          Original lot stays the reference. Record the size change, then enter
-          quantities on the original and converted lots side by side using the
-          same Data Entry structure.
-        </p>
-      </header>
+    <AppShell active="batch-conversion" ownTabs>
+      <LogHeader
+        route="conversion"
+        active={activeTab === "history" ? "conversions" : "convert"}
+        onLocal={(tab) => setActiveTab(tab === "conversions" ? "history" : "matrix")}
+        intro="The original lot stays the reference. Record the size change, then enter quantities on the original and converted lots side by side, on the same Data Entry structure."
+      />
 
       {loadError && (
         <p style={{ color: "var(--warning)", fontSize: 13, margin: "0 0 12px" }}>{loadError}</p>
       )}
 
+      {activeTab !== "history" && (
       <section
         style={{
           background: "var(--surface)",
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-lg)",
-          padding: "14px 16px 16px",
+          padding: "16px",
           boxShadow: "var(--shadow-1)",
           marginBottom: 16,
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
           <div>
-            <h2 className="h3" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-              A. Conversion details
+            <h2 className="h3" style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 600 }}>
+              Conversion details
             </h2>
-            <p className="muted" style={{ fontSize: 12, margin: "2px 0 0" }}>
+            <p className="muted" style={{ fontSize: "var(--text-sm)", margin: "4px 0 0" }}>
               {fullConversion
                 ? "Entire lot converts. The original lot's figures are mirrored onto the converted lot; nothing stays behind."
                 : "Only the quantity you enter moves to the new size. The rest stays on the original lot."}
@@ -650,16 +638,13 @@ export default function BatchConversionPage() {
                 alignItems: "center",
                 gap: 8,
                 fontFamily: "var(--font-mono)",
-                fontSize: 14,
-                fontWeight: 600,
-                letterSpacing: "0.02em",
+                fontSize: "var(--text-md)",
+                fontWeight: 500,
                 color: "var(--text)",
               }}
             >
               <span>{formatBatchIdInput(fromBatch)}</span>
-              <span style={{ color: "var(--accent)", fontWeight: 600, fontSize: 11, letterSpacing: "0.08em" }}>
-                CONVERTED TO
-              </span>
+              <Icon name="arrow-right" size={16} aria-label="converted to" />
               <span>{convertedName}</span>
             </div>
           )}
@@ -770,25 +755,9 @@ export default function BatchConversionPage() {
             />
           </label>
 
-          <button
-            type="submit"
-            disabled={saving || !canWrite || !conversionReady}
-            style={{
-              height: 36,
-              padding: "0 14px",
-              borderRadius: "var(--radius-sm)",
-              border: "none",
-              background: "var(--accent)",
-              color: "var(--on-accent)",
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: saving || !canWrite ? "not-allowed" : "pointer",
-              opacity: saving || !canWrite ? 0.6 : 1,
-              whiteSpace: "nowrap",
-            }}
-          >
+          <PrimaryAction type="submit" disabled={saving || !canWrite || !conversionReady}>
             {saving ? "Recording…" : "Record conversion"}
-          </button>
+          </PrimaryAction>
         </form>
 
         <div
@@ -828,20 +797,21 @@ export default function BatchConversionPage() {
                 style={{
                   height: 22,
                   padding: "0 9px",
-                  borderRadius: 999,
-                  border: `1px solid ${fullConversion ? "var(--accent)" : "var(--border-strong)"}`,
-                  background: fullConversion
-                    ? "color-mix(in srgb, var(--accent) 14%, var(--surface))"
-                    : "var(--surface-2)",
-                  color: fullConversion ? "var(--accent)" : "var(--text-2)",
-                  fontSize: 11,
-                  fontWeight: 600,
+                  borderRadius: "var(--radius-pill)",
+                  border: `1px solid ${fullConversion ? "var(--text)" : "var(--border-strong)"}`,
+                  background: fullConversion ? "var(--surface-2)" : "var(--surface)",
+                  color: fullConversion ? "var(--text)" : "var(--text-2)",
+                  fontSize: "var(--text-xs)",
+                  fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
                   cursor: fromBatch ? "pointer" : "not-allowed",
                   opacity: fromBatch ? 1 : 0.5,
                   whiteSpace: "nowrap",
                 }}
               >
-                {fullConversion ? "✓ Entire lot" : "Convert entire lot"}
+                {fullConversion ? <><Icon name="check" size={12} aria-hidden />Entire lot</> : "Convert entire lot"}
               </button>
             </div>
             <input
@@ -858,7 +828,7 @@ export default function BatchConversionPage() {
               aria-label="Quantity changed"
               style={{
                 ...inputStyle,
-                ...(fullConversion ? { color: "var(--accent)", fontWeight: 600, cursor: "default" } : null),
+                ...(fullConversion ? { fontWeight: 600, cursor: "default" } : null),
               }}
               required
             />
@@ -892,8 +862,8 @@ export default function BatchConversionPage() {
               marginTop: 14,
               padding: "10px 14px",
               borderRadius: "var(--radius-sm, 6px)",
-              background: "color-mix(in srgb, var(--accent) 8%, var(--surface-2))",
-              border: "1px solid color-mix(in srgb, var(--accent) 30%, var(--border))",
+              background: "var(--surface-2)",
+              border: "1px solid var(--border)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -902,43 +872,30 @@ export default function BatchConversionPage() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  color: "var(--accent)",
-                  background: "color-mix(in srgb, var(--accent) 15%, var(--surface))",
-                  padding: "2px 7px",
-                  borderRadius: 4,
-                }}
-              >
-                Data Entry History Matched
-              </span>
+              <StatusBadge status="ok" label="Found in Data Entry history" />
               <span style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>
                 Original lot <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fromBatchGroup.batch}</span>
               </span>
               {fromBatchGroup.stages.length > 0 && (
                 <span style={{ fontSize: 12, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
-                  ({fromBatchGroup.stages.map((s) => s.stageId).join(" ➔ ")})
+                  ({fromBatchGroup.stages.map((s) => s.stageId).join(" → ")})
                 </span>
               )}
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 16, fontFamily: "var(--font-mono)", fontSize: 13 }}>
               <div>
-                <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 600, marginRight: 5 }}>Checked</span>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-xs)", color: "var(--text-3)", fontWeight: 500, marginRight: 6 }}>Checked</span>
                 <span style={{ fontWeight: 600, color: "var(--text)" }}>{fromBatchGroup.checkedQty.toLocaleString()}</span>
               </div>
               <div>
-                <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 600, marginRight: 5 }}>Accepted (Available to Convert)</span>
-                <span style={{ fontWeight: 600, color: "var(--accent)" }}>{fromBatchGroup.acceptedQty.toLocaleString()}</span>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-xs)", color: "var(--text-3)", fontWeight: 500, marginRight: 6 }}>Accepted, available to convert</span>
+                <span style={{ fontWeight: 600, color: "var(--text)" }}>{fromBatchGroup.acceptedQty.toLocaleString()}</span>
               </div>
               {fromBatchGroup.rejectedQty > 0 && (
                 <div>
-                  <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 600, marginRight: 5 }}>Rejected</span>
-                  <span style={{ fontWeight: 600, color: "var(--danger)" }}>{fromBatchGroup.rejectedQty.toLocaleString()}</span>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-xs)", color: "var(--text-3)", fontWeight: 500, marginRight: 6 }}>Rejected</span>
+                  <span style={{ fontWeight: 600, color: "var(--critical)" }}>{fromBatchGroup.rejectedQty.toLocaleString()}</span>
                 </div>
               )}
             </div>
@@ -957,28 +914,20 @@ export default function BatchConversionPage() {
           </p>
         )}
       </section>
+      )}
 
       <section style={{ marginBottom: 20 }} aria-label="Mirrored batch entry">
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
-          <div>
-            <h2 className="h3" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
-              B. Mirrored batch entry
+        {activeTab !== "history" && (
+          <div style={{ marginBottom: 12 }}>
+            <h2 className="h3" style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 600 }}>
+              Mirrored batch entry
             </h2>
-            <p className="muted" style={{ fontSize: 12, margin: "2px 0 0", maxWidth: "72ch" }}>
+            <p className="muted" style={{ fontSize: "var(--text-sm)", margin: "4px 0 0", maxWidth: "72ch" }}>
               Same Data Entry quantity structure on both lots. Original identity stays locked;
               the converted lot starts at the change station.
             </p>
           </div>
-          <Tabs
-            ariaLabel="Conversion entry mode"
-            active={activeTab}
-            onSelect={(id) => setActiveTab(id as EntryMode)}
-            items={[
-              { id: "matrix", label: "Log batches" },
-              { id: "history", label: "Conversion history" },
-            ]}
-          />
-        </div>
+        )}
 
         {activeTab === "history" ? (
           <>
