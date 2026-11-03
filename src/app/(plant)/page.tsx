@@ -943,6 +943,11 @@ export default function Dashboard() {
                           </li>
                         ))}
                       </ul>
+                      <div>
+                        <button type="button" onClick={() => router.push("/actions/capa?suggested=1")} style={linkStyle}>
+                          All suggested actions →
+                        </button>
+                      </div>
                     </div>
                   ) : (
                   <div style={{

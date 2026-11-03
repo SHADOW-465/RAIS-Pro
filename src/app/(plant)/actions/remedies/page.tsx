@@ -164,18 +164,7 @@ export default function RemediesPage() {
     <AppShell active="remedies">
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 1100 }}>
         <div>
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 28,
-              fontWeight: 600,
-              margin: "0 0 4px",
-              color: "var(--text)",
-            }}
-          >
-            Defect remedies
-          </h1>
-          <p className="muted" style={{ fontSize: 14, margin: 0, maxWidth: "72ch" }}>
+          <p className="muted" style={{ fontSize: "var(--text-md)", margin: 0, maxWidth: "70ch" }}>
             Feed an explanation and a remedy for every defect. Saved feeds live in the
             plant book, so every authorized user sees the same record on every computer.
             The dashboard Top Defects showcase then names Primary, Secondary, and Tertiary

@@ -1,5 +1,7 @@
 "use client";
 
+import { QualityHeader } from "@/components/app/QualityParts";
+import { StatusBadge } from "@/components/ui/primitives";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import AppShell from "@/components/app/AppShell";
 import { usePersona } from "@/components/app/PersonaContext";
@@ -101,33 +103,19 @@ export default function AlertsPage() {
     <AppShell active="alerts">
       <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 1100 }}>
         <div>
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 28,
-              fontWeight: 600,
-              margin: "0 0 4px",
-              color: "var(--text)",
-            }}
-          >
-            Alerts
-          </h1>
-          <p className="muted" style={{ fontSize: 14, margin: 0, maxWidth: "70ch" }}>
-            History of plant messages. Group by page, process, or station. The timeline grain is yours to change.
+          <p className="muted" style={{ fontSize: "var(--text-md)", margin: 0, maxWidth: "70ch" }}>
+            Every plant message, including ones already handled. The live inbox is the bell in the top bar.
+            Group by page, process, or station.
           </p>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-            gap: 10,
-          }}
-        >
-          <Stat label="Open" value={openCount} />
-          <Stat label="In view" value={inPeriod.length} />
-          <Stat label="Groups" value={groups.length} />
-        </div>
+        <QualityHeader
+          tiles={[
+            { label: "Open", value: openCount, status: openCount > 0 ? "warning" : "ok", hint: "Waiting for approve or deny" },
+            { label: "In view", value: inPeriod.length, status: "neutral", hint: "Matching the filters below" },
+            { label: "Groups", value: groups.length, status: "neutral" },
+          ]}
+        />
 
         <section style={panel}>
           <div style={row}>
@@ -353,35 +341,12 @@ function AlertCard({
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div style={{ ...panel, padding: "12px 14px" }}>
-      <div style={eyebrow}>{label}</div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 22, fontWeight: 600 }}>{value}</div>
-    </div>
-  );
-}
-
 function StatusPill({ status }: { status: string }) {
-  const color =
-    status === "open" ? "var(--warning)" : status === "denied" ? "var(--critical)" : "var(--positive)";
   return (
-    <span
-      style={{
-        fontSize: 10.5,
-        fontWeight: 600,
-        letterSpacing: "0.04em",
-        textTransform: "uppercase",
-        color,
-        border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`,
-        background: `color-mix(in srgb, ${color} 12%, transparent)`,
-        borderRadius: 999,
-        padding: "2px 8px",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {status}
-    </span>
+    <StatusBadge
+      status={status === "open" ? "warning" : status === "denied" ? "critical" : "ok"}
+      label={status.charAt(0).toUpperCase() + status.slice(1)}
+    />
   );
 }
 
@@ -414,10 +379,8 @@ const panel: CSSProperties = {
 };
 const row: CSSProperties = { display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 };
 const eyebrow: CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: "0.04em",
-  textTransform: "uppercase",
+  fontSize: "var(--text-sm)",
+  fontWeight: 500,
   color: "var(--text-3)",
 };
 const ghostBtn: CSSProperties = {

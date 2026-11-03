@@ -11,6 +11,7 @@ import { useConfirm } from "@/components/ui/ConfirmContext";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/editorial/Icon";
 import CapaComposerModal from "@/components/CapaComposerModal";
+import { QualityHeader, SegmentedControl } from "@/components/app/QualityParts";
 import { useTweaks } from "@/components/editorial/TweaksContext";
 import type { RecommendationT } from "@/shared/models/decision";
 import {
@@ -119,6 +120,9 @@ export default function CapaPage() {
   }, [showEngine, engineLoaded, engineLoading, decideKey, loadRecommendations]);
 
   useEffect(() => () => engineAbort.current?.abort(), []);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("suggested")) setShowEngine(true);
+  }, []);
 
   const counts = useMemo(() => {
     let open = 0,
@@ -131,7 +135,8 @@ export default function CapaPage() {
       else if (c.status === "Completed") completed++;
       if (isOverdue(c)) overdue++;
     }
-    return { open, progress, completed, overdue, pending: open + progress };
+    const highActive = capas.filter((c) => c.status !== "Completed" && c.priority === "High").length;
+    return { open, progress, completed, overdue, pending: open + progress, highActive };
   }, [capas]);
 
   const filtered = useMemo(() => {
@@ -236,80 +241,48 @@ export default function CapaPage() {
   return (
     <AppShell active="capa">
       <div style={{ paddingBottom: 40 }}>
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 16,
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ minWidth: 0 }}>
-            <h1
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "var(--text-3xl, 28px)",
-                fontWeight: 600,
-                margin: "0 0 4px",
-                letterSpacing: "-0.02em",
-                lineHeight: 1.15,
-              }}
-            >
-              CAPA &amp; Actions
-            </h1>
-            <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.45, maxWidth: 520 }}>
-              Track corrective work. Promote a decision-engine hit or start blank.
-              <span style={{ display: "block", marginTop: 4, fontSize: 12 }}>
-                {capaSource === "db"
-                  ? "Stored on the plant server — every signed-in user sees this register."
-                  : capaSource === "local"
-                    ? "Stored on this browser only — the plant CAPA table is not set up yet."
-                    : "Loading the plant register…"}
-              </span>
-            </p>
-          </div>
-          <button type="button" onClick={openBlank} style={newBtn}>
-            <Icon name="plus" size={14} aria-hidden /> New CAPA
-          </button>
-        </div>
-
-        {/* Filters = former KPI strip (distill: one control, not five cards) */}
-        <div
-          role="toolbar"
-          aria-label="Filter CAPAs"
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: 16,
-            paddingBottom: 12,
-            borderBottom: "1px solid var(--border)",
-          }}
-        >
-          <FilterChip active={tab === "pending"} onClick={() => setTab("pending")} tone="default">
-            Active {counts.pending}
-          </FilterChip>
-          <FilterChip active={tab === "overdue"} onClick={() => setTab("overdue")} tone="bad">
-            Overdue {counts.overdue}
-          </FilterChip>
-          <FilterChip active={tab === "completed"} onClick={() => setTab("completed")} tone="good">
-            Done {counts.completed}
-          </FilterChip>
-          <FilterChip active={tab === "all"} onClick={() => setTab("all")} tone="default">
-            All {capas.length}
-          </FilterChip>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search title, owner, rule…"
-            aria-label="Search CAPAs"
-            style={searchInp}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 16 }}>
+          <p className="muted" style={{ fontSize: "var(--text-md)", margin: 0, lineHeight: 1.5, maxWidth: "70ch" }}>
+            Who is fixing what. Promote a suggested action or start blank.{" "}
+            <span style={{ color: "var(--text-3)" }}>
+              {capaSource === "db"
+                ? "Stored on the plant server, so every signed-in user sees this register."
+                : capaSource === "local"
+                  ? "Stored on this browser only: the plant CAPA table is not set up yet."
+                  : "Loading the plant register…"}
+            </span>
+          </p>
+          <QualityHeader
+            tiles={[
+              { label: "Active CAPAs", value: counts.pending, status: "neutral", hint: `${counts.open} open · ${counts.progress} in progress`, onOpen: () => setTab("pending") },
+              { label: "Overdue", value: counts.overdue, status: counts.overdue > 0 ? "critical" : "ok", hint: "Past due date, not completed", onOpen: () => setTab("overdue") },
+              { label: "High priority", value: counts.highActive, status: counts.highActive > 0 ? "warning" : "neutral", hint: "Active and marked High" },
+              { label: "Completed", value: counts.completed, status: "neutral", hint: "Closed out", onOpen: () => setTab("completed") },
+            ]}
+            actionLabel="New CAPA"
+            onAction={openBlank}
           />
+          <div role="toolbar" aria-label="Filter CAPAs" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+            <SegmentedControl
+              label="Show"
+              value={tab}
+              onChange={setTab}
+              options={[
+                { id: "pending", label: `Active ${counts.pending}` },
+                { id: "overdue", label: `Overdue ${counts.overdue}` },
+                { id: "completed", label: `Done ${counts.completed}` },
+                { id: "all", label: `All ${capas.length}` },
+              ]}
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search title, owner, rule…"
+              aria-label="Search CAPAs"
+              style={searchInp}
+            />
+          </div>
         </div>
 
         <div className="capa-layout">
@@ -325,7 +298,7 @@ export default function CapaPage() {
                     </button>
                     {" "}or{" "}
                     <button type="button" onClick={openEngine} style={linkBtn}>
-                      open recommendations
+                      see suggested actions
                     </button>
                     .
                   </>
@@ -538,7 +511,7 @@ export default function CapaPage() {
           </section>
 
           {/* Recommendations — collapsed by default (optimize + distill) */}
-          <aside style={{ minWidth: 0 }} aria-label="Decision engine">
+          <aside style={{ minWidth: 0 }} aria-label="Suggested actions">
             <div style={asideCard}>
               <button
                 type="button"
@@ -561,8 +534,8 @@ export default function CapaPage() {
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>
-                    Decision engine
+                  <div style={{ fontWeight: 600, fontSize: "var(--text-md)", color: "var(--text)" }}>
+                    Suggested actions
                   </div>
                   <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                     {engineLoaded
@@ -570,9 +543,7 @@ export default function CapaPage() {
                       : "Rules over rejection / FPY / COPQ · uses top-bar date range"}
                   </div>
                 </div>
-                <span aria-hidden style={{ color: "var(--text-3)", fontSize: 14, fontWeight: 600 }}>
-                  {showEngine ? "▾" : "▸"}
-                </span>
+                <Icon name={showEngine ? "chevron-up" : "chevron-down"} size={16} aria-hidden style={{ color: "var(--text-3)" }} />
               </button>
 
               {showEngine && (
@@ -706,51 +677,6 @@ export default function CapaPage() {
   );
 }
 
-function FilterChip({
-  active,
-  onClick,
-  children,
-  tone,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  tone: "default" | "bad" | "good";
-}) {
-  const activeBg =
-    tone === "bad"
-      ? "color-mix(in srgb, var(--critical) 12%, var(--surface))"
-      : tone === "good"
-        ? "var(--positive-weak)"
-        : "var(--accent-weak)";
-  const activeFg =
-    tone === "bad" ? "var(--critical)" : tone === "good" ? "var(--positive)" : "var(--accent-text)";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      style={{
-        padding: "7px 12px",
-        minHeight: 32,
-        borderRadius: 999,
-        border: active
-          ? `1px solid ${tone === "bad" ? "var(--critical)" : tone === "good" ? "var(--positive)" : "var(--accent)"}`
-          : "1px solid var(--border-strong)",
-        background: active ? activeBg : "var(--surface)",
-        color: active ? activeFg : "var(--text-2)",
-        fontSize: 12.5,
-        fontWeight: 600,
-        cursor: "pointer",
-        fontFamily: "inherit",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
@@ -836,20 +762,6 @@ const searchInp: React.CSSProperties = {
   background: "var(--surface)",
   color: "var(--text)",
   fontSize: 13,
-  fontFamily: "inherit",
-};
-const newBtn: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  background: "var(--accent)",
-  color: "var(--on-accent)",
-  border: "none",
-  borderRadius: 9,
-  padding: "9px 16px",
-  fontWeight: 600,
-  fontSize: 13,
-  cursor: "pointer",
   fontFamily: "inherit",
 };
 const createRecBtn: React.CSSProperties = {
