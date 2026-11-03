@@ -46,45 +46,42 @@ export function contextTips(opts: {
   return null;
 }
 
-/** Persona-specific starter chips (short labels for the widget). */
+/**
+ * The 4 Ask MOID starter chips (plan §3f): plain questions about the plant's
+ * own data. View-only roles get a summary instead of a CAPA draft; operators
+ * get entry questions instead of plant-wide diagnosis.
+ */
 export function roleStarterChips(persona: PersonaId | string): StarterChip[] {
-  const common: StarterChip[] = [
-    { label: "Monday GM pack", text: "Monday GM review" },
-    { label: "July week 1 report", text: "summarize july first week report" },
-  ];
-
+  const chip = (text: string): StarterChip => ({ label: text, text });
   if (persona === "operator") {
     return [
-      {
-        label: "Enter assembly row",
-        text: "enter assembly checked 400 accepted 390 coag 5 sd 3 bl 2",
-      },
-      { label: "How to enter today", text: "how do I enter today's data?" },
-      { label: "Import Excel?", text: "how do I import Excel?" },
-      ...common.slice(0, 1),
+      chip("Which lots are stalled?"),
+      chip("How do I enter today's data?"),
+      chip("Which stage is worst this month?"),
+      chip("How do I import Excel?"),
     ];
   }
-
   if (persona === "owner") {
     return [
-      { label: "This month summary", text: "summarize this month" },
-      { label: "July week 1 report", text: "summarize july first week report" },
-      { label: "Monday GM pack", text: "Monday GM review" },
-      { label: "Defect analysis", text: "open defect analysis" },
+      chip("Why did rejections rise this week?"),
+      chip("Which stage is worst this month?"),
+      chip("Which lots are stalled?"),
+      chip("Summarize this month"),
     ];
   }
-
-  // GM
   return [
-    {
-      label: "Enter assembly…",
-      text: "enter assembly checked 400 accepted 390 coag 5 sd 3 bl 2",
-    },
-    { label: "Monday GM pack", text: "Monday GM review" },
-    { label: "July week 1 report", text: "summarize july first week report" },
-    { label: "Investigate spike", text: "investigate rejection spike" },
-    { label: "Get started", text: "get started" },
+    chip("Why did rejections rise this week?"),
+    chip("Which stage is worst this month?"),
+    chip("Which lots are stalled?"),
+    chip("Draft a CAPA for the top defect"),
   ];
+}
+
+/** Short answer first: the first paragraph, plus whether there is more to show. */
+export function splitAnswer(text: string): { short: string; more: string } {
+  const t = text.trim();
+  const i = t.indexOf("\n\n");
+  return i < 0 ? { short: t, more: "" } : { short: t.slice(0, i), more: t.slice(i + 2).trim() };
 }
 
 /** Spotlight nav key after howto — client pulses sidebar item. */

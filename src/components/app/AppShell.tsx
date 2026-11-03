@@ -87,6 +87,7 @@ import {
   saveSession,
   draftToShiftRecord,
   roleStarterChips,
+  splitAnswer,
   writePrefill,
   prefillFromDraft,
   type AgentSession,
@@ -426,6 +427,7 @@ function AppShellView({
   // Floating Ask MOID — multi-turn task agent (enter / report / guide)
   const [showChatWidget, setShowChatWidget] = useState(false);
   const [widgetInput, setWidgetInput] = useState("");
+  const [expandedAnswers, setExpandedAnswers] = useState<Set<string>>(new Set());
   const [widgetMessages, setWidgetMessages] = useState<WidgetMessage[]>([
     {
       id: "welcome",
@@ -1806,8 +1808,8 @@ function AppShellView({
           height: 480,
           background: "var(--surface)",
           border: "1px solid var(--border-strong)",
-          borderRadius: "16px",
-          boxShadow: "0 10px 40px -10px rgba(0,0,0,0.3)",
+          borderRadius: "var(--radius-lg)",
+          boxShadow: "var(--shadow-3)",
           zIndex: 1000,
           display: "flex",
           flexDirection: "column",
@@ -1824,10 +1826,12 @@ function AppShellView({
             justifyContent: "space-between"
           }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <span style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 600 }}>Ask MOID</span>
-              <span style={{ fontSize: 9.5, opacity: 0.8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Guide · Navigate · Summarize</span>
+              <span style={{ fontSize: "var(--text-lg)", fontWeight: 600 }}>Ask MOID</span>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-3)" }}>Answers come from your ledger. Numbers are never invented.</span>
             </div>
             <button 
+              type="button"
+              aria-label="Close Ask MOID"
               onClick={() => setShowChatWidget(false)}
               style={{
                 background: "transparent",
@@ -1869,28 +1873,57 @@ function AppShellView({
                 <div style={{
                   padding: "10px 14px",
                   borderRadius: "12px",
-                  fontSize: 12.5,
-                  lineHeight: 1.45,
+                  fontSize: "var(--text-sm)",
+                  lineHeight: 1.5,
                   whiteSpace: "pre-wrap",
                   background: m.sender === "user" ? "var(--surface-2)" : "var(--surface)",
                   color: "var(--text)",
                   border: m.sender === "user" ? "1px solid var(--border)" : "1px solid var(--border-strong)",
-                  boxShadow: "2px 2px 0 rgba(0,0,0,0.05)"
+                  boxShadow: "none"
                 }}>
-                  {m.text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-                    part.startsWith("**") && part.endsWith("**") ? (
-                      <strong key={i}>{part.slice(2, -2)}</strong>
-                    ) : (
-                      <span key={i}>{part}</span>
-                    ),
-                  )}
-                  {m.steps && m.steps.length > 0 && (
-                    <ol style={{ margin: "10px 0 0", paddingLeft: 18 }}>
-                      {m.steps.map((s, i) => (
-                        <li key={i} style={{ marginBottom: 4 }}>{s}</li>
-                      ))}
-                    </ol>
-                  )}
+                  {(() => {
+                    const bold = (txt: string) => txt.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+                      part.startsWith("**") && part.endsWith("**") ? (
+                        <strong key={i}>{part.slice(2, -2)}</strong>
+                      ) : (
+                        <span key={i}>{part}</span>
+                      ),
+                    );
+                    const { short, more } = m.sender === "moid" ? splitAnswer(m.text) : { short: m.text, more: "" };
+                    const hasMore = Boolean(more) || Boolean(m.steps && m.steps.length > 0);
+                    const open = expandedAnswers.has(m.id);
+                    return (
+                      <>
+                        {bold(short)}
+                        {hasMore && open && (
+                          <>
+                            {more && <div style={{ marginTop: 8 }}>{bold(more)}</div>}
+                            {m.steps && m.steps.length > 0 && (
+                              <ol style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                                {m.steps.map((s, i) => (
+                                  <li key={i} style={{ marginBottom: 4 }}>{s}</li>
+                                ))}
+                              </ol>
+                            )}
+                          </>
+                        )}
+                        {hasMore && (
+                          <button
+                            type="button"
+                            aria-expanded={open}
+                            onClick={() => setExpandedAnswers((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(m.id)) next.delete(m.id); else next.add(m.id);
+                              return next;
+                            })}
+                            style={{ display: "block", marginTop: 8, padding: 0, border: 0, background: "none", color: "var(--text-2)", fontFamily: "inherit", fontSize: "var(--text-xs)", fontWeight: 500, textDecoration: "underline", textUnderlineOffset: 2, cursor: "pointer" }}
+                          >
+                            {open ? "Hide details" : "Show details"}
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
                   {m.draft && m.draft.kind === "enter_data" && (
                     <div style={{
                       marginTop: 10,
@@ -1916,12 +1949,13 @@ function AppShellView({
                           type="button"
                           onClick={() => onAgentAction(a)}
                           style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            padding: "5px 10px",
-                            borderRadius: 999,
+                            fontSize: "var(--text-xs)",
+                            fontWeight: 500,
+                            minHeight: 28,
+                            padding: "0 10px",
+                            borderRadius: "var(--radius-md)",
                             border: "1px solid var(--border-strong)",
-                            background: a.kind === "confirm_ingest" || i === 0 ? "var(--accent)" : "var(--bg)",
+                            background: a.kind === "confirm_ingest" || i === 0 ? "var(--accent)" : "var(--surface)",
                             color: a.kind === "confirm_ingest" || i === 0 ? "var(--on-accent)" : "var(--text)",
                             cursor: "pointer",
                           }}
@@ -1948,21 +1982,23 @@ function AppShellView({
               </div>
             )}
             {widgetMessages.length <= 1 && !widgetLoading && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, marginTop: 4 }}>
                 {roleStarterChips(persona).map((s) => (
                   <button
                     key={s.text}
                     type="button"
                     onClick={() => void submitWidgetQuery(s.text)}
                     style={{
-                      fontSize: 10.5,
-                      padding: "5px 9px",
-                      borderRadius: 999,
+                      fontSize: "var(--text-sm)",
+                      minHeight: 32,
+                      padding: "4px 12px",
+                      borderRadius: "var(--radius-md)",
                       border: "1px solid var(--border)",
                       background: "var(--surface)",
-                      color: "var(--text-2)",
+                      color: "var(--text)",
                       cursor: "pointer",
                       textAlign: "left",
+                      fontFamily: "inherit",
                     }}
                   >
                     {s.label}
@@ -1983,7 +2019,8 @@ function AppShellView({
           }}>
             <input 
               type="text"
-              placeholder="Enter data… / Summarize report… / How do I…"
+              placeholder="Ask about rejections, lots or entries"
+              aria-label="Ask MOID"
               value={widgetInput}
               onChange={(e) => setWidgetInput(e.target.value)}
               onKeyDown={(e) => {
