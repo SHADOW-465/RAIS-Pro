@@ -651,32 +651,28 @@ export default function Dashboard() {
         const topDefect = serverTotals.defects?.[0];
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }} aria-busy="true">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
-              <Kpi
-                primary
-                label="Overall Rejection"
-                basis={scopeLabel}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--gap-grid)" }}>
+              <KpiTile
+                label="Rejection rate"
                 value={pct(head.rate)}
-                detail={`${num(head.rejected)} rejected · ${num(head.checked)} checked`}
-                tone={head.rate > targetRej ? "bad" : "good"}
+                hint={`${num(head.rejected)} rejected · ${num(head.checked)} checked · ${scopeLabel}`}
+                status={head.rate > targetRej ? "critical" : "ok"}
               />
-              <Kpi
-                primary
-                label="Overall Accepted"
-                basis={scopeLabel}
+              <KpiTile
+                label="Accepted"
                 value={pct(head.acceptedRate)}
-                detail={`${num(head.accepted)} accepted · ${num(head.checked)} checked`}
-                tone={head.acceptedRate >= 1 - targetRej ? "good" : "bad"}
+                hint={`${num(head.accepted)} accepted · ${num(head.checked)} checked`}
+                status={head.acceptedRate >= 1 - targetRej ? "ok" : "critical"}
               />
-              <Kpi label="First Pass Yield" basis={scopeLabel} value={pct(head.fpy)} />
-              <Kpi
-                label="Top Defect"
-                basis={scopeLabel}
+              <KpiTile label="First pass yield" value={pct(head.fpy)} hint={scopeLabel} />
+              <KpiTile
+                word
+                label="Top defect"
                 value={topDefect?.label ?? "—"}
-                detail={topDefect ? `${num(topDefect.rejected)} rejected` : undefined}
+                hint={topDefect ? `${num(topDefect.rejected)} rejected` : undefined}
               />
             </div>
-            <div className="muted" style={{ fontSize: 12 }}>Loading charts and detail…</div>
+            <div style={{ fontSize: "var(--text-sm)", color: "var(--text-3)" }}>Loading charts and detail…</div>
             <PageLoader minHeight="40vh" />
           </div>
         );
