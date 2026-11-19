@@ -10,7 +10,8 @@ for (const [k, v] of Object.entries(KEYS)) process.env[k] = v;
 
 const auth = jest.fn();
 const getUser = jest.fn();
-const clerkClient = jest.fn(async () => ({ users: { getUser } }));
+const updateUserMetadata = jest.fn();
+const clerkClient = jest.fn(async () => ({ users: { getUser, updateUserMetadata } }));
 
 jest.mock("@clerk/nextjs/server", () => ({
   auth: () => auth(),
@@ -19,7 +20,12 @@ jest.mock("@clerk/nextjs/server", () => ({
 
 import type { NextRequest } from "next/server";
 import { actorFrom } from "../guard";
-import { clearClerkActorCache, parseMoidMapping } from "../clerk-actor";
+import {
+  clearClerkActorCache,
+  invalidateClerkActorCache,
+  mappingsFromClerkUser,
+  parseMoidMapping,
+} from "../clerk-actor";
 import { __resetRoleStoreForTests, __seedRoleForTests, type RoleRecord } from "../roles";
 
 const req = {} as NextRequest;
@@ -45,11 +51,13 @@ beforeEach(() => {
   __resetRoleStoreForTests();
   auth.mockReset();
   getUser.mockReset();
+  updateUserMetadata.mockReset().mockResolvedValue({});
   clerkClient.mockClear();
 });
 
 afterEach(() => {
   for (const k of Object.keys(KEYS)) delete process.env[k];
+  jest.restoreAllMocks();
 });
 
 describe("parseMoidMapping", () => {
@@ -60,7 +68,14 @@ describe("parseMoidMapping", () => {
     });
   });
 
-  test("rejects missing, public-shaped, or incomplete metadata", () => {
+  test("accepts a capitalised username such as Lakshun", () => {
+    expect(parseMoidMapping({ moid: { username: "Lakshun", role: "gm" } })).toEqual({
+      username: "Lakshun",
+      role: "gm",
+    });
+  });
+
+  test("rejects missing or incomplete metadata", () => {
     expect(parseMoidMapping(undefined)).toBeNull();
     expect(parseMoidMapping({})).toBeNull();
     expect(parseMoidMapping({ moid: { username: "r.kumar" } })).toBeNull();
@@ -68,6 +83,15 @@ describe("parseMoidMapping", () => {
     expect(parseMoidMapping({ moid: { username: "  ", role: "gm" } })).toBeNull();
     // A role sitting in some other bag is not a mapping.
     expect(parseMoidMapping({ role: "gm", username: "gm" })).toBeNull();
+  });
+
+  test("reads REST snake_case metadata bags", () => {
+    const { privateMapping, publicMapping } = mappingsFromClerkUser({
+      private_metadata: {},
+      public_metadata: { moid: { username: "Lakshun", role: "gm" } },
+    });
+    expect(privateMapping).toBeNull();
+    expect(publicMapping).toEqual({ username: "Lakshun", role: "gm" });
   });
 });
 
@@ -87,6 +111,32 @@ describe("actorFrom in clerk mode", () => {
     });
   });
 
+  test("a public-only mapping is honoured and promoted into private metadata", async () => {
+    auth.mockResolvedValue({ userId: "user_lakshun" });
+    getUser.mockResolvedValue({
+      privateMetadata: {},
+      publicMetadata: { moid: { username: "Lakshun", role: "gm" } },
+    });
+    const actor = await actorFrom(req);
+    expect(actor).toMatchObject({ username: "Lakshun", role: "gm" });
+    expect(updateUserMetadata).toHaveBeenCalledWith("user_lakshun", {
+      privateMetadata: { moid: { username: "Lakshun", role: "gm" } },
+    });
+  });
+
+  test("a public-only mapping is still a session if promotion fails", async () => {
+    auth.mockResolvedValue({ userId: "user_pub" });
+    getUser.mockResolvedValue({
+      privateMetadata: {},
+      publicMetadata: { moid: { username: "Lakshun", role: "gm" } },
+    });
+    updateUserMetadata.mockRejectedValue(new Error("merge failed"));
+    const err = jest.spyOn(console, "error").mockImplementation(() => {});
+    const actor = await actorFrom(req);
+    expect(actor).toMatchObject({ username: "Lakshun", role: "gm" });
+    expect(err).toHaveBeenCalled();
+  });
+
   test("an unmapped Clerk user is not a session", async () => {
     auth.mockResolvedValue({ userId: "user_2" });
     getUser.mockResolvedValue({ privateMetadata: {} });
@@ -96,6 +146,14 @@ describe("actorFrom in clerk mode", () => {
   test("no Clerk session is not a session", async () => {
     auth.mockResolvedValue({ userId: null });
     expect(await actorFrom(req)).toBeNull();
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
+  test("auth() throwing is logged and is not a session", async () => {
+    auth.mockRejectedValue(new Error("clerk unavailable"));
+    const err = jest.spyOn(console, "error").mockImplementation(() => {});
+    expect(await actorFrom(req)).toBeNull();
+    expect(err).toHaveBeenCalled();
     expect(getUser).not.toHaveBeenCalled();
   });
 
@@ -114,5 +172,41 @@ describe("actorFrom in clerk mode", () => {
       privateMetadata: { moid: { username: "x", role: "does-not-exist" } },
     });
     expect(await actorFrom(req)).toBeNull();
+  });
+
+  test("a null mapping is not cached for a full minute", async () => {
+    let now = 1_000_000;
+    jest.spyOn(Date, "now").mockImplementation(() => now);
+    auth.mockResolvedValue({ userId: "user_miss" });
+    getUser.mockResolvedValue({ privateMetadata: {}, publicMetadata: {} });
+
+    expect(await actorFrom(req)).toBeNull();
+    expect(getUser).toHaveBeenCalledTimes(1);
+
+    now += 4_000;
+    expect(await actorFrom(req)).toBeNull();
+    expect(getUser).toHaveBeenCalledTimes(1);
+
+    now += 2_000;
+    getUser.mockResolvedValue({
+      publicMetadata: { moid: { username: "qa_test", role: "operator" } },
+    });
+    const actor = await actorFrom(req);
+    expect(actor).toMatchObject({ username: "qa_test", role: "operator" });
+    expect(getUser).toHaveBeenCalledTimes(2);
+  });
+
+  test("invalidateClerkActorCache drops a user so a re-grant is visible immediately", async () => {
+    auth.mockResolvedValue({ userId: "user_5" });
+    getUser.mockResolvedValue({ privateMetadata: {}, publicMetadata: {} });
+    expect(await actorFrom(req)).toBeNull();
+    expect(getUser).toHaveBeenCalledTimes(1);
+
+    invalidateClerkActorCache("user_5");
+    getUser.mockResolvedValue({
+      privateMetadata: { moid: { username: "qa_test", role: "operator" } },
+    });
+    expect(await actorFrom(req)).toMatchObject({ username: "qa_test", role: "operator" });
+    expect(getUser).toHaveBeenCalledTimes(2);
   });
 });

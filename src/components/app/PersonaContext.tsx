@@ -71,8 +71,12 @@ type PersonaCtx = {
   personaLocked: boolean;
   /** True until the first /api/auth/me round-trip finishes. */
   authReady: boolean;
-  /** Re-read session (call after login so events/registry can load). */
-  refreshAuth: () => Promise<void>;
+  /**
+   * Re-read session (call after login so events/registry can load).
+   * Pass retryOn401 after Clerk reports a signed-in session so a race
+   * with the first cookie does not stick the user on /no-access.
+   */
+  refreshAuth: (opts?: { retryOn401?: boolean }) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -87,40 +91,61 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authProvider, setAuthProvider] = useState<"clerk" | "legacy">("legacy");
 
-  const refreshAuth = useCallback(async () => {
-    try {
-      const res = await fetch("/api/auth/me", { credentials: "same-origin" });
-      const data = await res.json().catch(() => ({}));
-      setIsAdmin(data.admin === true && !!data.user?.username);
-      if (data.authProvider === "clerk" || data.authProvider === "legacy") {
-        setAuthProvider(data.authProvider);
-      }
-      if (data.authEnabled) {
-        setAuthEnabled(true);
-        // Any role id, not just the three built-in ones. Gating this on a
-        // closed union is what made a plant-created role fall through to the
-        // default GM persona and see the whole sidebar.
-        if (data.user?.username && typeof data.user.role === "string" && data.user.role) {
-          setAuthUser({ username: data.user.username, role: data.user.role });
-          setPersonaState(data.user.role);
-          setServerRole(data.role ?? null);
-          writeStoredPersona(data.user.role);
-        } else {
-          setAuthUser(null);
-          setServerRole(null);
-        }
+  const applyMePayload = useCallback((data: {
+    admin?: unknown;
+    authProvider?: unknown;
+    authEnabled?: unknown;
+    user?: { username?: unknown; role?: unknown } | null;
+    role?: ServerRole | null;
+  }) => {
+    setIsAdmin(data.admin === true && !!data.user?.username);
+    if (data.authProvider === "clerk" || data.authProvider === "legacy") {
+      setAuthProvider(data.authProvider);
+    }
+    if (data.authEnabled) {
+      setAuthEnabled(true);
+      // Any role id, not just the three built-in ones. Gating this on a
+      // closed union is what made a plant-created role fall through to the
+      // default GM persona and see the whole sidebar.
+      if (typeof data.user?.username === "string" && data.user.username && typeof data.user.role === "string" && data.user.role) {
+        setAuthUser({ username: data.user.username, role: data.user.role });
+        setPersonaState(data.user.role);
+        setServerRole(data.role ?? null);
+        writeStoredPersona(data.user.role);
       } else {
-        setAuthEnabled(false);
         setAuthUser(null);
         setServerRole(null);
-        setPersonaState(readStoredPersona());
       }
+    } else {
+      setAuthEnabled(false);
+      setAuthUser(null);
+      setServerRole(null);
+      setPersonaState(readStoredPersona());
+    }
+  }, []);
+
+  const refreshAuth = useCallback(async (opts?: { retryOn401?: boolean }) => {
+    const readMe = async () => {
+      const res = await fetch("/api/auth/me", { credentials: "same-origin" });
+      const data = (await res.json().catch(() => ({}))) as Parameters<typeof applyMePayload>[0];
+      return { status: res.status, data };
+    };
+    try {
+      let { status, data } = await readMe();
+      // One short retry only when the caller knows Clerk already has a session.
+      // Apply the payload once, after the retry, so a transient 401 does not
+      // briefly clear a mapped user.
+      if (opts?.retryOn401 && status === 401) {
+        await new Promise((r) => setTimeout(r, 500));
+        ({ status, data } = await readMe());
+      }
+      applyMePayload(data);
     } catch {
       setPersonaState(readStoredPersona());
     } finally {
       setAuthReady(true);
     }
-  }, []);
+  }, [applyMePayload]);
 
   useEffect(() => {
     void refreshAuth();

@@ -300,6 +300,8 @@ export function __seedRoleForTests(role: RoleRecord, company = companyId()): voi
 // a few seconds without anyone having to sign out.
 
 const CACHE_TTL_MS = 15_000;
+/** A miss (unknown role id) must not stick for the full TTL — same idea as the Clerk mapping cache. */
+const UNMAPPED_ROLE_CACHE_TTL_MS = 5_000;
 const cache = new Map<string, { role: RoleRecord | null; at: number }>();
 
 export function invalidateRoleCache(): void {
@@ -339,7 +341,8 @@ export async function resolveRole(roleId: RoleId): Promise<RoleRecord | null> {
   const company = companyId();
   const key = `${company} ${roleId}`;
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.role;
+  const ttl = hit?.role ? CACHE_TTL_MS : UNMAPPED_ROLE_CACHE_TTL_MS;
+  if (hit && Date.now() - hit.at < ttl) return hit.role;
 
   let role: RoleRecord | null;
   try {

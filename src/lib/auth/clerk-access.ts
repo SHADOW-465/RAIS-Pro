@@ -3,7 +3,7 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { ADMIN_ROLE_ID } from "@/lib/persona";
 import { isAssignableRole, listRoles } from "./roles";
-import { clearClerkActorCache, parseMoidMapping, type MoidMapping } from "./clerk-actor";
+import { invalidateClerkActorCache, parseMoidMapping, type MoidMapping } from "./clerk-actor";
 import {
   LAST_ADMIN_ERROR,
   adminCount,
@@ -144,7 +144,7 @@ async function setMapping(userId: string, mapping: MoidMapping | null): Promise<
     privateMetadata: { moid: mapping },
     publicMetadata: { moid: mapping },
   });
-  clearClerkActorCache();
+  invalidateClerkActorCache(userId);
 }
 
 async function revokeSessions(userId: string): Promise<void> {

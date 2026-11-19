@@ -12,6 +12,9 @@ import { SESSION_COOKIE, verifySessionToken } from "./session";
 import { deniedScreen, isPublicPath } from "./proxy-gates";
 
 export const handleClerkProxy = clerkMiddleware(async (auth, request) => {
+  // Public paths (including /api/auth/me) must still run *inside*
+  // clerkMiddleware so auth() in route handlers can see the session.
+  // /api/access/* is not public and is gated below; it also needs this wrapper.
   const { pathname } = request.nextUrl;
   if (isPublicPath(pathname)) {
     return NextResponse.next();
