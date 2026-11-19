@@ -74,7 +74,7 @@ describe("creating a role", () => {
       write: true,
       approve: false,
       configure: false,
-      eraseLedger: false,
+      eraseLedger: false, manageAccess: false,
     });
     expect(role?.grants).toContain(permissionGrantId("write"));
     expect(role?.builtin).toBe(false);

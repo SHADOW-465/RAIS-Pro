@@ -1,13 +1,16 @@
 // Clerk identity → MOID actor.
 //
 // Clerk only answers "who is this person". The role they hold in MOID lives in
-// that Clerk user's PRIVATE metadata, set by an admin, never by the user:
+// that Clerk user's metadata, set by an admin, never by the user:
 //
 //   { moid: { username: string, role: RoleId } }
 //
-// Public and unsafe metadata are ignored. After the mapping is read, the same
+// Private metadata is the source of truth. Invitation public_metadata carries
+// the same shape (Clerk copies it onto the user when they accept). On first
+// authenticated request we promote a public-only mapping into private
+// metadata. Unsafe metadata is ignored. After the mapping is read, the same
 // resolveRole / active checks used by the cookie session run, and the same
-// Actor shape is returned, so the 32 API routes do not change.
+// Actor shape is returned, so the API routes do not change.
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { resolveRole } from "./roles";
@@ -29,10 +32,10 @@ export function clearClerkActorCache(): void {
   cache.clear();
 }
 
-/** Pull a username + role out of Clerk private metadata, or null if absent/malformed. */
-export function parseMoidMapping(privateMetadata: unknown): MoidMapping | null {
-  if (!privateMetadata || typeof privateMetadata !== "object") return null;
-  const moid = (privateMetadata as Record<string, unknown>).moid;
+/** Pull a username + role out of a Clerk metadata bag, or null if absent/malformed. */
+export function parseMoidMapping(metadata: unknown): MoidMapping | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const moid = (metadata as Record<string, unknown>).moid;
   if (!moid || typeof moid !== "object") return null;
   const rec = moid as Record<string, unknown>;
   const username = typeof rec.username === "string" ? rec.username.trim() : "";
@@ -46,7 +49,18 @@ async function mappingFor(userId: string): Promise<MoidMapping | null> {
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.mapping;
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
-  const mapping = parseMoidMapping(user.privateMetadata);
+  const privateMapping = parseMoidMapping(user.privateMetadata);
+  const publicMapping = parseMoidMapping(user.publicMetadata);
+  const mapping = privateMapping ?? publicMapping;
+  if (!privateMapping && publicMapping) {
+    try {
+      await client.users.updateUserMetadata(userId, {
+        privateMetadata: { moid: publicMapping },
+      });
+    } catch {
+      // Still honour the public mapping this request; promotion can retry later.
+    }
+  }
   cache.set(userId, { at: Date.now(), mapping });
   return mapping;
 }

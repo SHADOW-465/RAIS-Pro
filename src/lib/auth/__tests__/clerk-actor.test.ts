@@ -31,7 +31,7 @@ const SUPERVISOR: RoleRecord = {
   initial: "S",
   homeHref: "/data-entry",
   navAllow: ["dashboard", "data-entry", "hold"],
-  capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
+  capabilities: { write: true, approve: false, configure: false, eraseLedger: false, manageAccess: false },
   grants: ["screen.dashboard", "screen.data-entry", "screen.hold", "permission.write"],
   scope: { stages: [] },
   builtin: false,
@@ -83,7 +83,7 @@ describe("actorFrom in clerk mode", () => {
       username: "r.kumar",
       role: "operator",
       roleLabel: "Data Entry Operator",
-      capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
+      capabilities: { write: true, approve: false, configure: false, eraseLedger: false, manageAccess: false },
     });
   });
 

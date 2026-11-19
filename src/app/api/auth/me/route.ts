@@ -18,7 +18,7 @@ import {
 } from "@/lib/auth/session";
 import { resolveRole } from "@/lib/auth/roles";
 import { actorFrom, isPlantAdmin } from "@/lib/auth/guard";
-import { isClerkAuth } from "@/lib/auth/provider";
+import { getAuthProvider, isClerkAuth } from "@/lib/auth/provider";
 
 async function getHandler(req: NextRequest) {
   const actor = await actorFrom(req);
@@ -35,6 +35,7 @@ async function getHandler(req: NextRequest) {
 
   const res = NextResponse.json({
     authEnabled: true,
+    authProvider: getAuthProvider(),
     user: { username: actor.username, role: role.roleId },
     // Settings → Administrative is shown only when this is true. The routes
     // behind it check the same thing (requireAdmin), so hiding is not the guard.

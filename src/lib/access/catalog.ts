@@ -230,6 +230,8 @@ export function roleAccessFromGrants(
     approve: granted.has(permissionGrantId("approve")),
     configure: granted.has(permissionGrantId("configure")),
     eraseLedger: granted.has(permissionGrantId("eraseLedger")),
+    // Inherent to the admin role id, never a ticked grant on a plant role.
+    manageAccess: false,
   };
   const grants = ALL_LEAVES.filter((l) => granted.has(l.id)).map((l) => l.id);
   return { navAllow, capabilities, grants };

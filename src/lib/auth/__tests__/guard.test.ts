@@ -60,7 +60,7 @@ describe("authentication", () => {
       username: "operator",
       role: "operator",
       roleLabel: "Data Entry Operator",
-      capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
+      capabilities: { write: true, approve: false, configure: false, eraseLedger: false, manageAccess: false },
     });
   });
 });
@@ -68,9 +68,9 @@ describe("authentication", () => {
 describe("authorization", () => {
   // The full matrix, straight from the built-in role definitions.
   const MATRIX: Record<PersonaId, Record<Capability, boolean>> = {
-    gm: { write: true, approve: true, configure: true, eraseLedger: true },
-    owner: { write: false, approve: false, configure: false, eraseLedger: false },
-    operator: { write: true, approve: false, configure: false, eraseLedger: false },
+    gm: { write: true, approve: true, configure: true, eraseLedger: true, manageAccess: false },
+    owner: { write: false, approve: false, configure: false, eraseLedger: false, manageAccess: false },
+    operator: { write: true, approve: false, configure: false, eraseLedger: false, manageAccess: false },
   };
 
   for (const [role, caps] of Object.entries(MATRIX) as [PersonaId, Record<Capability, boolean>][]) {

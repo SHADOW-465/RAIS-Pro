@@ -27,7 +27,7 @@ const SUPERVISOR: RoleRecord = {
   initial: "S",
   homeHref: "/data-entry",
   navAllow: ["dashboard", "data-entry", "hold", "open-lots", "defect"],
-  capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
+  capabilities: { write: true, approve: false, configure: false, eraseLedger: false, manageAccess: false },
   grants: ["screen.dashboard", "screen.data-entry", "permission.write"],
   scope: { stages: [] },
   builtin: false,
@@ -90,7 +90,7 @@ describe("plant-created roles", () => {
       write: true,
       approve: false,
       configure: false,
-      eraseLedger: false,
+      eraseLedger: false, manageAccess: false,
     });
   });
 
@@ -116,7 +116,7 @@ describe("the guard reads capabilities from the role, not from a union", () => {
       username: "u.supervisor.moulding",
       role: "supervisor.moulding",
       roleLabel: "Supervisor — Moulding",
-      capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
+      capabilities: { write: true, approve: false, configure: false, eraseLedger: false, manageAccess: false },
     });
   });
 
@@ -147,7 +147,7 @@ describe("deny by omission", () => {
       write: false,
       approve: false,
       configure: false,
-      eraseLedger: false,
+      eraseLedger: false, manageAccess: false,
     });
     expect(def.label).toBe("supervisor.moulding");
   });

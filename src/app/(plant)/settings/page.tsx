@@ -23,6 +23,7 @@ import CalculationRules from "@/components/settings/CalculationRules";
 import DisplayDefaults from "@/components/settings/DisplayDefaults";
 import PlantUsers from "@/components/settings/PlantUsers";
 import RolesAccess from "@/components/settings/RolesAccess";
+import ClerkAccess from "@/components/settings/ClerkAccess";
 import {
   DEFAULT_SHIFT_WINDOWS,
   readShiftWindowConfig,
@@ -37,7 +38,7 @@ import {
   type DataEntryExportConfig,
 } from "@/lib/entry/export-config";
 
-type SectionId = "rules" | "display" | "shifts" | "export" | "registry" | "custom" | "roles" | "users" | "admin";
+type SectionId = "rules" | "display" | "shifts" | "export" | "registry" | "custom" | "roles" | "users" | "access" | "admin";
 
 const SECTIONS: { id: SectionId; label: string; hint: string }[] = [
   { id: "rules", label: "Calculation rules", hint: "Targets, costs, rework handling" },
@@ -48,18 +49,22 @@ const SECTIONS: { id: SectionId; label: string; hint: string }[] = [
   { id: "custom", label: "Custom codes", hint: "Plant-specific aliases" },
   { id: "roles", label: "Roles & access", hint: "Dashboards, logins and what each role opens" },
   { id: "users", label: "Plant users", hint: "Who may sign in, and as what" },
+  { id: "access", label: "Access", hint: "Invite, map and revoke Google sign-in" },
   { id: "admin", label: "Administrative", hint: "Purge & schema reset" },
 ];
 
 export default function SettingsPage() {
   const { registry } = useRegistry();
-  const { canConfigure, isAdmin } = usePersona();
+  const { canConfigure, isAdmin, canManageAccess, authProvider } = usePersona();
   // Purge and schema reset are installation-admin tools (MOID_ADMIN_USERS),
   // not GM tools. The routes refuse them too; this keeps them off the screen.
-  const sections = useMemo(
-    () => (isAdmin ? SECTIONS : SECTIONS.filter((s) => s.id !== "admin")),
-    [isAdmin],
-  );
+  const sections = useMemo(() => {
+    return SECTIONS.filter((s) => {
+      if (s.id === "admin") return isAdmin;
+      if (s.id === "access") return canManageAccess && authProvider === "clerk";
+      return true;
+    });
+  }, [isAdmin, canManageAccess, authProvider]);
   const activeRegistry = registry || EMPTY_REGISTRY;
   const [section, setSection] = useState<SectionId>("rules");
 
@@ -607,6 +612,8 @@ export default function SettingsPage() {
 
               {section === "roles" && <RolesAccess />}
               {section === "users" && <PlantUsers />}
+
+              {section === "access" && canManageAccess && <ClerkAccess />}
 
               {section === "admin" && isAdmin && (
                 <div className="settings-admin">

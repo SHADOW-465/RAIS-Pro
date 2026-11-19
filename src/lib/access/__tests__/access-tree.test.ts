@@ -91,7 +91,7 @@ describe("grants round-trip through the stored role", () => {
       write: false,
       approve: false,
       configure: false,
-      eraseLedger: false,
+      eraseLedger: false, manageAccess: false,
     });
   });
 });

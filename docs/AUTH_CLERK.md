@@ -23,9 +23,27 @@ Clerk only answers **"who is this person"**. MOID still decides **what they can 
 3. That `role` is passed through the same `resolveRole` / active checks used today (`plant_roles`). The same `Actor` shape (`username`, `role`, `roleLabel`, `capabilities`) is handed to every API route, so capability checks, the audit trail, and `MOID_ADMIN_USERS` (matched on `username`) do not change.
 4. If there is no mapping, or the role is missing or switched off, the user is not a MOID session. Pages send them to `/no-access`. APIs return 401.
 
-Roles must live in **private metadata**, never in public or unsafe metadata. The user cannot edit private metadata themselves.
+The mapping lives in **private metadata** as the source of truth. Invitations carry the same `{ moid: { username, role } }` object in **invitation public metadata** (backend-only writable). When the person accepts, Clerk copies that onto the user; on the first authenticated request MOID promotes it into private metadata. Unsafe metadata is ignored. The user cannot edit either of these bags themselves.
 
 A short in-memory cache (60 seconds) avoids calling Clerk on every API request during a burst of saves.
+
+## Admin vs GM
+
+`admin` is a built-in role, separate from `gm`. It has every capability the GM has, plus `manageAccess` — the right to invite people, change their role, and revoke access. A GM does not get `manageAccess`, and a plant-created role cannot tick it on in Settings → Roles. `resolveRole("admin")` still works if `plant_roles` has no admin row.
+
+Admin is not added to `MOID_ADMIN_USERS`. That env var still gates the destructive purge / schema-reset tools only, and is independent of this role.
+
+In Clerk mode, an admin opens **Settings → Access** to:
+
+- see Clerk users (email, MOID username, role, status, last sign-in)
+- invite someone by email, username and role
+- change a role, revoke access (clears the mapping and signs them out) or re-grant it
+- see pending invitations and revoke one
+
+You cannot revoke or demote yourself if you are the last remaining admin.
+
+The plant ledger audit trail is for production data, not login administration; access changes are not written there (that would need a new table). Use Settings → Access as the record of who holds which role.
+
 
 ## Switching the provider
 

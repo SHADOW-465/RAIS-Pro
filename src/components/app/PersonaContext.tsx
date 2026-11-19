@@ -57,6 +57,10 @@ type PersonaCtx = {
   canConfigure: boolean;
   /** GM only — may permanently erase rows already in the ledger. */
   canEraseLedger: boolean;
+  /** Built-in admin only — may invite, map and revoke Clerk sign-in access. */
+  canManageAccess: boolean;
+  /** Live sign-in system. */
+  authProvider: "clerk" | "legacy";
   /** Login listed in MOID_ADMIN_USERS — sees purge / schema reset. Never the GM by role alone. */
   isAdmin: boolean;
   /** Always true — sign-in is required (hardcoded presets). */
@@ -81,12 +85,16 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   const [authUser, setAuthUser] = useState<AuthUser>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authProvider, setAuthProvider] = useState<"clerk" | "legacy">("legacy");
 
   const refreshAuth = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me", { credentials: "same-origin" });
       const data = await res.json().catch(() => ({}));
       setIsAdmin(data.admin === true && !!data.user?.username);
+      if (data.authProvider === "clerk" || data.authProvider === "legacy") {
+        setAuthProvider(data.authProvider);
+      }
       if (data.authEnabled) {
         setAuthEnabled(true);
         // Any role id, not just the three built-in ones. Gating this on a
@@ -162,6 +170,8 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       canApprove: capabilities.approve,
       canConfigure: capabilities.configure,
       canEraseLedger: capabilities.eraseLedger,
+      canManageAccess: capabilities.manageAccess === true,
+      authProvider,
       isAdmin,
       authEnabled,
       authUser,
@@ -170,7 +180,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
       refreshAuth,
       signOut,
     };
-  }, [persona, serverRole, setPersona, authEnabled, authUser, authReady, refreshAuth, signOut, isAdmin]);
+  }, [persona, serverRole, setPersona, authEnabled, authUser, authReady, refreshAuth, signOut, isAdmin, authProvider]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -194,6 +204,8 @@ export function usePersona(): PersonaCtx {
       canApprove: capabilities.approve,
       canConfigure: capabilities.configure,
       canEraseLedger: capabilities.eraseLedger,
+      canManageAccess: false,
+      authProvider: "legacy",
       isAdmin: false,
       authEnabled: false,
       authUser: null,

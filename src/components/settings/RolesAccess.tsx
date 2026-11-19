@@ -68,7 +68,7 @@ const blankRole = (): RoleRow => ({
   initial: "?",
   homeHref: "/",
   navAllow: [],
-  capabilities: { write: false, approve: false, configure: false, eraseLedger: false },
+  capabilities: { write: false, approve: false, configure: false, eraseLedger: false, manageAccess: false },
   grants: [],
   scope: { stages: [] },
   builtin: false,

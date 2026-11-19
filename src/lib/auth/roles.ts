@@ -30,6 +30,8 @@ import { companyId } from "./config";
 import { grantsFromRole, roleAccessFromGrants } from "@/lib/access/catalog";
 import { EMPTY_SCOPE, parseScope, type RoleScope } from "@/lib/access/scope";
 import {
+  ADMIN_DEF,
+  ADMIN_ROLE_ID,
   PERSONAS,
   PERSONA_ORDER,
   type NavKey,
@@ -59,29 +61,31 @@ export interface RoleRecord {
   sortOrder: number;
 }
 
-/** The three built-ins, projected from persona.ts so there is one source. */
-export const BUILTIN_ROLES: Record<string, RoleRecord> = Object.fromEntries(
-  PERSONA_ORDER.map((id, i) => {
-    const p = PERSONAS[id];
-    return [
-      id,
-      {
-        roleId: id,
-        label: p.label,
-        title: p.title,
-        initial: p.initial,
-        homeHref: p.homeHref,
-        navAllow: [...p.navAllow],
-        capabilities: { ...p.capabilities },
-        grants: [...grantsFromRole(p)],
-        scope: EMPTY_SCOPE,
-        builtin: true,
-        active: true,
-        sortOrder: i * 10,
-      } satisfies RoleRecord,
-    ];
-  }),
-);
+function builtinRecord(id: string, p: { label: string; title: string; initial: string; homeHref: string; navAllow: readonly NavKey[]; capabilities: PersonaCapabilities }, sortOrder: number): RoleRecord {
+  return {
+    roleId: id,
+    label: p.label,
+    title: p.title,
+    initial: p.initial,
+    homeHref: p.homeHref,
+    navAllow: [...p.navAllow],
+    capabilities: { ...p.capabilities },
+    grants: [...grantsFromRole(p)],
+    scope: EMPTY_SCOPE,
+    builtin: true,
+    active: true,
+    sortOrder,
+  };
+}
+
+/** Built-in roles, projected from persona.ts so there is one source.
+ *  `admin` is included even when `plant_roles` has no admin row. */
+export const BUILTIN_ROLES: Record<string, RoleRecord> = {
+  [ADMIN_ROLE_ID]: builtinRecord(ADMIN_ROLE_ID, ADMIN_DEF, 0),
+  ...Object.fromEntries(
+    PERSONA_ORDER.map((id, i) => [id, builtinRecord(id, PERSONAS[id], (i + 1) * 10)]),
+  ),
+};
 
 export interface RoleStore {
   list(companyId: string): Promise<RoleRecord[]>;
@@ -91,7 +95,7 @@ export interface RoleStore {
 }
 
 const builtinList = (): RoleRecord[] =>
-  PERSONA_ORDER.map((id) => BUILTIN_ROLES[id]);
+  [ADMIN_ROLE_ID, ...PERSONA_ORDER].map((id) => BUILTIN_ROLES[id]);
 
 /** MOID_STORE=memory (and every test). Built-ins only — a plant that wants
  *  custom roles is running against Supabase. */
@@ -122,6 +126,25 @@ class MemoryRoleStore implements RoleStore {
   }
 }
 
+
+/**
+ * manageAccess is inherent to the built-in admin role id. A GM, or a plant
+ * role edited in Settings, can never pick it up — even if a row in
+ * plant_roles claims the bit.
+ */
+export function applyCapabilityPolicy(
+  caps: PersonaCapabilities,
+  roleId: string,
+): PersonaCapabilities {
+  return {
+    write: caps.write === true,
+    approve: caps.approve === true,
+    configure: caps.configure === true,
+    eraseLedger: caps.eraseLedger === true,
+    manageAccess: roleId === ADMIN_ROLE_ID,
+  };
+}
+
 const asStringArray = (raw: unknown): string[] =>
   Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : [];
 
@@ -136,12 +159,13 @@ const rowToRole = (r: Record<string, unknown>): RoleRecord => {
     navAllow: asStringArray(r.nav_allow) as NavKey[],
     grants: asStringArray(r.grants),
     scope: parseScope(r.scope),
-    capabilities: {
+    capabilities: applyCapabilityPolicy({
       write: caps.write === true,
       approve: caps.approve === true,
       configure: caps.configure === true,
       eraseLedger: caps.eraseLedger === true,
-    },
+      manageAccess: caps.manageAccess === true,
+    }, String(r.role_id)),
     builtin: r.builtin === true,
     active: r.active !== false,
     sortOrder: typeof r.sort_order === "number" ? r.sort_order : 100,
@@ -326,7 +350,7 @@ export async function resolveRole(roleId: RoleId): Promise<RoleRecord | null> {
     warnUnreadable(err);
     role = BUILTIN_ROLES[roleId] ?? null;
   }
-  if (role) role = withCurrentScreens(role);
+  if (role) role = applyPolicyToRole(withCurrentScreens(role));
   cache.set(key, { role, at: Date.now() });
   return role;
 }
@@ -335,7 +359,7 @@ export async function resolveRole(roleId: RoleId): Promise<RoleRecord | null> {
 export async function listRoles(): Promise<RoleRecord[]> {
   try {
     const rows = await getRoleStore().list(companyId());
-    return rows.map(withCurrentScreens);
+    return rows.map((r) => applyPolicyToRole(withCurrentScreens(r)));
   } catch (err) {
     warnUnreadable(err);
     return builtinList();
@@ -378,8 +402,22 @@ export function roleFromGrants(
   return { ...base, ...roleAccessFromGrants(granted) };
 }
 
+export function applyPolicyToRole(role: RoleRecord): RoleRecord {
+  const capabilities = applyCapabilityPolicy(role.capabilities, role.roleId);
+  if (capabilities === role.capabilities || (
+    capabilities.write === role.capabilities.write &&
+    capabilities.approve === role.capabilities.approve &&
+    capabilities.configure === role.capabilities.configure &&
+    capabilities.eraseLedger === role.capabilities.eraseLedger &&
+    capabilities.manageAccess === role.capabilities.manageAccess
+  )) {
+    return { ...role, capabilities };
+  }
+  return { ...role, capabilities };
+}
+
 export async function saveRole(role: RoleRecord): Promise<void> {
-  await getRoleStore().upsert(companyId(), role);
+  await getRoleStore().upsert(companyId(), applyPolicyToRole(role));
   invalidateRoleCache();
 }
 

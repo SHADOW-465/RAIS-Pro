@@ -8,8 +8,12 @@ import { slot } from "@/lib/storage";
 import type { NavKey } from "@/lib/nav-keys";
 export type { NavKey };
 
-/** Built-in role views: GM (full), Owner, Data Entry Operator. */
+/** Shared plant logins / topbar presets. Admin is a built-in too, but
+ *  it is not a shared password login — see ADMIN_ROLE_ID. */
 export type PersonaId = "gm" | "owner" | "operator";
+
+/** Built-in access-manager role. Separate from GM; not a preset login. */
+export const ADMIN_ROLE_ID = "admin";
 
 /**
  * A role id in general — built-in or one the plant created.
@@ -43,6 +47,12 @@ export interface PersonaCapabilities {
    * (CorrectionEvent) and is not gated by this bit.
    */
   eraseLedger: boolean;
+  /**
+   * May invite, map, change and revoke who can sign in (Clerk Access screen).
+   * Inherent to the built-in `admin` role. A GM does not hold this, and a
+   * plant-created role cannot grant it to itself.
+   */
+  manageAccess: boolean;
 }
 
 export interface PersonaDef {
@@ -97,7 +107,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
     initial: "G",
     homeHref: "/",
     navAllow: FULL_NAV,
-    capabilities: { write: true, approve: true, configure: true, eraseLedger: true },
+    capabilities: { write: true, approve: true, configure: true, eraseLedger: true, manageAccess: false },
   },
   owner: {
     id: "owner",
@@ -124,7 +134,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       "ask",
     ],
     // View-only: no mutations, no approvals, no config.
-    capabilities: { write: false, approve: false, configure: false, eraseLedger: false },
+    capabilities: { write: false, approve: false, configure: false, eraseLedger: false, manageAccess: false },
   },
   operator: {
     id: "operator",
@@ -156,8 +166,20 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       "ask",
       "audit",
     ],
-    capabilities: { write: true, approve: false, configure: false, eraseLedger: false },
+    capabilities: { write: true, approve: false, configure: false, eraseLedger: false, manageAccess: false },
   },
+};
+
+
+/** Full GM capabilities plus Access management. Not a shared login. */
+export const ADMIN_DEF: PersonaDef = {
+  id: ADMIN_ROLE_ID as PersonaId,
+  label: "Admin",
+  title: "Access and plant administration",
+  initial: "A",
+  homeHref: "/",
+  navAllow: FULL_NAV,
+  capabilities: { write: true, approve: true, configure: true, eraseLedger: true, manageAccess: true },
 };
 
 export const PERSONA_ORDER: PersonaId[] = ["gm", "owner", "operator"];
@@ -180,6 +202,7 @@ export function isPersonaId(v: string | null | undefined): v is PersonaId {
  * it only knows the built-ins.
  */
 export function personaDef(id: RoleId): PersonaDef {
+  if (id === ADMIN_ROLE_ID) return ADMIN_DEF;
   const known = PERSONAS[id as PersonaId];
   if (known) return known;
   return {
@@ -189,7 +212,7 @@ export function personaDef(id: RoleId): PersonaDef {
     initial: (id || "?").charAt(0).toUpperCase(),
     homeHref: "/",
     navAllow: [],
-    capabilities: { write: false, approve: false, configure: false, eraseLedger: false },
+    capabilities: { write: false, approve: false, configure: false, eraseLedger: false, manageAccess: false },
   };
 }
 
@@ -233,4 +256,8 @@ export function canConfigure(persona: RoleId): boolean {
 
 export function canEraseLedger(persona: RoleId): boolean {
   return personaDef(persona).capabilities.eraseLedger;
+}
+
+export function canManageAccess(persona: RoleId): boolean {
+  return personaDef(persona).capabilities.manageAccess;
 }
