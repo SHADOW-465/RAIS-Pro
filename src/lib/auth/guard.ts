@@ -62,6 +62,15 @@ export type Guard =
  *  no permissions, so the caller is sent to sign in again instead of collecting
  *  403s on every screen. */
 export async function actorFrom(req: NextRequest): Promise<Actor | null> {
+  // Clerk mode is opted in via AUTH_PROVIDER. Dynamic import keeps the
+  // legacy test suite (and the Edge/Node proxy) from loading Clerk unless
+  // it is actually the live provider.
+  const { isClerkAuth } = await import("./provider");
+  if (isClerkAuth()) {
+    const { actorFromClerk } = await import("./clerk-actor");
+    return actorFromClerk();
+  }
+
   const session = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value);
   if (!session) return null;
   const role = await resolveRole(session.r);

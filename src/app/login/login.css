@@ -549,3 +549,34 @@
     transform: none;
   }
 }
+
+
+/* ── Clerk sign-in, hosted on the existing login split ─────────────────── */
+
+.login-page--clerk .login-panel-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login-clerk {
+  display: flex;
+  justify-content: stretch;
+  width: 100%;
+}
+
+.login-clerk .cl-rootBox,
+.login-clerk .cl-cardBox,
+.login-clerk .cl-card {
+  width: 100%;
+  box-shadow: none;
+  background: transparent;
+}
+
+.login-clerk-card,
+.login-clerk .cl-card {
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: none;
+}

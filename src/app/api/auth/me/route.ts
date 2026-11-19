@@ -13,32 +13,32 @@ import {
   NAV_COOKIE,
   SESSION_COOKIE,
   createNavToken,
+  createSessionToken,
   sessionCookieOptions,
-  verifySessionToken,
 } from "@/lib/auth/session";
 import { resolveRole } from "@/lib/auth/roles";
-import { isPlantAdmin } from "@/lib/auth/guard";
+import { actorFrom, isPlantAdmin } from "@/lib/auth/guard";
+import { isClerkAuth } from "@/lib/auth/provider";
 
 async function getHandler(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const session = await verifySessionToken(token);
-  if (!session) {
+  const actor = await actorFrom(req);
+  if (!actor) {
     return NextResponse.json({ authEnabled: true, user: null }, { status: 401 });
   }
 
   // A role that has been deleted or switched off is not a session any more —
   // the same reading lib/auth/guard.ts takes, so the chrome and the API agree.
-  const role = await resolveRole(session.r);
+  const role = await resolveRole(actor.role);
   if (!role || !role.active) {
     return NextResponse.json({ authEnabled: true, user: null }, { status: 401 });
   }
 
   const res = NextResponse.json({
     authEnabled: true,
-    user: { username: session.u, role: role.roleId },
+    user: { username: actor.username, role: role.roleId },
     // Settings → Administrative is shown only when this is true. The routes
     // behind it check the same thing (requireAdmin), so hiding is not the guard.
-    admin: isPlantAdmin(session.u),
+    admin: isPlantAdmin(actor.username),
     role: {
       roleId: role.roleId,
       label: role.label,
@@ -58,6 +58,16 @@ async function getHandler(req: NextRequest) {
     await createNavToken(role.roleId, role.navAllow),
     sessionCookieOptions(),
   );
+  // In Clerk mode the proxy still uses the signed session cookie as an
+  // advisory (user/role headers + screen courtesy). The authorization
+  // boundary stays actorFrom → Clerk private metadata, not this cookie.
+  if (isClerkAuth()) {
+    res.cookies.set(
+      SESSION_COOKIE,
+      await createSessionToken({ username: actor.username, role: role.roleId }),
+      sessionCookieOptions(),
+    );
+  }
   return res;
 }
 

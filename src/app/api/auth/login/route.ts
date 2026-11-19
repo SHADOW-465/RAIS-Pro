@@ -9,8 +9,16 @@ import {
 } from "@/lib/auth/session";
 import { personaDef } from "@/lib/persona";
 import { resolveRole } from "@/lib/auth/roles";
+import { isClerkAuth } from "@/lib/auth/provider";
 
 export async function POST(req: NextRequest) {
+  if (isClerkAuth()) {
+    return NextResponse.json(
+      { error: "Password sign-in is disabled. Use Google or an email code on the sign-in page." },
+      { status: 403 },
+    );
+  }
+
   let body: { username?: string; role?: string; password?: string };
   try {
     body = await req.json();

@@ -8,6 +8,9 @@ import { PersonaProvider } from "@/components/app/PersonaContext";
 import { QueryProvider } from "@/components/app/QueryProvider";
 import { ConfirmProvider } from "@/components/ui/ConfirmContext";
 import { BuildWatcher } from "@/components/app/BuildWatcher";
+import { MoidClerkProvider } from "@/components/app/MoidClerkProvider";
+import { ClerkSessionHooks } from "@/components/app/ClerkSessionHooks";
+import { isClerkAuth } from "@/lib/auth/provider";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 
 export const metadata: Metadata = {
@@ -44,14 +47,17 @@ export default function RootLayout({
             `,
           }}
         />
-        <BuildWatcher />
-        <QueryProvider>
-          <TweaksProvider>
-            <PersonaProvider>
-              <ConfirmProvider>{children}</ConfirmProvider>
-            </PersonaProvider>
-          </TweaksProvider>
-        </QueryProvider>
+        <MoidClerkProvider enabled={isClerkAuth()}>
+          <BuildWatcher />
+          <QueryProvider>
+            <TweaksProvider>
+              <PersonaProvider>
+                <ClerkSessionHooks enabled={isClerkAuth()} />
+                <ConfirmProvider>{children}</ConfirmProvider>
+              </PersonaProvider>
+            </TweaksProvider>
+          </QueryProvider>
+        </MoidClerkProvider>
       </body>
     </html>
   );

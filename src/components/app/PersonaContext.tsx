@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { runClerkSignOut } from "@/lib/auth/clerk-sign-out-bridge";
 import {
   DEFAULT_PERSONA,
   personaDef,
@@ -130,6 +131,7 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+      await runClerkSignOut();
     } finally {
       setAuthUser(null);
       if (typeof window !== "undefined") {

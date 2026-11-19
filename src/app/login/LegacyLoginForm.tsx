@@ -321,7 +321,7 @@ function LoginForm() {
   );
 }
 
-export default function LoginPage() {
+export function LegacyLoginForm() {
   return (
     <Suspense
       fallback={
