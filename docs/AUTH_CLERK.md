@@ -40,6 +40,8 @@ In Clerk mode, an admin opens **Settings → Access** to:
 - change a role, revoke access (clears the mapping and signs them out) or re-grant it
 - see pending invitations and revoke one
 
+Invitation links must redirect to an **absolute** `/login` URL (the origin of the Access request, or `APP_URL` / `NEXT_PUBLIC_APP_URL`, or `https://rais-pro.vercel.app`). A relative `/login` is resolved by Clerk against `accounts.dev` and the invitee gets a 404. `/login` renders Clerk `<SignIn>` normally, and `<SignUp>` when the URL has `__clerk_ticket` and/or `__clerk_status=sign_up`, so the ticket can be completed with Google or email. After accept, the first authenticated request still promotes invitation `public_metadata.moid` into private metadata, and the invitee lands in the app with their role (not `/no-access`).
+
 You cannot revoke or demote yourself if you are the last remaining admin.
 
 The plant ledger audit trail is for production data, not login administration; access changes are not written there (that would need a new table). Use Settings → Access as the record of who holds which role.

@@ -136,8 +136,37 @@ describe("invite and revoke (Clerk mocked)", () => {
       expect.objectContaining({
         emailAddress: "new@example.com",
         publicMetadata: { moid: { username: "n.rao", role: "operator" } },
+        redirectUrl: "http://localhost/login",
       }),
     );
+  });
+
+  test("invitation redirectUrl is absolute on the request origin, not /login", async () => {
+    signInAs(adminUser);
+    createInvitation.mockResolvedValue({
+      id: "inv_2",
+      emailAddress: "new@example.com",
+      publicMetadata: { moid: { username: "n.rao", role: "operator" } },
+      status: "pending",
+      createdAt: Date.now(),
+    });
+    const incoming = new NextRequest("http://127.0.0.1/api/access/invitations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-forwarded-host": "rais-pro.vercel.app",
+        "x-forwarded-proto": "https",
+      },
+      body: JSON.stringify({ email: "new@example.com", username: "n.rao", role: "operator" }),
+    });
+    const res = await createInvite(incoming);
+    expect(res.status).toBe(201);
+    expect(createInvitation).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectUrl: "https://rais-pro.vercel.app/login" }),
+    );
+    const redirectUrl = createInvitation.mock.calls[0][0].redirectUrl as string;
+    expect(redirectUrl.startsWith("https://")).toBe(true);
+    expect(redirectUrl).not.toBe("/login");
   });
 
   test("admin can revoke a pending invitation", async () => {

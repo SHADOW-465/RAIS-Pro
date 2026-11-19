@@ -16,6 +16,7 @@ import {
   wouldRemoveLastAdmin,
   type MappedClerkUser,
 } from "./access-admin";
+import { resolveInvitationRedirectUrl } from "./invitation-redirect";
 
 export type AccessUserStatus = "mapped" | "unmapped" | "banned";
 
@@ -104,6 +105,8 @@ export async function inviteUser(input: {
   email: string;
   username: string;
   role: string;
+  /** Origin of the Access request, used to build an absolute Clerk redirectUrl. */
+  origin?: string | null;
 }): Promise<AccessInvitation> {
   const emailErr = validateEmail(input.email);
   if (emailErr) throw Object.assign(new Error(emailErr), { status: 400 });
@@ -118,7 +121,7 @@ export async function inviteUser(input: {
   const inv = await c.invitations.createInvitation({
     emailAddress: normalizeEmail(input.email),
     publicMetadata: { moid: { username, role } },
-    redirectUrl: "/login",
+    redirectUrl: resolveInvitationRedirectUrl(input.origin),
   });
   return {
     id: inv.id,

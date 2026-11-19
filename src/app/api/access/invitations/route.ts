@@ -3,6 +3,7 @@ import { requireCapability } from "@/lib/auth/guard";
 import { inviteUser, listPendingInvitations } from "@/lib/auth/clerk-access";
 import { withNoStore } from "@/lib/http/live-cache";
 import { clerkRequiredResponse, fail } from "../_shared";
+import { originFromRequest } from "@/lib/auth/invitation-redirect";
 
 async function getHandler(req: NextRequest) {
   const off = clerkRequiredResponse();
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       email: String(body.email ?? ""),
       username: String(body.username ?? ""),
       role: String(body.role ?? ""),
+      origin: originFromRequest(req),
     });
     return NextResponse.json({ invitation }, { status: 201 });
   } catch (err) {
