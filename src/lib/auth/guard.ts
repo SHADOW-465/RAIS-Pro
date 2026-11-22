@@ -68,11 +68,32 @@ export async function actorFrom(req: NextRequest): Promise<Actor | null> {
   const { isClerkAuth } = await import("./provider");
   if (isClerkAuth()) {
     const { actorFromClerk } = await import("./clerk-actor");
-    return actorFromClerk();
+    const clerkActor = await actorFromClerk();
+    if (clerkActor) return clerkActor;
+    return actorFromBreakGlassCookie(req);
   }
 
-  const session = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value);
+  return actorFromLegacyCookie(req);
+}
+
+async function actorFromLegacyCookie(req: NextRequest): Promise<Actor | null> {
+  const session = await verifySessionToken(req.cookies?.get(SESSION_COOKIE)?.value);
   if (!session) return null;
+  const role = await resolveRole(session.r);
+  if (!role || !role.active) return null;
+  return {
+    username: session.u,
+    role: role.roleId,
+    roleLabel: role.label,
+    capabilities: role.capabilities,
+  };
+}
+
+/** Clerk mode: honour a signed session cookie only for the configured break-glass GM. */
+async function actorFromBreakGlassCookie(req: NextRequest): Promise<Actor | null> {
+  const { isBreakGlassSession } = await import("./break-glass");
+  const session = await verifySessionToken(req.cookies?.get(SESSION_COOKIE)?.value);
+  if (!isBreakGlassSession(session)) return null;
   const role = await resolveRole(session.r);
   if (!role || !role.active) return null;
   return {

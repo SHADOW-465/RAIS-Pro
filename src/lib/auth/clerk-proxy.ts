@@ -10,6 +10,7 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySessionToken } from "./session";
 import { deniedScreen, isPublicPath } from "./proxy-gates";
+import { isBreakGlassSession } from "./break-glass";
 
 export const handleClerkProxy = clerkMiddleware(async (auth, request) => {
   // Public paths (including /api/auth/me) must still run *inside*
@@ -21,7 +22,23 @@ export const handleClerkProxy = clerkMiddleware(async (auth, request) => {
   }
 
   const { userId } = await auth();
+  const session = await verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value);
+
   if (!userId) {
+    // One env-backed break-glass GM may use a signed legacy session cookie
+    // while Clerk stays the normal sign-in. Anyone else still goes to /login.
+    if (isBreakGlassSession(session)) {
+      const denied = await deniedScreen(request, session.r, pathname);
+      if (denied) {
+        const home = new URL(denied, request.url);
+        home.searchParams.set("denied", "1");
+        return NextResponse.redirect(home);
+      }
+      const res = NextResponse.next();
+      res.headers.set("x-moid-user", session.u);
+      res.headers.set("x-moid-role", session.r);
+      return res;
+    }
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "Unauthorized. Sign in required." },
@@ -37,7 +54,6 @@ export const handleClerkProxy = clerkMiddleware(async (auth, request) => {
   // and role so the same advisory screen check and x-moid-* headers still
   // work. Until that cookie exists (first request after Google sign-in) we
   // fail open — same as a missing nav cookie today.
-  const session = await verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value);
   if (session) {
     const denied = await deniedScreen(request, session.r, pathname);
     if (denied) {

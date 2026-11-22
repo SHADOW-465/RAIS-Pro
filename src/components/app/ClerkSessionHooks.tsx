@@ -47,6 +47,9 @@ function ClerkSessionHooksInner() {
     })();
   }, [isLoaded, isSignedIn, userId, refreshAuth]);
 
+  // A break-glass GM has a mapped cookie session but Clerk isSignedIn is
+  // false — shouldRedirectToNoAccess already requires isSignedIn, so they
+  // are not bounced to /no-access.
   useEffect(() => {
     if (
       shouldRedirectToNoAccess({

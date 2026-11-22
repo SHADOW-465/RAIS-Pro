@@ -42,6 +42,13 @@ In Clerk mode, an admin opens **Settings → Access** to:
 
 Invitation links must redirect to an **absolute** `/login` URL (the origin of the Access request, or `APP_URL` / `NEXT_PUBLIC_APP_URL`, or `https://rais-pro.vercel.app`). A relative `/login` is resolved by Clerk against `accounts.dev` and the invitee gets a 404. `/login` renders Clerk `<SignIn>` normally, and `<SignUp>` when the URL has `__clerk_ticket` and/or `__clerk_status=sign_up`, so the ticket can be completed with Google or email. After accept, the first authenticated request still promotes invitation `public_metadata.moid` into private metadata, and the invitee lands in the app with their role (not `/no-access`). If `/api/auth/me` races the Clerk cookie, the client retries once and only then may send them to `/no-access`. That page re-checks on load and has a **Check again** button; a mapped account is sent to their home. Unmapped Clerk results are cached at most 5 seconds, and Access changes invalidate that user in the same instance.
 
+## Break-glass GM password
+
+Clerk (Google or email) stays the normal sign-in. When `GM_PASSWORD_LOGIN_USER` and `GM_PASSWORD_LOGIN_HASH` are both set, `/login` also shows a low-key **Sign in with username** option for exactly that one account. The role is always `gm` (not admin, no `manageAccess`). The password is a scrypt hash in the env, not a value in the repo or the plant database — do not change the Supabase `gm` row for this. Other legacy logins (operator, owner, named plant users) stay off in Clerk mode.
+
+Sessions use the same signed `moid_session` / `moid_nav` cookies as legacy login. `MOID_AUTH_SECRET` must be set in the host environment so those cookies cannot be forged with the public built-in default. Sign-out clears both the cookies and any Clerk session.
+
+
 You cannot revoke or demote yourself if you are the last remaining admin.
 
 The plant ledger audit trail is for production data, not login administration; access changes are not written there (that would need a new table). Use Settings → Access as the record of who holds which role.

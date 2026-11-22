@@ -1,4 +1,5 @@
 import { isClerkAuth } from "@/lib/auth/provider";
+import { isBreakGlassEnabled } from "@/lib/auth/break-glass";
 import { clerkLoginMode } from "@/lib/auth/clerk-login-mode";
 import { ClerkSignIn } from "../ClerkSignIn";
 import { LegacyLoginForm } from "../LegacyLoginForm";
@@ -16,7 +17,13 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   if (isClerkAuth()) {
-    return <ClerkSignIn nextPath={params.next} mode={clerkLoginMode(params)} />;
+    return (
+      <ClerkSignIn
+        nextPath={params.next}
+        mode={clerkLoginMode(params)}
+        usernameLogin={isBreakGlassEnabled()}
+      />
+    );
   }
   return <LegacyLoginForm />;
 }

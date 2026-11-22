@@ -580,3 +580,41 @@
   background: var(--surface);
   box-shadow: none;
 }
+
+/* Break-glass username login: a quiet toggle under the Clerk card. */
+.login-username {
+  margin-top: 8px;
+  padding-top: 14px;
+  align-items: stretch;
+}
+
+.login-username-toggle {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0 auto;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-3, #64748b);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.login-username-toggle:hover:not(:disabled) {
+  color: var(--text-2, #475569);
+}
+
+.login-username-toggle:focus-visible {
+  outline: 2px solid var(--ring, #2563EB);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.login-username-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { SignIn, SignUp } from "@clerk/nextjs";
 import { isClerkSignUpTicket, type ClerkLoginMode } from "@/lib/auth/clerk-login-mode";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
@@ -44,9 +44,12 @@ function safeNext(raw: string | undefined): string | undefined {
 export function ClerkSignIn({
   nextPath,
   mode = "sign-in",
+  usernameLogin = false,
 }: {
   nextPath?: string;
   mode?: ClerkLoginMode;
+  /** Show the low-key break-glass username/password toggle (server-gated). */
+  usernameLogin?: boolean;
 }) {
   const dest = safeNext(nextPath) ?? "/";
   const [signUp, setSignUp] = useState(mode === "sign-up");
@@ -131,8 +134,112 @@ export function ClerkSignIn({
               appearance={appearance}
             />
           </div>
+          {usernameLogin && !signUp ? <UsernamePasswordLogin nextPath={nextPath} /> : null}
         </div>
       </main>
+    </div>
+  );
+}
+
+function UsernamePasswordLogin({ nextPath }: { nextPath?: string }) {
+  const [open, setOpen] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+    setError(null);
+    setPending(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        user?: { homeHref?: string };
+      };
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "Wrong username or password.");
+        return;
+      }
+      const dest = safeNext(nextPath) ?? data.user?.homeHref ?? "/";
+      window.location.assign(dest);
+    } catch {
+      setError("Sign-in is temporarily unavailable. Try again shortly.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="login-alt login-username">
+      {!open ? (
+        <button
+          type="button"
+          className="login-username-toggle"
+          onClick={() => setOpen(true)}
+        >
+          Sign in with username
+        </button>
+      ) : (
+        <form onSubmit={onSubmit} className="login-username-form">
+          <p className="login-alt-title">Sign in with username</p>
+          <div className="login-field">
+            <label className="login-field-label" htmlFor="break-glass-username">
+              Username
+            </label>
+            <input
+              id="break-glass-username"
+              className="login-input"
+              name="username"
+              autoComplete="username"
+              value={username}
+              onChange={(ev) => setUsername(ev.target.value)}
+              disabled={pending}
+            />
+          </div>
+          <div className="login-field">
+            <label className="login-field-label" htmlFor="break-glass-password">
+              Password
+            </label>
+            <input
+              id="break-glass-password"
+              className="login-input"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(ev) => setPassword(ev.target.value)}
+              disabled={pending}
+            />
+          </div>
+          {error ? (
+            <p className="login-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <button type="submit" className="login-submit" disabled={pending}>
+            {pending ? "Signing in…" : "Sign in"}
+          </button>
+          <button
+            type="button"
+            className="login-username-toggle"
+            onClick={() => {
+              setOpen(false);
+              setError(null);
+            }}
+            disabled={pending}
+          >
+            Use Google or email instead
+          </button>
+        </form>
+      )}
     </div>
   );
 }

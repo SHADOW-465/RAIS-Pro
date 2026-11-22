@@ -10,13 +10,22 @@ import {
 import { personaDef } from "@/lib/persona";
 import { resolveRole } from "@/lib/auth/roles";
 import { isClerkAuth } from "@/lib/auth/provider";
+import { BREAK_GLASS_ROLE, breakGlassUsername, isBreakGlassEnabled } from "@/lib/auth/break-glass";
+import { verifyBreakGlassCredentials } from "@/lib/auth/break-glass-verify";
+import {
+  clearLoginAttempts,
+  clientIp,
+  loginAttemptsBlocked,
+  recordFailedLogin,
+} from "@/lib/auth/login-throttle";
+
+const GENERIC_LOGIN_ERROR = "Wrong username or password.";
+const DISABLED_LOGIN_ERROR =
+  "Password sign-in is disabled. Use Google or an email code on the sign-in page.";
 
 export async function POST(req: NextRequest) {
   if (isClerkAuth()) {
-    return NextResponse.json(
-      { error: "Password sign-in is disabled. Use Google or an email code on the sign-in page." },
-      { status: 403 },
-    );
+    return breakGlassLogin(req);
   }
 
   let body: { username?: string; role?: string; password?: string };
@@ -86,3 +95,70 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+async function breakGlassLogin(req: NextRequest) {
+  if (!isBreakGlassEnabled()) {
+    return NextResponse.json({ error: DISABLED_LOGIN_ERROR }, { status: 403 });
+  }
+
+  const ip = clientIp(req);
+  if (loginAttemptsBlocked(ip)) {
+    return NextResponse.json(
+      { error: "Too many attempts. Try again shortly." },
+      { status: 429 },
+    );
+  }
+
+  let body: { username?: string; role?: string; password?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const identity = String(body.username ?? body.role ?? "");
+  const password = String(body.password ?? "");
+  if (!identity.trim() || !password) {
+    return NextResponse.json({ error: GENERIC_LOGIN_ERROR }, { status: 401 });
+  }
+
+  try {
+    const ok = await verifyBreakGlassCredentials(identity, password);
+    if (!ok) {
+      recordFailedLogin(ip);
+      return NextResponse.json({ error: GENERIC_LOGIN_ERROR }, { status: 401 });
+    }
+
+    clearLoginAttempts(ip);
+    const username = breakGlassUsername();
+    const roleId = BREAK_GLASS_ROLE;
+    const role = await resolveRole(roleId);
+    const persona = role ?? personaDef(roleId);
+    const token = await createSessionToken({ username, role: roleId });
+    const res = NextResponse.json({
+      ok: true,
+      user: {
+        username,
+        displayName: persona.label,
+        role: roleId,
+        label: persona.label,
+        homeHref: persona.homeHref,
+      },
+    });
+    res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
+    res.cookies.set(
+      NAV_COOKIE,
+      await createNavToken(roleId, role?.navAllow ?? persona.navAllow),
+      sessionCookieOptions(),
+    );
+    return res;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[auth] break-glass login failed unexpectedly:", err);
+    return NextResponse.json(
+      { error: "Sign-in is temporarily unavailable. Try again shortly." },
+      { status: 500 },
+    );
+  }
+}
+
